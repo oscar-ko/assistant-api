@@ -18,11 +18,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-type createUserRequest struct {
-	Name  string `json:"name" binding:"required"`
-	Email string `json:"email" binding:"required,email"`
-}
-
 func Start() {
 	ctx := context.Background()
 
@@ -44,40 +39,6 @@ func Start() {
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
-
-	r.POST("/users", func(c *gin.Context) {
-		var req createUserRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-		user, err := client.User.
-			Create().
-			SetName(req.Name).
-			SetEmail(req.Email).
-			Save(ctx)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusCreated, gin.H{
-			"id":    user.ID,
-			"name":  user.Name,
-			"email": user.Email,
-		})
-	})
-
-	r.GET("/users", func(c *gin.Context) {
-		users, err := client.User.Query().All(ctx)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusOK, users)
 	})
 
 	r.POST(config.GraphQL.QueryPath, gin.WrapH(gqlServer))
