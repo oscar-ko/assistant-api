@@ -1,0 +1,19 @@
+interface Node {
+    id: ID!
+}
+
+type User implements Node {
+    id: ID!
+    name: String!
+    email: String!
+}
+
+type Query {
+    node(id: ID!): Node
+    users(where: UserWhereInput): [User!]!
+}
+
+type Mutation {
+    createUser(input: CreateUserInput!): User!
+    updateUser(id: ID!, input: UpdateUserInput!): User!
+}
