@@ -24,7 +24,7 @@ import (
 		"response_type": {"code"},
 		"client_id":     {config.Line.ChannelID},
 		"redirect_uri":  {redirectURI},
-		"state":         {state}, <--------
+		"state":         {state}, <-------- 這裡就是 OAuth state，用來防止 CSRF 攻擊
 		"scope":         {strings.TrimSpace(config.Line.Scopes)},
 	}.Encode()
 **/

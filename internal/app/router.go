@@ -17,6 +17,8 @@ import (
 // NewRouter 集中註冊所有 HTTP 路由與 middleware。
 func NewRouter(client *ent.Client) *gin.Engine {
 	r := gin.Default()
+	// 安全預設：不信任任何反向代理，避免 client IP 被偽造。
+	_ = r.SetTrustedProxies(nil)
 
 	registerHealthRoutes(r)
 	registerGraphQLRoutes(r, client)
