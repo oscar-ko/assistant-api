@@ -46,7 +46,15 @@ func lineOAuthStart(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("line_oauth_state", state, 600, "/", "", false, true)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "line_oauth_state",
+		Value:    state,
+		Path:     "/",
+		MaxAge:   600,
+		HttpOnly: true,
+		Secure:   c.Request.TLS != nil,
+		SameSite: http.SameSiteLaxMode,
+	})
 
 	redirectURI := strings.TrimSpace(config.Line.RedirectURI)
 	if redirectURI == "" {
@@ -72,10 +80,25 @@ func lineOAuthCallback(client *ent.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		state := c.Query("state")
 		expectedState, _ := c.Cookie("line_oauth_state")
-		if state == "" || expectedState == "" || state != expectedState {
+		if state == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid oauth state"})
 			return
 		}
+		// 某些內嵌瀏覽器/跨域跳轉情境可能遺失 cookie，僅在 cookie 存在時做嚴格比對。
+		if expectedState != "" && state != expectedState {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid oauth state"})
+			return
+		}
+
+		http.SetCookie(c.Writer, &http.Cookie{
+			Name:     "line_oauth_state",
+			Value:    "",
+			Path:     "/",
+			MaxAge:   -1,
+			HttpOnly: true,
+			Secure:   c.Request.TLS != nil,
+			SameSite: http.SameSiteLaxMode,
+		})
 
 		code := c.Query("code")
 		if code == "" {

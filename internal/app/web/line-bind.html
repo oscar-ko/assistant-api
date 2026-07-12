@@ -61,6 +61,11 @@
         <div class="msg" id="msg"></div>
     </div>
     <script>
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('code') && params.get('state')) {
+            window.location.href = '/line/oauth/callback?' + params.toString();
+        }
+
         const btn = document.getElementById('bindBtn');
         const msg = document.getElementById('msg');
         btn.addEventListener('click', () => {

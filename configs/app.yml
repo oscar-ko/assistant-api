@@ -21,10 +21,13 @@ postgresql:
     parameters: "sslmode=disable"
 
 line:
-    channel_id: ""
-    client_secret: ""
-    redirect_uri: "http://localhost:8080/line/oauth/callback"
-    assistant_bot_url: ""
+    channel_token: "nyIJ/34bQBdUCMDt4qnZHMUMTacR0r4d6DC8DZRbEemdkh2jn+pJdz6b8ID3znqivrpU9VMM6r+Vb+s5R4wJoayE5Ndux1lk2JxzuqlTNEotrhZ9qfnS2huRjmPLb4iUykRggJ3Xr71QPynULjAb1AdB04t89/1O/w1cDnyilFU="
+    channel_secret: "7966f875a2c3c7bcf8a22a27b048d524"
+    channel_id: "2009014065"
+    bot_user_id: "U020a927b2f6a423a66c488acc29f1b6e"
+    client_secret: "5f53fccaf3589b484652412c1970a431"
+    redirect_uri: "https://uninebriated-nonexplorative-kasey.ngrok-free.dev/line/bind"
+    assistant_bot_url: "https://line.me/R/ti/p/@001ondgw"
     scopes: "openid profile email"
 
 graphql:
