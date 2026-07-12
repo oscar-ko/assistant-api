@@ -42,7 +42,10 @@ type DatabaseConfig struct {
 
 // LineConfig 為 LINE OAuth 綁定所需參數。
 type LineConfig struct {
+	ChannelToken    string `mapstructure:"channel_token" yaml:"channel_token"`
+	ChannelSecret   string `mapstructure:"channel_secret" yaml:"channel_secret"`
 	ChannelID       string `mapstructure:"channel_id" yaml:"channel_id"`
+	BotUserID       string `mapstructure:"bot_user_id" yaml:"bot_user_id"`
 	ClientSecret    string `mapstructure:"client_secret" yaml:"client_secret"`
 	RedirectURI     string `mapstructure:"redirect_uri" yaml:"redirect_uri"`
 	AssistantBotURL string `mapstructure:"assistant_bot_url" yaml:"assistant_bot_url"`
@@ -136,7 +139,10 @@ func MustLoad() {
 		viper.SetDefault("postgresql.user_name", "")
 		viper.SetDefault("postgresql.password", "")
 		viper.SetDefault("postgresql.parameters", "sslmode=disable")
+		viper.SetDefault("line.channel_token", "")
+		viper.SetDefault("line.channel_secret", "")
 		viper.SetDefault("line.channel_id", "")
+		viper.SetDefault("line.bot_user_id", "")
 		viper.SetDefault("line.client_secret", "")
 		viper.SetDefault("line.redirect_uri", "")
 		viper.SetDefault("line.assistant_bot_url", "")

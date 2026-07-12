@@ -36,8 +36,13 @@ func registerHealthRoutes(r gin.IRouter) {
 
 // registerGraphQLRoutes 註冊 GraphQL 查詢端點與 Playground。
 func registerGraphQLRoutes(r gin.IRouter, client *ent.Client) {
+	linePushService, linePushInitErr := lineprovider.NewPushMessageService()
 	// 將 Ent Resolver 注入 gqlgen executable schema。
-	gqlServer := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &graph.Resolver{Client: client}}))
+	gqlServer := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &graph.Resolver{
+		Client:          client,
+		LinePushService: linePushService,
+		LinePushInitErr: linePushInitErr,
+	}}))
 
 	r.POST(config.GraphQL.QueryPath, gin.WrapH(gqlServer))
 	r.GET(config.GraphQL.PlaygroundPath, gin.WrapH(playground.Handler("GraphQL Playground", config.GraphQL.QueryPath)))

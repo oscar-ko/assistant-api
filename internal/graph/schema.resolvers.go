@@ -7,7 +7,10 @@ package graph
 import (
 	"assistant-api/internal/ent"
 	"assistant-api/internal/graph/generated"
+	"assistant-api/internal/graph/model"
 	"context"
+	"fmt"
+	"strings"
 )
 
 // CreateUser is the resolver for the createUser field.
@@ -18,6 +21,28 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input ent.CreateUserI
 // UpdateUser is the resolver for the updateUser field.
 func (r *mutationResolver) UpdateUser(ctx context.Context, id int, input ent.UpdateUserInput) (*ent.User, error) {
 	return r.Client.User.UpdateOneID(id).SetInput(input).Save(ctx)
+}
+
+// SendLineText is the resolver for the sendLineText field.
+func (r *mutationResolver) SendLineText(ctx context.Context, input model.SendLineTextInput) (*model.SendLineTextPayload, error) {
+	if r.LinePushInitErr != nil || r.LinePushService == nil {
+		return nil, fmt.Errorf("line messaging is not configured")
+	}
+
+	lineUserID := strings.TrimSpace(input.LineUserID)
+	text := strings.TrimSpace(input.Text)
+	if lineUserID == "" || text == "" {
+		return nil, fmt.Errorf("lineUserID and text are required")
+	}
+
+	if err := r.LinePushService.PushText(ctx, lineUserID, text); err != nil {
+		return nil, err
+	}
+
+	return &model.SendLineTextPayload{
+		Status: "sent",
+		To:     lineUserID,
+	}, nil
 }
 
 // Node is the resolver for the node field.

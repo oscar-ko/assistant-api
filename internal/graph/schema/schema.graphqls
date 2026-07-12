@@ -16,4 +16,15 @@ type Query {
 type Mutation {
     createUser(input: CreateUserInput!): User!
     updateUser(id: ID!, input: UpdateUserInput!): User!
+    sendLineText(input: SendLineTextInput!): SendLineTextPayload!
+}
+
+input SendLineTextInput {
+    lineUserID: String!
+    text: String!
+}
+
+type SendLineTextPayload {
+    status: String!
+    to: String!
 }
