@@ -1,0 +1,40 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "run assistant-api server",
+      "type": "shell",
+      "command": "go",
+      "args": [
+        "run",
+        "./cmd/server"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder:assistant-api}",
+        "env": {
+          "APP_CONFIG": "${workspaceFolder:assistant-api}/configs/app.yml"
+        }
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "build assistant-api",
+      "type": "shell",
+      "command": "go",
+      "args": [
+        "build",
+        "./..."
+      ],
+      "options": {
+        "cwd": "${workspaceFolder:assistant-api}"
+      },
+      "problemMatcher": [
+        "$go"
+      ]
+    }
+  ]
+}

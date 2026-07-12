@@ -7,10 +7,11 @@ import (
 
 	"assistant-api/internal/config"
 	"assistant-api/internal/ent"
+	"assistant-api/internal/seed"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
-	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/lib/pq"
 )
 
 // Start 負責組裝基礎資源並啟動 HTTP 伺服器。
@@ -32,6 +33,10 @@ func Start() {
 		if err := client.Schema.Create(ctx); err != nil {
 			log.Fatalf("failed creating schema resources: %v", err)
 		}
+	}
+
+	if err := seed.Run(ctx, client); err != nil {
+		log.Fatalf("failed seeding default data: %v", err)
 	}
 
 	// 組裝路由後啟動服務。

@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run assistant-api server",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder:assistant-api}/cmd/server",
+      "cwd": "${workspaceFolder:assistant-api}",
+      "env": {
+        "APP_CONFIG": "${workspaceFolder:assistant-api}/configs/app.yml"
+      }
+    }
+  ]
+}
