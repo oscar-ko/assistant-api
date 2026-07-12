@@ -20,6 +20,8 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 	r.GET("/line/bind", bindPage)
 	r.GET("/line/oauth/start", oauthStart)
 	r.GET("/line/oauth/callback", oauthCallback(client))
+	// Webhook 採 handler -> service 分層，便於後續替換 queue/worker 實作。
+	r.POST("/line/webhook", webhookHandler(NewWebhookService()))
 }
 
 // bindPage 回傳 LINE 綁定頁面。
