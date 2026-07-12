@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"assistant-api/internal/config"
 	"assistant-api/internal/ent"
 	"assistant-api/internal/graph"
 	"assistant-api/internal/graph/generated"
@@ -22,10 +23,10 @@ type createUserRequest struct {
 	Email string `json:"email" binding:"required,email"`
 }
 
-func Start(port string) {
+func Start() {
 	ctx := context.Background()
 
-	drv, err := entsql.Open(dialect.SQLite, "file:ent.db?_fk=1")
+	drv, err := entsql.Open(dialect.SQLite, config.Database.SQLiteDSN)
 	if err != nil {
 		log.Fatalf("failed opening sqlite connection: %v", err)
 	}
@@ -79,10 +80,10 @@ func Start(port string) {
 		c.JSON(http.StatusOK, users)
 	})
 
-	r.POST("/query", gin.WrapH(gqlServer))
-	r.GET("/playground", gin.WrapH(playground.Handler("GraphQL Playground", "/query")))
+	r.POST(config.GraphQL.QueryPath, gin.WrapH(gqlServer))
+	r.GET(config.GraphQL.PlaygroundPath, gin.WrapH(playground.Handler("GraphQL Playground", config.GraphQL.QueryPath)))
 
-	if err := r.Run(":" + port); err != nil {
+	if err := r.Run(":" + config.Server.Port); err != nil {
 		log.Fatalf("server failed: %v", err)
 	}
 }

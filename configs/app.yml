@@ -1,0 +1,18 @@
+run_mode: "dev"
+
+log:
+    level: "info"
+    filename: ""
+    max_size: 10
+    max_age: 7
+    max_backups: 5
+
+server:
+    port: "8080"
+
+database:
+    sqlite_dsn: "file:ent.db?_fk=1"
+
+graphql:
+    query_path: "/query"
+    playground_path: "/playground"

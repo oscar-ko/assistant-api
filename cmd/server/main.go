@@ -1,7 +1,11 @@
 package main
 
-import "assistant-api/internal/app"
+import (
+	"assistant-api/internal/app"
+	"assistant-api/internal/config"
+)
 
 func main() {
-	app.Start("8080")
+	config.MustLoad()
+	app.Start()
 }
