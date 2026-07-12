@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"assistant-api/internal/config"
@@ -9,17 +10,17 @@ import (
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
-	_ "modernc.org/sqlite"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 // Start 負責組裝基礎資源並啟動 HTTP 伺服器。
 func Start() {
 	ctx := context.Background()
 
-	// 建立 SQLite 連線驅動，供 Ent 使用。
-	drv, err := entsql.Open(dialect.SQLite, config.Database.SQLiteDSN)
+	// 使用 PostgreSQL 建立資料庫連線。
+	drv, err := openDBDriver()
 	if err != nil {
-		log.Fatalf("failed opening sqlite connection: %v", err)
+		log.Fatalf("failed opening database connection: %v", err)
 	}
 	defer drv.Close()
 
@@ -27,8 +28,10 @@ func Start() {
 	client := ent.NewClient(ent.Driver(drv))
 	defer client.Close()
 
-	if err := client.Schema.Create(ctx); err != nil {
-		log.Fatalf("failed creating schema resources: %v", err)
+	if config.Database.AutoSchemaCreate {
+		if err := client.Schema.Create(ctx); err != nil {
+			log.Fatalf("failed creating schema resources: %v", err)
+		}
 	}
 
 	// 組裝路由後啟動服務。
@@ -37,4 +40,12 @@ func Start() {
 	if err := r.Run(":" + config.Server.Port); err != nil {
 		log.Fatalf("server failed: %v", err)
 	}
+}
+
+func openDBDriver() (*entsql.Driver, error) {
+	dsn := config.PostgreSQL.GetDSN()
+	if dsn == "" {
+		return nil, fmt.Errorf("postgresql dsn is empty, please check postgresql config")
+	}
+	return entsql.Open(dialect.Postgres, dsn)
 }

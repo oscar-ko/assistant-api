@@ -11,7 +11,14 @@ server:
     port: "8080"
 
 database:
-    sqlite_dsn: "file:ent.db?_fk=1"
+    auto_schema_create: true
+
+postgresql:
+    address: "127.0.0.1:5432"
+    database: "assistant_dev2"
+    user_name: "postgres"
+    password: "d22340014"
+    parameters: "sslmode=disable"
 
 graphql:
     query_path: "/query"

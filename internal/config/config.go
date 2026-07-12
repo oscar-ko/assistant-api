@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -14,11 +15,12 @@ const defaultConfigPath = "configs/app.yml"
 
 // configuration 對應設定檔結構，透過指標綁定到 package-level 全域變數。
 type configuration struct {
-	RunMode  *string         `mapstructure:"run_mode"`
-	Log      *LogConfig      `mapstructure:"log"`
-	Server   *ServerConfig   `mapstructure:"server"`
-	Database *DatabaseConfig `mapstructure:"database"`
-	GraphQL  *GraphQLConfig  `mapstructure:"graphql"`
+	RunMode    *string           `mapstructure:"run_mode"`
+	Log        *LogConfig        `mapstructure:"log"`
+	Server     *ServerConfig     `mapstructure:"server"`
+	Database   *DatabaseConfig   `mapstructure:"database"`
+	PostgreSQL *PostgreSQLConfig `mapstructure:"postgresql"`
+	GraphQL    *GraphQLConfig    `mapstructure:"graphql"`
 }
 
 type LogConfig struct {
@@ -34,7 +36,31 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
-	SQLiteDSN string `mapstructure:"sqlite_dsn" yaml:"sqlite_dsn"`
+	AutoSchemaCreate bool `mapstructure:"auto_schema_create" yaml:"auto_schema_create"`
+}
+
+// PostgreSQLConfig 參照 backend 風格，集中管理 PostgreSQL 連線參數。
+type PostgreSQLConfig struct {
+	Address    string `mapstructure:"address" yaml:"address"`
+	Database   string `mapstructure:"database" yaml:"database"`
+	UserName   string `mapstructure:"user_name" yaml:"user_name"`
+	Password   string `mapstructure:"password" yaml:"password"`
+	Parameters string `mapstructure:"parameters" yaml:"parameters"`
+}
+
+// GetDSN 產出 Ent/PostgreSQL 可用的 DSN 字串。
+func (p PostgreSQLConfig) GetDSN() string {
+	if strings.TrimSpace(p.Address) == "" || strings.TrimSpace(p.Database) == "" {
+		return ""
+	}
+	dsn := url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(p.UserName, p.Password),
+		Host:     p.Address,
+		Path:     p.Database,
+		RawQuery: p.Parameters,
+	}
+	return dsn.String()
 }
 
 type GraphQLConfig struct {
@@ -46,18 +72,20 @@ var (
 	once sync.Once
 
 	// 以下為全域設定值，載入後可在各模組直接讀取。
-	RunMode  string
-	Log      LogConfig
-	Server   ServerConfig
-	Database DatabaseConfig
-	GraphQL  GraphQLConfig
+	RunMode    string
+	Log        LogConfig
+	Server     ServerConfig
+	Database   DatabaseConfig
+	PostgreSQL PostgreSQLConfig
+	GraphQL    GraphQLConfig
 
 	config = &configuration{
-		RunMode:  &RunMode,
-		Log:      &Log,
-		Server:   &Server,
-		Database: &Database,
-		GraphQL:  &GraphQL,
+		RunMode:    &RunMode,
+		Log:        &Log,
+		Server:     &Server,
+		Database:   &Database,
+		PostgreSQL: &PostgreSQL,
+		GraphQL:    &GraphQL,
 	}
 )
 
@@ -88,7 +116,12 @@ func MustLoad() {
 		viper.SetDefault("log.max_age", 7)
 		viper.SetDefault("log.max_backups", 5)
 		viper.SetDefault("server.port", "8080")
-		viper.SetDefault("database.sqlite_dsn", "file:ent.db?_fk=1")
+		viper.SetDefault("database.auto_schema_create", true)
+		viper.SetDefault("postgresql.address", "")
+		viper.SetDefault("postgresql.database", "")
+		viper.SetDefault("postgresql.user_name", "")
+		viper.SetDefault("postgresql.password", "")
+		viper.SetDefault("postgresql.parameters", "sslmode=disable")
 		viper.SetDefault("graphql.query_path", "/query")
 		viper.SetDefault("graphql.playground_path", "/playground")
 
@@ -102,7 +135,8 @@ func MustLoad() {
 		// 重要欄位缺失時直接中止，避免服務以不完整設定啟動。
 		requiredKeys := []string{
 			"server.port",
-			"database.sqlite_dsn",
+			"postgresql.address",
+			"postgresql.database",
 			"graphql.query_path",
 			"graphql.playground_path",
 		}
