@@ -20,6 +20,7 @@ type configuration struct {
 	Server     *ServerConfig     `mapstructure:"server"`
 	Database   *DatabaseConfig   `mapstructure:"database"`
 	PostgreSQL *PostgreSQLConfig `mapstructure:"postgresql"`
+	Line       *LineConfig       `mapstructure:"line"`
 	GraphQL    *GraphQLConfig    `mapstructure:"graphql"`
 }
 
@@ -37,6 +38,15 @@ type ServerConfig struct {
 
 type DatabaseConfig struct {
 	AutoSchemaCreate bool `mapstructure:"auto_schema_create" yaml:"auto_schema_create"`
+}
+
+// LineConfig 為 LINE OAuth 綁定所需參數。
+type LineConfig struct {
+	ChannelID       string `mapstructure:"channel_id" yaml:"channel_id"`
+	ClientSecret    string `mapstructure:"client_secret" yaml:"client_secret"`
+	RedirectURI     string `mapstructure:"redirect_uri" yaml:"redirect_uri"`
+	AssistantBotURL string `mapstructure:"assistant_bot_url" yaml:"assistant_bot_url"`
+	Scopes          string `mapstructure:"scopes" yaml:"scopes"`
 }
 
 // PostgreSQLConfig 參照 backend 風格，集中管理 PostgreSQL 連線參數。
@@ -77,6 +87,7 @@ var (
 	Server     ServerConfig
 	Database   DatabaseConfig
 	PostgreSQL PostgreSQLConfig
+	Line       LineConfig
 	GraphQL    GraphQLConfig
 
 	config = &configuration{
@@ -85,6 +96,7 @@ var (
 		Server:     &Server,
 		Database:   &Database,
 		PostgreSQL: &PostgreSQL,
+		Line:       &Line,
 		GraphQL:    &GraphQL,
 	}
 )
@@ -107,8 +119,10 @@ func MustLoad() {
 		}
 
 		viper.AutomaticEnv()
+		// 將巢狀 key（如 line.channel_id）對應為環境變數格式（LINE_CHANNEL_ID）。
 		viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
+		// 預設值可讓本機開發在最少設定下啟動。
 		viper.SetDefault("run_mode", "dev")
 		viper.SetDefault("log.level", "info")
 		viper.SetDefault("log.filename", "")
@@ -122,6 +136,11 @@ func MustLoad() {
 		viper.SetDefault("postgresql.user_name", "")
 		viper.SetDefault("postgresql.password", "")
 		viper.SetDefault("postgresql.parameters", "sslmode=disable")
+		viper.SetDefault("line.channel_id", "")
+		viper.SetDefault("line.client_secret", "")
+		viper.SetDefault("line.redirect_uri", "")
+		viper.SetDefault("line.assistant_bot_url", "")
+		viper.SetDefault("line.scopes", "openid profile email")
 		viper.SetDefault("graphql.query_path", "/query")
 		viper.SetDefault("graphql.playground_path", "/playground")
 
@@ -148,6 +167,11 @@ func MustLoad() {
 
 		if err := viper.Unmarshal(config); err != nil {
 			log.Fatalf("failed to parse config: %v", err)
+		}
+
+		// 補齊空值容錯，避免 scope 留空導致 OAuth 行為異常。
+		if strings.TrimSpace(Line.Scopes) == "" {
+			Line.Scopes = "openid profile email"
 		}
 	})
 }

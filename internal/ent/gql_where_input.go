@@ -3,11 +3,398 @@
 package ent
 
 import (
+	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/user"
 	"errors"
 	"fmt"
 )
+
+// LineWhereInput represents a where input for filtering Line queries.
+type LineWhereInput struct {
+	Predicates []predicate.Line  `json:"-"`
+	Not        *LineWhereInput   `json:"not,omitempty"`
+	Or         []*LineWhereInput `json:"or,omitempty"`
+	And        []*LineWhereInput `json:"and,omitempty"`
+
+	// "id" field predicates.
+	ID      *int  `json:"id,omitempty"`
+	IDNEQ   *int  `json:"idNEQ,omitempty"`
+	IDIn    []int `json:"idIn,omitempty"`
+	IDNotIn []int `json:"idNotIn,omitempty"`
+	IDGT    *int  `json:"idGT,omitempty"`
+	IDGTE   *int  `json:"idGTE,omitempty"`
+	IDLT    *int  `json:"idLT,omitempty"`
+	IDLTE   *int  `json:"idLTE,omitempty"`
+
+	// "line_user_id" field predicates.
+	LineUserID             *string  `json:"lineUserID,omitempty"`
+	LineUserIDNEQ          *string  `json:"lineUserIDNEQ,omitempty"`
+	LineUserIDIn           []string `json:"lineUserIDIn,omitempty"`
+	LineUserIDNotIn        []string `json:"lineUserIDNotIn,omitempty"`
+	LineUserIDGT           *string  `json:"lineUserIDGT,omitempty"`
+	LineUserIDGTE          *string  `json:"lineUserIDGTE,omitempty"`
+	LineUserIDLT           *string  `json:"lineUserIDLT,omitempty"`
+	LineUserIDLTE          *string  `json:"lineUserIDLTE,omitempty"`
+	LineUserIDContains     *string  `json:"lineUserIDContains,omitempty"`
+	LineUserIDHasPrefix    *string  `json:"lineUserIDHasPrefix,omitempty"`
+	LineUserIDHasSuffix    *string  `json:"lineUserIDHasSuffix,omitempty"`
+	LineUserIDEqualFold    *string  `json:"lineUserIDEqualFold,omitempty"`
+	LineUserIDContainsFold *string  `json:"lineUserIDContainsFold,omitempty"`
+
+	// "display_name" field predicates.
+	DisplayName             *string  `json:"displayName,omitempty"`
+	DisplayNameNEQ          *string  `json:"displayNameNEQ,omitempty"`
+	DisplayNameIn           []string `json:"displayNameIn,omitempty"`
+	DisplayNameNotIn        []string `json:"displayNameNotIn,omitempty"`
+	DisplayNameGT           *string  `json:"displayNameGT,omitempty"`
+	DisplayNameGTE          *string  `json:"displayNameGTE,omitempty"`
+	DisplayNameLT           *string  `json:"displayNameLT,omitempty"`
+	DisplayNameLTE          *string  `json:"displayNameLTE,omitempty"`
+	DisplayNameContains     *string  `json:"displayNameContains,omitempty"`
+	DisplayNameHasPrefix    *string  `json:"displayNameHasPrefix,omitempty"`
+	DisplayNameHasSuffix    *string  `json:"displayNameHasSuffix,omitempty"`
+	DisplayNameIsNil        bool     `json:"displayNameIsNil,omitempty"`
+	DisplayNameNotNil       bool     `json:"displayNameNotNil,omitempty"`
+	DisplayNameEqualFold    *string  `json:"displayNameEqualFold,omitempty"`
+	DisplayNameContainsFold *string  `json:"displayNameContainsFold,omitempty"`
+
+	// "email" field predicates.
+	Email             *string  `json:"email,omitempty"`
+	EmailNEQ          *string  `json:"emailNEQ,omitempty"`
+	EmailIn           []string `json:"emailIn,omitempty"`
+	EmailNotIn        []string `json:"emailNotIn,omitempty"`
+	EmailGT           *string  `json:"emailGT,omitempty"`
+	EmailGTE          *string  `json:"emailGTE,omitempty"`
+	EmailLT           *string  `json:"emailLT,omitempty"`
+	EmailLTE          *string  `json:"emailLTE,omitempty"`
+	EmailContains     *string  `json:"emailContains,omitempty"`
+	EmailHasPrefix    *string  `json:"emailHasPrefix,omitempty"`
+	EmailHasSuffix    *string  `json:"emailHasSuffix,omitempty"`
+	EmailIsNil        bool     `json:"emailIsNil,omitempty"`
+	EmailNotNil       bool     `json:"emailNotNil,omitempty"`
+	EmailEqualFold    *string  `json:"emailEqualFold,omitempty"`
+	EmailContainsFold *string  `json:"emailContainsFold,omitempty"`
+
+	// "picture" field predicates.
+	Picture             *string  `json:"picture,omitempty"`
+	PictureNEQ          *string  `json:"pictureNEQ,omitempty"`
+	PictureIn           []string `json:"pictureIn,omitempty"`
+	PictureNotIn        []string `json:"pictureNotIn,omitempty"`
+	PictureGT           *string  `json:"pictureGT,omitempty"`
+	PictureGTE          *string  `json:"pictureGTE,omitempty"`
+	PictureLT           *string  `json:"pictureLT,omitempty"`
+	PictureLTE          *string  `json:"pictureLTE,omitempty"`
+	PictureContains     *string  `json:"pictureContains,omitempty"`
+	PictureHasPrefix    *string  `json:"pictureHasPrefix,omitempty"`
+	PictureHasSuffix    *string  `json:"pictureHasSuffix,omitempty"`
+	PictureIsNil        bool     `json:"pictureIsNil,omitempty"`
+	PictureNotNil       bool     `json:"pictureNotNil,omitempty"`
+	PictureEqualFold    *string  `json:"pictureEqualFold,omitempty"`
+	PictureContainsFold *string  `json:"pictureContainsFold,omitempty"`
+
+	// "user" edge predicates.
+	HasUser     *bool             `json:"hasUser,omitempty"`
+	HasUserWith []*UserWhereInput `json:"hasUserWith,omitempty"`
+}
+
+// AddPredicates adds custom predicates to the where input to be used during the filtering phase.
+func (i *LineWhereInput) AddPredicates(predicates ...predicate.Line) {
+	i.Predicates = append(i.Predicates, predicates...)
+}
+
+// Filter applies the LineWhereInput filter on the LineQuery builder.
+func (i *LineWhereInput) Filter(q *LineQuery) (*LineQuery, error) {
+	if i == nil {
+		return q, nil
+	}
+	p, err := i.P()
+	if err != nil {
+		if err == ErrEmptyLineWhereInput {
+			return q, nil
+		}
+		return nil, err
+	}
+	return q.Where(p), nil
+}
+
+// ErrEmptyLineWhereInput is returned in case the LineWhereInput is empty.
+var ErrEmptyLineWhereInput = errors.New("ent: empty predicate LineWhereInput")
+
+// P returns a predicate for filtering lines.
+// An error is returned if the input is empty or invalid.
+func (i *LineWhereInput) P() (predicate.Line, error) {
+	var predicates []predicate.Line
+	if i.Not != nil {
+		p, err := i.Not.P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'not'", err)
+		}
+		predicates = append(predicates, line.Not(p))
+	}
+	switch n := len(i.Or); {
+	case n == 1:
+		p, err := i.Or[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'or'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		or := make([]predicate.Line, 0, n)
+		for _, w := range i.Or {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'or'", err)
+			}
+			or = append(or, p)
+		}
+		predicates = append(predicates, line.Or(or...))
+	}
+	switch n := len(i.And); {
+	case n == 1:
+		p, err := i.And[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'and'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		and := make([]predicate.Line, 0, n)
+		for _, w := range i.And {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'and'", err)
+			}
+			and = append(and, p)
+		}
+		predicates = append(predicates, line.And(and...))
+	}
+	predicates = append(predicates, i.Predicates...)
+	if i.ID != nil {
+		predicates = append(predicates, line.IDEQ(*i.ID))
+	}
+	if i.IDNEQ != nil {
+		predicates = append(predicates, line.IDNEQ(*i.IDNEQ))
+	}
+	if len(i.IDIn) > 0 {
+		predicates = append(predicates, line.IDIn(i.IDIn...))
+	}
+	if len(i.IDNotIn) > 0 {
+		predicates = append(predicates, line.IDNotIn(i.IDNotIn...))
+	}
+	if i.IDGT != nil {
+		predicates = append(predicates, line.IDGT(*i.IDGT))
+	}
+	if i.IDGTE != nil {
+		predicates = append(predicates, line.IDGTE(*i.IDGTE))
+	}
+	if i.IDLT != nil {
+		predicates = append(predicates, line.IDLT(*i.IDLT))
+	}
+	if i.IDLTE != nil {
+		predicates = append(predicates, line.IDLTE(*i.IDLTE))
+	}
+	if i.LineUserID != nil {
+		predicates = append(predicates, line.LineUserIDEQ(*i.LineUserID))
+	}
+	if i.LineUserIDNEQ != nil {
+		predicates = append(predicates, line.LineUserIDNEQ(*i.LineUserIDNEQ))
+	}
+	if len(i.LineUserIDIn) > 0 {
+		predicates = append(predicates, line.LineUserIDIn(i.LineUserIDIn...))
+	}
+	if len(i.LineUserIDNotIn) > 0 {
+		predicates = append(predicates, line.LineUserIDNotIn(i.LineUserIDNotIn...))
+	}
+	if i.LineUserIDGT != nil {
+		predicates = append(predicates, line.LineUserIDGT(*i.LineUserIDGT))
+	}
+	if i.LineUserIDGTE != nil {
+		predicates = append(predicates, line.LineUserIDGTE(*i.LineUserIDGTE))
+	}
+	if i.LineUserIDLT != nil {
+		predicates = append(predicates, line.LineUserIDLT(*i.LineUserIDLT))
+	}
+	if i.LineUserIDLTE != nil {
+		predicates = append(predicates, line.LineUserIDLTE(*i.LineUserIDLTE))
+	}
+	if i.LineUserIDContains != nil {
+		predicates = append(predicates, line.LineUserIDContains(*i.LineUserIDContains))
+	}
+	if i.LineUserIDHasPrefix != nil {
+		predicates = append(predicates, line.LineUserIDHasPrefix(*i.LineUserIDHasPrefix))
+	}
+	if i.LineUserIDHasSuffix != nil {
+		predicates = append(predicates, line.LineUserIDHasSuffix(*i.LineUserIDHasSuffix))
+	}
+	if i.LineUserIDEqualFold != nil {
+		predicates = append(predicates, line.LineUserIDEqualFold(*i.LineUserIDEqualFold))
+	}
+	if i.LineUserIDContainsFold != nil {
+		predicates = append(predicates, line.LineUserIDContainsFold(*i.LineUserIDContainsFold))
+	}
+	if i.DisplayName != nil {
+		predicates = append(predicates, line.DisplayNameEQ(*i.DisplayName))
+	}
+	if i.DisplayNameNEQ != nil {
+		predicates = append(predicates, line.DisplayNameNEQ(*i.DisplayNameNEQ))
+	}
+	if len(i.DisplayNameIn) > 0 {
+		predicates = append(predicates, line.DisplayNameIn(i.DisplayNameIn...))
+	}
+	if len(i.DisplayNameNotIn) > 0 {
+		predicates = append(predicates, line.DisplayNameNotIn(i.DisplayNameNotIn...))
+	}
+	if i.DisplayNameGT != nil {
+		predicates = append(predicates, line.DisplayNameGT(*i.DisplayNameGT))
+	}
+	if i.DisplayNameGTE != nil {
+		predicates = append(predicates, line.DisplayNameGTE(*i.DisplayNameGTE))
+	}
+	if i.DisplayNameLT != nil {
+		predicates = append(predicates, line.DisplayNameLT(*i.DisplayNameLT))
+	}
+	if i.DisplayNameLTE != nil {
+		predicates = append(predicates, line.DisplayNameLTE(*i.DisplayNameLTE))
+	}
+	if i.DisplayNameContains != nil {
+		predicates = append(predicates, line.DisplayNameContains(*i.DisplayNameContains))
+	}
+	if i.DisplayNameHasPrefix != nil {
+		predicates = append(predicates, line.DisplayNameHasPrefix(*i.DisplayNameHasPrefix))
+	}
+	if i.DisplayNameHasSuffix != nil {
+		predicates = append(predicates, line.DisplayNameHasSuffix(*i.DisplayNameHasSuffix))
+	}
+	if i.DisplayNameIsNil {
+		predicates = append(predicates, line.DisplayNameIsNil())
+	}
+	if i.DisplayNameNotNil {
+		predicates = append(predicates, line.DisplayNameNotNil())
+	}
+	if i.DisplayNameEqualFold != nil {
+		predicates = append(predicates, line.DisplayNameEqualFold(*i.DisplayNameEqualFold))
+	}
+	if i.DisplayNameContainsFold != nil {
+		predicates = append(predicates, line.DisplayNameContainsFold(*i.DisplayNameContainsFold))
+	}
+	if i.Email != nil {
+		predicates = append(predicates, line.EmailEQ(*i.Email))
+	}
+	if i.EmailNEQ != nil {
+		predicates = append(predicates, line.EmailNEQ(*i.EmailNEQ))
+	}
+	if len(i.EmailIn) > 0 {
+		predicates = append(predicates, line.EmailIn(i.EmailIn...))
+	}
+	if len(i.EmailNotIn) > 0 {
+		predicates = append(predicates, line.EmailNotIn(i.EmailNotIn...))
+	}
+	if i.EmailGT != nil {
+		predicates = append(predicates, line.EmailGT(*i.EmailGT))
+	}
+	if i.EmailGTE != nil {
+		predicates = append(predicates, line.EmailGTE(*i.EmailGTE))
+	}
+	if i.EmailLT != nil {
+		predicates = append(predicates, line.EmailLT(*i.EmailLT))
+	}
+	if i.EmailLTE != nil {
+		predicates = append(predicates, line.EmailLTE(*i.EmailLTE))
+	}
+	if i.EmailContains != nil {
+		predicates = append(predicates, line.EmailContains(*i.EmailContains))
+	}
+	if i.EmailHasPrefix != nil {
+		predicates = append(predicates, line.EmailHasPrefix(*i.EmailHasPrefix))
+	}
+	if i.EmailHasSuffix != nil {
+		predicates = append(predicates, line.EmailHasSuffix(*i.EmailHasSuffix))
+	}
+	if i.EmailIsNil {
+		predicates = append(predicates, line.EmailIsNil())
+	}
+	if i.EmailNotNil {
+		predicates = append(predicates, line.EmailNotNil())
+	}
+	if i.EmailEqualFold != nil {
+		predicates = append(predicates, line.EmailEqualFold(*i.EmailEqualFold))
+	}
+	if i.EmailContainsFold != nil {
+		predicates = append(predicates, line.EmailContainsFold(*i.EmailContainsFold))
+	}
+	if i.Picture != nil {
+		predicates = append(predicates, line.PictureEQ(*i.Picture))
+	}
+	if i.PictureNEQ != nil {
+		predicates = append(predicates, line.PictureNEQ(*i.PictureNEQ))
+	}
+	if len(i.PictureIn) > 0 {
+		predicates = append(predicates, line.PictureIn(i.PictureIn...))
+	}
+	if len(i.PictureNotIn) > 0 {
+		predicates = append(predicates, line.PictureNotIn(i.PictureNotIn...))
+	}
+	if i.PictureGT != nil {
+		predicates = append(predicates, line.PictureGT(*i.PictureGT))
+	}
+	if i.PictureGTE != nil {
+		predicates = append(predicates, line.PictureGTE(*i.PictureGTE))
+	}
+	if i.PictureLT != nil {
+		predicates = append(predicates, line.PictureLT(*i.PictureLT))
+	}
+	if i.PictureLTE != nil {
+		predicates = append(predicates, line.PictureLTE(*i.PictureLTE))
+	}
+	if i.PictureContains != nil {
+		predicates = append(predicates, line.PictureContains(*i.PictureContains))
+	}
+	if i.PictureHasPrefix != nil {
+		predicates = append(predicates, line.PictureHasPrefix(*i.PictureHasPrefix))
+	}
+	if i.PictureHasSuffix != nil {
+		predicates = append(predicates, line.PictureHasSuffix(*i.PictureHasSuffix))
+	}
+	if i.PictureIsNil {
+		predicates = append(predicates, line.PictureIsNil())
+	}
+	if i.PictureNotNil {
+		predicates = append(predicates, line.PictureNotNil())
+	}
+	if i.PictureEqualFold != nil {
+		predicates = append(predicates, line.PictureEqualFold(*i.PictureEqualFold))
+	}
+	if i.PictureContainsFold != nil {
+		predicates = append(predicates, line.PictureContainsFold(*i.PictureContainsFold))
+	}
+
+	if i.HasUser != nil {
+		p := line.HasUser()
+		if !*i.HasUser {
+			p = line.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasUserWith) > 0 {
+		with := make([]predicate.User, 0, len(i.HasUserWith))
+		for _, w := range i.HasUserWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasUserWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, line.HasUserWith(with...))
+	}
+	switch len(predicates) {
+	case 0:
+		return nil, ErrEmptyLineWhereInput
+	case 1:
+		return predicates[0], nil
+	default:
+		return line.And(predicates...), nil
+	}
+}
 
 // UserWhereInput represents a where input for filtering User queries.
 type UserWhereInput struct {
@@ -55,6 +442,10 @@ type UserWhereInput struct {
 	EmailHasSuffix    *string  `json:"emailHasSuffix,omitempty"`
 	EmailEqualFold    *string  `json:"emailEqualFold,omitempty"`
 	EmailContainsFold *string  `json:"emailContainsFold,omitempty"`
+
+	// "line" edge predicates.
+	HasLine     *bool             `json:"hasLine,omitempty"`
+	HasLineWith []*LineWhereInput `json:"hasLineWith,omitempty"`
 }
 
 // AddPredicates adds custom predicates to the where input to be used during the filtering phase.
@@ -231,6 +622,24 @@ func (i *UserWhereInput) P() (predicate.User, error) {
 		predicates = append(predicates, user.EmailContainsFold(*i.EmailContainsFold))
 	}
 
+	if i.HasLine != nil {
+		p := user.HasLine()
+		if !*i.HasLine {
+			p = user.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasLineWith) > 0 {
+		with := make([]predicate.Line, 0, len(i.HasLineWith))
+		for _, w := range i.HasLineWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasLineWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, user.HasLineWith(with...))
+	}
 	switch len(predicates) {
 	case 0:
 		return nil, ErrEmptyUserWhereInput

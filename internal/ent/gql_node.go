@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/user"
 	"context"
 	"fmt"
@@ -22,6 +23,11 @@ import (
 type Noder interface {
 	IsNode()
 }
+
+var lineImplementors = []string{"Line", "Node"}
+
+// IsNode implements the Node interface check for GQLGen.
+func (*Line) IsNode() {}
 
 var userImplementors = []string{"User", "Node"}
 
@@ -86,6 +92,15 @@ func (c *Client) Noder(ctx context.Context, id int, opts ...NodeOption) (_ Noder
 
 func (c *Client) noder(ctx context.Context, table string, id int) (Noder, error) {
 	switch table {
+	case line.Table:
+		query := c.Line.Query().
+			Where(line.ID(id))
+		if fc := graphql.GetFieldContext(ctx); fc != nil {
+			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, lineImplementors...); err != nil {
+				return nil, err
+			}
+		}
+		return query.Only(ctx)
 	case user.Table:
 		query := c.User.Query().
 			Where(user.ID(id))
@@ -168,6 +183,22 @@ func (c *Client) noders(ctx context.Context, table string, ids []int) ([]Noder, 
 		idmap[id] = append(idmap[id], &noders[i])
 	}
 	switch table {
+	case line.Table:
+		query := c.Line.Query().
+			Where(line.IDIn(ids...))
+		query, err := query.CollectFields(ctx, lineImplementors...)
+		if err != nil {
+			return nil, err
+		}
+		nodes, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, node := range nodes {
+			for _, noder := range idmap[node.ID] {
+				*noder = node
+			}
+		}
 	case user.Table:
 		query := c.User.Query().
 			Where(user.IDIn(ids...))
