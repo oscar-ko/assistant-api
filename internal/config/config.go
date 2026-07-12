@@ -12,6 +12,7 @@ import (
 
 const defaultConfigPath = "configs/app.yml"
 
+// configuration 對應設定檔結構，透過指標綁定到 package-level 全域變數。
 type configuration struct {
 	RunMode  *string         `mapstructure:"run_mode"`
 	Log      *LogConfig      `mapstructure:"log"`
@@ -44,6 +45,7 @@ type GraphQLConfig struct {
 var (
 	once sync.Once
 
+	// 以下為全域設定值，載入後可在各模組直接讀取。
 	RunMode  string
 	Log      LogConfig
 	Server   ServerConfig
@@ -59,8 +61,10 @@ var (
 	}
 )
 
+// MustLoad 只執行一次設定初始化，行為與 backend 專案一致。
 func MustLoad() {
 	once.Do(func() {
+		// 若有 APP_CONFIG，優先使用指定路徑；否則嘗試預設搜尋路徑。
 		path := os.Getenv("APP_CONFIG")
 		if path != "" {
 			viper.SetConfigFile(path)
@@ -95,6 +99,7 @@ func MustLoad() {
 			log.Fatalf("failed to read config file %q: %v", path, err)
 		}
 
+		// 重要欄位缺失時直接中止，避免服務以不完整設定啟動。
 		requiredKeys := []string{
 			"server.port",
 			"database.sqlite_dsn",
