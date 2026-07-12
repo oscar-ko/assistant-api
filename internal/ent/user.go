@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/user"
 	"fmt"
 	"strings"
@@ -19,8 +20,34 @@ type User struct {
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
 	// Email holds the value of the "email" field.
-	Email        string `json:"email,omitempty"`
+	Email string `json:"email,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the UserQuery when eager-loading is set.
+	Edges        UserEdges `json:"edges"`
+	line_user    *int
 	selectValues sql.SelectValues
+}
+
+// UserEdges holds the relations/edges for other nodes in the graph.
+type UserEdges struct {
+	// Line holds the value of the line edge.
+	Line *Line `json:"line,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+	// totalCount holds the count of the edges above.
+	totalCount [1]map[string]int
+}
+
+// LineOrErr returns the Line value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e UserEdges) LineOrErr() (*Line, error) {
+	if e.Line != nil {
+		return e.Line, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: line.Label}
+	}
+	return nil, &NotLoadedError{edge: "line"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -32,6 +59,8 @@ func (*User) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case user.FieldName, user.FieldEmail:
 			values[i] = new(sql.NullString)
+		case user.ForeignKeys[0]: // line_user
+			values[i] = new(sql.NullInt64)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -65,6 +94,13 @@ func (_m *User) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Email = value.String
 			}
+		case user.ForeignKeys[0]:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for edge-field line_user", value)
+			} else if value.Valid {
+				_m.line_user = new(int)
+				*_m.line_user = int(value.Int64)
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -76,6 +112,11 @@ func (_m *User) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (_m *User) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
+}
+
+// QueryLine queries the "line" edge of the User entity.
+func (_m *User) QueryLine() *LineQuery {
+	return NewUserClient(_m.config).QueryLine(_m)
 }
 
 // Update returns a builder for updating this User.

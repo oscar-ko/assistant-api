@@ -8,23 +8,48 @@ import (
 )
 
 var (
+	// LinesColumns holds the columns for the "lines" table.
+	LinesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "line_user_id", Type: field.TypeString, Unique: true},
+		{Name: "display_name", Type: field.TypeString, Nullable: true},
+		{Name: "email", Type: field.TypeString, Nullable: true},
+		{Name: "picture", Type: field.TypeString, Nullable: true},
+	}
+	// LinesTable holds the schema information for the "lines" table.
+	LinesTable = &schema.Table{
+		Name:       "lines",
+		Columns:    LinesColumns,
+		PrimaryKey: []*schema.Column{LinesColumns[0]},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "name", Type: field.TypeString},
 		{Name: "email", Type: field.TypeString, Unique: true},
+		{Name: "line_user", Type: field.TypeInt, Unique: true, Nullable: true},
 	}
 	// UsersTable holds the schema information for the "users" table.
 	UsersTable = &schema.Table{
 		Name:       "users",
 		Columns:    UsersColumns,
 		PrimaryKey: []*schema.Column{UsersColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "users_lines_user",
+				Columns:    []*schema.Column{UsersColumns[3]},
+				RefColumns: []*schema.Column{LinesColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		LinesTable,
 		UsersTable,
 	}
 )
 
 func init() {
+	UsersTable.ForeignKeys[0].RefTable = LinesTable
 }

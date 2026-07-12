@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -23,8 +24,624 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
+	TypeLine = "Line"
 	TypeUser = "User"
 )
+
+// LineMutation represents an operation that mutates the Line nodes in the graph.
+type LineMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	line_user_id  *string
+	display_name  *string
+	email         *string
+	picture       *string
+	clearedFields map[string]struct{}
+	user          *int
+	cleareduser   bool
+	done          bool
+	oldValue      func(context.Context) (*Line, error)
+	predicates    []predicate.Line
+}
+
+var _ ent.Mutation = (*LineMutation)(nil)
+
+// lineOption allows management of the mutation configuration using functional options.
+type lineOption func(*LineMutation)
+
+// newLineMutation creates new mutation for the Line entity.
+func newLineMutation(c config, op Op, opts ...lineOption) *LineMutation {
+	m := &LineMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLine,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLineID sets the ID field of the mutation.
+func withLineID(id int) lineOption {
+	return func(m *LineMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Line
+		)
+		m.oldValue = func(ctx context.Context) (*Line, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Line.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLine sets the old Line of the mutation.
+func withLine(node *Line) lineOption {
+	return func(m *LineMutation) {
+		m.oldValue = func(context.Context) (*Line, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LineMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LineMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LineMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LineMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Line.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetLineUserID sets the "line_user_id" field.
+func (m *LineMutation) SetLineUserID(s string) {
+	m.line_user_id = &s
+}
+
+// LineUserID returns the value of the "line_user_id" field in the mutation.
+func (m *LineMutation) LineUserID() (r string, exists bool) {
+	v := m.line_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLineUserID returns the old "line_user_id" field's value of the Line entity.
+// If the Line object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LineMutation) OldLineUserID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLineUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLineUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLineUserID: %w", err)
+	}
+	return oldValue.LineUserID, nil
+}
+
+// ResetLineUserID resets all changes to the "line_user_id" field.
+func (m *LineMutation) ResetLineUserID() {
+	m.line_user_id = nil
+}
+
+// SetDisplayName sets the "display_name" field.
+func (m *LineMutation) SetDisplayName(s string) {
+	m.display_name = &s
+}
+
+// DisplayName returns the value of the "display_name" field in the mutation.
+func (m *LineMutation) DisplayName() (r string, exists bool) {
+	v := m.display_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisplayName returns the old "display_name" field's value of the Line entity.
+// If the Line object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LineMutation) OldDisplayName(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisplayName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisplayName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisplayName: %w", err)
+	}
+	return oldValue.DisplayName, nil
+}
+
+// ClearDisplayName clears the value of the "display_name" field.
+func (m *LineMutation) ClearDisplayName() {
+	m.display_name = nil
+	m.clearedFields[line.FieldDisplayName] = struct{}{}
+}
+
+// DisplayNameCleared returns if the "display_name" field was cleared in this mutation.
+func (m *LineMutation) DisplayNameCleared() bool {
+	_, ok := m.clearedFields[line.FieldDisplayName]
+	return ok
+}
+
+// ResetDisplayName resets all changes to the "display_name" field.
+func (m *LineMutation) ResetDisplayName() {
+	m.display_name = nil
+	delete(m.clearedFields, line.FieldDisplayName)
+}
+
+// SetEmail sets the "email" field.
+func (m *LineMutation) SetEmail(s string) {
+	m.email = &s
+}
+
+// Email returns the value of the "email" field in the mutation.
+func (m *LineMutation) Email() (r string, exists bool) {
+	v := m.email
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEmail returns the old "email" field's value of the Line entity.
+// If the Line object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LineMutation) OldEmail(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEmail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEmail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEmail: %w", err)
+	}
+	return oldValue.Email, nil
+}
+
+// ClearEmail clears the value of the "email" field.
+func (m *LineMutation) ClearEmail() {
+	m.email = nil
+	m.clearedFields[line.FieldEmail] = struct{}{}
+}
+
+// EmailCleared returns if the "email" field was cleared in this mutation.
+func (m *LineMutation) EmailCleared() bool {
+	_, ok := m.clearedFields[line.FieldEmail]
+	return ok
+}
+
+// ResetEmail resets all changes to the "email" field.
+func (m *LineMutation) ResetEmail() {
+	m.email = nil
+	delete(m.clearedFields, line.FieldEmail)
+}
+
+// SetPicture sets the "picture" field.
+func (m *LineMutation) SetPicture(s string) {
+	m.picture = &s
+}
+
+// Picture returns the value of the "picture" field in the mutation.
+func (m *LineMutation) Picture() (r string, exists bool) {
+	v := m.picture
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPicture returns the old "picture" field's value of the Line entity.
+// If the Line object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LineMutation) OldPicture(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPicture is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPicture requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPicture: %w", err)
+	}
+	return oldValue.Picture, nil
+}
+
+// ClearPicture clears the value of the "picture" field.
+func (m *LineMutation) ClearPicture() {
+	m.picture = nil
+	m.clearedFields[line.FieldPicture] = struct{}{}
+}
+
+// PictureCleared returns if the "picture" field was cleared in this mutation.
+func (m *LineMutation) PictureCleared() bool {
+	_, ok := m.clearedFields[line.FieldPicture]
+	return ok
+}
+
+// ResetPicture resets all changes to the "picture" field.
+func (m *LineMutation) ResetPicture() {
+	m.picture = nil
+	delete(m.clearedFields, line.FieldPicture)
+}
+
+// SetUserID sets the "user" edge to the User entity by id.
+func (m *LineMutation) SetUserID(id int) {
+	m.user = &id
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *LineMutation) ClearUser() {
+	m.cleareduser = true
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *LineMutation) UserCleared() bool {
+	return m.cleareduser
+}
+
+// UserID returns the "user" edge ID in the mutation.
+func (m *LineMutation) UserID() (id int, exists bool) {
+	if m.user != nil {
+		return *m.user, true
+	}
+	return
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *LineMutation) UserIDs() (ids []int) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *LineMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// Where appends a list predicates to the LineMutation builder.
+func (m *LineMutation) Where(ps ...predicate.Line) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LineMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LineMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Line, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LineMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LineMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Line).
+func (m *LineMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LineMutation) Fields() []string {
+	fields := make([]string, 0, 4)
+	if m.line_user_id != nil {
+		fields = append(fields, line.FieldLineUserID)
+	}
+	if m.display_name != nil {
+		fields = append(fields, line.FieldDisplayName)
+	}
+	if m.email != nil {
+		fields = append(fields, line.FieldEmail)
+	}
+	if m.picture != nil {
+		fields = append(fields, line.FieldPicture)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LineMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case line.FieldLineUserID:
+		return m.LineUserID()
+	case line.FieldDisplayName:
+		return m.DisplayName()
+	case line.FieldEmail:
+		return m.Email()
+	case line.FieldPicture:
+		return m.Picture()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LineMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case line.FieldLineUserID:
+		return m.OldLineUserID(ctx)
+	case line.FieldDisplayName:
+		return m.OldDisplayName(ctx)
+	case line.FieldEmail:
+		return m.OldEmail(ctx)
+	case line.FieldPicture:
+		return m.OldPicture(ctx)
+	}
+	return nil, fmt.Errorf("unknown Line field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LineMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case line.FieldLineUserID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLineUserID(v)
+		return nil
+	case line.FieldDisplayName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisplayName(v)
+		return nil
+	case line.FieldEmail:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEmail(v)
+		return nil
+	case line.FieldPicture:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPicture(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Line field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LineMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LineMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LineMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Line numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LineMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(line.FieldDisplayName) {
+		fields = append(fields, line.FieldDisplayName)
+	}
+	if m.FieldCleared(line.FieldEmail) {
+		fields = append(fields, line.FieldEmail)
+	}
+	if m.FieldCleared(line.FieldPicture) {
+		fields = append(fields, line.FieldPicture)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LineMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LineMutation) ClearField(name string) error {
+	switch name {
+	case line.FieldDisplayName:
+		m.ClearDisplayName()
+		return nil
+	case line.FieldEmail:
+		m.ClearEmail()
+		return nil
+	case line.FieldPicture:
+		m.ClearPicture()
+		return nil
+	}
+	return fmt.Errorf("unknown Line nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LineMutation) ResetField(name string) error {
+	switch name {
+	case line.FieldLineUserID:
+		m.ResetLineUserID()
+		return nil
+	case line.FieldDisplayName:
+		m.ResetDisplayName()
+		return nil
+	case line.FieldEmail:
+		m.ResetEmail()
+		return nil
+	case line.FieldPicture:
+		m.ResetPicture()
+		return nil
+	}
+	return fmt.Errorf("unknown Line field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LineMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.user != nil {
+		edges = append(edges, line.EdgeUser)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LineMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case line.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LineMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LineMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LineMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.cleareduser {
+		edges = append(edges, line.EdgeUser)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LineMutation) EdgeCleared(name string) bool {
+	switch name {
+	case line.EdgeUser:
+		return m.cleareduser
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LineMutation) ClearEdge(name string) error {
+	switch name {
+	case line.EdgeUser:
+		m.ClearUser()
+		return nil
+	}
+	return fmt.Errorf("unknown Line unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LineMutation) ResetEdge(name string) error {
+	switch name {
+	case line.EdgeUser:
+		m.ResetUser()
+		return nil
+	}
+	return fmt.Errorf("unknown Line edge %s", name)
+}
 
 // UserMutation represents an operation that mutates the User nodes in the graph.
 type UserMutation struct {
@@ -35,6 +652,8 @@ type UserMutation struct {
 	name          *string
 	email         *string
 	clearedFields map[string]struct{}
+	line          *int
+	clearedline   bool
 	done          bool
 	oldValue      func(context.Context) (*User, error)
 	predicates    []predicate.User
@@ -210,6 +829,45 @@ func (m *UserMutation) ResetEmail() {
 	m.email = nil
 }
 
+// SetLineID sets the "line" edge to the Line entity by id.
+func (m *UserMutation) SetLineID(id int) {
+	m.line = &id
+}
+
+// ClearLine clears the "line" edge to the Line entity.
+func (m *UserMutation) ClearLine() {
+	m.clearedline = true
+}
+
+// LineCleared reports if the "line" edge to the Line entity was cleared.
+func (m *UserMutation) LineCleared() bool {
+	return m.clearedline
+}
+
+// LineID returns the "line" edge ID in the mutation.
+func (m *UserMutation) LineID() (id int, exists bool) {
+	if m.line != nil {
+		return *m.line, true
+	}
+	return
+}
+
+// LineIDs returns the "line" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// LineID instead. It exists only for internal usage by the builders.
+func (m *UserMutation) LineIDs() (ids []int) {
+	if id := m.line; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetLine resets all changes to the "line" edge.
+func (m *UserMutation) ResetLine() {
+	m.line = nil
+	m.clearedline = false
+}
+
 // Where appends a list predicates to the UserMutation builder.
 func (m *UserMutation) Where(ps ...predicate.User) {
 	m.predicates = append(m.predicates, ps...)
@@ -360,19 +1018,28 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.line != nil {
+		edges = append(edges, user.EdgeLine)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *UserMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case user.EdgeLine:
+		if id := m.line; id != nil {
+			return []ent.Value{*id}
+		}
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
 	return edges
 }
 
@@ -384,24 +1051,41 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.clearedline {
+		edges = append(edges, user.EdgeLine)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *UserMutation) EdgeCleared(name string) bool {
+	switch name {
+	case user.EdgeLine:
+		return m.clearedline
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *UserMutation) ClearEdge(name string) error {
+	switch name {
+	case user.EdgeLine:
+		m.ClearLine()
+		return nil
+	}
 	return fmt.Errorf("unknown User unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *UserMutation) ResetEdge(name string) error {
+	switch name {
+	case user.EdgeLine:
+		m.ResetLine()
+		return nil
+	}
 	return fmt.Errorf("unknown User edge %s", name)
 }

@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/schema"
 	"assistant-api/internal/ent/user"
 )
@@ -11,6 +12,12 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	lineFields := schema.Line{}.Fields()
+	_ = lineFields
+	// lineDescLineUserID is the schema descriptor for line_user_id field.
+	lineDescLineUserID := lineFields[0].Descriptor()
+	// line.LineUserIDValidator is a validator for the "line_user_id" field. It is called by the builders before save.
+	line.LineUserIDValidator = lineDescLineUserID.Validators[0].(func(string) error)
 	userFields := schema.User{}.Fields()
 	_ = userFields
 	// userDescName is the schema descriptor for name field.

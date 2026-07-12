@@ -19,6 +19,7 @@ func NewRouter(client *ent.Client) *gin.Engine {
 
 	registerHealthRoutes(r)
 	registerGraphQLRoutes(r, client)
+	registerLineBindRoutes(r, client)
 
 	return r
 }

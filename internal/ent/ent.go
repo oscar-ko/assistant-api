@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/user"
 	"context"
 	"errors"
@@ -73,6 +74,7 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
+			line.Table: line.ValidColumn,
 			user.Table: user.ValidColumn,
 		})
 	})

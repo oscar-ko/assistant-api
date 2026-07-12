@@ -20,6 +20,13 @@ postgresql:
     password: "d22340014"
     parameters: "sslmode=disable"
 
+line:
+    channel_id: ""
+    client_secret: ""
+    redirect_uri: "http://localhost:8080/line/oauth/callback"
+    assistant_bot_url: ""
+    scopes: "openid profile email"
+
 graphql:
     query_path: "/query"
     playground_path: "/playground"

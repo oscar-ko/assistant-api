@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -55,9 +56,34 @@ func (_u *UserUpdate) SetNillableEmail(v *string) *UserUpdate {
 	return _u
 }
 
+// SetLineID sets the "line" edge to the Line entity by ID.
+func (_u *UserUpdate) SetLineID(id int) *UserUpdate {
+	_u.mutation.SetLineID(id)
+	return _u
+}
+
+// SetNillableLineID sets the "line" edge to the Line entity by ID if the given value is not nil.
+func (_u *UserUpdate) SetNillableLineID(id *int) *UserUpdate {
+	if id != nil {
+		_u = _u.SetLineID(*id)
+	}
+	return _u
+}
+
+// SetLine sets the "line" edge to the Line entity.
+func (_u *UserUpdate) SetLine(v *Line) *UserUpdate {
+	return _u.SetLineID(v.ID)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdate) Mutation() *UserMutation {
 	return _u.mutation
+}
+
+// ClearLine clears the "line" edge to the Line entity.
+func (_u *UserUpdate) ClearLine() *UserUpdate {
+	_u.mutation.ClearLine()
+	return _u
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -120,6 +146,35 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Email(); ok {
 		_spec.SetField(user.FieldEmail, field.TypeString, value)
 	}
+	if _u.mutation.LineCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: true,
+			Table:   user.LineTable,
+			Columns: []string{user.LineColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(line.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.LineIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: true,
+			Table:   user.LineTable,
+			Columns: []string{user.LineColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(line.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{user.Label}
@@ -168,9 +223,34 @@ func (_u *UserUpdateOne) SetNillableEmail(v *string) *UserUpdateOne {
 	return _u
 }
 
+// SetLineID sets the "line" edge to the Line entity by ID.
+func (_u *UserUpdateOne) SetLineID(id int) *UserUpdateOne {
+	_u.mutation.SetLineID(id)
+	return _u
+}
+
+// SetNillableLineID sets the "line" edge to the Line entity by ID if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableLineID(id *int) *UserUpdateOne {
+	if id != nil {
+		_u = _u.SetLineID(*id)
+	}
+	return _u
+}
+
+// SetLine sets the "line" edge to the Line entity.
+func (_u *UserUpdateOne) SetLine(v *Line) *UserUpdateOne {
+	return _u.SetLineID(v.ID)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdateOne) Mutation() *UserMutation {
 	return _u.mutation
+}
+
+// ClearLine clears the "line" edge to the Line entity.
+func (_u *UserUpdateOne) ClearLine() *UserUpdateOne {
+	_u.mutation.ClearLine()
+	return _u
 }
 
 // Where appends a list predicates to the UserUpdate builder.
@@ -262,6 +342,35 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.Email(); ok {
 		_spec.SetField(user.FieldEmail, field.TypeString, value)
+	}
+	if _u.mutation.LineCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: true,
+			Table:   user.LineTable,
+			Columns: []string{user.LineColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(line.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.LineIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: true,
+			Table:   user.LineTable,
+			Columns: []string{user.LineColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(line.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &User{config: _u.config}
 	_spec.Assign = _node.assignValues

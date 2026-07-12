@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LINE 綁定</title>
+    <style>
+        body {
+            font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+            margin: 0;
+            background: #f6f7fb;
+            color: #1f2937;
+        }
+
+        .card {
+            max-width: 460px;
+            margin: 48px auto;
+            background: #fff;
+            border-radius: 14px;
+            padding: 24px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .08);
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 22px;
+        }
+
+        p {
+            margin: 0 0 20px;
+            color: #4b5563;
+            line-height: 1.6;
+        }
+
+        .btn {
+            width: 100%;
+            border: 0;
+            border-radius: 12px;
+            background: #06c755;
+            color: #fff;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .msg {
+            margin-top: 16px;
+            font-size: 14px;
+            color: #374151;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <h1>LINE 帳號綁定</h1>
+        <p>點擊下方按鈕，前往 LINE 授權並完成綁定。</p>
+        <button class="btn" id="bindBtn">使用 LINE 綁定</button>
+        <div class="msg" id="msg"></div>
+    </div>
+    <script>
+        const btn = document.getElementById('bindBtn');
+        const msg = document.getElementById('msg');
+        btn.addEventListener('click', () => {
+            msg.textContent = '正在前往 LINE 授權頁...';
+            window.location.href = '/line/oauth/start';
+        });
+    </script>
+</body>
+
+</html>

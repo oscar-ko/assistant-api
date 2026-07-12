@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/user"
 	"context"
 	"errors"
@@ -29,6 +30,25 @@ func (_c *UserCreate) SetName(v string) *UserCreate {
 func (_c *UserCreate) SetEmail(v string) *UserCreate {
 	_c.mutation.SetEmail(v)
 	return _c
+}
+
+// SetLineID sets the "line" edge to the Line entity by ID.
+func (_c *UserCreate) SetLineID(id int) *UserCreate {
+	_c.mutation.SetLineID(id)
+	return _c
+}
+
+// SetNillableLineID sets the "line" edge to the Line entity by ID if the given value is not nil.
+func (_c *UserCreate) SetNillableLineID(id *int) *UserCreate {
+	if id != nil {
+		_c = _c.SetLineID(*id)
+	}
+	return _c
+}
+
+// SetLine sets the "line" edge to the Line entity.
+func (_c *UserCreate) SetLine(v *Line) *UserCreate {
+	return _c.SetLineID(v.ID)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -114,6 +134,23 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Email(); ok {
 		_spec.SetField(user.FieldEmail, field.TypeString, value)
 		_node.Email = value
+	}
+	if nodes := _c.mutation.LineIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: true,
+			Table:   user.LineTable,
+			Columns: []string{user.LineColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(line.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.line_user = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }
