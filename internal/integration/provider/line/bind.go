@@ -6,12 +6,19 @@ import (
 	"strings"
 
 	"assistant-api/internal/ent"
-	"assistant-api/internal/ent/line"
-	"assistant-api/internal/ent/user"
 )
 
+// lineBindRepository 定義綁定流程所需的資料操作。
+type lineBindRepository interface {
+	GetUserByLineUserID(ctx context.Context, lineUserID string) (*ent.User, error)
+	GetUserByEmail(ctx context.Context, email string) (*ent.User, error)
+	HasLineBindingForUser(ctx context.Context, userID int) (bool, error)
+	CreateLineBinding(ctx context.Context, u *ent.User, lineUserID string, displayName string, email *string, picture *string) error
+	CreateUser(ctx context.Context, name, email string) (*ent.User, error)
+}
+
 // bindUser 將 LINE 帳號綁定到現有使用者，或建立新使用者與綁定資料。
-func bindUser(ctx context.Context, client *ent.Client, p *profile) (*ent.User, error) {
+func bindUser(ctx context.Context, repo lineBindRepository, p *profile) (*ent.User, error) {
 	lineID := strings.TrimSpace(p.UserID)
 	email := strings.TrimSpace(p.Email)
 	name := strings.TrimSpace(p.DisplayName)
@@ -20,7 +27,7 @@ func bindUser(ctx context.Context, client *ent.Client, p *profile) (*ent.User, e
 		name = "LINE User"
 	}
 
-	u, err := client.User.Query().Where(user.HasLineWith(line.LineUserIDEQ(lineID))).Only(ctx)
+	u, err := repo.GetUserByLineUserID(ctx, lineID)
 	if err == nil {
 		return u, nil
 	}
@@ -29,9 +36,9 @@ func bindUser(ctx context.Context, client *ent.Client, p *profile) (*ent.User, e
 	}
 
 	if email != "" {
-		uByEmail, e := client.User.Query().Where(user.EmailEQ(email)).Only(ctx)
+		uByEmail, e := repo.GetUserByEmail(ctx, email)
 		if e == nil {
-			hasLine, he := client.Line.Query().Where(line.HasUserWith(user.IDEQ(uByEmail.ID))).Exist(ctx)
+			hasLine, he := repo.HasLineBindingForUser(ctx, uByEmail.ID)
 			if he != nil {
 				return nil, he
 			}
@@ -39,13 +46,7 @@ func bindUser(ctx context.Context, client *ent.Client, p *profile) (*ent.User, e
 				return nil, fmt.Errorf("user already bound to another line account")
 			}
 
-			if _, ce := client.Line.Create().
-				SetLineUserID(lineID).
-				SetDisplayName(name).
-				SetNillableEmail(nullable(email)).
-				SetNillablePicture(nullable(picture)).
-				SetUser(uByEmail).
-				Save(ctx); ce != nil {
+			if ce := repo.CreateLineBinding(ctx, uByEmail, lineID, name, nullable(email), nullable(picture)); ce != nil {
 				return nil, ce
 			}
 			return uByEmail, nil
@@ -57,18 +58,12 @@ func bindUser(ctx context.Context, client *ent.Client, p *profile) (*ent.User, e
 		email = fmt.Sprintf("line_%s@line.local", lineID)
 	}
 
-	uNew, err := client.User.Create().SetName(name).SetEmail(email).Save(ctx)
+	uNew, err := repo.CreateUser(ctx, name, email)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err := client.Line.Create().
-		SetLineUserID(lineID).
-		SetDisplayName(name).
-		SetNillableEmail(nullable(strings.TrimSpace(p.Email))).
-		SetNillablePicture(nullable(picture)).
-		SetUser(uNew).
-		Save(ctx); err != nil {
+	if err := repo.CreateLineBinding(ctx, uNew, lineID, name, nullable(strings.TrimSpace(p.Email)), nullable(picture)); err != nil {
 		return nil, err
 	}
 

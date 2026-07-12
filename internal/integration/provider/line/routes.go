@@ -9,6 +9,7 @@ import (
 	"assistant-api/internal/config"
 	"assistant-api/internal/ent"
 	"assistant-api/internal/integration/auth"
+	"assistant-api/internal/repository"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,9 +18,11 @@ const stateCookieName = "line_oauth_state"
 
 // RegisterRoutes 註冊 LINE OAuth 與綁定路由。
 func RegisterRoutes(r gin.IRouter, client *ent.Client) {
+	lineRepo := repository.NewLineRepo(client)
+
 	r.GET("/line/bind", bindPage)
 	r.GET("/line/oauth/start", oauthStart)
-	r.GET("/line/oauth/callback", oauthCallback(client))
+	r.GET("/line/oauth/callback", oauthCallback(lineRepo))
 	// Webhook 採 handler -> service 分層，便於後續替換 queue/worker 實作。
 	r.POST("/line/webhook", webhookHandler(NewWebhookService()))
 }
@@ -64,7 +67,7 @@ func oauthStart(c *gin.Context) {
 }
 
 // oauthCallback 處理 LINE OAuth callback，完成綁定或建立使用者。
-func oauthCallback(client *ent.Client) gin.HandlerFunc {
+func oauthCallback(repo lineBindRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		state := c.Query("state")
 		expectedState := auth.GetStateCookie(c, stateCookieName)
@@ -86,7 +89,7 @@ func oauthCallback(client *ent.Client) gin.HandlerFunc {
 			return
 		}
 
-		u, err := bindUser(c.Request.Context(), client, profile)
+		u, err := bindUser(c.Request.Context(), repo, profile)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
