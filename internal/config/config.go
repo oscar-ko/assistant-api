@@ -119,8 +119,10 @@ func MustLoad() {
 		}
 
 		viper.AutomaticEnv()
+		// 將巢狀 key（如 line.channel_id）對應為環境變數格式（LINE_CHANNEL_ID）。
 		viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
+		// 預設值可讓本機開發在最少設定下啟動。
 		viper.SetDefault("run_mode", "dev")
 		viper.SetDefault("log.level", "info")
 		viper.SetDefault("log.filename", "")
@@ -165,6 +167,11 @@ func MustLoad() {
 
 		if err := viper.Unmarshal(config); err != nil {
 			log.Fatalf("failed to parse config: %v", err)
+		}
+
+		// 補齊空值容錯，避免 scope 留空導致 OAuth 行為異常。
+		if strings.TrimSpace(Line.Scopes) == "" {
+			Line.Scopes = "openid profile email"
 		}
 	})
 }

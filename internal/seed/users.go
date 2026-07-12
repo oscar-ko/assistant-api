@@ -19,6 +19,7 @@ func seedUsers(ctx context.Context, client *ent.Client) error {
 	}
 
 	for _, u := range defaults {
+		// 以 email 做去重，確保重啟服務不會重複插入。
 		exists, err := client.User.Query().Where(user.EmailEQ(u.Email)).Exist(ctx)
 		if err != nil {
 			return err
