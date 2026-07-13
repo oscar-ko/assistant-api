@@ -1,10 +1,11 @@
 package line
 
 import (
-	"bytes"
-	"log"
-	"strings"
 	"testing"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 func TestResolveSender(t *testing.T) {
@@ -29,40 +30,31 @@ func TestResolveSender(t *testing.T) {
 }
 
 func TestConsoleWebhookService_ProcessIncoming_InvalidJSON(t *testing.T) {
-	oldWriter := log.Writer()
-	oldFlags := log.Flags()
-	defer log.SetOutput(oldWriter)
-	defer log.SetFlags(oldFlags)
-
-	var buf bytes.Buffer
-	log.SetOutput(&buf)
-	log.SetFlags(0)
+	core, observed := observer.New(zapcore.DebugLevel)
+	oldLogger := zap.L()
+	zap.ReplaceGlobals(zap.New(core))
+	defer zap.ReplaceGlobals(oldLogger)
 
 	consoleWebhookService{}.ProcessIncoming([]byte("{invalid"), "sig")
 
-	if !strings.Contains(buf.String(), "line webhook parse failed") {
-		t.Fatalf("expected parse failed log, got: %s", buf.String())
+	if observed.FilterMessage("line webhook parse failed").Len() == 0 {
+		t.Fatalf("expected parse failed zap log")
 	}
 }
 
 func TestConsoleWebhookService_ProcessIncoming_TextMessage(t *testing.T) {
-	oldWriter := log.Writer()
-	oldFlags := log.Flags()
-	defer log.SetOutput(oldWriter)
-	defer log.SetFlags(oldFlags)
-
-	var buf bytes.Buffer
-	log.SetOutput(&buf)
-	log.SetFlags(0)
+	core, observed := observer.New(zapcore.DebugLevel)
+	oldLogger := zap.L()
+	zap.ReplaceGlobals(zap.New(core))
+	defer zap.ReplaceGlobals(oldLogger)
 
 	body := []byte(`{"events":[{"type":"message","source":{"userId":"U123"},"message":{"type":"text","text":"hello"}}]}`)
 	consoleWebhookService{}.ProcessIncoming(body, "sig")
 
-	logs := buf.String()
-	if !strings.Contains(logs, "line message: sender=U123, text=hello") {
-		t.Fatalf("expected text message log, got: %s", logs)
+	if observed.FilterMessage("line message:").Len() > 0 {
+		t.Fatalf("expected no per-message log")
 	}
-	if !strings.Contains(logs, "line webhook received:") {
-		t.Fatalf("expected summary log, got: %s", logs)
+	if observed.FilterMessage("line webhook received").Len() == 0 {
+		t.Fatalf("expected summary zap log")
 	}
 }

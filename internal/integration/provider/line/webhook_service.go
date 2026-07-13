@@ -3,10 +3,11 @@ package line
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"strings"
 
 	"assistant-api/internal/repository"
+
+	"go.uber.org/zap"
 )
 
 // WebhookService 定義 LINE webhook 的處理介面，方便注入不同實作。
@@ -80,7 +81,11 @@ func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 	if len(body) > 0 {
 		// 目前採「解析失敗僅記錄」策略，避免阻塞 webhook ACK。
 		if err := json.Unmarshal(body, &req); err != nil {
-			log.Printf("line webhook parse failed: signature_present=%t, body_bytes=%d, err=%v", signature != "", len(body), err)
+			zap.L().Error("line webhook parse failed",
+				zap.Bool("signature_present", signature != ""),
+				zap.Int("body_bytes", len(body)),
+				zap.Error(err),
+			)
 			return
 		}
 		eventCount = len(req.Events)
@@ -88,18 +93,15 @@ func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 
 	// 第二段：逐筆輸出事件日誌，並將 message 事件寫入資料庫。
 	for _, event := range req.Events {
-		sender := resolveSender(event.Source)
-		if event.Type == "message" && event.Message.Type == "text" {
-			log.Printf("line message: sender=%s, text=%s", sender, event.Message.Text)
-		} else {
-			log.Printf("line event: sender=%s, event_type=%s, message_type=%s", sender, event.Type, event.Message.Type)
-		}
-
 		s.persistInboundMessage(event)
 	}
 
 	// 摘要日誌：便於快速確認簽章是否帶入、事件量與 payload 大小。
-	log.Printf("line webhook received: signature_present=%t, body_bytes=%d, events=%d", signature != "", len(body), eventCount)
+	zap.L().Info("line webhook received",
+		zap.Bool("signature_present", signature != ""),
+		zap.Int("body_bytes", len(body)),
+		zap.Int("events", eventCount),
+	)
 }
 
 // persistInboundMessage 將單一 message 事件轉成 channel/channel_message 資料並落庫。
@@ -124,13 +126,20 @@ func (s consoleWebhookService) persistInboundMessage(event webhookEvent) {
 	// sender_name 透過既有 LINE 綁定資料反查 display_name。
 	senderName, err := s.repo.ResolveLineDisplayNameByLineUserID(ctx, senderID)
 	if err != nil {
-		log.Printf("line webhook resolve sender name failed: sender=%s, err=%v", senderID, err)
+		zap.L().Warn("line webhook resolve sender name failed",
+			zap.String("sender", senderID),
+			zap.Error(err),
+		)
 	}
 
 	// channel 不存在就建立，存在就沿用。
 	ch, err := s.repo.GetOrCreateChannel(ctx, "line", groupID, channelType)
 	if err != nil {
-		log.Printf("line webhook persist channel failed: group_id=%s, type=%s, err=%v", groupID, channelType, err)
+		zap.L().Error("line webhook persist channel failed",
+			zap.String("group_id", groupID),
+			zap.String("type", channelType),
+			zap.Error(err),
+		)
 		return
 	}
 
@@ -146,7 +155,11 @@ func (s consoleWebhookService) persistInboundMessage(event webhookEvent) {
 		event.Message.Type,
 		event.Timestamp,
 	); err != nil {
-		log.Printf("line webhook persist message failed: channel_id=%s, message_id=%s, err=%v", ch.ID, event.Message.ID, err)
+		zap.L().Error("line webhook persist message failed",
+			zap.String("channel_id", ch.ID.String()),
+			zap.String("message_id", event.Message.ID),
+			zap.Error(err),
+		)
 	}
 }
 
