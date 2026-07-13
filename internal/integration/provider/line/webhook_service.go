@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"assistant-api/internal/config"
-	"assistant-api/internal/integration/provider/messageintent"
+	"assistant-api/internal/integration/messageintent"
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
 
@@ -23,13 +23,13 @@ type WebhookService interface {
 // consoleWebhookService 是最小可用的預設實作：
 // 僅解析事件並輸出到 console，便於開發階段觀察 webhook 是否正常進站。
 type consoleWebhookService struct {
-	repo       *repository.ChannelMessageRepo
-	classifier messageintent.Classifier
+	repo          *repository.ChannelMessageRepo
+	intentService messageintent.Service
 }
 
 // NewWebhookService 建立預設 webhook service
-func NewWebhookService(repo *repository.ChannelMessageRepo, classifier messageintent.Classifier) WebhookService {
-	return consoleWebhookService{repo: repo, classifier: classifier}
+func NewWebhookService(repo *repository.ChannelMessageRepo, intentService messageintent.Service) WebhookService {
+	return consoleWebhookService{repo: repo, intentService: intentService}
 }
 
 // webhookRequest 對應 LINE webhook 最上層 payload。
@@ -121,14 +121,20 @@ func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 				zap.String("text", strings.TrimSpace(message.Text)),
 			)
 
-			// 再交給 classifier 做意圖判讀，結果只用於觀察與後續擴充。
-			classification, err := s.classifyUnifiedMessage(message)
+			mentionedBot := message.MentionsUser(config.Line.BotUserID)
+
+			// 再交給共用 message intent service 做意圖判讀。
+			var classification *messageintent.Classification
+			var err error
+			if s.intentService != nil {
+				classification, err = s.intentService.ClassifyMessage(context.Background(), message, mentionedBot)
+			}
 			if err != nil {
 				// AI 服務失敗時只記 debug，不阻斷 webhook 主流程。
 				zap.L().Debug("webhook classify skipped",
 					zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 					zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-					zap.Bool("mentioned_bot", message.MentionsUser(config.Line.BotUserID)),
+					zap.Bool("mentioned_bot", mentionedBot),
 					zap.Error(err),
 				)
 			} else if classification != nil {
@@ -136,7 +142,7 @@ func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 				zap.L().Info("webhook classified",
 					zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 					zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-					zap.Bool("mentioned_bot", message.MentionsUser(config.Line.BotUserID)),
+					zap.Bool("mentioned_bot", mentionedBot),
 					zap.String("intent_label", classification.IntentLabel),
 					zap.Float64("confidence", classification.Confidence),
 					zap.String("reason", strings.TrimSpace(classification.Reason)),
@@ -148,26 +154,6 @@ func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 		}
 	}
 
-}
-
-// classifyUnifiedMessage 負責把統一訊息送去 AI classifier，取得意圖判斷結果。
-// 這個步驟只做分類，不負責資料庫寫入，也不負責其他業務處理。
-func (s consoleWebhookService) classifyUnifiedMessage(message *unifiedmessage.Message) (*messageintent.Classification, error) {
-	// 沒有 classifier、沒有訊息、或非文字內容時，都不進行 AI 判讀。
-	if s.classifier == nil || message == nil || !message.IsText() {
-		return nil, nil
-	}
-
-	// 文字內容先做 trim，避免空白字元造成不必要的 API 呼叫。
-	text := strings.TrimSpace(message.Text)
-	if text == "" {
-		return nil, nil
-	}
-
-	// 依照是否 mention bot 組出提示詞，再送到 classifier 服務。
-	ctx := context.Background()
-	mentionedBot := message.MentionsUser(config.Line.BotUserID)
-	return s.classifier.Classify(ctx, messageintent.DefaultPrompt(mentionedBot), text)
 }
 
 // persistUnifiedMessage 負責把統一訊息格式寫入 channel 與 channel_message。
