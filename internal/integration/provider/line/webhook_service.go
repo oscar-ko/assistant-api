@@ -6,9 +6,10 @@ import (
 	"strings"
 
 	"assistant-api/internal/config"
-	"assistant-api/internal/integration/messageintent"
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
+	"assistant-api/internal/usecase/ai/messageintent"
+	"assistant-api/internal/usecase/inbound/messagepersist"
 
 	"go.uber.org/zap"
 )
@@ -23,13 +24,15 @@ type WebhookService interface {
 // consoleWebhookService 是最小可用的預設實作：
 // 僅解析事件並輸出到 console，便於開發階段觀察 webhook 是否正常進站。
 type consoleWebhookService struct {
-	repo          *repository.ChannelMessageRepo
-	intentService messageintent.Service
+	repo               *repository.ChannelMessageRepo
+	intentService      messageintent.Service
+	persistenceService messagepersist.Service
 }
 
 // NewWebhookService 建立預設 webhook service
 func NewWebhookService(repo *repository.ChannelMessageRepo, intentService messageintent.Service) WebhookService {
-	return consoleWebhookService{repo: repo, intentService: intentService}
+	persistSvc := messagepersist.NewService(repo, lineSenderNameResolver{repo: repo})
+	return consoleWebhookService{repo: repo, intentService: intentService, persistenceService: persistSvc}
 }
 
 // webhookRequest 對應 LINE webhook 最上層 payload。
@@ -159,66 +162,21 @@ func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 // persistUnifiedMessage 負責把統一訊息格式寫入 channel 與 channel_message。
 // 這個函式只做資料持久化，不應再混入 AI 判讀或其他額外業務邏輯。
 func (s consoleWebhookService) persistUnifiedMessage(message *unifiedmessage.Message) {
-	// 沒有訊息或 channel id 時直接返回，避免寫入無效資料。
-	if message == nil {
-		return
-	}
-	if strings.TrimSpace(message.ChannelID) == "" {
-		return
-	}
+	s.persistenceService.PersistUnifiedMessage(context.Background(), message)
+}
 
-	// 沒有注入 repository 時，維持純 console 模式；這時只保留上方的 console 輸出。
-	if s.repo == nil {
-		return
-	}
+type lineSenderNameResolver struct {
+	repo *repository.ChannelMessageRepo
+}
 
-	// 這裡開始進入資料庫寫入流程，先準備共用 context。
-	ctx := context.Background()
-	// senderID 以 sender 優先，若沒有則使用 unknown，確保欄位有值可追蹤。
-	senderID := strings.TrimSpace(message.SenderID)
-	if senderID == "" {
-		senderID = "unknown"
+func (r lineSenderNameResolver) ResolveSenderName(ctx context.Context, platform string, senderID string) (string, error) {
+	if r.repo == nil {
+		return "", nil
 	}
-
-	// sender_name 透過既有 LINE 綁定資料反查 display_name，讓資料庫內有可讀名稱。
-	senderName, err := s.repo.ResolveLineDisplayNameByLineUserID(ctx, senderID)
-	if err != nil {
-		zap.L().Warn("line webhook resolve sender name failed",
-			zap.String("sender", senderID),
-			zap.Error(err),
-		)
+	if !strings.EqualFold(strings.TrimSpace(platform), "line") {
+		return "", nil
 	}
-
-	// channel 不存在就建立，存在就沿用，確保訊息有對應的 channel 可掛載。
-	ch, err := s.repo.GetOrCreateChannel(ctx, strings.TrimSpace(message.Platform), strings.TrimSpace(message.ChannelID), strings.TrimSpace(message.ChannelType))
-	if err != nil {
-		zap.L().Error("line webhook persist channel failed",
-			zap.String("group_id", message.ChannelID),
-			zap.String("type", message.ChannelType),
-			zap.Error(err),
-		)
-		return
-	}
-
-	// 將訊息寫入 channel_messages；若失敗只記錄錯誤，不阻塞 webhook 主流程。
-	if _, err := s.repo.SaveReceivedMessage(
-		ctx,
-		ch.ID,
-		senderID,
-		senderName,
-		message.PlatformMessageID,
-		message.ReplyToMsgID,
-		message.Text,
-		message.MessageType,
-		message.PlatformTimestamp,
-	); err != nil {
-		zap.L().Error("line webhook persist message failed",
-			zap.String("channel_id", ch.ID.String()),
-			zap.String("message_id", message.PlatformMessageID),
-			zap.Error(err),
-		)
-	}
-
+	return r.repo.ResolveLineDisplayNameByLineUserID(ctx, senderID)
 }
 
 // resolveSender 依優先序挑選可識別的來源 ID。

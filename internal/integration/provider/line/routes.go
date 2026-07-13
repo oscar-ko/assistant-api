@@ -9,8 +9,8 @@ import (
 	"assistant-api/internal/config"
 	"assistant-api/internal/ent"
 	"assistant-api/internal/integration/auth"
-	"assistant-api/internal/integration/messageintent"
 	"assistant-api/internal/repository"
+	"assistant-api/internal/usecase/ai/messageintent"
 
 	"github.com/gin-gonic/gin"
 )
