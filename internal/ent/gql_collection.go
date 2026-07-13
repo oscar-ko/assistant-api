@@ -3,15 +3,235 @@
 package ent
 
 import (
+	"assistant-api/internal/ent/action"
+	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/line"
+	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/user"
 	"context"
 
 	"entgo.io/contrib/entgql"
 	"github.com/99designs/gqlgen/graphql"
 )
+
+// CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
+func (_q *ActionQuery) CollectFields(ctx context.Context, satisfies ...string) (*ActionQuery, error) {
+	fc := graphql.GetFieldContext(ctx)
+	if fc == nil {
+		return _q, nil
+	}
+	if err := _q.collectField(ctx, false, graphql.GetOperationContext(ctx), fc.Field, nil, satisfies...); err != nil {
+		return nil, err
+	}
+	return _q, nil
+}
+
+func (_q *ActionQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
+	path = append([]string(nil), path...)
+	var (
+		unknownSeen    bool
+		fieldSeen      = make(map[string]struct{}, len(action.Columns))
+		selectedFields = []string{action.FieldID}
+	)
+	for _, field := range graphql.CollectFields(opCtx, collected.Selections, satisfies) {
+		switch field.Name {
+
+		case "skill":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&SkillClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, skillImplementors)...); err != nil {
+				return err
+			}
+			_q.withSkill = query
+			if _, ok := fieldSeen[action.FieldSkillID]; !ok {
+				selectedFields = append(selectedFields, action.FieldSkillID)
+				fieldSeen[action.FieldSkillID] = struct{}{}
+			}
+
+		case "routes":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&ActionRouteClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, actionrouteImplementors)...); err != nil {
+				return err
+			}
+			_q.WithNamedRoutes(alias, func(wq *ActionRouteQuery) {
+				*wq = *query
+			})
+		case "skillID":
+			if _, ok := fieldSeen[action.FieldSkillID]; !ok {
+				selectedFields = append(selectedFields, action.FieldSkillID)
+				fieldSeen[action.FieldSkillID] = struct{}{}
+			}
+		case "actionCode":
+			if _, ok := fieldSeen[action.FieldActionCode]; !ok {
+				selectedFields = append(selectedFields, action.FieldActionCode)
+				fieldSeen[action.FieldActionCode] = struct{}{}
+			}
+		case "name":
+			if _, ok := fieldSeen[action.FieldName]; !ok {
+				selectedFields = append(selectedFields, action.FieldName)
+				fieldSeen[action.FieldName] = struct{}{}
+			}
+		case "description":
+			if _, ok := fieldSeen[action.FieldDescription]; !ok {
+				selectedFields = append(selectedFields, action.FieldDescription)
+				fieldSeen[action.FieldDescription] = struct{}{}
+			}
+		case "apiOperation":
+			if _, ok := fieldSeen[action.FieldAPIOperation]; !ok {
+				selectedFields = append(selectedFields, action.FieldAPIOperation)
+				fieldSeen[action.FieldAPIOperation] = struct{}{}
+			}
+		case "commandPurpose":
+			if _, ok := fieldSeen[action.FieldCommandPurpose]; !ok {
+				selectedFields = append(selectedFields, action.FieldCommandPurpose)
+				fieldSeen[action.FieldCommandPurpose] = struct{}{}
+			}
+		case "id":
+		case "__typename":
+		default:
+			unknownSeen = true
+		}
+	}
+	if !unknownSeen {
+		_q.Select(selectedFields...)
+	}
+	return nil
+}
+
+type actionPaginateArgs struct {
+	first, last   *int
+	after, before *Cursor
+	opts          []ActionPaginateOption
+}
+
+func newActionPaginateArgs(rv map[string]any) *actionPaginateArgs {
+	args := &actionPaginateArgs{}
+	if rv == nil {
+		return args
+	}
+	if v := rv[firstField]; v != nil {
+		args.first = v.(*int)
+	}
+	if v := rv[lastField]; v != nil {
+		args.last = v.(*int)
+	}
+	if v := rv[afterField]; v != nil {
+		args.after = v.(*Cursor)
+	}
+	if v := rv[beforeField]; v != nil {
+		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[whereField].(*ActionWhereInput); ok {
+		args.opts = append(args.opts, WithActionFilter(v.Filter))
+	}
+	return args
+}
+
+// CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
+func (_q *ActionRouteQuery) CollectFields(ctx context.Context, satisfies ...string) (*ActionRouteQuery, error) {
+	fc := graphql.GetFieldContext(ctx)
+	if fc == nil {
+		return _q, nil
+	}
+	if err := _q.collectField(ctx, false, graphql.GetOperationContext(ctx), fc.Field, nil, satisfies...); err != nil {
+		return nil, err
+	}
+	return _q, nil
+}
+
+func (_q *ActionRouteQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
+	path = append([]string(nil), path...)
+	var (
+		unknownSeen    bool
+		fieldSeen      = make(map[string]struct{}, len(actionroute.Columns))
+		selectedFields = []string{actionroute.FieldID}
+	)
+	for _, field := range graphql.CollectFields(opCtx, collected.Selections, satisfies) {
+		switch field.Name {
+
+		case "action":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&ActionClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, actionImplementors)...); err != nil {
+				return err
+			}
+			_q.withAction = query
+			if _, ok := fieldSeen[actionroute.FieldActionID]; !ok {
+				selectedFields = append(selectedFields, actionroute.FieldActionID)
+				fieldSeen[actionroute.FieldActionID] = struct{}{}
+			}
+		case "actionID":
+			if _, ok := fieldSeen[actionroute.FieldActionID]; !ok {
+				selectedFields = append(selectedFields, actionroute.FieldActionID)
+				fieldSeen[actionroute.FieldActionID] = struct{}{}
+			}
+		case "routeText":
+			if _, ok := fieldSeen[actionroute.FieldRouteText]; !ok {
+				selectedFields = append(selectedFields, actionroute.FieldRouteText)
+				fieldSeen[actionroute.FieldRouteText] = struct{}{}
+			}
+		case "embedding":
+			if _, ok := fieldSeen[actionroute.FieldEmbedding]; !ok {
+				selectedFields = append(selectedFields, actionroute.FieldEmbedding)
+				fieldSeen[actionroute.FieldEmbedding] = struct{}{}
+			}
+		case "locale":
+			if _, ok := fieldSeen[actionroute.FieldLocale]; !ok {
+				selectedFields = append(selectedFields, actionroute.FieldLocale)
+				fieldSeen[actionroute.FieldLocale] = struct{}{}
+			}
+		case "id":
+		case "__typename":
+		default:
+			unknownSeen = true
+		}
+	}
+	if !unknownSeen {
+		_q.Select(selectedFields...)
+	}
+	return nil
+}
+
+type actionroutePaginateArgs struct {
+	first, last   *int
+	after, before *Cursor
+	opts          []ActionRoutePaginateOption
+}
+
+func newActionRoutePaginateArgs(rv map[string]any) *actionroutePaginateArgs {
+	args := &actionroutePaginateArgs{}
+	if rv == nil {
+		return args
+	}
+	if v := rv[firstField]; v != nil {
+		args.first = v.(*int)
+	}
+	if v := rv[lastField]; v != nil {
+		args.last = v.(*int)
+	}
+	if v := rv[afterField]; v != nil {
+		args.after = v.(*Cursor)
+	}
+	if v := rv[beforeField]; v != nil {
+		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[whereField].(*ActionRouteWhereInput); ok {
+		args.opts = append(args.opts, WithActionRouteFilter(v.Filter))
+	}
+	return args
+}
 
 // CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
 func (_q *ChannelQuery) CollectFields(ctx context.Context, satisfies ...string) (*ChannelQuery, error) {
@@ -372,6 +592,96 @@ func newLinePaginateArgs(rv map[string]any) *linePaginateArgs {
 	}
 	if v, ok := rv[whereField].(*LineWhereInput); ok {
 		args.opts = append(args.opts, WithLineFilter(v.Filter))
+	}
+	return args
+}
+
+// CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
+func (_q *SkillQuery) CollectFields(ctx context.Context, satisfies ...string) (*SkillQuery, error) {
+	fc := graphql.GetFieldContext(ctx)
+	if fc == nil {
+		return _q, nil
+	}
+	if err := _q.collectField(ctx, false, graphql.GetOperationContext(ctx), fc.Field, nil, satisfies...); err != nil {
+		return nil, err
+	}
+	return _q, nil
+}
+
+func (_q *SkillQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
+	path = append([]string(nil), path...)
+	var (
+		unknownSeen    bool
+		fieldSeen      = make(map[string]struct{}, len(skill.Columns))
+		selectedFields = []string{skill.FieldID}
+	)
+	for _, field := range graphql.CollectFields(opCtx, collected.Selections, satisfies) {
+		switch field.Name {
+
+		case "actions":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&ActionClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, actionImplementors)...); err != nil {
+				return err
+			}
+			_q.WithNamedActions(alias, func(wq *ActionQuery) {
+				*wq = *query
+			})
+		case "skillCode":
+			if _, ok := fieldSeen[skill.FieldSkillCode]; !ok {
+				selectedFields = append(selectedFields, skill.FieldSkillCode)
+				fieldSeen[skill.FieldSkillCode] = struct{}{}
+			}
+		case "name":
+			if _, ok := fieldSeen[skill.FieldName]; !ok {
+				selectedFields = append(selectedFields, skill.FieldName)
+				fieldSeen[skill.FieldName] = struct{}{}
+			}
+		case "description":
+			if _, ok := fieldSeen[skill.FieldDescription]; !ok {
+				selectedFields = append(selectedFields, skill.FieldDescription)
+				fieldSeen[skill.FieldDescription] = struct{}{}
+			}
+		case "id":
+		case "__typename":
+		default:
+			unknownSeen = true
+		}
+	}
+	if !unknownSeen {
+		_q.Select(selectedFields...)
+	}
+	return nil
+}
+
+type skillPaginateArgs struct {
+	first, last   *int
+	after, before *Cursor
+	opts          []SkillPaginateOption
+}
+
+func newSkillPaginateArgs(rv map[string]any) *skillPaginateArgs {
+	args := &skillPaginateArgs{}
+	if rv == nil {
+		return args
+	}
+	if v := rv[firstField]; v != nil {
+		args.first = v.(*int)
+	}
+	if v := rv[lastField]; v != nil {
+		args.last = v.(*int)
+	}
+	if v := rv[afterField]; v != nil {
+		args.after = v.(*Cursor)
+	}
+	if v := rv[beforeField]; v != nil {
+		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[whereField].(*SkillWhereInput); ok {
+		args.opts = append(args.opts, WithSkillFilter(v.Filter))
 	}
 	return args
 }

@@ -10,8 +10,11 @@ log:
 server:
     port: "8080"
 ai:
-    message_intent_classifier_url: "http://127.0.0.1:9002"
-    message_intent_classifier_timeout_seconds: 90
+    semantic_decision_service_url: "http://127.0.0.1:9002"
+    semantic_decision_service_timeout_seconds: 90
+    embedding_url: "http://127.0.0.1:8001"
+    embedding_timeout_seconds: 60
+    embedding_path: "/embed"
 database:
     auto_schema_create: true
 

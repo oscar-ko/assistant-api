@@ -6,6 +6,12 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// Action is the predicate function for action builders.
+type Action func(*sql.Selector)
+
+// ActionRoute is the predicate function for actionroute builders.
+type ActionRoute func(*sql.Selector)
+
 // Channel is the predicate function for channel builders.
 type Channel func(*sql.Selector)
 
@@ -14,6 +20,9 @@ type ChannelMessage func(*sql.Selector)
 
 // Line is the predicate function for line builders.
 type Line func(*sql.Selector)
+
+// Skill is the predicate function for skill builders.
+type Skill func(*sql.Selector)
 
 // User is the predicate function for user builders.
 type User func(*sql.Selector)

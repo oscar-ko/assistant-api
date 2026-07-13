@@ -3,10 +3,13 @@
 package ent
 
 import (
+	"assistant-api/internal/ent/action"
+	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/schema"
+	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/user"
 	"time"
 
@@ -17,6 +20,40 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	actionMixin := schema.Action{}.Mixin()
+	actionMixinFields0 := actionMixin[0].Fields()
+	_ = actionMixinFields0
+	actionFields := schema.Action{}.Fields()
+	_ = actionFields
+	// actionDescName is the schema descriptor for name field.
+	actionDescName := actionFields[2].Descriptor()
+	// action.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	action.NameValidator = actionDescName.Validators[0].(func(string) error)
+	// actionDescAPIOperation is the schema descriptor for api_operation field.
+	actionDescAPIOperation := actionFields[4].Descriptor()
+	// action.APIOperationValidator is a validator for the "api_operation" field. It is called by the builders before save.
+	action.APIOperationValidator = actionDescAPIOperation.Validators[0].(func(string) error)
+	// actionDescID is the schema descriptor for id field.
+	actionDescID := actionMixinFields0[0].Descriptor()
+	// action.DefaultID holds the default value on creation for the id field.
+	action.DefaultID = actionDescID.Default.(func() uuid.UUID)
+	actionrouteMixin := schema.ActionRoute{}.Mixin()
+	actionrouteMixinFields0 := actionrouteMixin[0].Fields()
+	_ = actionrouteMixinFields0
+	actionrouteFields := schema.ActionRoute{}.Fields()
+	_ = actionrouteFields
+	// actionrouteDescRouteText is the schema descriptor for route_text field.
+	actionrouteDescRouteText := actionrouteFields[1].Descriptor()
+	// actionroute.RouteTextValidator is a validator for the "route_text" field. It is called by the builders before save.
+	actionroute.RouteTextValidator = actionrouteDescRouteText.Validators[0].(func(string) error)
+	// actionrouteDescLocale is the schema descriptor for locale field.
+	actionrouteDescLocale := actionrouteFields[3].Descriptor()
+	// actionroute.LocaleValidator is a validator for the "locale" field. It is called by the builders before save.
+	actionroute.LocaleValidator = actionrouteDescLocale.Validators[0].(func(string) error)
+	// actionrouteDescID is the schema descriptor for id field.
+	actionrouteDescID := actionrouteMixinFields0[0].Descriptor()
+	// actionroute.DefaultID holds the default value on creation for the id field.
+	actionroute.DefaultID = actionrouteDescID.Default.(func() uuid.UUID)
 	channelMixin := schema.Channel{}.Mixin()
 	channelMixinFields0 := channelMixin[0].Fields()
 	_ = channelMixinFields0
@@ -96,6 +133,23 @@ func init() {
 	lineDescID := lineMixinFields0[0].Descriptor()
 	// line.DefaultID holds the default value on creation for the id field.
 	line.DefaultID = lineDescID.Default.(func() uuid.UUID)
+	skillMixin := schema.Skill{}.Mixin()
+	skillMixinFields0 := skillMixin[0].Fields()
+	_ = skillMixinFields0
+	skillFields := schema.Skill{}.Fields()
+	_ = skillFields
+	// skillDescSkillCode is the schema descriptor for skill_code field.
+	skillDescSkillCode := skillFields[0].Descriptor()
+	// skill.SkillCodeValidator is a validator for the "skill_code" field. It is called by the builders before save.
+	skill.SkillCodeValidator = skillDescSkillCode.Validators[0].(func(string) error)
+	// skillDescName is the schema descriptor for name field.
+	skillDescName := skillFields[1].Descriptor()
+	// skill.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	skill.NameValidator = skillDescName.Validators[0].(func(string) error)
+	// skillDescID is the schema descriptor for id field.
+	skillDescID := skillMixinFields0[0].Descriptor()
+	// skill.DefaultID holds the default value on creation for the id field.
+	skill.DefaultID = skillDescID.Default.(func() uuid.UUID)
 	userMixin := schema.User{}.Mixin()
 	userMixinFields0 := userMixin[0].Fields()
 	_ = userMixinFields0

@@ -3,11 +3,91 @@
 package migrate
 
 import (
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 )
 
 var (
+	// ActionsColumns holds the columns for the "actions" table.
+	ActionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "action_code", Type: field.TypeEnum, Enums: []string{"enable", "disable", "configure", "query_status"}},
+		{Name: "name", Type: field.TypeString},
+		{Name: "description", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"mysql": "TEXT", "postgres": "text"}},
+		{Name: "api_operation", Type: field.TypeString},
+		{Name: "command_purpose", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"mysql": "TEXT", "postgres": "text"}},
+		{Name: "skill_id", Type: field.TypeUUID},
+	}
+	// ActionsTable holds the schema information for the "actions" table.
+	ActionsTable = &schema.Table{
+		Name:       "actions",
+		Columns:    ActionsColumns,
+		PrimaryKey: []*schema.Column{ActionsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "actions_skills_actions",
+				Columns:    []*schema.Column{ActionsColumns[6]},
+				RefColumns: []*schema.Column{SkillsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "action_skill_id_action_code",
+				Unique:  true,
+				Columns: []*schema.Column{ActionsColumns[6], ActionsColumns[1]},
+			},
+			{
+				Name:    "action_api_operation",
+				Unique:  false,
+				Columns: []*schema.Column{ActionsColumns[4]},
+			},
+		},
+	}
+	// ActionRoutesColumns holds the columns for the "action_routes" table.
+	ActionRoutesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "route_text", Type: field.TypeString, SchemaType: map[string]string{"mysql": "TEXT", "postgres": "text"}},
+		{Name: "embedding", Type: field.TypeOther, Nullable: true, SchemaType: map[string]string{"postgres": "vector(512)"}},
+		{Name: "locale", Type: field.TypeString},
+		{Name: "action_id", Type: field.TypeUUID},
+	}
+	// ActionRoutesTable holds the schema information for the "action_routes" table.
+	ActionRoutesTable = &schema.Table{
+		Name:       "action_routes",
+		Columns:    ActionRoutesColumns,
+		PrimaryKey: []*schema.Column{ActionRoutesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "action_routes_actions_routes",
+				Columns:    []*schema.Column{ActionRoutesColumns[4]},
+				RefColumns: []*schema.Column{ActionsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "actionroute_action_id_locale",
+				Unique:  false,
+				Columns: []*schema.Column{ActionRoutesColumns[4], ActionRoutesColumns[3]},
+			},
+			{
+				Name:    "actionroute_locale",
+				Unique:  false,
+				Columns: []*schema.Column{ActionRoutesColumns[3]},
+			},
+			{
+				Name:    "actionroute_embedding",
+				Unique:  false,
+				Columns: []*schema.Column{ActionRoutesColumns[2]},
+				Annotation: &entsql.IndexAnnotation{
+					OpClass: "vector_l2_ops",
+					Type:    "hnsw",
+				},
+			},
+		},
+	}
 	// ChannelsColumns holds the columns for the "channels" table.
 	ChannelsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -97,6 +177,26 @@ var (
 			},
 		},
 	}
+	// SkillsColumns holds the columns for the "skills" table.
+	SkillsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "skill_code", Type: field.TypeString},
+		{Name: "name", Type: field.TypeString},
+		{Name: "description", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"mysql": "TEXT", "postgres": "text"}},
+	}
+	// SkillsTable holds the schema information for the "skills" table.
+	SkillsTable = &schema.Table{
+		Name:       "skills",
+		Columns:    SkillsColumns,
+		PrimaryKey: []*schema.Column{SkillsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "skill_skill_code",
+				Unique:  true,
+				Columns: []*schema.Column{SkillsColumns[1]},
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -111,14 +211,19 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		ActionsTable,
+		ActionRoutesTable,
 		ChannelsTable,
 		ChannelMessagesTable,
 		LinesTable,
+		SkillsTable,
 		UsersTable,
 	}
 )
 
 func init() {
+	ActionsTable.ForeignKeys[0].RefTable = SkillsTable
+	ActionRoutesTable.ForeignKeys[0].RefTable = ActionsTable
 	ChannelMessagesTable.ForeignKeys[0].RefTable = ChannelsTable
 	ChannelMessagesTable.ForeignKeys[1].RefTable = ChannelMessagesTable
 	LinesTable.ForeignKeys[0].RefTable = UsersTable

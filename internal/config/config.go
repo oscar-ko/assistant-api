@@ -42,8 +42,11 @@ type DatabaseConfig struct {
 }
 
 type AIConfig struct {
-	MessageIntentClassifierURL            string `mapstructure:"message_intent_classifier_url" yaml:"message_intent_classifier_url"`
-	MessageIntentClassifierTimeoutSeconds int    `mapstructure:"message_intent_classifier_timeout_seconds" yaml:"message_intent_classifier_timeout_seconds"`
+	SemanticDecisionServiceURL            string `mapstructure:"semantic_decision_service_url" yaml:"semantic_decision_service_url"`
+	SemanticDecisionServiceTimeoutSeconds int    `mapstructure:"semantic_decision_service_timeout_seconds" yaml:"semantic_decision_service_timeout_seconds"`
+	EmbeddingURL                          string `mapstructure:"embedding_url" yaml:"embedding_url"`
+	EmbeddingTimeoutSeconds               int    `mapstructure:"embedding_timeout_seconds" yaml:"embedding_timeout_seconds"`
+	EmbeddingPath                         string `mapstructure:"embedding_path" yaml:"embedding_path"`
 }
 
 // LineConfig 為 LINE OAuth 綁定所需參數。
@@ -147,7 +150,11 @@ func MustLoad() {
 		viper.SetDefault("postgresql.user_name", "")
 		viper.SetDefault("postgresql.password", "")
 		viper.SetDefault("postgresql.parameters", "sslmode=disable")
-		viper.SetDefault("ai.message_intent_classifier_url", "http://127.0.0.1:9002")
+		viper.SetDefault("ai.semantic_decision_service_url", "http://127.0.0.1:9002")
+		viper.SetDefault("ai.semantic_decision_service_timeout_seconds", 90)
+		viper.SetDefault("ai.embedding_url", "http://127.0.0.1:8001")
+		viper.SetDefault("ai.embedding_timeout_seconds", 60)
+		viper.SetDefault("ai.embedding_path", "/embed")
 		viper.SetDefault("line.channel_token", "")
 		viper.SetDefault("line.channel_secret", "")
 		viper.SetDefault("line.channel_id", "")

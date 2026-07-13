@@ -3,9 +3,12 @@
 package ent
 
 import (
+	"assistant-api/internal/ent/action"
+	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/line"
+	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/user"
 	"context"
 	"errors"
@@ -76,9 +79,12 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
+			action.Table:         action.ValidColumn,
+			actionroute.Table:    actionroute.ValidColumn,
 			channel.Table:        channel.ValidColumn,
 			channelmessage.Table: channelmessage.ValidColumn,
 			line.Table:           line.ValidColumn,
+			skill.Table:          skill.ValidColumn,
 			user.Table:           user.ValidColumn,
 		})
 	})

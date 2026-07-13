@@ -9,7 +9,7 @@ import (
 	"assistant-api/internal/config"
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
-	"assistant-api/internal/usecase/ai/messageintent"
+	"assistant-api/internal/usecase/ai/semanticdecision"
 	"assistant-api/internal/usecase/inbound/messagepersist"
 
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
@@ -27,7 +27,7 @@ type WebhookService interface {
 // 僅解析事件並輸出到 console，便於開發階段觀察 webhook 是否正常進站。
 type consoleWebhookService struct {
 	repo               *repository.ChannelMessageRepo
-	intentService      messageintent.Service
+	semanticService    semanticdecision.Service
 	persistenceService messagepersist.Service
 }
 
@@ -39,12 +39,12 @@ type WebhookServiceOptions struct {
 }
 
 // NewWebhookService 建立預設 webhook service
-func NewWebhookService(repo *repository.ChannelMessageRepo, intentService messageintent.Service) WebhookService {
-	return NewWebhookServiceWithOptions(repo, intentService, WebhookServiceOptions{})
+func NewWebhookService(repo *repository.ChannelMessageRepo, semanticService semanticdecision.Service) WebhookService {
+	return NewWebhookServiceWithOptions(repo, semanticService, WebhookServiceOptions{})
 }
 
 // NewWebhookServiceWithOptions 建立可帶擴充選項的 webhook service。
-func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, intentService messageintent.Service, options WebhookServiceOptions) WebhookService {
+func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, semanticService semanticdecision.Service, options WebhookServiceOptions) WebhookService {
 	var lineClient *messaging_api.MessagingApiAPI
 	if token := strings.TrimSpace(config.Line.ChannelToken); token != "" {
 		if client, err := messaging_api.NewMessagingApiAPI(token); err == nil {
@@ -61,7 +61,7 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, intentSer
 		memberNameTTL = 10 * time.Minute
 	}
 	persistSvc := messagepersist.NewService(repo, lineSenderNameResolver{repo: repo, client: lineClient, cache: cache, memberNameTTL: memberNameTTL, now: time.Now})
-	return consoleWebhookService{repo: repo, intentService: intentService, persistenceService: persistSvc}
+	return consoleWebhookService{repo: repo, semanticService: semanticService, persistenceService: persistSvc}
 }
 
 // webhookRequest 對應 LINE webhook 最上層 payload。
@@ -158,11 +158,11 @@ func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 
 			mentionedBot := message.MentionsUser(config.Line.BotUserID)
 
-			// 再交給共用 message intent service 做意圖判讀。
-			var classification *messageintent.Classification
+			// 再交給共用 semantic decision service 做語意判讀。
+			var classification *semanticdecision.Classification
 			var err error
-			if s.intentService != nil {
-				classification, err = s.intentService.ClassifyMessage(context.Background(), message, mentionedBot)
+			if s.semanticService != nil {
+				classification, err = s.semanticService.ClassifyMessage(context.Background(), message, mentionedBot)
 			}
 			if err != nil {
 				// AI 服務失敗時只記 debug，不阻斷 webhook 主流程。

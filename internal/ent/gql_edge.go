@@ -8,6 +8,34 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 )
 
+func (_m *Action) Skill(ctx context.Context) (*Skill, error) {
+	result, err := _m.Edges.SkillOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QuerySkill().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *Action) Routes(ctx context.Context) (result []*ActionRoute, err error) {
+	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
+		result, err = _m.NamedRoutes(graphql.GetFieldContext(ctx).Field.Alias)
+	} else {
+		result, err = _m.Edges.RoutesOrErr()
+	}
+	if IsNotLoaded(err) {
+		result, err = _m.QueryRoutes().All(ctx)
+	}
+	return result, err
+}
+
+func (_m *ActionRoute) Action(ctx context.Context) (*Action, error) {
+	result, err := _m.Edges.ActionOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryAction().Only(ctx)
+	}
+	return result, err
+}
+
 func (_m *Channel) Messages(ctx context.Context) (result []*ChannelMessage, err error) {
 	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
 		result, err = _m.NamedMessages(graphql.GetFieldContext(ctx).Field.Alias)
@@ -52,6 +80,18 @@ func (_m *Line) User(ctx context.Context) (*User, error) {
 	result, err := _m.Edges.UserOrErr()
 	if IsNotLoaded(err) {
 		result, err = _m.QueryUser().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *Skill) Actions(ctx context.Context) (result []*Action, err error) {
+	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
+		result, err = _m.NamedActions(graphql.GetFieldContext(ctx).Field.Alias)
+	} else {
+		result, err = _m.Edges.ActionsOrErr()
+	}
+	if IsNotLoaded(err) {
+		result, err = _m.QueryActions().All(ctx)
 	}
 	return result, err
 }

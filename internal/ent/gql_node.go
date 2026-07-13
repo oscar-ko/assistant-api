@@ -3,9 +3,12 @@
 package ent
 
 import (
+	"assistant-api/internal/ent/action"
+	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/line"
+	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/user"
 	"context"
 	"fmt"
@@ -21,6 +24,16 @@ type Noder interface {
 	IsNode()
 }
 
+var actionImplementors = []string{"Action", "Node"}
+
+// IsNode implements the Node interface check for GQLGen.
+func (*Action) IsNode() {}
+
+var actionrouteImplementors = []string{"ActionRoute", "Node"}
+
+// IsNode implements the Node interface check for GQLGen.
+func (*ActionRoute) IsNode() {}
+
 var channelImplementors = []string{"Channel", "Node"}
 
 // IsNode implements the Node interface check for GQLGen.
@@ -35,6 +48,11 @@ var lineImplementors = []string{"Line", "Node"}
 
 // IsNode implements the Node interface check for GQLGen.
 func (*Line) IsNode() {}
+
+var skillImplementors = []string{"Skill", "Node"}
+
+// IsNode implements the Node interface check for GQLGen.
+func (*Skill) IsNode() {}
 
 var userImplementors = []string{"User", "Node"}
 
@@ -99,6 +117,24 @@ func (c *Client) Noder(ctx context.Context, id uuid.UUID, opts ...NodeOption) (_
 
 func (c *Client) noder(ctx context.Context, table string, id uuid.UUID) (Noder, error) {
 	switch table {
+	case action.Table:
+		query := c.Action.Query().
+			Where(action.ID(id))
+		if fc := graphql.GetFieldContext(ctx); fc != nil {
+			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, actionImplementors...); err != nil {
+				return nil, err
+			}
+		}
+		return query.Only(ctx)
+	case actionroute.Table:
+		query := c.ActionRoute.Query().
+			Where(actionroute.ID(id))
+		if fc := graphql.GetFieldContext(ctx); fc != nil {
+			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, actionrouteImplementors...); err != nil {
+				return nil, err
+			}
+		}
+		return query.Only(ctx)
 	case channel.Table:
 		query := c.Channel.Query().
 			Where(channel.ID(id))
@@ -122,6 +158,15 @@ func (c *Client) noder(ctx context.Context, table string, id uuid.UUID) (Noder, 
 			Where(line.ID(id))
 		if fc := graphql.GetFieldContext(ctx); fc != nil {
 			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, lineImplementors...); err != nil {
+				return nil, err
+			}
+		}
+		return query.Only(ctx)
+	case skill.Table:
+		query := c.Skill.Query().
+			Where(skill.ID(id))
+		if fc := graphql.GetFieldContext(ctx); fc != nil {
+			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, skillImplementors...); err != nil {
 				return nil, err
 			}
 		}
@@ -208,6 +253,38 @@ func (c *Client) noders(ctx context.Context, table string, ids []uuid.UUID) ([]N
 		idmap[id] = append(idmap[id], &noders[i])
 	}
 	switch table {
+	case action.Table:
+		query := c.Action.Query().
+			Where(action.IDIn(ids...))
+		query, err := query.CollectFields(ctx, actionImplementors...)
+		if err != nil {
+			return nil, err
+		}
+		nodes, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, node := range nodes {
+			for _, noder := range idmap[node.ID] {
+				*noder = node
+			}
+		}
+	case actionroute.Table:
+		query := c.ActionRoute.Query().
+			Where(actionroute.IDIn(ids...))
+		query, err := query.CollectFields(ctx, actionrouteImplementors...)
+		if err != nil {
+			return nil, err
+		}
+		nodes, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, node := range nodes {
+			for _, noder := range idmap[node.ID] {
+				*noder = node
+			}
+		}
 	case channel.Table:
 		query := c.Channel.Query().
 			Where(channel.IDIn(ids...))
@@ -244,6 +321,22 @@ func (c *Client) noders(ctx context.Context, table string, ids []uuid.UUID) ([]N
 		query := c.Line.Query().
 			Where(line.IDIn(ids...))
 		query, err := query.CollectFields(ctx, lineImplementors...)
+		if err != nil {
+			return nil, err
+		}
+		nodes, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, node := range nodes {
+			for _, noder := range idmap[node.ID] {
+				*noder = node
+			}
+		}
+	case skill.Table:
+		query := c.Skill.Query().
+			Where(skill.IDIn(ids...))
+		query, err := query.CollectFields(ctx, skillImplementors...)
 		if err != nil {
 			return nil, err
 		}
