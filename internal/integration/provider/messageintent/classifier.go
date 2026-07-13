@@ -69,40 +69,50 @@ schema_version, intent_label, confidence, reason
 }
 
 func (c *classifierClient) Classify(ctx context.Context, prompt string, text string) (*Classification, error) {
+	// 先檢查 client 是否已初始化，避免呼叫到空物件。
 	if c == nil {
 		return nil, fmt.Errorf("message intent classifier is not initialized")
 	}
+	// baseURL 代表分類服務的位置，若未設定就無法發送請求。
 	if c.baseURL == "" {
 		return nil, fmt.Errorf("message intent classifier url is empty")
 	}
+	// 將 prompt 與文字整理成送往分類服務的 request payload。
 	payload := request{
 		Prompt: strings.TrimSpace(prompt),
 		Text:   strings.TrimSpace(text),
 	}
+	// 轉成 JSON，準備送出 HTTP request。
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
 	}
+	// 建立 POST request，目標是 message intent 的預測端點。
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/predict/message_intent", bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
+	// 告訴對方這是一個 JSON 格式的 API 呼叫。
 	req.Header.Set("Content-Type", "application/json")
 
+	// 實際送出請求到分類服務。
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
+	// 只接受 2xx 回應；其他都視為分類服務失敗。
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("message intent classifier returned status %d", resp.StatusCode)
 	}
 
+	// 解析分類服務回傳的 JSON 結果。
 	var decoded Classification
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
 		return nil, err
 	}
+	// 如果模型沒有回 intent_label，預設視為一般訊息。
 	if decoded.IntentLabel == "" {
 		decoded.IntentLabel = "message"
 	}

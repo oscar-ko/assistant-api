@@ -113,6 +113,7 @@ func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 			zap.L().Info("line message received",
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.String("text", strings.TrimSpace(message.Text)),
 			)
 			s.persistUnifiedMessage(message)
 		}
@@ -133,13 +134,22 @@ func (s consoleWebhookService) persistUnifiedMessage(message *unifiedmessage.Mes
 	mentionedBot := message.MentionsUser(config.Line.BotUserID)
 	text := strings.TrimSpace(message.Text)
 	if s.classifier != nil && message.IsText() && text != "" {
-		_, err := s.classifier.Classify(ctx, messageintent.DefaultPrompt(mentionedBot), text)
+		classification, err := s.classifier.Classify(ctx, messageintent.DefaultPrompt(mentionedBot), text)
 		if err != nil {
 			zap.L().Debug("webhook classify skipped",
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 				zap.Bool("mentioned_bot", mentionedBot),
 				zap.Error(err),
+			)
+		} else if classification != nil {
+			zap.L().Info("webhook classified",
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.Bool("mentioned_bot", mentionedBot),
+				zap.String("intent_label", classification.IntentLabel),
+				zap.Float64("confidence", classification.Confidence),
+				zap.String("reason", strings.TrimSpace(classification.Reason)),
 			)
 		}
 	}
