@@ -12,7 +12,7 @@ server:
 ai:
     semantic_decision_service_url: "http://127.0.0.1:9002"
     semantic_decision_service_timeout_seconds: 90
-    embedding_url: "http://127.0.0.1:8001"
+    embedding_url: "http://127.0.0.1:9000"
     embedding_timeout_seconds: 60
     embedding_path: "/embed"
 database:

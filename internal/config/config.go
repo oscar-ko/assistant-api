@@ -152,7 +152,7 @@ func MustLoad() {
 		viper.SetDefault("postgresql.parameters", "sslmode=disable")
 		viper.SetDefault("ai.semantic_decision_service_url", "http://127.0.0.1:9002")
 		viper.SetDefault("ai.semantic_decision_service_timeout_seconds", 90)
-		viper.SetDefault("ai.embedding_url", "http://127.0.0.1:8001")
+		viper.SetDefault("ai.embedding_url", "http://127.0.0.1:9000")
 		viper.SetDefault("ai.embedding_timeout_seconds", 60)
 		viper.SetDefault("ai.embedding_path", "/embed")
 		viper.SetDefault("line.channel_token", "")

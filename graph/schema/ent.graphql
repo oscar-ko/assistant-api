@@ -1,0 +1,17 @@
+scalar UUID
+scalar Upload
+scalar Void
+scalar Time
+scalar Vector
+
+extend type Query {
+    errorTest(errorCode: String): String
+}
+
+type Mutation {
+    emptyMutation: Void
+}
+
+type Subscription {
+    emptySubscription: Void
+}
