@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -46,15 +47,19 @@ func NewClassifier(baseURL string) Classifier {
 }
 
 // DefaultPrompt 回傳由 Go 端注入的通用分類提示詞。
-func DefaultPrompt() string {
+// mentionedBot 會寫入 prompt，讓模型先套用「有 mention bot 就視為 command」的優先規則。
+func DefaultPrompt(mentionedBot bool) string {
 	return strings.TrimSpace(`
 你是跨通訊軟體的訊息分類器。
 請只根據輸入訊息與系統規則判斷它是否是「指令」或「一般訊息」。
+
+第一個規則：如果 mentioned_bot=true，intent_label 一律視為 command。
 
 輸出格式必須是 JSON，欄位固定如下：
 schema_version, intent_label, confidence, reason
 
 規則：
+- mentioned_bot=` + strconv.FormatBool(mentionedBot) + `
 - intent_label 只能是 command 或 message
 - command 表示使用者希望系統執行動作、查詢、建立、更新、刪除、設定或觸發流程
 - message 表示一般聊天、閒聊、回覆、通知、描述或不需要執行動作的內容

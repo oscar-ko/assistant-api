@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"assistant-api/internal/config"
 	"assistant-api/internal/integration/provider/messageintent"
 	"assistant-api/internal/repository"
 
@@ -70,6 +71,22 @@ type webhookMessage struct {
 	Text string `json:"text"`
 	// QuotedMessageID 為被引用訊息的 ID。
 	QuotedMessageID string `json:"quotedMessageId"`
+	// Mention 為 LINE mention 資訊。
+	Mention *webhookMessageMention `json:"mention,omitempty"`
+}
+
+type webhookMessageMention struct {
+	// Mentionees 為被 mention 的使用者清單。
+	Mentionees []webhookMentionee `json:"mentionees"`
+}
+
+type webhookMentionee struct {
+	// Index 為 mention 在文字中的位置。
+	Index int `json:"index"`
+	// Length 為 mention 片段長度。
+	Length int `json:"length"`
+	// UserID 為被 mention 的使用者 ID。
+	UserID string `json:"userId"`
 }
 
 // ProcessIncoming 解析 webhook、輸出觀察日誌，並嘗試持久化入站訊息。
@@ -122,6 +139,8 @@ func (s consoleWebhookService) persistInboundMessage(event webhookEvent) {
 
 	ctx := context.Background()
 	senderID := resolveSender(event.Source)
+	// 先判斷是否有 mention bot，再把這個狀態交給分類 prompt，讓 AI 先套用第一條規則。
+	mentionedBot := messageMentionsBot(event.Message, config.Line.BotUserID)
 	// sender_name 透過既有 LINE 綁定資料反查 display_name。
 	senderName, err := s.repo.ResolveLineDisplayNameByLineUserID(ctx, senderID)
 	if err != nil {
@@ -163,11 +182,12 @@ func (s consoleWebhookService) persistInboundMessage(event webhookEvent) {
 
 	text := strings.TrimSpace(event.Message.Text)
 	if s.classifier != nil && strings.TrimSpace(event.Message.Type) == "text" && text != "" {
-		classification, err := s.classifier.Classify(ctx, messageintent.DefaultPrompt(), text)
+		classification, err := s.classifier.Classify(ctx, messageintent.DefaultPrompt(mentionedBot), text)
 		if err != nil {
 			zap.L().Warn("webhook classify failed",
 				zap.String("channel_id", ch.ID.String()),
 				zap.String("message_id", event.Message.ID),
+				zap.Bool("mentioned_bot", mentionedBot),
 				zap.Error(err),
 			)
 			return
@@ -175,11 +195,25 @@ func (s consoleWebhookService) persistInboundMessage(event webhookEvent) {
 		zap.L().Debug("webhook classified",
 			zap.String("channel_id", ch.ID.String()),
 			zap.String("message_id", event.Message.ID),
+			zap.Bool("mentioned_bot", mentionedBot),
 			zap.String("intent_label", classification.IntentLabel),
 			zap.Float64("confidence", classification.Confidence),
 			zap.String("reason", classification.Reason),
 		)
 	}
+}
+
+// messageMentionsBot 檢查 LINE message 的 mention 清單是否包含目前 bot。
+func messageMentionsBot(message webhookMessage, botUserID string) bool {
+	if strings.TrimSpace(botUserID) == "" || message.Mention == nil {
+		return false
+	}
+	for _, mention := range message.Mention.Mentionees {
+		if strings.TrimSpace(mention.UserID) == strings.TrimSpace(botUserID) {
+			return true
+		}
+	}
+	return false
 }
 
 // resolveSender 依優先序挑選可識別的來源 ID。
