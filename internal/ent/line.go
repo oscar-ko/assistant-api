@@ -10,20 +10,22 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/google/uuid"
 )
 
-// Line is the model entity for the Line schema.
+// LINE 綁定資訊
 type Line struct {
 	config `json:"-"`
 	// ID of the ent.
-	ID int `json:"id,omitempty"`
-	// LineUserID holds the value of the "line_user_id" field.
+	// 全域唯一主鍵 UUID
+	ID uuid.UUID `json:"id,omitempty"`
+	// LINE 平台使用者 ID
 	LineUserID string `json:"line_user_id,omitempty"`
-	// DisplayName holds the value of the "display_name" field.
+	// LINE 顯示名稱
 	DisplayName *string `json:"display_name,omitempty"`
-	// Email holds the value of the "email" field.
+	// LINE 帳號電子郵件（可能為空）
 	Email *string `json:"email,omitempty"`
-	// Picture holds the value of the "picture" field.
+	// LINE 大頭貼 URL
 	Picture *string `json:"picture,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the LineQuery when eager-loading is set.
@@ -33,7 +35,7 @@ type Line struct {
 
 // LineEdges holds the relations/edges for other nodes in the graph.
 type LineEdges struct {
-	// User holds the value of the user edge.
+	// LINE 帳號對應的系統使用者
 	User *User `json:"user,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
@@ -58,10 +60,10 @@ func (*Line) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case line.FieldID:
-			values[i] = new(sql.NullInt64)
 		case line.FieldLineUserID, line.FieldDisplayName, line.FieldEmail, line.FieldPicture:
 			values[i] = new(sql.NullString)
+		case line.FieldID:
+			values[i] = new(uuid.UUID)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -78,11 +80,11 @@ func (_m *Line) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case line.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*uuid.UUID); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value != nil {
+				_m.ID = *value
 			}
-			_m.ID = int(value.Int64)
 		case line.FieldLineUserID:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field line_user_id", values[i])

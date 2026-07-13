@@ -6,6 +6,8 @@ import (
 	"assistant-api/internal/ent"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/user"
+
+	"github.com/google/uuid"
 )
 
 // LineRepo 封裝 LINE 綁定流程使用到的資料存取。
@@ -28,7 +30,7 @@ func (r *LineRepo) GetUserByEmail(ctx context.Context, email string) (*ent.User,
 }
 
 // HasLineBindingForUser 檢查使用者是否已綁定任一 LINE 帳號。
-func (r *LineRepo) HasLineBindingForUser(ctx context.Context, userID int) (bool, error) {
+func (r *LineRepo) HasLineBindingForUser(ctx context.Context, userID uuid.UUID) (bool, error) {
 	return r.db.Line.Query().Where(line.HasUserWith(user.IDEQ(userID))).Exist(ctx)
 }
 

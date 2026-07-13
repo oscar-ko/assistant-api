@@ -6,13 +6,15 @@ import (
 	"strings"
 
 	"assistant-api/internal/ent"
+
+	"github.com/google/uuid"
 )
 
 // lineBindRepository 定義綁定流程所需的資料操作。
 type lineBindRepository interface {
 	GetUserByLineUserID(ctx context.Context, lineUserID string) (*ent.User, error)
 	GetUserByEmail(ctx context.Context, email string) (*ent.User, error)
-	HasLineBindingForUser(ctx context.Context, userID int) (bool, error)
+	HasLineBindingForUser(ctx context.Context, userID uuid.UUID) (bool, error)
 	CreateLineBinding(ctx context.Context, u *ent.User, lineUserID string, displayName string, email *string, picture *string) error
 	CreateUser(ctx context.Context, name, email string) (*ent.User, error)
 }

@@ -6,6 +6,12 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// Channel is the predicate function for channel builders.
+type Channel func(*sql.Selector)
+
+// ChannelMessage is the predicate function for channelmessage builders.
+type ChannelMessage func(*sql.Selector)
+
 // Line is the predicate function for line builders.
 type Line func(*sql.Selector)
 

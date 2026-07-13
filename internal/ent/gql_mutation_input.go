@@ -2,11 +2,15 @@
 
 package ent
 
+import (
+	"github.com/google/uuid"
+)
+
 // CreateUserInput represents a mutation input for creating users.
 type CreateUserInput struct {
 	Name   string
 	Email  string
-	LineID *int
+	LineID *uuid.UUID
 }
 
 // Mutate applies the CreateUserInput on the UserMutation builder.
@@ -29,7 +33,7 @@ type UpdateUserInput struct {
 	Name      *string
 	Email     *string
 	ClearLine bool
-	LineID    *int
+	LineID    *uuid.UUID
 }
 
 // Mutate applies the UpdateUserInput on the UserMutation builder.

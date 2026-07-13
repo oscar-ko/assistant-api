@@ -2,6 +2,20 @@ interface Node {
     id: ID!
 }
 
+scalar Time
+
+enum ChannelPlatform {
+    line
+    whatsapp
+    slack
+    telegram
+}
+
+enum ChannelType {
+    group
+    private
+}
+
 type User implements Node {
     id: ID!
     name: String!

@@ -4,7 +4,49 @@ package ent
 
 import (
 	"context"
+
+	"github.com/99designs/gqlgen/graphql"
 )
+
+func (_m *Channel) Messages(ctx context.Context) (result []*ChannelMessage, err error) {
+	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
+		result, err = _m.NamedMessages(graphql.GetFieldContext(ctx).Field.Alias)
+	} else {
+		result, err = _m.Edges.MessagesOrErr()
+	}
+	if IsNotLoaded(err) {
+		result, err = _m.QueryMessages().All(ctx)
+	}
+	return result, err
+}
+
+func (_m *ChannelMessage) Channel(ctx context.Context) (*Channel, error) {
+	result, err := _m.Edges.ChannelOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryChannel().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *ChannelMessage) RelatedMessage(ctx context.Context) (*ChannelMessage, error) {
+	result, err := _m.Edges.RelatedMessageOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryRelatedMessage().Only(ctx)
+	}
+	return result, MaskNotFound(err)
+}
+
+func (_m *ChannelMessage) Replies(ctx context.Context) (result []*ChannelMessage, err error) {
+	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
+		result, err = _m.NamedReplies(graphql.GetFieldContext(ctx).Field.Alias)
+	} else {
+		result, err = _m.Edges.RepliesOrErr()
+	}
+	if IsNotLoaded(err) {
+		result, err = _m.QueryReplies().All(ctx)
+	}
+	return result, err
+}
 
 func (_m *Line) User(ctx context.Context) (*User, error) {
 	result, err := _m.Edges.UserOrErr()

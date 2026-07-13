@@ -3,10 +3,11 @@
 package ent
 
 import (
-	"assistant-api/internal/ent/line"
+	"assistant-api/internal/ent/channel"
+	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/predicate"
-	"assistant-api/internal/ent/user"
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -17,56 +18,56 @@ import (
 	"github.com/google/uuid"
 )
 
-// UserQuery is the builder for querying User entities.
-type UserQuery struct {
+// ChannelQuery is the builder for querying Channel entities.
+type ChannelQuery struct {
 	config
-	ctx        *QueryContext
-	order      []user.OrderOption
-	inters     []Interceptor
-	predicates []predicate.User
-	withLine   *LineQuery
-	withFKs    bool
-	modifiers  []func(*sql.Selector)
-	loadTotal  []func(context.Context, []*User) error
+	ctx               *QueryContext
+	order             []channel.OrderOption
+	inters            []Interceptor
+	predicates        []predicate.Channel
+	withMessages      *ChannelMessageQuery
+	modifiers         []func(*sql.Selector)
+	loadTotal         []func(context.Context, []*Channel) error
+	withNamedMessages map[string]*ChannelMessageQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
-// Where adds a new predicate for the UserQuery builder.
-func (_q *UserQuery) Where(ps ...predicate.User) *UserQuery {
+// Where adds a new predicate for the ChannelQuery builder.
+func (_q *ChannelQuery) Where(ps ...predicate.Channel) *ChannelQuery {
 	_q.predicates = append(_q.predicates, ps...)
 	return _q
 }
 
 // Limit the number of records to be returned by this query.
-func (_q *UserQuery) Limit(limit int) *UserQuery {
+func (_q *ChannelQuery) Limit(limit int) *ChannelQuery {
 	_q.ctx.Limit = &limit
 	return _q
 }
 
 // Offset to start from.
-func (_q *UserQuery) Offset(offset int) *UserQuery {
+func (_q *ChannelQuery) Offset(offset int) *ChannelQuery {
 	_q.ctx.Offset = &offset
 	return _q
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
-func (_q *UserQuery) Unique(unique bool) *UserQuery {
+func (_q *ChannelQuery) Unique(unique bool) *ChannelQuery {
 	_q.ctx.Unique = &unique
 	return _q
 }
 
 // Order specifies how the records should be ordered.
-func (_q *UserQuery) Order(o ...user.OrderOption) *UserQuery {
+func (_q *ChannelQuery) Order(o ...channel.OrderOption) *ChannelQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
 
-// QueryLine chains the current query on the "line" edge.
-func (_q *UserQuery) QueryLine() *LineQuery {
-	query := (&LineClient{config: _q.config}).Query()
+// QueryMessages chains the current query on the "messages" edge.
+func (_q *ChannelQuery) QueryMessages() *ChannelMessageQuery {
+	query := (&ChannelMessageClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -76,9 +77,9 @@ func (_q *UserQuery) QueryLine() *LineQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, selector),
-			sqlgraph.To(line.Table, line.FieldID),
-			sqlgraph.Edge(sqlgraph.O2O, true, user.LineTable, user.LineColumn),
+			sqlgraph.From(channel.Table, channel.FieldID, selector),
+			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, channel.MessagesTable, channel.MessagesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -86,21 +87,21 @@ func (_q *UserQuery) QueryLine() *LineQuery {
 	return query
 }
 
-// First returns the first User entity from the query.
-// Returns a *NotFoundError when no User was found.
-func (_q *UserQuery) First(ctx context.Context) (*User, error) {
+// First returns the first Channel entity from the query.
+// Returns a *NotFoundError when no Channel was found.
+func (_q *ChannelQuery) First(ctx context.Context) (*Channel, error) {
 	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{user.Label}
+		return nil, &NotFoundError{channel.Label}
 	}
 	return nodes[0], nil
 }
 
 // FirstX is like First, but panics if an error occurs.
-func (_q *UserQuery) FirstX(ctx context.Context) *User {
+func (_q *ChannelQuery) FirstX(ctx context.Context) *Channel {
 	node, err := _q.First(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -108,22 +109,22 @@ func (_q *UserQuery) FirstX(ctx context.Context) *User {
 	return node
 }
 
-// FirstID returns the first User ID from the query.
-// Returns a *NotFoundError when no User ID was found.
-func (_q *UserQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
+// FirstID returns the first Channel ID from the query.
+// Returns a *NotFoundError when no Channel ID was found.
+func (_q *ChannelQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
 	var ids []uuid.UUID
 	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{user.Label}
+		err = &NotFoundError{channel.Label}
 		return
 	}
 	return ids[0], nil
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *UserQuery) FirstIDX(ctx context.Context) uuid.UUID {
+func (_q *ChannelQuery) FirstIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -131,10 +132,10 @@ func (_q *UserQuery) FirstIDX(ctx context.Context) uuid.UUID {
 	return id
 }
 
-// Only returns a single User entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when more than one User entity is found.
-// Returns a *NotFoundError when no User entities are found.
-func (_q *UserQuery) Only(ctx context.Context) (*User, error) {
+// Only returns a single Channel entity found by the query, ensuring it only returns one.
+// Returns a *NotSingularError when more than one Channel entity is found.
+// Returns a *NotFoundError when no Channel entities are found.
+func (_q *ChannelQuery) Only(ctx context.Context) (*Channel, error) {
 	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
@@ -143,14 +144,14 @@ func (_q *UserQuery) Only(ctx context.Context) (*User, error) {
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{user.Label}
+		return nil, &NotFoundError{channel.Label}
 	default:
-		return nil, &NotSingularError{user.Label}
+		return nil, &NotSingularError{channel.Label}
 	}
 }
 
 // OnlyX is like Only, but panics if an error occurs.
-func (_q *UserQuery) OnlyX(ctx context.Context) *User {
+func (_q *ChannelQuery) OnlyX(ctx context.Context) *Channel {
 	node, err := _q.Only(ctx)
 	if err != nil {
 		panic(err)
@@ -158,10 +159,10 @@ func (_q *UserQuery) OnlyX(ctx context.Context) *User {
 	return node
 }
 
-// OnlyID is like Only, but returns the only User ID in the query.
-// Returns a *NotSingularError when more than one User ID is found.
+// OnlyID is like Only, but returns the only Channel ID in the query.
+// Returns a *NotSingularError when more than one Channel ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *UserQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
+func (_q *ChannelQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
 	var ids []uuid.UUID
 	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
@@ -170,15 +171,15 @@ func (_q *UserQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{user.Label}
+		err = &NotFoundError{channel.Label}
 	default:
-		err = &NotSingularError{user.Label}
+		err = &NotSingularError{channel.Label}
 	}
 	return
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *UserQuery) OnlyIDX(ctx context.Context) uuid.UUID {
+func (_q *ChannelQuery) OnlyIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -186,18 +187,18 @@ func (_q *UserQuery) OnlyIDX(ctx context.Context) uuid.UUID {
 	return id
 }
 
-// All executes the query and returns a list of Users.
-func (_q *UserQuery) All(ctx context.Context) ([]*User, error) {
+// All executes the query and returns a list of Channels.
+func (_q *ChannelQuery) All(ctx context.Context) ([]*Channel, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*User, *UserQuery]()
-	return withInterceptors[[]*User](ctx, _q, qr, _q.inters)
+	qr := querierAll[[]*Channel, *ChannelQuery]()
+	return withInterceptors[[]*Channel](ctx, _q, qr, _q.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
-func (_q *UserQuery) AllX(ctx context.Context) []*User {
+func (_q *ChannelQuery) AllX(ctx context.Context) []*Channel {
 	nodes, err := _q.All(ctx)
 	if err != nil {
 		panic(err)
@@ -205,20 +206,20 @@ func (_q *UserQuery) AllX(ctx context.Context) []*User {
 	return nodes
 }
 
-// IDs executes the query and returns a list of User IDs.
-func (_q *UserQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
+// IDs executes the query and returns a list of Channel IDs.
+func (_q *ChannelQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(user.FieldID).Scan(ctx, &ids); err != nil {
+	if err = _q.Select(channel.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *UserQuery) IDsX(ctx context.Context) []uuid.UUID {
+func (_q *ChannelQuery) IDsX(ctx context.Context) []uuid.UUID {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -227,16 +228,16 @@ func (_q *UserQuery) IDsX(ctx context.Context) []uuid.UUID {
 }
 
 // Count returns the count of the given query.
-func (_q *UserQuery) Count(ctx context.Context) (int, error) {
+func (_q *ChannelQuery) Count(ctx context.Context) (int, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*UserQuery](), _q.inters)
+	return withInterceptors[int](ctx, _q, querierCount[*ChannelQuery](), _q.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
-func (_q *UserQuery) CountX(ctx context.Context) int {
+func (_q *ChannelQuery) CountX(ctx context.Context) int {
 	count, err := _q.Count(ctx)
 	if err != nil {
 		panic(err)
@@ -245,7 +246,7 @@ func (_q *UserQuery) CountX(ctx context.Context) int {
 }
 
 // Exist returns true if the query has elements in the graph.
-func (_q *UserQuery) Exist(ctx context.Context) (bool, error) {
+func (_q *ChannelQuery) Exist(ctx context.Context) (bool, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
@@ -258,7 +259,7 @@ func (_q *UserQuery) Exist(ctx context.Context) (bool, error) {
 }
 
 // ExistX is like Exist, but panics if an error occurs.
-func (_q *UserQuery) ExistX(ctx context.Context) bool {
+func (_q *ChannelQuery) ExistX(ctx context.Context) bool {
 	exist, err := _q.Exist(ctx)
 	if err != nil {
 		panic(err)
@@ -266,33 +267,33 @@ func (_q *UserQuery) ExistX(ctx context.Context) bool {
 	return exist
 }
 
-// Clone returns a duplicate of the UserQuery builder, including all associated steps. It can be
+// Clone returns a duplicate of the ChannelQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
-func (_q *UserQuery) Clone() *UserQuery {
+func (_q *ChannelQuery) Clone() *ChannelQuery {
 	if _q == nil {
 		return nil
 	}
-	return &UserQuery{
-		config:     _q.config,
-		ctx:        _q.ctx.Clone(),
-		order:      append([]user.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.User{}, _q.predicates...),
-		withLine:   _q.withLine.Clone(),
+	return &ChannelQuery{
+		config:       _q.config,
+		ctx:          _q.ctx.Clone(),
+		order:        append([]channel.OrderOption{}, _q.order...),
+		inters:       append([]Interceptor{}, _q.inters...),
+		predicates:   append([]predicate.Channel{}, _q.predicates...),
+		withMessages: _q.withMessages.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
 }
 
-// WithLine tells the query-builder to eager-load the nodes that are connected to
-// the "line" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *UserQuery) WithLine(opts ...func(*LineQuery)) *UserQuery {
-	query := (&LineClient{config: _q.config}).Query()
+// WithMessages tells the query-builder to eager-load the nodes that are connected to
+// the "messages" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ChannelQuery) WithMessages(opts ...func(*ChannelMessageQuery)) *ChannelQuery {
+	query := (&ChannelMessageClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withLine = query
+	_q.withMessages = query
 	return _q
 }
 
@@ -302,19 +303,19 @@ func (_q *UserQuery) WithLine(opts ...func(*LineQuery)) *UserQuery {
 // Example:
 //
 //	var v []struct {
-//		Name string `json:"name,omitempty"`
+//		CreatedAt time.Time `json:"created_at,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
-//	client.User.Query().
-//		GroupBy(user.FieldName).
+//	client.Channel.Query().
+//		GroupBy(channel.FieldCreatedAt).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *UserQuery) GroupBy(field string, fields ...string) *UserGroupBy {
+func (_q *ChannelQuery) GroupBy(field string, fields ...string) *ChannelGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &UserGroupBy{build: _q}
+	grbuild := &ChannelGroupBy{build: _q}
 	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = user.Label
+	grbuild.label = channel.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
 }
@@ -325,26 +326,26 @@ func (_q *UserQuery) GroupBy(field string, fields ...string) *UserGroupBy {
 // Example:
 //
 //	var v []struct {
-//		Name string `json:"name,omitempty"`
+//		CreatedAt time.Time `json:"created_at,omitempty"`
 //	}
 //
-//	client.User.Query().
-//		Select(user.FieldName).
+//	client.Channel.Query().
+//		Select(channel.FieldCreatedAt).
 //		Scan(ctx, &v)
-func (_q *UserQuery) Select(fields ...string) *UserSelect {
+func (_q *ChannelQuery) Select(fields ...string) *ChannelSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &UserSelect{UserQuery: _q}
-	sbuild.label = user.Label
+	sbuild := &ChannelSelect{ChannelQuery: _q}
+	sbuild.label = channel.Label
 	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
 
-// Aggregate returns a UserSelect configured with the given aggregations.
-func (_q *UserQuery) Aggregate(fns ...AggregateFunc) *UserSelect {
+// Aggregate returns a ChannelSelect configured with the given aggregations.
+func (_q *ChannelQuery) Aggregate(fns ...AggregateFunc) *ChannelSelect {
 	return _q.Select().Aggregate(fns...)
 }
 
-func (_q *UserQuery) prepareQuery(ctx context.Context) error {
+func (_q *ChannelQuery) prepareQuery(ctx context.Context) error {
 	for _, inter := range _q.inters {
 		if inter == nil {
 			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
@@ -356,7 +357,7 @@ func (_q *UserQuery) prepareQuery(ctx context.Context) error {
 		}
 	}
 	for _, f := range _q.ctx.Fields {
-		if !user.ValidColumn(f) {
+		if !channel.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
@@ -370,26 +371,19 @@ func (_q *UserQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, error) {
+func (_q *ChannelQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Channel, error) {
 	var (
-		nodes       = []*User{}
-		withFKs     = _q.withFKs
+		nodes       = []*Channel{}
 		_spec       = _q.querySpec()
 		loadedTypes = [1]bool{
-			_q.withLine != nil,
+			_q.withMessages != nil,
 		}
 	)
-	if _q.withLine != nil {
-		withFKs = true
-	}
-	if withFKs {
-		_spec.Node.Columns = append(_spec.Node.Columns, user.ForeignKeys...)
-	}
 	_spec.ScanValues = func(columns []string) ([]any, error) {
-		return (*User).scanValues(nil, columns)
+		return (*Channel).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
-		node := &User{config: _q.config}
+		node := &Channel{config: _q.config}
 		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
@@ -406,9 +400,17 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-	if query := _q.withLine; query != nil {
-		if err := _q.loadLine(ctx, query, nodes, nil,
-			func(n *User, e *Line) { n.Edges.Line = e }); err != nil {
+	if query := _q.withMessages; query != nil {
+		if err := _q.loadMessages(ctx, query, nodes,
+			func(n *Channel) { n.Edges.Messages = []*ChannelMessage{} },
+			func(n *Channel, e *ChannelMessage) { n.Edges.Messages = append(n.Edges.Messages, e) }); err != nil {
+			return nil, err
+		}
+	}
+	for name, query := range _q.withNamedMessages {
+		if err := _q.loadMessages(ctx, query, nodes,
+			func(n *Channel) { n.appendNamedMessages(name) },
+			func(n *Channel, e *ChannelMessage) { n.appendNamedMessages(name, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -420,40 +422,38 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	return nodes, nil
 }
 
-func (_q *UserQuery) loadLine(ctx context.Context, query *LineQuery, nodes []*User, init func(*User), assign func(*User, *Line)) error {
-	ids := make([]uuid.UUID, 0, len(nodes))
-	nodeids := make(map[uuid.UUID][]*User)
+func (_q *ChannelQuery) loadMessages(ctx context.Context, query *ChannelMessageQuery, nodes []*Channel, init func(*Channel), assign func(*Channel, *ChannelMessage)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Channel)
 	for i := range nodes {
-		if nodes[i].line_user == nil {
-			continue
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
 		}
-		fk := *nodes[i].line_user
-		if _, ok := nodeids[fk]; !ok {
-			ids = append(ids, fk)
-		}
-		nodeids[fk] = append(nodeids[fk], nodes[i])
 	}
-	if len(ids) == 0 {
-		return nil
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(channelmessage.FieldChannelID)
 	}
-	query.Where(line.IDIn(ids...))
+	query.Where(predicate.ChannelMessage(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(channel.MessagesColumn), fks...))
+	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		nodes, ok := nodeids[n.ID]
+		fk := n.ChannelID
+		node, ok := nodeids[fk]
 		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "line_user" returned %v`, n.ID)
+			return fmt.Errorf(`unexpected referenced foreign-key "channel_id" returned %v for node %v`, fk, n.ID)
 		}
-		for i := range nodes {
-			assign(nodes[i], n)
-		}
+		assign(node, n)
 	}
 	return nil
 }
 
-func (_q *UserQuery) sqlCount(ctx context.Context) (int, error) {
+func (_q *ChannelQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
 	if len(_q.modifiers) > 0 {
 		_spec.Modifiers = _q.modifiers
@@ -465,8 +465,8 @@ func (_q *UserQuery) sqlCount(ctx context.Context) (int, error) {
 	return sqlgraph.CountNodes(ctx, _q.driver, _spec)
 }
 
-func (_q *UserQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(user.Table, user.Columns, sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID))
+func (_q *ChannelQuery) querySpec() *sqlgraph.QuerySpec {
+	_spec := sqlgraph.NewQuerySpec(channel.Table, channel.Columns, sqlgraph.NewFieldSpec(channel.FieldID, field.TypeUUID))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -475,9 +475,9 @@ func (_q *UserQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, user.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, channel.FieldID)
 		for i := range fields {
-			if fields[i] != user.FieldID {
+			if fields[i] != channel.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
 		}
@@ -505,12 +505,12 @@ func (_q *UserQuery) querySpec() *sqlgraph.QuerySpec {
 	return _spec
 }
 
-func (_q *UserQuery) sqlQuery(ctx context.Context) *sql.Selector {
+func (_q *ChannelQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(_q.driver.Dialect())
-	t1 := builder.Table(user.Table)
+	t1 := builder.Table(channel.Table)
 	columns := _q.ctx.Fields
 	if len(columns) == 0 {
-		columns = user.Columns
+		columns = channel.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if _q.sql != nil {
@@ -537,28 +537,42 @@ func (_q *UserQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	return selector
 }
 
-// UserGroupBy is the group-by builder for User entities.
-type UserGroupBy struct {
+// WithNamedMessages tells the query-builder to eager-load the nodes that are connected to the "messages"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (_q *ChannelQuery) WithNamedMessages(name string, opts ...func(*ChannelMessageQuery)) *ChannelQuery {
+	query := (&ChannelMessageClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if _q.withNamedMessages == nil {
+		_q.withNamedMessages = make(map[string]*ChannelMessageQuery)
+	}
+	_q.withNamedMessages[name] = query
+	return _q
+}
+
+// ChannelGroupBy is the group-by builder for Channel entities.
+type ChannelGroupBy struct {
 	selector
-	build *UserQuery
+	build *ChannelQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
-func (_g *UserGroupBy) Aggregate(fns ...AggregateFunc) *UserGroupBy {
+func (_g *ChannelGroupBy) Aggregate(fns ...AggregateFunc) *ChannelGroupBy {
 	_g.fns = append(_g.fns, fns...)
 	return _g
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_g *UserGroupBy) Scan(ctx context.Context, v any) error {
+func (_g *ChannelGroupBy) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
 	if err := _g.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*UserQuery, *UserGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return scanWithInterceptors[*ChannelQuery, *ChannelGroupBy](ctx, _g.build, _g, _g.build.inters, v)
 }
 
-func (_g *UserGroupBy) sqlScan(ctx context.Context, root *UserQuery, v any) error {
+func (_g *ChannelGroupBy) sqlScan(ctx context.Context, root *ChannelQuery, v any) error {
 	selector := root.sqlQuery(ctx).Select()
 	aggregation := make([]string, 0, len(_g.fns))
 	for _, fn := range _g.fns {
@@ -585,28 +599,28 @@ func (_g *UserGroupBy) sqlScan(ctx context.Context, root *UserQuery, v any) erro
 	return sql.ScanSlice(rows, v)
 }
 
-// UserSelect is the builder for selecting fields of User entities.
-type UserSelect struct {
-	*UserQuery
+// ChannelSelect is the builder for selecting fields of Channel entities.
+type ChannelSelect struct {
+	*ChannelQuery
 	selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
-func (_s *UserSelect) Aggregate(fns ...AggregateFunc) *UserSelect {
+func (_s *ChannelSelect) Aggregate(fns ...AggregateFunc) *ChannelSelect {
 	_s.fns = append(_s.fns, fns...)
 	return _s
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_s *UserSelect) Scan(ctx context.Context, v any) error {
+func (_s *ChannelSelect) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
 	if err := _s.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*UserQuery, *UserSelect](ctx, _s.UserQuery, _s, _s.inters, v)
+	return scanWithInterceptors[*ChannelQuery, *ChannelSelect](ctx, _s.ChannelQuery, _s, _s.inters, v)
 }
 
-func (_s *UserSelect) sqlScan(ctx context.Context, root *UserQuery, v any) error {
+func (_s *ChannelSelect) sqlScan(ctx context.Context, root *ChannelQuery, v any) error {
 	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(_s.fns))
 	for _, fn := range _s.fns {

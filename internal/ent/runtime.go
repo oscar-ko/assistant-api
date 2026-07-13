@@ -3,21 +3,102 @@
 package ent
 
 import (
+	"assistant-api/internal/ent/channel"
+	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/schema"
 	"assistant-api/internal/ent/user"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 // The init function reads all schema descriptors with runtime code
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	channelMixin := schema.Channel{}.Mixin()
+	channelMixinFields0 := channelMixin[0].Fields()
+	_ = channelMixinFields0
+	channelMixinFields1 := channelMixin[1].Fields()
+	_ = channelMixinFields1
+	channelFields := schema.Channel{}.Fields()
+	_ = channelFields
+	// channelDescCreatedAt is the schema descriptor for created_at field.
+	channelDescCreatedAt := channelMixinFields1[0].Descriptor()
+	// channel.DefaultCreatedAt holds the default value on creation for the created_at field.
+	channel.DefaultCreatedAt = channelDescCreatedAt.Default.(func() time.Time)
+	// channelDescUpdatedAt is the schema descriptor for updated_at field.
+	channelDescUpdatedAt := channelMixinFields1[1].Descriptor()
+	// channel.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	channel.DefaultUpdatedAt = channelDescUpdatedAt.Default.(func() time.Time)
+	// channel.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	channel.UpdateDefaultUpdatedAt = channelDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// channelDescName is the schema descriptor for name field.
+	channelDescName := channelFields[0].Descriptor()
+	// channel.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	channel.NameValidator = channelDescName.Validators[0].(func(string) error)
+	// channelDescGroupID is the schema descriptor for group_id field.
+	channelDescGroupID := channelFields[2].Descriptor()
+	// channel.GroupIDValidator is a validator for the "group_id" field. It is called by the builders before save.
+	channel.GroupIDValidator = channelDescGroupID.Validators[0].(func(string) error)
+	// channelDescIsActive is the schema descriptor for is_active field.
+	channelDescIsActive := channelFields[4].Descriptor()
+	// channel.DefaultIsActive holds the default value on creation for the is_active field.
+	channel.DefaultIsActive = channelDescIsActive.Default.(bool)
+	// channelDescInactiveMessageCount is the schema descriptor for inactive_message_count field.
+	channelDescInactiveMessageCount := channelFields[5].Descriptor()
+	// channel.DefaultInactiveMessageCount holds the default value on creation for the inactive_message_count field.
+	channel.DefaultInactiveMessageCount = channelDescInactiveMessageCount.Default.(int)
+	// channelDescID is the schema descriptor for id field.
+	channelDescID := channelMixinFields0[0].Descriptor()
+	// channel.DefaultID holds the default value on creation for the id field.
+	channel.DefaultID = channelDescID.Default.(func() uuid.UUID)
+	channelmessageMixin := schema.ChannelMessage{}.Mixin()
+	channelmessageMixinFields0 := channelmessageMixin[0].Fields()
+	_ = channelmessageMixinFields0
+	channelmessageMixinFields1 := channelmessageMixin[1].Fields()
+	_ = channelmessageMixinFields1
+	channelmessageFields := schema.ChannelMessage{}.Fields()
+	_ = channelmessageFields
+	// channelmessageDescCreatedAt is the schema descriptor for created_at field.
+	channelmessageDescCreatedAt := channelmessageMixinFields1[0].Descriptor()
+	// channelmessage.DefaultCreatedAt holds the default value on creation for the created_at field.
+	channelmessage.DefaultCreatedAt = channelmessageDescCreatedAt.Default.(func() time.Time)
+	// channelmessageDescUpdatedAt is the schema descriptor for updated_at field.
+	channelmessageDescUpdatedAt := channelmessageMixinFields1[1].Descriptor()
+	// channelmessage.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	channelmessage.DefaultUpdatedAt = channelmessageDescUpdatedAt.Default.(func() time.Time)
+	// channelmessage.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	channelmessage.UpdateDefaultUpdatedAt = channelmessageDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// channelmessageDescContent is the schema descriptor for content field.
+	channelmessageDescContent := channelmessageFields[0].Descriptor()
+	// channelmessage.ContentValidator is a validator for the "content" field. It is called by the builders before save.
+	channelmessage.ContentValidator = channelmessageDescContent.Validators[0].(func(string) error)
+	// channelmessageDescMessageType is the schema descriptor for message_type field.
+	channelmessageDescMessageType := channelmessageFields[7].Descriptor()
+	// channelmessage.DefaultMessageType holds the default value on creation for the message_type field.
+	channelmessage.DefaultMessageType = channelmessageDescMessageType.Default.(string)
+	// channelmessageDescID is the schema descriptor for id field.
+	channelmessageDescID := channelmessageMixinFields0[0].Descriptor()
+	// channelmessage.DefaultID holds the default value on creation for the id field.
+	channelmessage.DefaultID = channelmessageDescID.Default.(func() uuid.UUID)
+	lineMixin := schema.Line{}.Mixin()
+	lineMixinFields0 := lineMixin[0].Fields()
+	_ = lineMixinFields0
 	lineFields := schema.Line{}.Fields()
 	_ = lineFields
 	// lineDescLineUserID is the schema descriptor for line_user_id field.
 	lineDescLineUserID := lineFields[0].Descriptor()
 	// line.LineUserIDValidator is a validator for the "line_user_id" field. It is called by the builders before save.
 	line.LineUserIDValidator = lineDescLineUserID.Validators[0].(func(string) error)
+	// lineDescID is the schema descriptor for id field.
+	lineDescID := lineMixinFields0[0].Descriptor()
+	// line.DefaultID holds the default value on creation for the id field.
+	line.DefaultID = lineDescID.Default.(func() uuid.UUID)
+	userMixin := schema.User{}.Mixin()
+	userMixinFields0 := userMixin[0].Fields()
+	_ = userMixinFields0
 	userFields := schema.User{}.Fields()
 	_ = userFields
 	// userDescName is the schema descriptor for name field.
@@ -28,4 +109,8 @@ func init() {
 	userDescEmail := userFields[1].Descriptor()
 	// user.EmailValidator is a validator for the "email" field. It is called by the builders before save.
 	user.EmailValidator = userDescEmail.Validators[0].(func(string) error)
+	// userDescID is the schema descriptor for id field.
+	userDescID := userMixinFields0[0].Descriptor()
+	// user.DefaultID holds the default value on creation for the id field.
+	user.DefaultID = userDescID.Default.(func() uuid.UUID)
 }

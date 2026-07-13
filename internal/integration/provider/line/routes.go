@@ -19,12 +19,13 @@ const stateCookieName = "line_oauth_state"
 // RegisterRoutes 註冊 LINE OAuth 與綁定路由。
 func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 	lineRepo := repository.NewLineRepo(client)
+	channelMessageRepo := repository.NewChannelMessageRepo(client)
 
 	r.GET("/line/bind", bindPage)
 	r.GET("/line/oauth/start", oauthStart)
 	r.GET("/line/oauth/callback", oauthCallback(lineRepo))
 	// Webhook 採 handler -> service 分層，便於後續替換 queue/worker 實作。
-	r.POST("/line/webhook", webhookHandler(NewWebhookService()))
+	r.POST("/line/webhook", webhookHandler(NewWebhookService(channelMessageRepo)))
 }
 
 // bindPage 回傳 LINE 綁定頁面。

@@ -10,27 +10,29 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/google/uuid"
 )
 
-// User is the model entity for the User schema.
+// 系統使用者
 type User struct {
 	config `json:"-"`
 	// ID of the ent.
-	ID int `json:"id,omitempty"`
-	// Name holds the value of the "name" field.
+	// 全域唯一主鍵 UUID
+	ID uuid.UUID `json:"id,omitempty"`
+	// 使用者顯示名稱
 	Name string `json:"name,omitempty"`
-	// Email holds the value of the "email" field.
+	// 使用者唯一電子郵件
 	Email string `json:"email,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the UserQuery when eager-loading is set.
 	Edges        UserEdges `json:"edges"`
-	line_user    *int
+	line_user    *uuid.UUID
 	selectValues sql.SelectValues
 }
 
 // UserEdges holds the relations/edges for other nodes in the graph.
 type UserEdges struct {
-	// Line holds the value of the line edge.
+	// 使用者綁定的 LINE 帳號
 	Line *Line `json:"line,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
@@ -55,12 +57,12 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldID:
-			values[i] = new(sql.NullInt64)
 		case user.FieldName, user.FieldEmail:
 			values[i] = new(sql.NullString)
+		case user.FieldID:
+			values[i] = new(uuid.UUID)
 		case user.ForeignKeys[0]: // line_user
-			values[i] = new(sql.NullInt64)
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -77,11 +79,11 @@ func (_m *User) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case user.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*uuid.UUID); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value != nil {
+				_m.ID = *value
 			}
-			_m.ID = int(value.Int64)
 		case user.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
@@ -95,11 +97,11 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				_m.Email = value.String
 			}
 		case user.ForeignKeys[0]:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for edge-field line_user", value)
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field line_user", values[i])
 			} else if value.Valid {
-				_m.line_user = new(int)
-				*_m.line_user = int(value.Int64)
+				_m.line_user = new(uuid.UUID)
+				*_m.line_user = *value.S.(*uuid.UUID)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])

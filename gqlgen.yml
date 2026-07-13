@@ -2,6 +2,8 @@ schema:
     - internal/graph/schema/*.graphql
     - internal/graph/schema/*.graphqls
 
+skip_validation: true
+
 exec:
     filename: internal/graph/generated/generated.go
     package: generated
@@ -22,7 +24,10 @@ autobind:
 models:
     ID:
         model:
-            - github.com/99designs/gqlgen/graphql.IntID
+            - github.com/google/uuid.UUID
+    Time:
+        model:
+            - github.com/99designs/gqlgen/graphql.Time
     Node:
         model:
             - assistant-api/internal/ent.Noder

@@ -8,9 +8,76 @@ import (
 )
 
 var (
+	// ChannelsColumns holds the columns for the "channels" table.
+	ChannelsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "name", Type: field.TypeString},
+		{Name: "platform", Type: field.TypeEnum, Enums: []string{"line", "whatsapp", "slack", "telegram"}, Default: "line"},
+		{Name: "group_id", Type: field.TypeString},
+		{Name: "type", Type: field.TypeEnum, Enums: []string{"group", "private"}, Default: "group"},
+		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "inactive_message_count", Type: field.TypeInt, Default: 0},
+	}
+	// ChannelsTable holds the schema information for the "channels" table.
+	ChannelsTable = &schema.Table{
+		Name:       "channels",
+		Columns:    ChannelsColumns,
+		PrimaryKey: []*schema.Column{ChannelsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "channel_platform_group_id",
+				Unique:  true,
+				Columns: []*schema.Column{ChannelsColumns[4], ChannelsColumns[5]},
+			},
+		},
+	}
+	// ChannelMessagesColumns holds the columns for the "channel_messages" table.
+	ChannelMessagesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "content", Type: field.TypeString},
+		{Name: "sender_id", Type: field.TypeString},
+		{Name: "sender_name", Type: field.TypeString, Nullable: true},
+		{Name: "platform_message_id", Type: field.TypeString, Nullable: true},
+		{Name: "quoted_message_id", Type: field.TypeString, Nullable: true},
+		{Name: "message_type", Type: field.TypeString, Default: "text"},
+		{Name: "platform_timestamp", Type: field.TypeInt64, Nullable: true},
+		{Name: "channel_id", Type: field.TypeUUID},
+		{Name: "related_message_id", Type: field.TypeUUID, Nullable: true},
+	}
+	// ChannelMessagesTable holds the schema information for the "channel_messages" table.
+	ChannelMessagesTable = &schema.Table{
+		Name:       "channel_messages",
+		Columns:    ChannelMessagesColumns,
+		PrimaryKey: []*schema.Column{ChannelMessagesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "channel_messages_channels_messages",
+				Columns:    []*schema.Column{ChannelMessagesColumns[10]},
+				RefColumns: []*schema.Column{ChannelsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "channel_messages_channel_messages_related_message",
+				Columns:    []*schema.Column{ChannelMessagesColumns[11]},
+				RefColumns: []*schema.Column{ChannelMessagesColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "channelmessage_channel_id_platform_message_id",
+				Unique:  false,
+				Columns: []*schema.Column{ChannelMessagesColumns[10], ChannelMessagesColumns[6]},
+			},
+		},
+	}
 	// LinesColumns holds the columns for the "lines" table.
 	LinesColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "id", Type: field.TypeUUID},
 		{Name: "line_user_id", Type: field.TypeString, Unique: true},
 		{Name: "display_name", Type: field.TypeString, Nullable: true},
 		{Name: "email", Type: field.TypeString, Nullable: true},
@@ -24,10 +91,10 @@ var (
 	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "id", Type: field.TypeUUID},
 		{Name: "name", Type: field.TypeString},
 		{Name: "email", Type: field.TypeString, Unique: true},
-		{Name: "line_user", Type: field.TypeInt, Unique: true, Nullable: true},
+		{Name: "line_user", Type: field.TypeUUID, Unique: true, Nullable: true},
 	}
 	// UsersTable holds the schema information for the "users" table.
 	UsersTable = &schema.Table{
@@ -45,11 +112,15 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		ChannelsTable,
+		ChannelMessagesTable,
 		LinesTable,
 		UsersTable,
 	}
 )
 
 func init() {
+	ChannelMessagesTable.ForeignKeys[0].RefTable = ChannelsTable
+	ChannelMessagesTable.ForeignKeys[1].RefTable = ChannelMessagesTable
 	UsersTable.ForeignKeys[0].RefTable = LinesTable
 }

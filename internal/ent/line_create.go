@@ -11,6 +11,7 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 )
 
 // LineCreate is the builder for creating a Line entity.
@@ -68,8 +69,22 @@ func (_c *LineCreate) SetNillablePicture(v *string) *LineCreate {
 	return _c
 }
 
+// SetID sets the "id" field.
+func (_c *LineCreate) SetID(v uuid.UUID) *LineCreate {
+	_c.mutation.SetID(v)
+	return _c
+}
+
+// SetNillableID sets the "id" field if the given value is not nil.
+func (_c *LineCreate) SetNillableID(v *uuid.UUID) *LineCreate {
+	if v != nil {
+		_c.SetID(*v)
+	}
+	return _c
+}
+
 // SetUserID sets the "user" edge to the User entity by ID.
-func (_c *LineCreate) SetUserID(id int) *LineCreate {
+func (_c *LineCreate) SetUserID(id uuid.UUID) *LineCreate {
 	_c.mutation.SetUserID(id)
 	return _c
 }
@@ -86,6 +101,7 @@ func (_c *LineCreate) Mutation() *LineMutation {
 
 // Save creates the Line in the database.
 func (_c *LineCreate) Save(ctx context.Context) (*Line, error) {
+	_c.defaults()
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -108,6 +124,14 @@ func (_c *LineCreate) Exec(ctx context.Context) error {
 func (_c *LineCreate) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
 		panic(err)
+	}
+}
+
+// defaults sets the default values of the builder before save.
+func (_c *LineCreate) defaults() {
+	if _, ok := _c.mutation.ID(); !ok {
+		v := line.DefaultID()
+		_c.mutation.SetID(v)
 	}
 }
 
@@ -138,8 +162,13 @@ func (_c *LineCreate) sqlSave(ctx context.Context) (*Line, error) {
 		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
+	if _spec.ID.Value != nil {
+		if id, ok := _spec.ID.Value.(*uuid.UUID); ok {
+			_node.ID = *id
+		} else if err := _node.ID.Scan(_spec.ID.Value); err != nil {
+			return nil, err
+		}
+	}
 	_c.mutation.id = &_node.ID
 	_c.mutation.done = true
 	return _node, nil
@@ -148,8 +177,12 @@ func (_c *LineCreate) sqlSave(ctx context.Context) (*Line, error) {
 func (_c *LineCreate) createSpec() (*Line, *sqlgraph.CreateSpec) {
 	var (
 		_node = &Line{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(line.Table, sqlgraph.NewFieldSpec(line.FieldID, field.TypeInt))
+		_spec = sqlgraph.NewCreateSpec(line.Table, sqlgraph.NewFieldSpec(line.FieldID, field.TypeUUID))
 	)
+	if id, ok := _c.mutation.ID(); ok {
+		_node.ID = id
+		_spec.ID.Value = &id
+	}
 	if value, ok := _c.mutation.LineUserID(); ok {
 		_spec.SetField(line.FieldLineUserID, field.TypeString, value)
 		_node.LineUserID = value
@@ -174,7 +207,7 @@ func (_c *LineCreate) createSpec() (*Line, *sqlgraph.CreateSpec) {
 			Columns: []string{line.UserColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -203,6 +236,7 @@ func (_c *LineCreateBulk) Save(ctx context.Context) ([]*Line, error) {
 	for i := range _c.builders {
 		func(i int, root context.Context) {
 			builder := _c.builders[i]
+			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
 				mutation, ok := m.(*LineMutation)
 				if !ok {
@@ -229,10 +263,6 @@ func (_c *LineCreateBulk) Save(ctx context.Context) ([]*Line, error) {
 					return nil, err
 				}
 				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
 				mutation.done = true
 				return nodes[i], nil
 			})

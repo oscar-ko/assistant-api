@@ -7,12 +7,12 @@ require (
 	entgo.io/ent v0.14.6
 	github.com/99designs/gqlgen v0.17.68
 	github.com/gin-gonic/gin v1.12.0
+	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/lib/pq v1.12.3
 	github.com/line/line-bot-sdk-go/v8 v8.19.0
 	github.com/spf13/viper v1.21.0
 	github.com/vektah/gqlparser/v2 v2.5.23
-	golang.org/x/sync v0.20.0
 )
 
 require (
@@ -36,7 +36,6 @@ require (
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
@@ -71,6 +70,7 @@ require (
 	golang.org/x/exp v0.0.0-20221230185412-738e83a70c30 // indirect
 	golang.org/x/mod v0.36.0 // indirect
 	golang.org/x/net v0.54.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.44.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 	golang.org/x/tools v0.45.0 // indirect

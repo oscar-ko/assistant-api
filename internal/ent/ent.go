@@ -3,6 +3,8 @@
 package ent
 
 import (
+	"assistant-api/internal/ent/channel"
+	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -74,8 +76,10 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			line.Table: line.ValidColumn,
-			user.Table: user.ValidColumn,
+			channel.Table:        channel.ValidColumn,
+			channelmessage.Table: channelmessage.ValidColumn,
+			line.Table:           line.ValidColumn,
+			user.Table:           user.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

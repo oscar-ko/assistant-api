@@ -5,6 +5,7 @@ package line
 import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/google/uuid"
 )
 
 const (
@@ -55,6 +56,8 @@ func ValidColumn(column string) bool {
 var (
 	// LineUserIDValidator is a validator for the "line_user_id" field. It is called by the builders before save.
 	LineUserIDValidator func(string) error
+	// DefaultID holds the default value on creation for the "id" field.
+	DefaultID func() uuid.UUID
 )
 
 // OrderOption defines the ordering options for the Line queries.

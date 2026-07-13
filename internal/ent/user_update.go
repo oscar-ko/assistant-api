@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 )
 
 // UserUpdate is the builder for updating User entities.
@@ -57,13 +58,13 @@ func (_u *UserUpdate) SetNillableEmail(v *string) *UserUpdate {
 }
 
 // SetLineID sets the "line" edge to the Line entity by ID.
-func (_u *UserUpdate) SetLineID(id int) *UserUpdate {
+func (_u *UserUpdate) SetLineID(id uuid.UUID) *UserUpdate {
 	_u.mutation.SetLineID(id)
 	return _u
 }
 
 // SetNillableLineID sets the "line" edge to the Line entity by ID if the given value is not nil.
-func (_u *UserUpdate) SetNillableLineID(id *int) *UserUpdate {
+func (_u *UserUpdate) SetNillableLineID(id *uuid.UUID) *UserUpdate {
 	if id != nil {
 		_u = _u.SetLineID(*id)
 	}
@@ -132,7 +133,7 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
 	}
-	_spec := sqlgraph.NewUpdateSpec(user.Table, user.Columns, sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt))
+	_spec := sqlgraph.NewUpdateSpec(user.Table, user.Columns, sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -154,7 +155,7 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Columns: []string{user.LineColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(line.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(line.FieldID, field.TypeUUID),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -167,7 +168,7 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Columns: []string{user.LineColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(line.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(line.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -224,13 +225,13 @@ func (_u *UserUpdateOne) SetNillableEmail(v *string) *UserUpdateOne {
 }
 
 // SetLineID sets the "line" edge to the Line entity by ID.
-func (_u *UserUpdateOne) SetLineID(id int) *UserUpdateOne {
+func (_u *UserUpdateOne) SetLineID(id uuid.UUID) *UserUpdateOne {
 	_u.mutation.SetLineID(id)
 	return _u
 }
 
 // SetNillableLineID sets the "line" edge to the Line entity by ID if the given value is not nil.
-func (_u *UserUpdateOne) SetNillableLineID(id *int) *UserUpdateOne {
+func (_u *UserUpdateOne) SetNillableLineID(id *uuid.UUID) *UserUpdateOne {
 	if id != nil {
 		_u = _u.SetLineID(*id)
 	}
@@ -312,7 +313,7 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
 	}
-	_spec := sqlgraph.NewUpdateSpec(user.Table, user.Columns, sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt))
+	_spec := sqlgraph.NewUpdateSpec(user.Table, user.Columns, sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID))
 	id, ok := _u.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "User.id" for update`)}
@@ -351,7 +352,7 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Columns: []string{user.LineColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(line.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(line.FieldID, field.TypeUUID),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -364,7 +365,7 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Columns: []string{user.LineColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(line.FieldID, field.TypeInt),
+				IDSpec: sqlgraph.NewFieldSpec(line.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

@@ -2,6 +2,12 @@
 
 package model
 
+import (
+	"fmt"
+	"io"
+	"strconv"
+)
+
 type SendLineTextInput struct {
 	LineUserID string `json:"lineUserID"`
 	Text       string `json:"text"`
@@ -10,4 +16,90 @@ type SendLineTextInput struct {
 type SendLineTextPayload struct {
 	Status string `json:"status"`
 	To     string `json:"to"`
+}
+
+type ChannelPlatform string
+
+const (
+	ChannelPlatformLine     ChannelPlatform = "line"
+	ChannelPlatformWhatsapp ChannelPlatform = "whatsapp"
+	ChannelPlatformSlack    ChannelPlatform = "slack"
+	ChannelPlatformTelegram ChannelPlatform = "telegram"
+)
+
+var AllChannelPlatform = []ChannelPlatform{
+	ChannelPlatformLine,
+	ChannelPlatformWhatsapp,
+	ChannelPlatformSlack,
+	ChannelPlatformTelegram,
+}
+
+func (e ChannelPlatform) IsValid() bool {
+	switch e {
+	case ChannelPlatformLine, ChannelPlatformWhatsapp, ChannelPlatformSlack, ChannelPlatformTelegram:
+		return true
+	}
+	return false
+}
+
+func (e ChannelPlatform) String() string {
+	return string(e)
+}
+
+func (e *ChannelPlatform) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ChannelPlatform(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ChannelPlatform", str)
+	}
+	return nil
+}
+
+func (e ChannelPlatform) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type ChannelType string
+
+const (
+	ChannelTypeGroup   ChannelType = "group"
+	ChannelTypePrivate ChannelType = "private"
+)
+
+var AllChannelType = []ChannelType{
+	ChannelTypeGroup,
+	ChannelTypePrivate,
+}
+
+func (e ChannelType) IsValid() bool {
+	switch e {
+	case ChannelTypeGroup, ChannelTypePrivate:
+		return true
+	}
+	return false
+}
+
+func (e ChannelType) String() string {
+	return string(e)
+}
+
+func (e *ChannelType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ChannelType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ChannelType", str)
+	}
+	return nil
+}
+
+func (e ChannelType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
 }

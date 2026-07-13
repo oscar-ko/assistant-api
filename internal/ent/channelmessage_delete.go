@@ -3,7 +3,7 @@
 package ent
 
 import (
-	"assistant-api/internal/ent/line"
+	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/predicate"
 	"context"
 
@@ -12,26 +12,26 @@ import (
 	"entgo.io/ent/schema/field"
 )
 
-// LineDelete is the builder for deleting a Line entity.
-type LineDelete struct {
+// ChannelMessageDelete is the builder for deleting a ChannelMessage entity.
+type ChannelMessageDelete struct {
 	config
 	hooks    []Hook
-	mutation *LineMutation
+	mutation *ChannelMessageMutation
 }
 
-// Where appends a list predicates to the LineDelete builder.
-func (_d *LineDelete) Where(ps ...predicate.Line) *LineDelete {
+// Where appends a list predicates to the ChannelMessageDelete builder.
+func (_d *ChannelMessageDelete) Where(ps ...predicate.ChannelMessage) *ChannelMessageDelete {
 	_d.mutation.Where(ps...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
-func (_d *LineDelete) Exec(ctx context.Context) (int, error) {
+func (_d *ChannelMessageDelete) Exec(ctx context.Context) (int, error) {
 	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_d *LineDelete) ExecX(ctx context.Context) int {
+func (_d *ChannelMessageDelete) ExecX(ctx context.Context) int {
 	n, err := _d.Exec(ctx)
 	if err != nil {
 		panic(err)
@@ -39,8 +39,8 @@ func (_d *LineDelete) ExecX(ctx context.Context) int {
 	return n
 }
 
-func (_d *LineDelete) sqlExec(ctx context.Context) (int, error) {
-	_spec := sqlgraph.NewDeleteSpec(line.Table, sqlgraph.NewFieldSpec(line.FieldID, field.TypeUUID))
+func (_d *ChannelMessageDelete) sqlExec(ctx context.Context) (int, error) {
+	_spec := sqlgraph.NewDeleteSpec(channelmessage.Table, sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID))
 	if ps := _d.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -56,32 +56,32 @@ func (_d *LineDelete) sqlExec(ctx context.Context) (int, error) {
 	return affected, err
 }
 
-// LineDeleteOne is the builder for deleting a single Line entity.
-type LineDeleteOne struct {
-	_d *LineDelete
+// ChannelMessageDeleteOne is the builder for deleting a single ChannelMessage entity.
+type ChannelMessageDeleteOne struct {
+	_d *ChannelMessageDelete
 }
 
-// Where appends a list predicates to the LineDelete builder.
-func (_d *LineDeleteOne) Where(ps ...predicate.Line) *LineDeleteOne {
+// Where appends a list predicates to the ChannelMessageDelete builder.
+func (_d *ChannelMessageDeleteOne) Where(ps ...predicate.ChannelMessage) *ChannelMessageDeleteOne {
 	_d._d.mutation.Where(ps...)
 	return _d
 }
 
 // Exec executes the deletion query.
-func (_d *LineDeleteOne) Exec(ctx context.Context) error {
+func (_d *ChannelMessageDeleteOne) Exec(ctx context.Context) error {
 	n, err := _d._d.Exec(ctx)
 	switch {
 	case err != nil:
 		return err
 	case n == 0:
-		return &NotFoundError{line.Label}
+		return &NotFoundError{channelmessage.Label}
 	default:
 		return nil
 	}
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_d *LineDeleteOne) ExecX(ctx context.Context) {
+func (_d *ChannelMessageDeleteOne) ExecX(ctx context.Context) {
 	if err := _d.Exec(ctx); err != nil {
 		panic(err)
 	}

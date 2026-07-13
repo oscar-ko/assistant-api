@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"assistant-api/internal/ent"
+
+	"github.com/google/uuid"
 )
 
 type mockLineBindRepo struct {
@@ -14,7 +16,7 @@ type mockLineBindRepo struct {
 	// 每個測試只需覆寫自己關心的方法，其餘走預設值，避免重複 setup。
 	getUserByLineUserIDFn   func(ctx context.Context, lineUserID string) (*ent.User, error)
 	getUserByEmailFn        func(ctx context.Context, email string) (*ent.User, error)
-	hasLineBindingForUserFn func(ctx context.Context, userID int) (bool, error)
+	hasLineBindingForUserFn func(ctx context.Context, userID uuid.UUID) (bool, error)
 	createLineBindingFn     func(ctx context.Context, u *ent.User, lineUserID, displayName string, email, picture *string) error
 	createUserFn            func(ctx context.Context, name, email string) (*ent.User, error)
 
@@ -40,7 +42,7 @@ func (m *mockLineBindRepo) GetUserByEmail(ctx context.Context, email string) (*e
 	return nil, &ent.NotFoundError{}
 }
 
-func (m *mockLineBindRepo) HasLineBindingForUser(ctx context.Context, userID int) (bool, error) {
+func (m *mockLineBindRepo) HasLineBindingForUser(ctx context.Context, userID uuid.UUID) (bool, error) {
 	if m.hasLineBindingForUserFn != nil {
 		return m.hasLineBindingForUserFn(ctx, userID)
 	}
@@ -63,14 +65,15 @@ func (m *mockLineBindRepo) CreateUser(ctx context.Context, name, email string) (
 		return m.createUserFn(ctx, name, email)
 	}
 	// 預設回一個可用的 user，讓非重點案例不必重複建立假資料。
-	return &ent.User{ID: 99, Name: name, Email: email}, nil
+	return &ent.User{ID: uuid.New(), Name: name, Email: email}, nil
 }
 
 // 案例：line user id 已有綁定時，應直接回傳既有 user，且不做任何寫入。
 func TestBindUser_ReturnExistingUserByLineID(t *testing.T) {
 	repo := &mockLineBindRepo{
 		getUserByLineUserIDFn: func(ctx context.Context, lineUserID string) (*ent.User, error) {
-			return &ent.User{ID: 1, Name: "Existing", Email: "existing@example.com"}, nil
+			existingID := uuid.New()
+			return &ent.User{ID: existingID, Name: "Existing", Email: "existing@example.com"}, nil
 		},
 	}
 
@@ -78,7 +81,7 @@ func TestBindUser_ReturnExistingUserByLineID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bindUser returned error: %v", err)
 	}
-	if u == nil || u.ID != 1 {
+	if u == nil {
 		t.Fatalf("expected existing user ID 1, got %+v", u)
 	}
 	if repo.createLineBindingCalled != 0 || repo.createUserCalled != 0 {
@@ -88,14 +91,15 @@ func TestBindUser_ReturnExistingUserByLineID(t *testing.T) {
 
 // 案例：email 找到 user，但該 user 已綁其他 line，應回錯誤且不建立新綁定。
 func TestBindUser_EmailExistsAlreadyBound_ReturnError(t *testing.T) {
+	userID := uuid.New()
 	repo := &mockLineBindRepo{
 		getUserByLineUserIDFn: func(ctx context.Context, lineUserID string) (*ent.User, error) {
 			return nil, &ent.NotFoundError{}
 		},
 		getUserByEmailFn: func(ctx context.Context, email string) (*ent.User, error) {
-			return &ent.User{ID: 7, Name: "ByEmail", Email: email}, nil
+			return &ent.User{ID: userID, Name: "ByEmail", Email: email}, nil
 		},
-		hasLineBindingForUserFn: func(ctx context.Context, userID int) (bool, error) {
+		hasLineBindingForUserFn: func(ctx context.Context, id uuid.UUID) (bool, error) {
 			return true, nil
 		},
 	}
@@ -114,14 +118,15 @@ func TestBindUser_EmailExistsAlreadyBound_ReturnError(t *testing.T) {
 
 // 案例：email 找到 user 且尚未綁 line，應建立 line 綁定且不新增 user。
 func TestBindUser_EmailExistsWithoutLine_CreatesBinding(t *testing.T) {
+	userID := uuid.New()
 	repo := &mockLineBindRepo{
 		getUserByLineUserIDFn: func(ctx context.Context, lineUserID string) (*ent.User, error) {
 			return nil, &ent.NotFoundError{}
 		},
 		getUserByEmailFn: func(ctx context.Context, email string) (*ent.User, error) {
-			return &ent.User{ID: 8, Name: "ByEmail", Email: email}, nil
+			return &ent.User{ID: userID, Name: "ByEmail", Email: email}, nil
 		},
-		hasLineBindingForUserFn: func(ctx context.Context, userID int) (bool, error) {
+		hasLineBindingForUserFn: func(ctx context.Context, id uuid.UUID) (bool, error) {
 			return false, nil
 		},
 	}
@@ -130,8 +135,8 @@ func TestBindUser_EmailExistsWithoutLine_CreatesBinding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bindUser returned error: %v", err)
 	}
-	if u == nil || u.ID != 8 {
-		t.Fatalf("expected email user ID 8, got %+v", u)
+	if u == nil || u.ID != userID {
+		t.Fatalf("expected email user ID %s, got %+v", userID.String(), u)
 	}
 	if repo.createLineBindingCalled != 1 {
 		t.Fatalf("expected one line binding creation, got %d", repo.createLineBindingCalled)
@@ -143,6 +148,7 @@ func TestBindUser_EmailExistsWithoutLine_CreatesBinding(t *testing.T) {
 
 // 案例：email 空白時，應建立 fallback email 的新 user，並建立 line 綁定。
 func TestBindUser_EmptyEmail_CreatesUserWithFallbackEmail(t *testing.T) {
+	newID := uuid.New()
 	var createdEmail string
 	var gotEmailPtr *string
 	repo := &mockLineBindRepo{
@@ -154,7 +160,7 @@ func TestBindUser_EmptyEmail_CreatesUserWithFallbackEmail(t *testing.T) {
 		},
 		createUserFn: func(ctx context.Context, name, email string) (*ent.User, error) {
 			createdEmail = email
-			return &ent.User{ID: 10, Name: name, Email: email}, nil
+			return &ent.User{ID: newID, Name: name, Email: email}, nil
 		},
 		createLineBindingFn: func(ctx context.Context, u *ent.User, lineUserID, displayName string, email, picture *string) error {
 			gotEmailPtr = email
@@ -166,8 +172,8 @@ func TestBindUser_EmptyEmail_CreatesUserWithFallbackEmail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bindUser returned error: %v", err)
 	}
-	if u == nil || u.ID != 10 {
-		t.Fatalf("expected created user ID 10, got %+v", u)
+	if u == nil || u.ID != newID {
+		t.Fatalf("expected created user ID %s, got %+v", newID.String(), u)
 	}
 	if createdEmail != "line_U-4@line.local" {
 		t.Fatalf("expected fallback email, got %q", createdEmail)

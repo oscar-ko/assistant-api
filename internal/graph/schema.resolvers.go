@@ -11,6 +11,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // CreateUser is the resolver for the createUser field.
@@ -19,7 +21,7 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input ent.CreateUserI
 }
 
 // UpdateUser is the resolver for the updateUser field.
-func (r *mutationResolver) UpdateUser(ctx context.Context, id int, input ent.UpdateUserInput) (*ent.User, error) {
+func (r *mutationResolver) UpdateUser(ctx context.Context, id uuid.UUID, input ent.UpdateUserInput) (*ent.User, error) {
 	return r.Client.User.UpdateOneID(id).SetInput(input).Save(ctx)
 }
 
@@ -46,7 +48,7 @@ func (r *mutationResolver) SendLineText(ctx context.Context, input model.SendLin
 }
 
 // Node is the resolver for the node field.
-func (r *queryResolver) Node(ctx context.Context, id int) (ent.Noder, error) {
+func (r *queryResolver) Node(ctx context.Context, id uuid.UUID) (ent.Noder, error) {
 	return r.Client.Noder(ctx, id)
 }
 
