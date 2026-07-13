@@ -31,24 +31,24 @@ type ChannelMessageStore interface {
 // SenderNameResolver 定義不同 provider 解析 sender 顯示名稱的擴充點。
 // LINE/Slack/WhatsApp 都可以注入各自策略；未提供時會使用 Noop。
 type SenderNameResolver interface {
-	ResolveSenderName(ctx context.Context, platform string, senderID string) (string, error)
+	ResolveSenderName(ctx context.Context, platform string, channelID string, channelType string, senderID string) (string, error)
 }
 
 // SenderNameResolverFunc 讓函式可直接作為 resolver 使用。
-type SenderNameResolverFunc func(ctx context.Context, platform string, senderID string) (string, error)
+type SenderNameResolverFunc func(ctx context.Context, platform string, channelID string, channelType string, senderID string) (string, error)
 
-func (f SenderNameResolverFunc) ResolveSenderName(ctx context.Context, platform string, senderID string) (string, error) {
+func (f SenderNameResolverFunc) ResolveSenderName(ctx context.Context, platform string, channelID string, channelType string, senderID string) (string, error) {
 	if f == nil {
 		return "", nil
 	}
-	return f(ctx, platform, senderID)
+	return f(ctx, platform, channelID, channelType, senderID)
 }
 
 // NoopSenderNameResolver 是預設 resolver，不做任何名稱反查。
 // 適合 Slack/WhatsApp 尚未接 profile 查詢前先共用持久化主流程。
 type NoopSenderNameResolver struct{}
 
-func (NoopSenderNameResolver) ResolveSenderName(ctx context.Context, platform string, senderID string) (string, error) {
+func (NoopSenderNameResolver) ResolveSenderName(ctx context.Context, platform string, channelID string, channelType string, senderID string) (string, error) {
 	return "", nil
 }
 
@@ -90,7 +90,7 @@ func (s Service) PersistUnifiedMessage(ctx context.Context, message *unifiedmess
 		resolver = NoopSenderNameResolver{}
 	}
 
-	senderName, err := resolver.ResolveSenderName(ctx, platform, senderID)
+	senderName, err := resolver.ResolveSenderName(ctx, platform, channelID, channelType, senderID)
 	if err != nil {
 		zap.L().Warn("resolve sender name failed",
 			zap.String("platform", platform),

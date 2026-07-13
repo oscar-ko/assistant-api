@@ -11,6 +11,7 @@ import (
 	"assistant-api/internal/usecase/ai/messageintent"
 	"assistant-api/internal/usecase/inbound/messagepersist"
 
+	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
 	"go.uber.org/zap"
 )
 
@@ -31,7 +32,13 @@ type consoleWebhookService struct {
 
 // NewWebhookService 建立預設 webhook service
 func NewWebhookService(repo *repository.ChannelMessageRepo, intentService messageintent.Service) WebhookService {
-	persistSvc := messagepersist.NewService(repo, lineSenderNameResolver{repo: repo})
+	var lineClient *messaging_api.MessagingApiAPI
+	if token := strings.TrimSpace(config.Line.ChannelToken); token != "" {
+		if client, err := messaging_api.NewMessagingApiAPI(token); err == nil {
+			lineClient = client
+		}
+	}
+	persistSvc := messagepersist.NewService(repo, lineSenderNameResolver{repo: repo, client: lineClient})
 	return consoleWebhookService{repo: repo, intentService: intentService, persistenceService: persistSvc}
 }
 
@@ -166,17 +173,68 @@ func (s consoleWebhookService) persistUnifiedMessage(message *unifiedmessage.Mes
 }
 
 type lineSenderNameResolver struct {
-	repo *repository.ChannelMessageRepo
+	repo    *repository.ChannelMessageRepo
+	client  *messaging_api.MessagingApiAPI
 }
 
-func (r lineSenderNameResolver) ResolveSenderName(ctx context.Context, platform string, senderID string) (string, error) {
+func (r lineSenderNameResolver) ResolveSenderName(ctx context.Context, platform string, channelID string, channelType string, senderID string) (string, error) {
 	if r.repo == nil {
 		return "", nil
 	}
 	if !strings.EqualFold(strings.TrimSpace(platform), "line") {
 		return "", nil
 	}
-	return r.repo.ResolveLineDisplayNameByLineUserID(ctx, senderID)
+
+	name, err := r.repo.ResolveLineDisplayNameByLineUserID(ctx, senderID)
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(name) != "" {
+		return strings.TrimSpace(name), nil
+	}
+
+	if r.client == nil {
+		return "", nil
+	}
+
+	resolved := strings.TrimSpace(r.resolveByLineAPI(ctx, channelID, channelType, senderID))
+	if resolved != "" {
+		return resolved, nil
+	}
+	return "", nil
+}
+
+func (r lineSenderNameResolver) resolveByLineAPI(ctx context.Context, channelID string, channelType string, senderID string) string {
+	userID := strings.TrimSpace(senderID)
+	if userID == "" {
+		return ""
+	}
+	api := r.client.WithContext(ctx)
+	channelKey := strings.TrimSpace(channelID)
+
+	switch strings.ToLower(strings.TrimSpace(channelType)) {
+	case "group":
+		if channelKey != "" {
+			if profile, err := api.GetGroupMemberProfile(channelKey, userID); err == nil && profile != nil {
+				if value := strings.TrimSpace(profile.DisplayName); value != "" {
+					return value
+				}
+			}
+		}
+	case "room":
+		if channelKey != "" {
+			if profile, err := api.GetRoomMemberProfile(channelKey, userID); err == nil && profile != nil {
+				if value := strings.TrimSpace(profile.DisplayName); value != "" {
+					return value
+				}
+			}
+		}
+	}
+
+	if profile, err := api.GetProfile(userID); err == nil && profile != nil {
+		return strings.TrimSpace(profile.DisplayName)
+	}
+	return ""
 }
 
 // resolveSender 依優先序挑選可識別的來源 ID。
