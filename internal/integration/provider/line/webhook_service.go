@@ -61,8 +61,10 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, semanticS
 	}
 	memberNameTTL := options.MemberNameTTL
 	if memberNameTTL <= 0 {
+		// sender 顯示名稱快取預設 10 分鐘，避免每則訊息都打 LINE profile API。
 		memberNameTTL = 10 * time.Minute
 	}
+	// sender 名稱解析流程：cache -> 綁定資料表 -> LINE API，最後再回寫 cache。
 	persistSvc := messagepersist.NewService(repo, lineSenderNameResolver{repo: repo, client: lineClient, cache: cache, memberNameTTL: memberNameTTL, now: time.Now})
 	chainSvc := commandchain.NewService(repo)
 	decisionSvc := commanddecision.NewService(chainSvc, semanticService)
@@ -217,9 +219,10 @@ func (s *WebhookService) persistUnifiedMessage(message *unifiedmessage.Message) 
 }
 
 type lineSenderNameResolver struct {
-	repo          *repository.ChannelMessageRepo
-	client        *messaging_api.MessagingApiAPI
-	cache         MemberNameCache
+	repo   *repository.ChannelMessageRepo
+	client *messaging_api.MessagingApiAPI
+	cache  MemberNameCache
+	// memberNameTTL 控制 sender 名稱快取有效期限。
 	memberNameTTL time.Duration
 	now           func() time.Time
 }
