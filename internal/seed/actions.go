@@ -17,6 +17,8 @@ import (
 	"github.com/pgvector/pgvector-go"
 )
 
+// defaultSkillSeed 描述一個 skill 的初始化資料。
+// 這個結構僅用於 seeding 階段，對應 skill 與其底下 action 的宣告式配置。
 type defaultSkillSeed struct {
 	SkillCode   string
 	Name        string
@@ -24,6 +26,9 @@ type defaultSkillSeed struct {
 	Actions     []defaultActionSeed
 }
 
+// defaultActionSeed 描述單一 action 的初始化資料。
+// RouteTexts 會寫入 action_route，用於語意路由與向量檢索；
+// CommandPurpose 會保存到 action.command_purpose，提供後續語意決策參考。
 type defaultActionSeed struct {
 	ActionCode     action.ActionCode
 	Name           string
@@ -33,6 +38,13 @@ type defaultActionSeed struct {
 	CommandPurpose string
 }
 
+// seedActionCatalog 初始化技能/動作/路由三層資料。
+// 流程：
+// 1) 先 upsert skill
+// 2) 再 upsert 該 skill 下每個 action
+// 3) 再 upsert action route 語句
+// 4) 最後補齊缺失的 route embedding
+// 任何一步失敗都會中止，避免寫入部分不一致的種子資料。
 func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 	seeds := []defaultSkillSeed{
 		{
@@ -46,7 +58,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Enable todo reminder in the current channel.",
 					APIOperation:   "start_todo_reminder",
 					RouteTexts:     []string{"開啟待辦提醒", "開始待辦提醒", "幫我開始提醒待辦"},
-					CommandPurpose: "目的: 取得啟用待辦提醒的指令與作用範圍。手段: 若缺少必要資訊，透過追問請使用者明確提供。",
+					CommandPurpose: "用途: 協助模型判斷此指令是啟用待辦提醒。必要參數: channel_scope(目前頻道或指定頻道)。缺參策略: 若 channel_scope 不明確，先提問確認作用範圍後再執行。",
 				},
 				{
 					ActionCode:     action.ActionCodeDisable,
@@ -54,7 +66,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Disable todo reminder in the current channel.",
 					APIOperation:   "stop_todo_reminder",
 					RouteTexts:     []string{"關閉待辦提醒", "停止待辦提醒", "不要再提醒待辦"},
-					CommandPurpose: "目的: 取得停用待辦提醒的指令與作用範圍。手段: 若語意不完整，透過追問確認。",
+					CommandPurpose: "用途: 協助模型判斷此指令是停用待辦提醒。必要參數: channel_scope(目前頻道或指定頻道)。缺參策略: 若未明確指出作用範圍，先提問確認再執行。",
 				},
 			},
 		},
@@ -69,7 +81,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Enable translation for a specific locale in the current channel.",
 					APIOperation:   "start_translation_locale",
 					RouteTexts:     []string{"開啟翻譯", "開始翻譯模式", "新增翻譯語系", "幫我開啟某語言翻譯", "請翻譯成指定語言"},
-					CommandPurpose: "目的: 得到開啟翻譯的指令及翻譯的語言種類。手段: 只接受使用者明確指定的目標語系；禁止推測預設語系或聊天語言。若未提供語系，回 missing_target 並追問請使用者提供目標語系。",
+					CommandPurpose: "用途: 協助模型判斷此指令是啟用翻譯語系。必要參數: target_locale(目標語系)、channel_scope。缺參策略: 僅接受使用者明確指定 target_locale；若缺 target_locale，先提問請使用者提供，不可自行推測。",
 				},
 				{
 					ActionCode:     action.ActionCodeDisable,
@@ -77,7 +89,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Disable translation service globally in the current channel.",
 					APIOperation:   "stop_translation_all",
 					RouteTexts:     []string{"關閉翻譯服務", "停止所有翻譯", "不要翻譯了", "把翻譯功能全部關掉"},
-					CommandPurpose: "目的: 取得關閉整體翻譯服務的明確指令。",
+					CommandPurpose: "用途: 協助模型判斷此指令是關閉整體翻譯服務。必要參數: channel_scope。缺參策略: 若作用範圍不清楚，先提問確認是否僅目前頻道。",
 				},
 				{
 					ActionCode:     action.ActionCodeConfigure,
@@ -85,7 +97,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Disable translation for a specific locale in the current channel.",
 					APIOperation:   "stop_translation_locale",
 					RouteTexts:     []string{"關閉某語言翻譯", "停止指定語言翻譯", "移除翻譯語系", "把某個語言的翻譯關掉", "不要某語言翻譯"},
-					CommandPurpose: "目的: 取得停用指定翻譯語系的指令與目標語系。手段: 只接受使用者明確指定的目標語系；禁止推測預設語系或聊天語言。若缺語系，回 missing_target 並透過提問請使用者提供目標語系。",
+					CommandPurpose: "用途: 協助模型判斷此指令是停用指定翻譯語系。必要參數: target_locale、channel_scope。缺參策略: 若缺 target_locale，必須先提問取得語系後再執行，不可推測。",
 				},
 			},
 		},
@@ -100,7 +112,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Enable Gmail push watch.",
 					APIOperation:   "gmail_watch_start",
 					RouteTexts:     []string{"開啟 Gmail 監控", "開始 Gmail watch"},
-					CommandPurpose: "目的: 取得啟用 Gmail 監控的明確操作意圖。手段: 若授權或範圍不明確，透過追問釐清。",
+					CommandPurpose: "用途: 協助模型判斷此指令是啟用 Gmail 監控。必要參數: account_binding(授權帳號是否已綁定)、watch_scope。缺參策略: 若綁定狀態或範圍不明確，先提問確認再執行。",
 				},
 				{
 					ActionCode:     action.ActionCodeDisable,
@@ -108,7 +120,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Disable Gmail watch and unbind notifications.",
 					APIOperation:   "gmail_watch_unbind",
 					RouteTexts:     []string{"關閉 Gmail 監控", "解除 Gmail watch"},
-					CommandPurpose: "目的: 取得解除 Gmail 監控/綁定的明確指令。手段: 必要時追問使用者確認解除範圍。",
+					CommandPurpose: "用途: 協助模型判斷此指令是解除 Gmail 監控綁定。必要參數: account_binding、unbind_scope。缺參策略: 若解除對象或範圍不明，先提問確認後再執行。",
 				},
 				{
 					ActionCode:     action.ActionCodeQueryStatus,
@@ -116,7 +128,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Query current Gmail watch status.",
 					APIOperation:   "gmail_watch_status",
 					RouteTexts:     []string{"Gmail 監控狀態", "查詢 Gmail watch 狀態"},
-					CommandPurpose: "目的: 取得查詢 Gmail 監控狀態的需求。手段: 若查詢目標不明，透過追問請使用者補充目標資訊。",
+					CommandPurpose: "用途: 協助模型判斷此指令是查詢 Gmail 監控狀態。必要參數: target_account(可選但建議明確)。缺參策略: 若使用者有多帳號且未指明，先提問確認查詢對象。",
 				},
 			},
 		},
@@ -131,7 +143,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "List private channels available to the user.",
 					APIOperation:   "list_private_channels",
 					RouteTexts:     []string{"列出私人頻道", "查看我有哪些私訊頻道"},
-					CommandPurpose: "目的: 取得使用者查詢私人頻道清單的意圖。手段: 若範圍不明，透過追問確認。",
+					CommandPurpose: "用途: 協助模型判斷此指令是查詢私人頻道清單。必要參數: user_scope(通常為目前使用者)。缺參策略: 若查詢對象不明確，先提問確認查詢目標。",
 				},
 			},
 		},
@@ -160,6 +172,10 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 	return nil
 }
 
+// upsertSeedSkill 以 skill_code 作為唯一鍵，建立或更新 skill。
+// - create: 當 skill 不存在時建立。
+// - update: 當 skill 已存在時更新名稱與描述。
+// 描述欄位採「有值才覆寫」策略，避免把既有內容覆蓋為空字串。
 func upsertSeedSkill(ctx context.Context, client *ent.Client, seed defaultSkillSeed) (*ent.Skill, error) {
 	skillCode := strings.TrimSpace(seed.SkillCode)
 	if skillCode == "" {
@@ -186,10 +202,18 @@ func upsertSeedSkill(ctx context.Context, client *ent.Client, seed defaultSkillS
 	return update.Save(ctx)
 }
 
+// upsertSeedAction 以 (skill_id, action_code) 作為 action 的唯一定位鍵。
+// - APIOperation 為執行層路由識別，必填。
+// - CommandPurpose 為 prompt 注入資訊，必填，create/update 都會寫入。
+// - 描述欄位同樣採有值才覆寫。
 func upsertSeedAction(ctx context.Context, client *ent.Client, skillID uuid.UUID, seed defaultActionSeed) (*ent.Action, error) {
 	operation := strings.TrimSpace(seed.APIOperation)
 	if operation == "" {
 		return nil, fmt.Errorf("api_operation is required")
+	}
+	purpose := strings.TrimSpace(seed.CommandPurpose)
+	if purpose == "" {
+		return nil, fmt.Errorf("command_purpose is required for api_operation=%s", operation)
 	}
 
 	node, err := client.Action.Query().Where(action.SkillIDEQ(skillID), action.ActionCodeEQ(seed.ActionCode)).Only(ctx)
@@ -202,7 +226,8 @@ func upsertSeedAction(ctx context.Context, client *ent.Client, skillID uuid.UUID
 			SetSkillID(skillID).
 			SetActionCode(seed.ActionCode).
 			SetName(strings.TrimSpace(seed.Name)).
-			SetAPIOperation(operation)
+			SetAPIOperation(operation).
+			SetCommandPurpose(purpose)
 		if desc != "" {
 			create.SetDescription(desc)
 		}
@@ -210,15 +235,17 @@ func upsertSeedAction(ctx context.Context, client *ent.Client, skillID uuid.UUID
 	}
 
 	update := client.Action.UpdateOneID(node.ID).SetName(strings.TrimSpace(seed.Name)).SetAPIOperation(operation)
-	if purpose := strings.TrimSpace(seed.CommandPurpose); purpose != "" {
-		update.SetCommandPurpose(purpose)
-	}
+	update.SetCommandPurpose(purpose)
 	if desc != "" {
 		update.SetDescription(desc)
 	}
 	return update.Save(ctx)
 }
 
+// upsertSeedActionRoutes 將 action 的語句變體寫入 action_route。
+// - locale 空值時預設使用 zh-TW，確保資料一致。
+// - route text 會 trim 並忽略空字串。
+// - 若已存在同 action/locale/text 的記錄則跳過，保持可重複執行（idempotent）。
 func upsertSeedActionRoutes(ctx context.Context, client *ent.Client, actionID uuid.UUID, locale string, routeTexts []string) error {
 	trimmedLocale := strings.TrimSpace(locale)
 	if trimmedLocale == "" {
@@ -245,6 +272,11 @@ func upsertSeedActionRoutes(ctx context.Context, client *ent.Client, actionID uu
 	return nil
 }
 
+// backfillActionRouteEmbeddings 為尚未有 embedding 的 action_route 回填向量。
+// 設計重點：
+// - 若未配置 embedding 服務，直接跳過（不阻塞服務啟動）。
+// - 單筆失敗不中止整批，累計 failed 並繼續，以提高可用性。
+// - 只有「全部失敗且沒有任何成功」才回傳錯誤，避免暫時性失敗造成整體不可用。
 func backfillActionRouteEmbeddings(ctx context.Context, client *ent.Client) error {
 	embedder := buildEmbeddingClientForSeed()
 	if embedder == nil {
@@ -291,6 +323,8 @@ func backfillActionRouteEmbeddings(ctx context.Context, client *ent.Client) erro
 	return nil
 }
 
+// buildEmbeddingClientForSeed 依設定建立 embedding client。
+// 若未提供 embedding_url，回傳 nil 表示目前環境不啟用向量回填。
 func buildEmbeddingClientForSeed() embedding.Service {
 	if strings.TrimSpace(config.AI.EmbeddingURL) == "" {
 		return nil
@@ -298,6 +332,7 @@ func buildEmbeddingClientForSeed() embedding.Service {
 	return embedding.NewClient(config.AI.EmbeddingURL, config.AI.EmbeddingTimeoutSeconds, config.AI.EmbeddingPath)
 }
 
+// toFloat32Slice 將 embedding API 回傳的 float64 轉為 pgvector 所需的 float32。
 func toFloat32Slice(vec []float64) []float32 {
 	if len(vec) == 0 {
 		return nil

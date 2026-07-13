@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"assistant-api/internal/config"
+	"assistant-api/internal/ent"
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
 	"assistant-api/internal/usecase/ai/semanticdecision"
+	"assistant-api/internal/usecase/inbound/commandchain"
 	"assistant-api/internal/usecase/inbound/messagepersist"
 
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
@@ -28,6 +30,7 @@ type WebhookService interface {
 type consoleWebhookService struct {
 	repo               *repository.ChannelMessageRepo
 	semanticService    semanticdecision.Service
+	commandChain       commandchain.Service
 	persistenceService messagepersist.Service
 }
 
@@ -61,7 +64,8 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, semanticS
 		memberNameTTL = 10 * time.Minute
 	}
 	persistSvc := messagepersist.NewService(repo, lineSenderNameResolver{repo: repo, client: lineClient, cache: cache, memberNameTTL: memberNameTTL, now: time.Now})
-	return consoleWebhookService{repo: repo, semanticService: semanticService, persistenceService: persistSvc}
+	chainSvc := commandchain.NewService(repo)
+	return consoleWebhookService{repo: repo, semanticService: semanticService, commandChain: chainSvc, persistenceService: persistSvc}
 }
 
 // webhookRequest 對應 LINE webhook 最上層 payload。
@@ -153,16 +157,37 @@ func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 				zap.String("text", strings.TrimSpace(message.Text)),
 			)
 
-			// 先落庫，確保訊息資料優先可用，不受後續 AI 延遲影響。
-			s.persistUnifiedMessage(message)
-
 			mentionedBot := message.MentionsUser(config.Line.BotUserID)
+			effectiveMentionedBot := mentionedBot
+
+			// 先落庫，確保訊息資料優先可用，不受後續 AI 延遲影響。
+			savedMessage := s.persistUnifiedMessage(message)
+
+			if s.commandChain != nil && savedMessage != nil {
+				onChain, err := s.commandChain.IsCommandChainMessage(context.Background(), savedMessage, mentionedBot)
+				if err != nil {
+					zap.L().Debug("command chain check skipped",
+						zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+						zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+						zap.Error(err),
+					)
+				} else if onChain {
+					effectiveMentionedBot = true
+					zap.L().Info("command chain message",
+						zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+						zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+						zap.Bool("mentioned_bot", mentionedBot),
+						zap.Bool("effective_mentioned_bot", effectiveMentionedBot),
+						zap.String("reply_to_msg_id", strings.TrimSpace(message.ReplyToMsgID)),
+					)
+				}
+			}
 
 			// 再交給共用 semantic decision service 做語意判讀。
 			var classification *semanticdecision.Classification
 			var err error
 			if s.semanticService != nil {
-				classification, err = s.semanticService.ClassifyMessage(context.Background(), message, mentionedBot)
+				classification, err = s.semanticService.ClassifyMessage(context.Background(), message, effectiveMentionedBot)
 			}
 			if err != nil {
 				// AI 服務失敗時只記 debug，不阻斷 webhook 主流程。
@@ -170,6 +195,7 @@ func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 					zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 					zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 					zap.Bool("mentioned_bot", mentionedBot),
+					zap.Bool("effective_mentioned_bot", effectiveMentionedBot),
 					zap.Error(err),
 				)
 			} else if classification != nil {
@@ -178,6 +204,7 @@ func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 					zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 					zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 					zap.Bool("mentioned_bot", mentionedBot),
+					zap.Bool("effective_mentioned_bot", effectiveMentionedBot),
 					zap.String("intent_label", classification.IntentLabel),
 					zap.Float64("confidence", classification.Confidence),
 					zap.String("reason", strings.TrimSpace(classification.Reason)),
@@ -192,8 +219,8 @@ func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 
 // persistUnifiedMessage 負責把統一訊息格式寫入 channel 與 channel_message。
 // 這個函式只做資料持久化，不應再混入 AI 判讀或其他額外業務邏輯。
-func (s consoleWebhookService) persistUnifiedMessage(message *unifiedmessage.Message) {
-	s.persistenceService.PersistUnifiedMessage(context.Background(), message)
+func (s consoleWebhookService) persistUnifiedMessage(message *unifiedmessage.Message) *ent.ChannelMessage {
+	return s.persistenceService.PersistUnifiedMessage(context.Background(), message)
 }
 
 type lineSenderNameResolver struct {

@@ -7,6 +7,7 @@ import (
 
 	"assistant-api/internal/ent"
 	"assistant-api/internal/ent/channel"
+	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/line"
 
 	"github.com/google/uuid"
@@ -155,4 +156,92 @@ func (r *ChannelMessageRepo) SaveReceivedMessage(
 		return nil, fmt.Errorf("save received message failed: %w", err)
 	}
 	return item, nil
+}
+
+// GetMessageByID returns a channel message by UUID.
+func (r *ChannelMessageRepo) GetMessageByID(ctx context.Context, id uuid.UUID) (*ent.ChannelMessage, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("channel repository not initialized")
+	}
+	// 呼叫端以 nil 表示「無可追溯父訊息」，這裡統一回傳 nil, nil。
+	if id == uuid.Nil {
+		return nil, nil
+	}
+
+	item, err := r.db.ChannelMessage.Get(ctx, id)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get message by id failed: %w", err)
+	}
+	return item, nil
+}
+
+// FindMessageByPlatformMessageID returns the latest message in a channel with the given platform message id.
+func (r *ChannelMessageRepo) FindMessageByPlatformMessageID(ctx context.Context, channelID uuid.UUID, platformMessageID string) (*ent.ChannelMessage, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("channel repository not initialized")
+	}
+	// channelID 為查詢邊界，避免不同群組/私聊訊息誤關聯。
+	if channelID == uuid.Nil {
+		return nil, nil
+	}
+	platformMessageID = strings.TrimSpace(platformMessageID)
+	if platformMessageID == "" {
+		return nil, nil
+	}
+
+	// 使用 channel_id + platform_message_id 作為查詢條件，
+	// 讓平台層回覆 ID 只在同一頻道內解析父訊息。
+	item, err := r.db.ChannelMessage.Query().
+		Where(
+			channelmessage.ChannelIDEQ(channelID),
+			channelmessage.PlatformMessageIDEQ(platformMessageID),
+		).
+		First(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("query message by platform message id failed: %w", err)
+	}
+	return item, nil
+}
+
+// LinkRelatedMessageByReply links related_message_id from reply_to_msg_id when target message exists.
+func (r *ChannelMessageRepo) LinkRelatedMessageByReply(ctx context.Context, message *ent.ChannelMessage) (*ent.ChannelMessage, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("channel repository not initialized")
+	}
+	// message 為 nil 代表上游未成功落庫，這裡不再進一步處理。
+	if message == nil {
+		return nil, nil
+	}
+	// 已有 related_message_id 時不重算，避免覆蓋既有人工或上游關聯。
+	if message.RelatedMessageID != nil && *message.RelatedMessageID != uuid.Nil {
+		return message, nil
+	}
+
+	replyToMsgID := strings.TrimSpace(message.ReplyToMsgID)
+	// 沒有平台回覆目標時，保持原樣回傳。
+	if replyToMsgID == "" {
+		return message, nil
+	}
+
+	target, err := r.FindMessageByPlatformMessageID(ctx, message.ChannelID, replyToMsgID)
+	if err != nil {
+		return nil, err
+	}
+	// 找不到父訊息，或父子同一筆（異常資料）時，不建立關聯。
+	if target == nil || target.ID == uuid.Nil || target.ID == message.ID {
+		return message, nil
+	}
+
+	// 這一步把平台回覆關係映射成資料庫可遞迴追溯的 related_message_id。
+	updated, err := r.db.ChannelMessage.UpdateOneID(message.ID).SetRelatedMessageID(target.ID).Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("link related message failed: %w", err)
+	}
+	return updated, nil
 }
