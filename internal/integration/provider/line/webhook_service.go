@@ -125,8 +125,8 @@ type webhookMentionee struct {
 // ProcessIncoming 負責 LINE webhook 的整體流程編排。
 // 它會先解析原始 payload，再對每則 message 事件做三件事：
 // 1. 先把訊息本體印到 console，方便除錯與觀察。
-// 2. 交給 AI classifier 取得意圖判讀結果。
-// 3. 將訊息寫入資料庫，讓後續查詢與處理可以使用。
+// 2. 先將訊息寫入資料庫，確保訊息可即時查詢與追蹤。
+// 3. 最後再交給 AI classifier 做延伸判讀，避免阻塞落庫。
 func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 	var req webhookRequest
 	// 第一段：先將 webhook body 轉成結構化資料。
@@ -152,6 +152,9 @@ func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 				zap.String("text", strings.TrimSpace(message.Text)),
 			)
+
+			// 先落庫，確保訊息資料優先可用，不受後續 AI 延遲影響。
+			s.persistUnifiedMessage(message)
 
 			mentionedBot := message.MentionsUser(config.Line.BotUserID)
 
@@ -181,8 +184,7 @@ func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 				)
 			}
 
-			// 最後才把訊息落庫，確保即使 AI 失敗，訊息本身仍然會被保存。
-			s.persistUnifiedMessage(message)
+			// AI 流程最後執行；即使失敗也不影響訊息已落庫。
 		}
 	}
 

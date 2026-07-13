@@ -7,7 +7,6 @@ import (
 
 	"assistant-api/internal/ent"
 	"assistant-api/internal/ent/channel"
-	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/line"
 
 	"github.com/google/uuid"
@@ -133,32 +132,11 @@ func (r *ChannelMessageRepo) SaveReceivedMessage(
 		content = "[" + messageType + "]"
 	}
 
-	var relatedMessageID *uuid.UUID
-	if replyTo := strings.TrimSpace(replyToMsgID); replyTo != "" {
-		related, err := r.db.ChannelMessage.Query().
-			Where(
-				channelmessage.ChannelIDEQ(channelID),
-				channelmessage.PlatformMessageIDEQ(replyTo),
-			).
-			Order(ent.Desc(channelmessage.FieldID)).
-			First(ctx)
-		if err != nil && !ent.IsNotFound(err) {
-			return nil, fmt.Errorf("resolve quoted message failed: %w", err)
-		}
-		if err == nil && related != nil {
-			id := related.ID
-			relatedMessageID = &id
-		}
-	}
-
 	builder := r.db.ChannelMessage.Create().
 		SetChannelID(channelID).
 		SetSenderID(senderID).
 		SetMessageType(messageType).
 		SetContent(content)
-	if relatedMessageID != nil {
-		builder = builder.SetRelatedMessageID(*relatedMessageID)
-	}
 	if value := strings.TrimSpace(senderName); value != "" {
 		builder = builder.SetSenderName(value)
 	}
