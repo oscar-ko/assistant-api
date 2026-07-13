@@ -7,6 +7,7 @@ import (
 
 	"assistant-api/internal/config"
 	"assistant-api/internal/integration/provider/messageintent"
+	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
 
 	"go.uber.org/zap"
@@ -109,7 +110,10 @@ func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 
 	// 第二段：逐筆輸出事件日誌，並將 message 事件寫入資料庫。
 	for _, event := range req.Events {
-		s.persistInboundMessage(event)
+		//Save message to database if it's a message event
+		if message, ok := adaptLineEventToUnified(event); ok {
+			s.persistUnifiedMessage(message)
+		}
 	}
 
 	// 摘要日誌：便於快速確認簽章是否帶入、事件量與 payload 大小。
@@ -120,27 +124,25 @@ func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 	)
 }
 
-// persistInboundMessage 將單一 message 事件轉成 channel/channel_message 資料並落庫。
-func (s consoleWebhookService) persistInboundMessage(event webhookEvent) {
+// persistUnifiedMessage 將統一訊息格式轉成 channel/channel_message 資料並落庫。
+func (s consoleWebhookService) persistUnifiedMessage(message *unifiedmessage.Message) {
 	// 沒有注入 repository 時，維持純 console 模式。
 	if s.repo == nil {
 		return
 	}
-	// 目前僅持久化 message 類事件；其他事件只記錄日誌。
-	if strings.TrimSpace(event.Type) != "message" {
+	if message == nil {
 		return
 	}
-
-	// 依 source 決定 channel 主鍵識別（groupId/roomId/userId）與 channel type。
-	groupID, channelType := resolveChannelIdentity(event.Source)
-	if groupID == "" {
+	if strings.TrimSpace(message.ChannelID) == "" {
 		return
 	}
 
 	ctx := context.Background()
-	senderID := resolveSender(event.Source)
-	// 先判斷是否有 mention bot，再把這個狀態交給分類 prompt，讓 AI 先套用第一條規則。
-	mentionedBot := messageMentionsBot(event.Message, config.Line.BotUserID)
+	senderID := strings.TrimSpace(message.SenderID)
+	if senderID == "" {
+		senderID = "unknown"
+	}
+	mentionedBot := message.MentionsUser(config.Line.BotUserID)
 	// sender_name 透過既有 LINE 綁定資料反查 display_name。
 	senderName, err := s.repo.ResolveLineDisplayNameByLineUserID(ctx, senderID)
 	if err != nil {
@@ -151,11 +153,11 @@ func (s consoleWebhookService) persistInboundMessage(event webhookEvent) {
 	}
 
 	// channel 不存在就建立，存在就沿用。
-	ch, err := s.repo.GetOrCreateChannel(ctx, "line", groupID, channelType)
+	ch, err := s.repo.GetOrCreateChannel(ctx, strings.TrimSpace(message.Platform), strings.TrimSpace(message.ChannelID), strings.TrimSpace(message.ChannelType))
 	if err != nil {
 		zap.L().Error("line webhook persist channel failed",
-			zap.String("group_id", groupID),
-			zap.String("type", channelType),
+			zap.String("group_id", message.ChannelID),
+			zap.String("type", message.ChannelType),
 			zap.Error(err),
 		)
 		return
@@ -167,26 +169,26 @@ func (s consoleWebhookService) persistInboundMessage(event webhookEvent) {
 		ch.ID,
 		senderID,
 		senderName,
-		event.Message.ID,
-		event.Message.QuotedMessageID,
-		event.Message.Text,
-		event.Message.Type,
-		event.Timestamp,
+		message.PlatformMessageID,
+		message.ReplyToPlatformMessageID,
+		message.Text,
+		message.MessageType,
+		message.PlatformTimestamp,
 	); err != nil {
 		zap.L().Error("line webhook persist message failed",
 			zap.String("channel_id", ch.ID.String()),
-			zap.String("message_id", event.Message.ID),
+			zap.String("message_id", message.PlatformMessageID),
 			zap.Error(err),
 		)
 	}
 
-	text := strings.TrimSpace(event.Message.Text)
-	if s.classifier != nil && strings.TrimSpace(event.Message.Type) == "text" && text != "" {
+	text := strings.TrimSpace(message.Text)
+	if s.classifier != nil && message.IsText() && text != "" {
 		classification, err := s.classifier.Classify(ctx, messageintent.DefaultPrompt(mentionedBot), text)
 		if err != nil {
 			zap.L().Warn("webhook classify failed",
 				zap.String("channel_id", ch.ID.String()),
-				zap.String("message_id", event.Message.ID),
+				zap.String("message_id", message.PlatformMessageID),
 				zap.Bool("mentioned_bot", mentionedBot),
 				zap.Error(err),
 			)
@@ -194,26 +196,13 @@ func (s consoleWebhookService) persistInboundMessage(event webhookEvent) {
 		}
 		zap.L().Debug("webhook classified",
 			zap.String("channel_id", ch.ID.String()),
-			zap.String("message_id", event.Message.ID),
+			zap.String("message_id", message.PlatformMessageID),
 			zap.Bool("mentioned_bot", mentionedBot),
 			zap.String("intent_label", classification.IntentLabel),
 			zap.Float64("confidence", classification.Confidence),
 			zap.String("reason", classification.Reason),
 		)
 	}
-}
-
-// messageMentionsBot 檢查 LINE message 的 mention 清單是否包含目前 bot。
-func messageMentionsBot(message webhookMessage, botUserID string) bool {
-	if strings.TrimSpace(botUserID) == "" || message.Mention == nil {
-		return false
-	}
-	for _, mention := range message.Mention.Mentionees {
-		if strings.TrimSpace(mention.UserID) == strings.TrimSpace(botUserID) {
-			return true
-		}
-	}
-	return false
 }
 
 // resolveSender 依優先序挑選可識別的來源 ID。
