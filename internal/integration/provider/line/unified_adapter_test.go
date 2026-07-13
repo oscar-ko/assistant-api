@@ -32,8 +32,8 @@ func TestAdaptLineEventToUnified_MessageEvent(t *testing.T) {
 	if msg.ChannelID != "G456" {
 		t.Fatalf("unexpected channel id: %q", msg.ChannelID)
 	}
-	if msg.ReplyToPlatformMessageID != "M100" {
-		t.Fatalf("unexpected reply message id: %q", msg.ReplyToPlatformMessageID)
+	if msg.ReplyToMsgID != "M100" {
+		t.Fatalf("unexpected reply message id: %q", msg.ReplyToMsgID)
 	}
 	if !msg.MentionsUser("BOT001") {
 		t.Fatalf("expected mention BOT001")

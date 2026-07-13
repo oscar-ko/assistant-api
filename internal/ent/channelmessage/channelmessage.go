@@ -31,8 +31,8 @@ const (
 	FieldSenderName = "sender_name"
 	// FieldPlatformMessageID holds the string denoting the platform_message_id field in the database.
 	FieldPlatformMessageID = "platform_message_id"
-	// FieldQuotedMessageID holds the string denoting the quoted_message_id field in the database.
-	FieldQuotedMessageID = "quoted_message_id"
+	// FieldReplyToMsgID holds the string denoting the reply_to_msg_id field in the database.
+	FieldReplyToMsgID = "reply_to_msg_id"
 	// FieldMessageType holds the string denoting the message_type field in the database.
 	FieldMessageType = "message_type"
 	// FieldPlatformTimestamp holds the string denoting the platform_timestamp field in the database.
@@ -73,7 +73,7 @@ var Columns = []string{
 	FieldSenderID,
 	FieldSenderName,
 	FieldPlatformMessageID,
-	FieldQuotedMessageID,
+	FieldReplyToMsgID,
 	FieldMessageType,
 	FieldPlatformTimestamp,
 }
@@ -151,9 +151,9 @@ func ByPlatformMessageID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPlatformMessageID, opts...).ToFunc()
 }
 
-// ByQuotedMessageID orders the results by the quoted_message_id field.
-func ByQuotedMessageID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldQuotedMessageID, opts...).ToFunc()
+// ByReplyToMsgID orders the results by the reply_to_msg_id field.
+func ByReplyToMsgID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReplyToMsgID, opts...).ToFunc()
 }
 
 // ByMessageType orders the results by the message_type field.

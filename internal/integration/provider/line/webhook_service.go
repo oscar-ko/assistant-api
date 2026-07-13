@@ -170,7 +170,7 @@ func (s consoleWebhookService) persistUnifiedMessage(message *unifiedmessage.Mes
 		senderID,
 		senderName,
 		message.PlatformMessageID,
-		message.ReplyToPlatformMessageID,
+		message.ReplyToMsgID,
 		message.Text,
 		message.MessageType,
 		message.PlatformTimestamp,

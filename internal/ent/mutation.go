@@ -885,7 +885,7 @@ type ChannelMessageMutation struct {
 	sender_id              *string
 	sender_name            *string
 	platform_message_id    *string
-	quoted_message_id      *string
+	reply_to_msg_id        *string
 	message_type           *string
 	platform_timestamp     *int64
 	addplatform_timestamp  *int64
@@ -1333,53 +1333,53 @@ func (m *ChannelMessageMutation) ResetPlatformMessageID() {
 	delete(m.clearedFields, channelmessage.FieldPlatformMessageID)
 }
 
-// SetQuotedMessageID sets the "quoted_message_id" field.
-func (m *ChannelMessageMutation) SetQuotedMessageID(s string) {
-	m.quoted_message_id = &s
+// SetReplyToMsgID sets the "reply_to_msg_id" field.
+func (m *ChannelMessageMutation) SetReplyToMsgID(s string) {
+	m.reply_to_msg_id = &s
 }
 
-// QuotedMessageID returns the value of the "quoted_message_id" field in the mutation.
-func (m *ChannelMessageMutation) QuotedMessageID() (r string, exists bool) {
-	v := m.quoted_message_id
+// ReplyToMsgID returns the value of the "reply_to_msg_id" field in the mutation.
+func (m *ChannelMessageMutation) ReplyToMsgID() (r string, exists bool) {
+	v := m.reply_to_msg_id
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldQuotedMessageID returns the old "quoted_message_id" field's value of the ChannelMessage entity.
+// OldReplyToMsgID returns the old "reply_to_msg_id" field's value of the ChannelMessage entity.
 // If the ChannelMessage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ChannelMessageMutation) OldQuotedMessageID(ctx context.Context) (v string, err error) {
+func (m *ChannelMessageMutation) OldReplyToMsgID(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldQuotedMessageID is only allowed on UpdateOne operations")
+		return v, errors.New("OldReplyToMsgID is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldQuotedMessageID requires an ID field in the mutation")
+		return v, errors.New("OldReplyToMsgID requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldQuotedMessageID: %w", err)
+		return v, fmt.Errorf("querying old value for OldReplyToMsgID: %w", err)
 	}
-	return oldValue.QuotedMessageID, nil
+	return oldValue.ReplyToMsgID, nil
 }
 
-// ClearQuotedMessageID clears the value of the "quoted_message_id" field.
-func (m *ChannelMessageMutation) ClearQuotedMessageID() {
-	m.quoted_message_id = nil
-	m.clearedFields[channelmessage.FieldQuotedMessageID] = struct{}{}
+// ClearReplyToMsgID clears the value of the "reply_to_msg_id" field.
+func (m *ChannelMessageMutation) ClearReplyToMsgID() {
+	m.reply_to_msg_id = nil
+	m.clearedFields[channelmessage.FieldReplyToMsgID] = struct{}{}
 }
 
-// QuotedMessageIDCleared returns if the "quoted_message_id" field was cleared in this mutation.
-func (m *ChannelMessageMutation) QuotedMessageIDCleared() bool {
-	_, ok := m.clearedFields[channelmessage.FieldQuotedMessageID]
+// ReplyToMsgIDCleared returns if the "reply_to_msg_id" field was cleared in this mutation.
+func (m *ChannelMessageMutation) ReplyToMsgIDCleared() bool {
+	_, ok := m.clearedFields[channelmessage.FieldReplyToMsgID]
 	return ok
 }
 
-// ResetQuotedMessageID resets all changes to the "quoted_message_id" field.
-func (m *ChannelMessageMutation) ResetQuotedMessageID() {
-	m.quoted_message_id = nil
-	delete(m.clearedFields, channelmessage.FieldQuotedMessageID)
+// ResetReplyToMsgID resets all changes to the "reply_to_msg_id" field.
+func (m *ChannelMessageMutation) ResetReplyToMsgID() {
+	m.reply_to_msg_id = nil
+	delete(m.clearedFields, channelmessage.FieldReplyToMsgID)
 }
 
 // SetMessageType sets the "message_type" field.
@@ -1655,8 +1655,8 @@ func (m *ChannelMessageMutation) Fields() []string {
 	if m.platform_message_id != nil {
 		fields = append(fields, channelmessage.FieldPlatformMessageID)
 	}
-	if m.quoted_message_id != nil {
-		fields = append(fields, channelmessage.FieldQuotedMessageID)
+	if m.reply_to_msg_id != nil {
+		fields = append(fields, channelmessage.FieldReplyToMsgID)
 	}
 	if m.message_type != nil {
 		fields = append(fields, channelmessage.FieldMessageType)
@@ -1688,8 +1688,8 @@ func (m *ChannelMessageMutation) Field(name string) (ent.Value, bool) {
 		return m.SenderName()
 	case channelmessage.FieldPlatformMessageID:
 		return m.PlatformMessageID()
-	case channelmessage.FieldQuotedMessageID:
-		return m.QuotedMessageID()
+	case channelmessage.FieldReplyToMsgID:
+		return m.ReplyToMsgID()
 	case channelmessage.FieldMessageType:
 		return m.MessageType()
 	case channelmessage.FieldPlatformTimestamp:
@@ -1719,8 +1719,8 @@ func (m *ChannelMessageMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldSenderName(ctx)
 	case channelmessage.FieldPlatformMessageID:
 		return m.OldPlatformMessageID(ctx)
-	case channelmessage.FieldQuotedMessageID:
-		return m.OldQuotedMessageID(ctx)
+	case channelmessage.FieldReplyToMsgID:
+		return m.OldReplyToMsgID(ctx)
 	case channelmessage.FieldMessageType:
 		return m.OldMessageType(ctx)
 	case channelmessage.FieldPlatformTimestamp:
@@ -1790,12 +1790,12 @@ func (m *ChannelMessageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetPlatformMessageID(v)
 		return nil
-	case channelmessage.FieldQuotedMessageID:
+	case channelmessage.FieldReplyToMsgID:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetQuotedMessageID(v)
+		m.SetReplyToMsgID(v)
 		return nil
 	case channelmessage.FieldMessageType:
 		v, ok := value.(string)
@@ -1865,8 +1865,8 @@ func (m *ChannelMessageMutation) ClearedFields() []string {
 	if m.FieldCleared(channelmessage.FieldPlatformMessageID) {
 		fields = append(fields, channelmessage.FieldPlatformMessageID)
 	}
-	if m.FieldCleared(channelmessage.FieldQuotedMessageID) {
-		fields = append(fields, channelmessage.FieldQuotedMessageID)
+	if m.FieldCleared(channelmessage.FieldReplyToMsgID) {
+		fields = append(fields, channelmessage.FieldReplyToMsgID)
 	}
 	if m.FieldCleared(channelmessage.FieldPlatformTimestamp) {
 		fields = append(fields, channelmessage.FieldPlatformTimestamp)
@@ -1894,8 +1894,8 @@ func (m *ChannelMessageMutation) ClearField(name string) error {
 	case channelmessage.FieldPlatformMessageID:
 		m.ClearPlatformMessageID()
 		return nil
-	case channelmessage.FieldQuotedMessageID:
-		m.ClearQuotedMessageID()
+	case channelmessage.FieldReplyToMsgID:
+		m.ClearReplyToMsgID()
 		return nil
 	case channelmessage.FieldPlatformTimestamp:
 		m.ClearPlatformTimestamp()
@@ -1932,8 +1932,8 @@ func (m *ChannelMessageMutation) ResetField(name string) error {
 	case channelmessage.FieldPlatformMessageID:
 		m.ResetPlatformMessageID()
 		return nil
-	case channelmessage.FieldQuotedMessageID:
-		m.ResetQuotedMessageID()
+	case channelmessage.FieldReplyToMsgID:
+		m.ResetReplyToMsgID()
 		return nil
 	case channelmessage.FieldMessageType:
 		m.ResetMessageType()

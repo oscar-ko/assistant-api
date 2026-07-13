@@ -42,7 +42,7 @@ var (
 		{Name: "sender_id", Type: field.TypeString},
 		{Name: "sender_name", Type: field.TypeString, Nullable: true},
 		{Name: "platform_message_id", Type: field.TypeString, Nullable: true},
-		{Name: "quoted_message_id", Type: field.TypeString, Nullable: true},
+		{Name: "reply_to_msg_id", Type: field.TypeString, Nullable: true},
 		{Name: "message_type", Type: field.TypeString, Default: "text"},
 		{Name: "platform_timestamp", Type: field.TypeInt64, Nullable: true},
 		{Name: "channel_id", Type: field.TypeUUID},

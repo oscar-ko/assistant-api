@@ -124,23 +124,23 @@ input ChannelMessageWhereInput {
   platformMessageIDEqualFold: String
   platformMessageIDContainsFold: String
   """
-  quoted_message_id field predicates
+  reply_to_msg_id field predicates
   """
-  quotedMessageID: String
-  quotedMessageIDNEQ: String
-  quotedMessageIDIn: [String!]
-  quotedMessageIDNotIn: [String!]
-  quotedMessageIDGT: String
-  quotedMessageIDGTE: String
-  quotedMessageIDLT: String
-  quotedMessageIDLTE: String
-  quotedMessageIDContains: String
-  quotedMessageIDHasPrefix: String
-  quotedMessageIDHasSuffix: String
-  quotedMessageIDIsNil: Boolean
-  quotedMessageIDNotNil: Boolean
-  quotedMessageIDEqualFold: String
-  quotedMessageIDContainsFold: String
+  replyToMsgID: String
+  replyToMsgIDNEQ: String
+  replyToMsgIDIn: [String!]
+  replyToMsgIDNotIn: [String!]
+  replyToMsgIDGT: String
+  replyToMsgIDGTE: String
+  replyToMsgIDLT: String
+  replyToMsgIDLTE: String
+  replyToMsgIDContains: String
+  replyToMsgIDHasPrefix: String
+  replyToMsgIDHasSuffix: String
+  replyToMsgIDIsNil: Boolean
+  replyToMsgIDNotNil: Boolean
+  replyToMsgIDEqualFold: String
+  replyToMsgIDContainsFold: String
   """
   message_type field predicates
   """

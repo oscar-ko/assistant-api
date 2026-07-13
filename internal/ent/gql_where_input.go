@@ -532,22 +532,22 @@ type ChannelMessageWhereInput struct {
 	PlatformMessageIDEqualFold    *string  `json:"platformMessageIDEqualFold,omitempty"`
 	PlatformMessageIDContainsFold *string  `json:"platformMessageIDContainsFold,omitempty"`
 
-	// "quoted_message_id" field predicates.
-	QuotedMessageID             *string  `json:"quotedMessageID,omitempty"`
-	QuotedMessageIDNEQ          *string  `json:"quotedMessageIDNEQ,omitempty"`
-	QuotedMessageIDIn           []string `json:"quotedMessageIDIn,omitempty"`
-	QuotedMessageIDNotIn        []string `json:"quotedMessageIDNotIn,omitempty"`
-	QuotedMessageIDGT           *string  `json:"quotedMessageIDGT,omitempty"`
-	QuotedMessageIDGTE          *string  `json:"quotedMessageIDGTE,omitempty"`
-	QuotedMessageIDLT           *string  `json:"quotedMessageIDLT,omitempty"`
-	QuotedMessageIDLTE          *string  `json:"quotedMessageIDLTE,omitempty"`
-	QuotedMessageIDContains     *string  `json:"quotedMessageIDContains,omitempty"`
-	QuotedMessageIDHasPrefix    *string  `json:"quotedMessageIDHasPrefix,omitempty"`
-	QuotedMessageIDHasSuffix    *string  `json:"quotedMessageIDHasSuffix,omitempty"`
-	QuotedMessageIDIsNil        bool     `json:"quotedMessageIDIsNil,omitempty"`
-	QuotedMessageIDNotNil       bool     `json:"quotedMessageIDNotNil,omitempty"`
-	QuotedMessageIDEqualFold    *string  `json:"quotedMessageIDEqualFold,omitempty"`
-	QuotedMessageIDContainsFold *string  `json:"quotedMessageIDContainsFold,omitempty"`
+	// "reply_to_msg_id" field predicates.
+	ReplyToMsgID             *string  `json:"replyToMsgID,omitempty"`
+	ReplyToMsgIDNEQ          *string  `json:"replyToMsgIDNEQ,omitempty"`
+	ReplyToMsgIDIn           []string `json:"replyToMsgIDIn,omitempty"`
+	ReplyToMsgIDNotIn        []string `json:"replyToMsgIDNotIn,omitempty"`
+	ReplyToMsgIDGT           *string  `json:"replyToMsgIDGT,omitempty"`
+	ReplyToMsgIDGTE          *string  `json:"replyToMsgIDGTE,omitempty"`
+	ReplyToMsgIDLT           *string  `json:"replyToMsgIDLT,omitempty"`
+	ReplyToMsgIDLTE          *string  `json:"replyToMsgIDLTE,omitempty"`
+	ReplyToMsgIDContains     *string  `json:"replyToMsgIDContains,omitempty"`
+	ReplyToMsgIDHasPrefix    *string  `json:"replyToMsgIDHasPrefix,omitempty"`
+	ReplyToMsgIDHasSuffix    *string  `json:"replyToMsgIDHasSuffix,omitempty"`
+	ReplyToMsgIDIsNil        bool     `json:"replyToMsgIDIsNil,omitempty"`
+	ReplyToMsgIDNotNil       bool     `json:"replyToMsgIDNotNil,omitempty"`
+	ReplyToMsgIDEqualFold    *string  `json:"replyToMsgIDEqualFold,omitempty"`
+	ReplyToMsgIDContainsFold *string  `json:"replyToMsgIDContainsFold,omitempty"`
 
 	// "message_type" field predicates.
 	MessageType             *string  `json:"messageType,omitempty"`
@@ -930,50 +930,50 @@ func (i *ChannelMessageWhereInput) P() (predicate.ChannelMessage, error) {
 	if i.PlatformMessageIDContainsFold != nil {
 		predicates = append(predicates, channelmessage.PlatformMessageIDContainsFold(*i.PlatformMessageIDContainsFold))
 	}
-	if i.QuotedMessageID != nil {
-		predicates = append(predicates, channelmessage.QuotedMessageIDEQ(*i.QuotedMessageID))
+	if i.ReplyToMsgID != nil {
+		predicates = append(predicates, channelmessage.ReplyToMsgIDEQ(*i.ReplyToMsgID))
 	}
-	if i.QuotedMessageIDNEQ != nil {
-		predicates = append(predicates, channelmessage.QuotedMessageIDNEQ(*i.QuotedMessageIDNEQ))
+	if i.ReplyToMsgIDNEQ != nil {
+		predicates = append(predicates, channelmessage.ReplyToMsgIDNEQ(*i.ReplyToMsgIDNEQ))
 	}
-	if len(i.QuotedMessageIDIn) > 0 {
-		predicates = append(predicates, channelmessage.QuotedMessageIDIn(i.QuotedMessageIDIn...))
+	if len(i.ReplyToMsgIDIn) > 0 {
+		predicates = append(predicates, channelmessage.ReplyToMsgIDIn(i.ReplyToMsgIDIn...))
 	}
-	if len(i.QuotedMessageIDNotIn) > 0 {
-		predicates = append(predicates, channelmessage.QuotedMessageIDNotIn(i.QuotedMessageIDNotIn...))
+	if len(i.ReplyToMsgIDNotIn) > 0 {
+		predicates = append(predicates, channelmessage.ReplyToMsgIDNotIn(i.ReplyToMsgIDNotIn...))
 	}
-	if i.QuotedMessageIDGT != nil {
-		predicates = append(predicates, channelmessage.QuotedMessageIDGT(*i.QuotedMessageIDGT))
+	if i.ReplyToMsgIDGT != nil {
+		predicates = append(predicates, channelmessage.ReplyToMsgIDGT(*i.ReplyToMsgIDGT))
 	}
-	if i.QuotedMessageIDGTE != nil {
-		predicates = append(predicates, channelmessage.QuotedMessageIDGTE(*i.QuotedMessageIDGTE))
+	if i.ReplyToMsgIDGTE != nil {
+		predicates = append(predicates, channelmessage.ReplyToMsgIDGTE(*i.ReplyToMsgIDGTE))
 	}
-	if i.QuotedMessageIDLT != nil {
-		predicates = append(predicates, channelmessage.QuotedMessageIDLT(*i.QuotedMessageIDLT))
+	if i.ReplyToMsgIDLT != nil {
+		predicates = append(predicates, channelmessage.ReplyToMsgIDLT(*i.ReplyToMsgIDLT))
 	}
-	if i.QuotedMessageIDLTE != nil {
-		predicates = append(predicates, channelmessage.QuotedMessageIDLTE(*i.QuotedMessageIDLTE))
+	if i.ReplyToMsgIDLTE != nil {
+		predicates = append(predicates, channelmessage.ReplyToMsgIDLTE(*i.ReplyToMsgIDLTE))
 	}
-	if i.QuotedMessageIDContains != nil {
-		predicates = append(predicates, channelmessage.QuotedMessageIDContains(*i.QuotedMessageIDContains))
+	if i.ReplyToMsgIDContains != nil {
+		predicates = append(predicates, channelmessage.ReplyToMsgIDContains(*i.ReplyToMsgIDContains))
 	}
-	if i.QuotedMessageIDHasPrefix != nil {
-		predicates = append(predicates, channelmessage.QuotedMessageIDHasPrefix(*i.QuotedMessageIDHasPrefix))
+	if i.ReplyToMsgIDHasPrefix != nil {
+		predicates = append(predicates, channelmessage.ReplyToMsgIDHasPrefix(*i.ReplyToMsgIDHasPrefix))
 	}
-	if i.QuotedMessageIDHasSuffix != nil {
-		predicates = append(predicates, channelmessage.QuotedMessageIDHasSuffix(*i.QuotedMessageIDHasSuffix))
+	if i.ReplyToMsgIDHasSuffix != nil {
+		predicates = append(predicates, channelmessage.ReplyToMsgIDHasSuffix(*i.ReplyToMsgIDHasSuffix))
 	}
-	if i.QuotedMessageIDIsNil {
-		predicates = append(predicates, channelmessage.QuotedMessageIDIsNil())
+	if i.ReplyToMsgIDIsNil {
+		predicates = append(predicates, channelmessage.ReplyToMsgIDIsNil())
 	}
-	if i.QuotedMessageIDNotNil {
-		predicates = append(predicates, channelmessage.QuotedMessageIDNotNil())
+	if i.ReplyToMsgIDNotNil {
+		predicates = append(predicates, channelmessage.ReplyToMsgIDNotNil())
 	}
-	if i.QuotedMessageIDEqualFold != nil {
-		predicates = append(predicates, channelmessage.QuotedMessageIDEqualFold(*i.QuotedMessageIDEqualFold))
+	if i.ReplyToMsgIDEqualFold != nil {
+		predicates = append(predicates, channelmessage.ReplyToMsgIDEqualFold(*i.ReplyToMsgIDEqualFold))
 	}
-	if i.QuotedMessageIDContainsFold != nil {
-		predicates = append(predicates, channelmessage.QuotedMessageIDContainsFold(*i.QuotedMessageIDContainsFold))
+	if i.ReplyToMsgIDContainsFold != nil {
+		predicates = append(predicates, channelmessage.ReplyToMsgIDContainsFold(*i.ReplyToMsgIDContainsFold))
 	}
 	if i.MessageType != nil {
 		predicates = append(predicates, channelmessage.MessageTypeEQ(*i.MessageType))

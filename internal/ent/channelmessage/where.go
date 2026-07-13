@@ -96,9 +96,9 @@ func PlatformMessageID(v string) predicate.ChannelMessage {
 	return predicate.ChannelMessage(sql.FieldEQ(FieldPlatformMessageID, v))
 }
 
-// QuotedMessageID applies equality check predicate on the "quoted_message_id" field. It's identical to QuotedMessageIDEQ.
-func QuotedMessageID(v string) predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldEQ(FieldQuotedMessageID, v))
+// ReplyToMsgID applies equality check predicate on the "reply_to_msg_id" field. It's identical to ReplyToMsgIDEQ.
+func ReplyToMsgID(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldEQ(FieldReplyToMsgID, v))
 }
 
 // MessageType applies equality check predicate on the "message_type" field. It's identical to MessageTypeEQ.
@@ -521,79 +521,79 @@ func PlatformMessageIDContainsFold(v string) predicate.ChannelMessage {
 	return predicate.ChannelMessage(sql.FieldContainsFold(FieldPlatformMessageID, v))
 }
 
-// QuotedMessageIDEQ applies the EQ predicate on the "quoted_message_id" field.
-func QuotedMessageIDEQ(v string) predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldEQ(FieldQuotedMessageID, v))
+// ReplyToMsgIDEQ applies the EQ predicate on the "reply_to_msg_id" field.
+func ReplyToMsgIDEQ(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldEQ(FieldReplyToMsgID, v))
 }
 
-// QuotedMessageIDNEQ applies the NEQ predicate on the "quoted_message_id" field.
-func QuotedMessageIDNEQ(v string) predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldNEQ(FieldQuotedMessageID, v))
+// ReplyToMsgIDNEQ applies the NEQ predicate on the "reply_to_msg_id" field.
+func ReplyToMsgIDNEQ(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldNEQ(FieldReplyToMsgID, v))
 }
 
-// QuotedMessageIDIn applies the In predicate on the "quoted_message_id" field.
-func QuotedMessageIDIn(vs ...string) predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldIn(FieldQuotedMessageID, vs...))
+// ReplyToMsgIDIn applies the In predicate on the "reply_to_msg_id" field.
+func ReplyToMsgIDIn(vs ...string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldIn(FieldReplyToMsgID, vs...))
 }
 
-// QuotedMessageIDNotIn applies the NotIn predicate on the "quoted_message_id" field.
-func QuotedMessageIDNotIn(vs ...string) predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldNotIn(FieldQuotedMessageID, vs...))
+// ReplyToMsgIDNotIn applies the NotIn predicate on the "reply_to_msg_id" field.
+func ReplyToMsgIDNotIn(vs ...string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldNotIn(FieldReplyToMsgID, vs...))
 }
 
-// QuotedMessageIDGT applies the GT predicate on the "quoted_message_id" field.
-func QuotedMessageIDGT(v string) predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldGT(FieldQuotedMessageID, v))
+// ReplyToMsgIDGT applies the GT predicate on the "reply_to_msg_id" field.
+func ReplyToMsgIDGT(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldGT(FieldReplyToMsgID, v))
 }
 
-// QuotedMessageIDGTE applies the GTE predicate on the "quoted_message_id" field.
-func QuotedMessageIDGTE(v string) predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldGTE(FieldQuotedMessageID, v))
+// ReplyToMsgIDGTE applies the GTE predicate on the "reply_to_msg_id" field.
+func ReplyToMsgIDGTE(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldGTE(FieldReplyToMsgID, v))
 }
 
-// QuotedMessageIDLT applies the LT predicate on the "quoted_message_id" field.
-func QuotedMessageIDLT(v string) predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldLT(FieldQuotedMessageID, v))
+// ReplyToMsgIDLT applies the LT predicate on the "reply_to_msg_id" field.
+func ReplyToMsgIDLT(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldLT(FieldReplyToMsgID, v))
 }
 
-// QuotedMessageIDLTE applies the LTE predicate on the "quoted_message_id" field.
-func QuotedMessageIDLTE(v string) predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldLTE(FieldQuotedMessageID, v))
+// ReplyToMsgIDLTE applies the LTE predicate on the "reply_to_msg_id" field.
+func ReplyToMsgIDLTE(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldLTE(FieldReplyToMsgID, v))
 }
 
-// QuotedMessageIDContains applies the Contains predicate on the "quoted_message_id" field.
-func QuotedMessageIDContains(v string) predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldContains(FieldQuotedMessageID, v))
+// ReplyToMsgIDContains applies the Contains predicate on the "reply_to_msg_id" field.
+func ReplyToMsgIDContains(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldContains(FieldReplyToMsgID, v))
 }
 
-// QuotedMessageIDHasPrefix applies the HasPrefix predicate on the "quoted_message_id" field.
-func QuotedMessageIDHasPrefix(v string) predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldHasPrefix(FieldQuotedMessageID, v))
+// ReplyToMsgIDHasPrefix applies the HasPrefix predicate on the "reply_to_msg_id" field.
+func ReplyToMsgIDHasPrefix(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldHasPrefix(FieldReplyToMsgID, v))
 }
 
-// QuotedMessageIDHasSuffix applies the HasSuffix predicate on the "quoted_message_id" field.
-func QuotedMessageIDHasSuffix(v string) predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldHasSuffix(FieldQuotedMessageID, v))
+// ReplyToMsgIDHasSuffix applies the HasSuffix predicate on the "reply_to_msg_id" field.
+func ReplyToMsgIDHasSuffix(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldHasSuffix(FieldReplyToMsgID, v))
 }
 
-// QuotedMessageIDIsNil applies the IsNil predicate on the "quoted_message_id" field.
-func QuotedMessageIDIsNil() predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldIsNull(FieldQuotedMessageID))
+// ReplyToMsgIDIsNil applies the IsNil predicate on the "reply_to_msg_id" field.
+func ReplyToMsgIDIsNil() predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldIsNull(FieldReplyToMsgID))
 }
 
-// QuotedMessageIDNotNil applies the NotNil predicate on the "quoted_message_id" field.
-func QuotedMessageIDNotNil() predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldNotNull(FieldQuotedMessageID))
+// ReplyToMsgIDNotNil applies the NotNil predicate on the "reply_to_msg_id" field.
+func ReplyToMsgIDNotNil() predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldNotNull(FieldReplyToMsgID))
 }
 
-// QuotedMessageIDEqualFold applies the EqualFold predicate on the "quoted_message_id" field.
-func QuotedMessageIDEqualFold(v string) predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldEqualFold(FieldQuotedMessageID, v))
+// ReplyToMsgIDEqualFold applies the EqualFold predicate on the "reply_to_msg_id" field.
+func ReplyToMsgIDEqualFold(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldEqualFold(FieldReplyToMsgID, v))
 }
 
-// QuotedMessageIDContainsFold applies the ContainsFold predicate on the "quoted_message_id" field.
-func QuotedMessageIDContainsFold(v string) predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldContainsFold(FieldQuotedMessageID, v))
+// ReplyToMsgIDContainsFold applies the ContainsFold predicate on the "reply_to_msg_id" field.
+func ReplyToMsgIDContainsFold(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldContainsFold(FieldReplyToMsgID, v))
 }
 
 // MessageTypeEQ applies the EQ predicate on the "message_type" field.

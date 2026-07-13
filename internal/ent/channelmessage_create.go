@@ -110,16 +110,16 @@ func (_c *ChannelMessageCreate) SetNillablePlatformMessageID(v *string) *Channel
 	return _c
 }
 
-// SetQuotedMessageID sets the "quoted_message_id" field.
-func (_c *ChannelMessageCreate) SetQuotedMessageID(v string) *ChannelMessageCreate {
-	_c.mutation.SetQuotedMessageID(v)
+// SetReplyToMsgID sets the "reply_to_msg_id" field.
+func (_c *ChannelMessageCreate) SetReplyToMsgID(v string) *ChannelMessageCreate {
+	_c.mutation.SetReplyToMsgID(v)
 	return _c
 }
 
-// SetNillableQuotedMessageID sets the "quoted_message_id" field if the given value is not nil.
-func (_c *ChannelMessageCreate) SetNillableQuotedMessageID(v *string) *ChannelMessageCreate {
+// SetNillableReplyToMsgID sets the "reply_to_msg_id" field if the given value is not nil.
+func (_c *ChannelMessageCreate) SetNillableReplyToMsgID(v *string) *ChannelMessageCreate {
 	if v != nil {
-		_c.SetQuotedMessageID(*v)
+		_c.SetReplyToMsgID(*v)
 	}
 	return _c
 }
@@ -331,9 +331,9 @@ func (_c *ChannelMessageCreate) createSpec() (*ChannelMessage, *sqlgraph.CreateS
 		_spec.SetField(channelmessage.FieldPlatformMessageID, field.TypeString, value)
 		_node.PlatformMessageID = value
 	}
-	if value, ok := _c.mutation.QuotedMessageID(); ok {
-		_spec.SetField(channelmessage.FieldQuotedMessageID, field.TypeString, value)
-		_node.QuotedMessageID = value
+	if value, ok := _c.mutation.ReplyToMsgID(); ok {
+		_spec.SetField(channelmessage.FieldReplyToMsgID, field.TypeString, value)
+		_node.ReplyToMsgID = value
 	}
 	if value, ok := _c.mutation.MessageType(); ok {
 		_spec.SetField(channelmessage.FieldMessageType, field.TypeString, value)

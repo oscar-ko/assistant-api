@@ -28,17 +28,17 @@ func adaptLineEventToUnified(event webhookEvent) (*unifiedmessage.Message, bool)
 	}
 
 	msg := &unifiedmessage.Message{
-		Platform:                 "line",
-		SourceType:               strings.TrimSpace(strings.ToLower(event.Source.Type)),
-		ChannelID:                channelID,
-		ChannelType:              channelType,
-		SenderID:                 resolveSender(event.Source),
-		PlatformMessageID:        strings.TrimSpace(event.Message.ID),
-		ReplyToPlatformMessageID: strings.TrimSpace(event.Message.QuotedMessageID),
-		MessageType:              strings.TrimSpace(event.Message.Type),
-		Text:                     strings.TrimSpace(event.Message.Text),
-		Mentions:                 mentions,
-		PlatformTimestamp:        event.Timestamp,
+		Platform:          "line",
+		SourceType:        strings.TrimSpace(strings.ToLower(event.Source.Type)),
+		ChannelID:         channelID,
+		ChannelType:       channelType,
+		SenderID:          resolveSender(event.Source),
+		PlatformMessageID: strings.TrimSpace(event.Message.ID),
+		ReplyToMsgID:      strings.TrimSpace(event.Message.QuotedMessageID),
+		MessageType:       strings.TrimSpace(event.Message.Type),
+		Text:              strings.TrimSpace(event.Message.Text),
+		Mentions:          mentions,
+		PlatformTimestamp: event.Timestamp,
 	}
 
 	if msg.MessageType == "" {

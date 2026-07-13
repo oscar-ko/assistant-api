@@ -232,10 +232,10 @@ func (_q *ChannelMessageQuery) collectField(ctx context.Context, oneNode bool, o
 				selectedFields = append(selectedFields, channelmessage.FieldPlatformMessageID)
 				fieldSeen[channelmessage.FieldPlatformMessageID] = struct{}{}
 			}
-		case "quotedMessageID":
-			if _, ok := fieldSeen[channelmessage.FieldQuotedMessageID]; !ok {
-				selectedFields = append(selectedFields, channelmessage.FieldQuotedMessageID)
-				fieldSeen[channelmessage.FieldQuotedMessageID] = struct{}{}
+		case "replyToMsgID":
+			if _, ok := fieldSeen[channelmessage.FieldReplyToMsgID]; !ok {
+				selectedFields = append(selectedFields, channelmessage.FieldReplyToMsgID)
+				fieldSeen[channelmessage.FieldReplyToMsgID] = struct{}{}
 			}
 		case "messageType":
 			if _, ok := fieldSeen[channelmessage.FieldMessageType]; !ok {

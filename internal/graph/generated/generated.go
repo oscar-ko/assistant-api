@@ -447,23 +447,23 @@ input ChannelMessageWhereInput {
   platformMessageIDEqualFold: String
   platformMessageIDContainsFold: String
   """
-  quoted_message_id field predicates
+  reply_to_msg_id field predicates
   """
-  quotedMessageID: String
-  quotedMessageIDNEQ: String
-  quotedMessageIDIn: [String!]
-  quotedMessageIDNotIn: [String!]
-  quotedMessageIDGT: String
-  quotedMessageIDGTE: String
-  quotedMessageIDLT: String
-  quotedMessageIDLTE: String
-  quotedMessageIDContains: String
-  quotedMessageIDHasPrefix: String
-  quotedMessageIDHasSuffix: String
-  quotedMessageIDIsNil: Boolean
-  quotedMessageIDNotNil: Boolean
-  quotedMessageIDEqualFold: String
-  quotedMessageIDContainsFold: String
+  replyToMsgID: String
+  replyToMsgIDNEQ: String
+  replyToMsgIDIn: [String!]
+  replyToMsgIDNotIn: [String!]
+  replyToMsgIDGT: String
+  replyToMsgIDGTE: String
+  replyToMsgIDLT: String
+  replyToMsgIDLTE: String
+  replyToMsgIDContains: String
+  replyToMsgIDHasPrefix: String
+  replyToMsgIDHasSuffix: String
+  replyToMsgIDIsNil: Boolean
+  replyToMsgIDNotNil: Boolean
+  replyToMsgIDEqualFold: String
+  replyToMsgIDContainsFold: String
   """
   message_type field predicates
   """
@@ -3759,7 +3759,7 @@ func (ec *executionContext) unmarshalInputChannelMessageWhereInput(ctx context.C
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "content", "contentNEQ", "contentIn", "contentNotIn", "contentGT", "contentGTE", "contentLT", "contentLTE", "contentContains", "contentHasPrefix", "contentHasSuffix", "contentEqualFold", "contentContainsFold", "channelID", "channelIDNEQ", "channelIDIn", "channelIDNotIn", "relatedMessageID", "relatedMessageIDNEQ", "relatedMessageIDIn", "relatedMessageIDNotIn", "relatedMessageIDIsNil", "relatedMessageIDNotNil", "senderID", "senderIDNEQ", "senderIDIn", "senderIDNotIn", "senderIDGT", "senderIDGTE", "senderIDLT", "senderIDLTE", "senderIDContains", "senderIDHasPrefix", "senderIDHasSuffix", "senderIDEqualFold", "senderIDContainsFold", "senderName", "senderNameNEQ", "senderNameIn", "senderNameNotIn", "senderNameGT", "senderNameGTE", "senderNameLT", "senderNameLTE", "senderNameContains", "senderNameHasPrefix", "senderNameHasSuffix", "senderNameIsNil", "senderNameNotNil", "senderNameEqualFold", "senderNameContainsFold", "platformMessageID", "platformMessageIDNEQ", "platformMessageIDIn", "platformMessageIDNotIn", "platformMessageIDGT", "platformMessageIDGTE", "platformMessageIDLT", "platformMessageIDLTE", "platformMessageIDContains", "platformMessageIDHasPrefix", "platformMessageIDHasSuffix", "platformMessageIDIsNil", "platformMessageIDNotNil", "platformMessageIDEqualFold", "platformMessageIDContainsFold", "quotedMessageID", "quotedMessageIDNEQ", "quotedMessageIDIn", "quotedMessageIDNotIn", "quotedMessageIDGT", "quotedMessageIDGTE", "quotedMessageIDLT", "quotedMessageIDLTE", "quotedMessageIDContains", "quotedMessageIDHasPrefix", "quotedMessageIDHasSuffix", "quotedMessageIDIsNil", "quotedMessageIDNotNil", "quotedMessageIDEqualFold", "quotedMessageIDContainsFold", "messageType", "messageTypeNEQ", "messageTypeIn", "messageTypeNotIn", "messageTypeGT", "messageTypeGTE", "messageTypeLT", "messageTypeLTE", "messageTypeContains", "messageTypeHasPrefix", "messageTypeHasSuffix", "messageTypeEqualFold", "messageTypeContainsFold", "platformTimestamp", "platformTimestampNEQ", "platformTimestampIn", "platformTimestampNotIn", "platformTimestampGT", "platformTimestampGTE", "platformTimestampLT", "platformTimestampLTE", "platformTimestampIsNil", "platformTimestampNotNil", "hasChannel", "hasChannelWith", "hasRelatedMessage", "hasRelatedMessageWith", "hasReplies", "hasRepliesWith"}
+	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "content", "contentNEQ", "contentIn", "contentNotIn", "contentGT", "contentGTE", "contentLT", "contentLTE", "contentContains", "contentHasPrefix", "contentHasSuffix", "contentEqualFold", "contentContainsFold", "channelID", "channelIDNEQ", "channelIDIn", "channelIDNotIn", "relatedMessageID", "relatedMessageIDNEQ", "relatedMessageIDIn", "relatedMessageIDNotIn", "relatedMessageIDIsNil", "relatedMessageIDNotNil", "senderID", "senderIDNEQ", "senderIDIn", "senderIDNotIn", "senderIDGT", "senderIDGTE", "senderIDLT", "senderIDLTE", "senderIDContains", "senderIDHasPrefix", "senderIDHasSuffix", "senderIDEqualFold", "senderIDContainsFold", "senderName", "senderNameNEQ", "senderNameIn", "senderNameNotIn", "senderNameGT", "senderNameGTE", "senderNameLT", "senderNameLTE", "senderNameContains", "senderNameHasPrefix", "senderNameHasSuffix", "senderNameIsNil", "senderNameNotNil", "senderNameEqualFold", "senderNameContainsFold", "platformMessageID", "platformMessageIDNEQ", "platformMessageIDIn", "platformMessageIDNotIn", "platformMessageIDGT", "platformMessageIDGTE", "platformMessageIDLT", "platformMessageIDLTE", "platformMessageIDContains", "platformMessageIDHasPrefix", "platformMessageIDHasSuffix", "platformMessageIDIsNil", "platformMessageIDNotNil", "platformMessageIDEqualFold", "platformMessageIDContainsFold", "replyToMsgID", "replyToMsgIDNEQ", "replyToMsgIDIn", "replyToMsgIDNotIn", "replyToMsgIDGT", "replyToMsgIDGTE", "replyToMsgIDLT", "replyToMsgIDLTE", "replyToMsgIDContains", "replyToMsgIDHasPrefix", "replyToMsgIDHasSuffix", "replyToMsgIDIsNil", "replyToMsgIDNotNil", "replyToMsgIDEqualFold", "replyToMsgIDContainsFold", "messageType", "messageTypeNEQ", "messageTypeIn", "messageTypeNotIn", "messageTypeGT", "messageTypeGTE", "messageTypeLT", "messageTypeLTE", "messageTypeContains", "messageTypeHasPrefix", "messageTypeHasSuffix", "messageTypeEqualFold", "messageTypeContainsFold", "platformTimestamp", "platformTimestampNEQ", "platformTimestampIn", "platformTimestampNotIn", "platformTimestampGT", "platformTimestampGTE", "platformTimestampLT", "platformTimestampLTE", "platformTimestampIsNil", "platformTimestampNotNil", "hasChannel", "hasChannelWith", "hasRelatedMessage", "hasRelatedMessageWith", "hasReplies", "hasRepliesWith"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -4417,111 +4417,111 @@ func (ec *executionContext) unmarshalInputChannelMessageWhereInput(ctx context.C
 				return it, err
 			}
 			it.PlatformMessageIDContainsFold = data
-		case "quotedMessageID":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quotedMessageID"))
+		case "replyToMsgID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("replyToMsgID"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.QuotedMessageID = data
-		case "quotedMessageIDNEQ":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quotedMessageIDNEQ"))
+			it.ReplyToMsgID = data
+		case "replyToMsgIDNEQ":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("replyToMsgIDNEQ"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.QuotedMessageIDNEQ = data
-		case "quotedMessageIDIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quotedMessageIDIn"))
+			it.ReplyToMsgIDNEQ = data
+		case "replyToMsgIDIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("replyToMsgIDIn"))
 			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.QuotedMessageIDIn = data
-		case "quotedMessageIDNotIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quotedMessageIDNotIn"))
+			it.ReplyToMsgIDIn = data
+		case "replyToMsgIDNotIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("replyToMsgIDNotIn"))
 			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.QuotedMessageIDNotIn = data
-		case "quotedMessageIDGT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quotedMessageIDGT"))
+			it.ReplyToMsgIDNotIn = data
+		case "replyToMsgIDGT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("replyToMsgIDGT"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.QuotedMessageIDGT = data
-		case "quotedMessageIDGTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quotedMessageIDGTE"))
+			it.ReplyToMsgIDGT = data
+		case "replyToMsgIDGTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("replyToMsgIDGTE"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.QuotedMessageIDGTE = data
-		case "quotedMessageIDLT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quotedMessageIDLT"))
+			it.ReplyToMsgIDGTE = data
+		case "replyToMsgIDLT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("replyToMsgIDLT"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.QuotedMessageIDLT = data
-		case "quotedMessageIDLTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quotedMessageIDLTE"))
+			it.ReplyToMsgIDLT = data
+		case "replyToMsgIDLTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("replyToMsgIDLTE"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.QuotedMessageIDLTE = data
-		case "quotedMessageIDContains":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quotedMessageIDContains"))
+			it.ReplyToMsgIDLTE = data
+		case "replyToMsgIDContains":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("replyToMsgIDContains"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.QuotedMessageIDContains = data
-		case "quotedMessageIDHasPrefix":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quotedMessageIDHasPrefix"))
+			it.ReplyToMsgIDContains = data
+		case "replyToMsgIDHasPrefix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("replyToMsgIDHasPrefix"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.QuotedMessageIDHasPrefix = data
-		case "quotedMessageIDHasSuffix":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quotedMessageIDHasSuffix"))
+			it.ReplyToMsgIDHasPrefix = data
+		case "replyToMsgIDHasSuffix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("replyToMsgIDHasSuffix"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.QuotedMessageIDHasSuffix = data
-		case "quotedMessageIDIsNil":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quotedMessageIDIsNil"))
+			it.ReplyToMsgIDHasSuffix = data
+		case "replyToMsgIDIsNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("replyToMsgIDIsNil"))
 			data, err := ec.unmarshalOBoolean2bool(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.QuotedMessageIDIsNil = data
-		case "quotedMessageIDNotNil":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quotedMessageIDNotNil"))
+			it.ReplyToMsgIDIsNil = data
+		case "replyToMsgIDNotNil":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("replyToMsgIDNotNil"))
 			data, err := ec.unmarshalOBoolean2bool(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.QuotedMessageIDNotNil = data
-		case "quotedMessageIDEqualFold":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quotedMessageIDEqualFold"))
+			it.ReplyToMsgIDNotNil = data
+		case "replyToMsgIDEqualFold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("replyToMsgIDEqualFold"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.QuotedMessageIDEqualFold = data
-		case "quotedMessageIDContainsFold":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quotedMessageIDContainsFold"))
+			it.ReplyToMsgIDEqualFold = data
+		case "replyToMsgIDContainsFold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("replyToMsgIDContainsFold"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.QuotedMessageIDContainsFold = data
+			it.ReplyToMsgIDContainsFold = data
 		case "messageType":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("messageType"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)

@@ -123,23 +123,23 @@ func (_u *ChannelMessageUpdate) ClearPlatformMessageID() *ChannelMessageUpdate {
 	return _u
 }
 
-// SetQuotedMessageID sets the "quoted_message_id" field.
-func (_u *ChannelMessageUpdate) SetQuotedMessageID(v string) *ChannelMessageUpdate {
-	_u.mutation.SetQuotedMessageID(v)
+// SetReplyToMsgID sets the "reply_to_msg_id" field.
+func (_u *ChannelMessageUpdate) SetReplyToMsgID(v string) *ChannelMessageUpdate {
+	_u.mutation.SetReplyToMsgID(v)
 	return _u
 }
 
-// SetNillableQuotedMessageID sets the "quoted_message_id" field if the given value is not nil.
-func (_u *ChannelMessageUpdate) SetNillableQuotedMessageID(v *string) *ChannelMessageUpdate {
+// SetNillableReplyToMsgID sets the "reply_to_msg_id" field if the given value is not nil.
+func (_u *ChannelMessageUpdate) SetNillableReplyToMsgID(v *string) *ChannelMessageUpdate {
 	if v != nil {
-		_u.SetQuotedMessageID(*v)
+		_u.SetReplyToMsgID(*v)
 	}
 	return _u
 }
 
-// ClearQuotedMessageID clears the value of the "quoted_message_id" field.
-func (_u *ChannelMessageUpdate) ClearQuotedMessageID() *ChannelMessageUpdate {
-	_u.mutation.ClearQuotedMessageID()
+// ClearReplyToMsgID clears the value of the "reply_to_msg_id" field.
+func (_u *ChannelMessageUpdate) ClearReplyToMsgID() *ChannelMessageUpdate {
+	_u.mutation.ClearReplyToMsgID()
 	return _u
 }
 
@@ -318,11 +318,11 @@ func (_u *ChannelMessageUpdate) sqlSave(ctx context.Context) (_node int, err err
 	if _u.mutation.PlatformMessageIDCleared() {
 		_spec.ClearField(channelmessage.FieldPlatformMessageID, field.TypeString)
 	}
-	if value, ok := _u.mutation.QuotedMessageID(); ok {
-		_spec.SetField(channelmessage.FieldQuotedMessageID, field.TypeString, value)
+	if value, ok := _u.mutation.ReplyToMsgID(); ok {
+		_spec.SetField(channelmessage.FieldReplyToMsgID, field.TypeString, value)
 	}
-	if _u.mutation.QuotedMessageIDCleared() {
-		_spec.ClearField(channelmessage.FieldQuotedMessageID, field.TypeString)
+	if _u.mutation.ReplyToMsgIDCleared() {
+		_spec.ClearField(channelmessage.FieldReplyToMsgID, field.TypeString)
 	}
 	if value, ok := _u.mutation.MessageType(); ok {
 		_spec.SetField(channelmessage.FieldMessageType, field.TypeString, value)
@@ -524,23 +524,23 @@ func (_u *ChannelMessageUpdateOne) ClearPlatformMessageID() *ChannelMessageUpdat
 	return _u
 }
 
-// SetQuotedMessageID sets the "quoted_message_id" field.
-func (_u *ChannelMessageUpdateOne) SetQuotedMessageID(v string) *ChannelMessageUpdateOne {
-	_u.mutation.SetQuotedMessageID(v)
+// SetReplyToMsgID sets the "reply_to_msg_id" field.
+func (_u *ChannelMessageUpdateOne) SetReplyToMsgID(v string) *ChannelMessageUpdateOne {
+	_u.mutation.SetReplyToMsgID(v)
 	return _u
 }
 
-// SetNillableQuotedMessageID sets the "quoted_message_id" field if the given value is not nil.
-func (_u *ChannelMessageUpdateOne) SetNillableQuotedMessageID(v *string) *ChannelMessageUpdateOne {
+// SetNillableReplyToMsgID sets the "reply_to_msg_id" field if the given value is not nil.
+func (_u *ChannelMessageUpdateOne) SetNillableReplyToMsgID(v *string) *ChannelMessageUpdateOne {
 	if v != nil {
-		_u.SetQuotedMessageID(*v)
+		_u.SetReplyToMsgID(*v)
 	}
 	return _u
 }
 
-// ClearQuotedMessageID clears the value of the "quoted_message_id" field.
-func (_u *ChannelMessageUpdateOne) ClearQuotedMessageID() *ChannelMessageUpdateOne {
-	_u.mutation.ClearQuotedMessageID()
+// ClearReplyToMsgID clears the value of the "reply_to_msg_id" field.
+func (_u *ChannelMessageUpdateOne) ClearReplyToMsgID() *ChannelMessageUpdateOne {
+	_u.mutation.ClearReplyToMsgID()
 	return _u
 }
 
@@ -749,11 +749,11 @@ func (_u *ChannelMessageUpdateOne) sqlSave(ctx context.Context) (_node *ChannelM
 	if _u.mutation.PlatformMessageIDCleared() {
 		_spec.ClearField(channelmessage.FieldPlatformMessageID, field.TypeString)
 	}
-	if value, ok := _u.mutation.QuotedMessageID(); ok {
-		_spec.SetField(channelmessage.FieldQuotedMessageID, field.TypeString, value)
+	if value, ok := _u.mutation.ReplyToMsgID(); ok {
+		_spec.SetField(channelmessage.FieldReplyToMsgID, field.TypeString, value)
 	}
-	if _u.mutation.QuotedMessageIDCleared() {
-		_spec.ClearField(channelmessage.FieldQuotedMessageID, field.TypeString)
+	if _u.mutation.ReplyToMsgIDCleared() {
+		_spec.ClearField(channelmessage.FieldReplyToMsgID, field.TypeString)
 	}
 	if value, ok := _u.mutation.MessageType(); ok {
 		_spec.SetField(channelmessage.FieldMessageType, field.TypeString, value)

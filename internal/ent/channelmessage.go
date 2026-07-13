@@ -36,8 +36,8 @@ type ChannelMessage struct {
 	SenderName string `json:"sender_name,omitempty"`
 	// 平台原始訊息 ID
 	PlatformMessageID string `json:"platform_message_id,omitempty"`
-	// 平台被引用訊息 ID
-	QuotedMessageID string `json:"quoted_message_id,omitempty"`
+	// 平台回覆目標訊息 ID
+	ReplyToMsgID string `json:"reply_to_msg_id,omitempty"`
 	// 訊息型別，例如 text/image/audio
 	MessageType string `json:"message_type,omitempty"`
 	// 平台事件時間戳（毫秒）
@@ -105,7 +105,7 @@ func (*ChannelMessage) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case channelmessage.FieldPlatformTimestamp:
 			values[i] = new(sql.NullInt64)
-		case channelmessage.FieldContent, channelmessage.FieldSenderID, channelmessage.FieldSenderName, channelmessage.FieldPlatformMessageID, channelmessage.FieldQuotedMessageID, channelmessage.FieldMessageType:
+		case channelmessage.FieldContent, channelmessage.FieldSenderID, channelmessage.FieldSenderName, channelmessage.FieldPlatformMessageID, channelmessage.FieldReplyToMsgID, channelmessage.FieldMessageType:
 			values[i] = new(sql.NullString)
 		case channelmessage.FieldCreatedAt, channelmessage.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -181,11 +181,11 @@ func (_m *ChannelMessage) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.PlatformMessageID = value.String
 			}
-		case channelmessage.FieldQuotedMessageID:
+		case channelmessage.FieldReplyToMsgID:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field quoted_message_id", values[i])
+				return fmt.Errorf("unexpected type %T for field reply_to_msg_id", values[i])
 			} else if value.Valid {
-				_m.QuotedMessageID = value.String
+				_m.ReplyToMsgID = value.String
 			}
 		case channelmessage.FieldMessageType:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -276,8 +276,8 @@ func (_m *ChannelMessage) String() string {
 	builder.WriteString("platform_message_id=")
 	builder.WriteString(_m.PlatformMessageID)
 	builder.WriteString(", ")
-	builder.WriteString("quoted_message_id=")
-	builder.WriteString(_m.QuotedMessageID)
+	builder.WriteString("reply_to_msg_id=")
+	builder.WriteString(_m.ReplyToMsgID)
 	builder.WriteString(", ")
 	builder.WriteString("message_type=")
 	builder.WriteString(_m.MessageType)

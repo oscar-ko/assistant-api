@@ -32,7 +32,7 @@ func (ChannelMessage) Fields() []ent.Field {
 		field.String("sender_id").Comment("訊息發送者平台 ID"),
 		field.String("sender_name").Optional().Comment("訊息發送者顯示名稱"),
 		field.String("platform_message_id").Optional().Comment("平台原始訊息 ID"),
-		field.String("quoted_message_id").Optional().Comment("平台被引用訊息 ID"),
+		field.String("reply_to_msg_id").Optional().Comment("平台回覆目標訊息 ID"),
 		field.String("message_type").Default("text").Comment("訊息型別，例如 text/image/audio"),
 		field.Int64("platform_timestamp").Optional().Comment("平台事件時間戳（毫秒）"),
 	}

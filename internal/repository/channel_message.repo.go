@@ -108,7 +108,7 @@ func (r *ChannelMessageRepo) SaveReceivedMessage(
 	senderID string,
 	senderName string,
 	platformMessageID string,
-	quotedMessageID string,
+	replyToMsgID string,
 	content string,
 	messageType string,
 	platformTimestamp int64,
@@ -134,11 +134,11 @@ func (r *ChannelMessageRepo) SaveReceivedMessage(
 	}
 
 	var relatedMessageID *uuid.UUID
-	if quoted := strings.TrimSpace(quotedMessageID); quoted != "" {
+	if replyTo := strings.TrimSpace(replyToMsgID); replyTo != "" {
 		related, err := r.db.ChannelMessage.Query().
 			Where(
 				channelmessage.ChannelIDEQ(channelID),
-				channelmessage.PlatformMessageIDEQ(quoted),
+				channelmessage.PlatformMessageIDEQ(replyTo),
 			).
 			Order(ent.Desc(channelmessage.FieldID)).
 			First(ctx)
@@ -165,8 +165,8 @@ func (r *ChannelMessageRepo) SaveReceivedMessage(
 	if value := strings.TrimSpace(platformMessageID); value != "" {
 		builder = builder.SetPlatformMessageID(value)
 	}
-	if value := strings.TrimSpace(quotedMessageID); value != "" {
-		builder = builder.SetQuotedMessageID(value)
+	if value := strings.TrimSpace(replyToMsgID); value != "" {
+		builder = builder.SetReplyToMsgID(value)
 	}
 	if platformTimestamp > 0 {
 		builder = builder.SetPlatformTimestamp(platformTimestamp)

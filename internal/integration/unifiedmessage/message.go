@@ -10,18 +10,18 @@ type Mention struct {
 // Message 是跨通訊平台統一後的訊息格式。
 // 後續 AI 分析、規則判斷、訊息鏈查詢都應以這個格式為輸入。
 type Message struct {
-	Platform                 string
-	SourceType               string
-	ChannelID                string
-	ChannelType              string
-	SenderID                 string
-	SenderName               string
-	PlatformMessageID        string
-	ReplyToPlatformMessageID string
-	MessageType              string
-	Text                     string
-	Mentions                 []Mention
-	PlatformTimestamp        int64
+	Platform          string
+	SourceType        string
+	ChannelID         string
+	ChannelType       string
+	SenderID          string
+	SenderName        string
+	PlatformMessageID string
+	ReplyToMsgID      string
+	MessageType       string
+	Text              string
+	Mentions          []Mention
+	PlatformTimestamp int64
 }
 
 // IsText 回傳是否為文字訊息。
