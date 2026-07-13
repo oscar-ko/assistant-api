@@ -7,6 +7,7 @@ import (
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/user"
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -20,14 +21,14 @@ import (
 // UserQuery is the builder for querying User entities.
 type UserQuery struct {
 	config
-	ctx        *QueryContext
-	order      []user.OrderOption
-	inters     []Interceptor
-	predicates []predicate.User
-	withLine   *LineQuery
-	withFKs    bool
-	modifiers  []func(*sql.Selector)
-	loadTotal  []func(context.Context, []*User) error
+	ctx           *QueryContext
+	order         []user.OrderOption
+	inters        []Interceptor
+	predicates    []predicate.User
+	withLine      *LineQuery
+	modifiers     []func(*sql.Selector)
+	loadTotal     []func(context.Context, []*User) error
+	withNamedLine map[string]*LineQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -78,7 +79,7 @@ func (_q *UserQuery) QueryLine() *LineQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(line.Table, line.FieldID),
-			sqlgraph.Edge(sqlgraph.O2O, true, user.LineTable, user.LineColumn),
+			sqlgraph.Edge(sqlgraph.O2M, true, user.LineTable, user.LineColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -373,18 +374,11 @@ func (_q *UserQuery) prepareQuery(ctx context.Context) error {
 func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, error) {
 	var (
 		nodes       = []*User{}
-		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
 		loadedTypes = [1]bool{
 			_q.withLine != nil,
 		}
 	)
-	if _q.withLine != nil {
-		withFKs = true
-	}
-	if withFKs {
-		_spec.Node.Columns = append(_spec.Node.Columns, user.ForeignKeys...)
-	}
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*User).scanValues(nil, columns)
 	}
@@ -407,8 +401,16 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		return nodes, nil
 	}
 	if query := _q.withLine; query != nil {
-		if err := _q.loadLine(ctx, query, nodes, nil,
-			func(n *User, e *Line) { n.Edges.Line = e }); err != nil {
+		if err := _q.loadLine(ctx, query, nodes,
+			func(n *User) { n.Edges.Line = []*Line{} },
+			func(n *User, e *Line) { n.Edges.Line = append(n.Edges.Line, e) }); err != nil {
+			return nil, err
+		}
+	}
+	for name, query := range _q.withNamedLine {
+		if err := _q.loadLine(ctx, query, nodes,
+			func(n *User) { n.appendNamedLine(name) },
+			func(n *User, e *Line) { n.appendNamedLine(name, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -421,34 +423,33 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 }
 
 func (_q *UserQuery) loadLine(ctx context.Context, query *LineQuery, nodes []*User, init func(*User), assign func(*User, *Line)) error {
-	ids := make([]uuid.UUID, 0, len(nodes))
-	nodeids := make(map[uuid.UUID][]*User)
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*User)
 	for i := range nodes {
-		if nodes[i].line_user == nil {
-			continue
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
 		}
-		fk := *nodes[i].line_user
-		if _, ok := nodeids[fk]; !ok {
-			ids = append(ids, fk)
-		}
-		nodeids[fk] = append(nodeids[fk], nodes[i])
 	}
-	if len(ids) == 0 {
-		return nil
-	}
-	query.Where(line.IDIn(ids...))
+	query.withFKs = true
+	query.Where(predicate.Line(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.LineColumn), fks...))
+	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		nodes, ok := nodeids[n.ID]
+		fk := n.line_user
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "line_user" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
 		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "line_user" returned %v`, n.ID)
+			return fmt.Errorf(`unexpected referenced foreign-key "line_user" returned %v for node %v`, *fk, n.ID)
 		}
-		for i := range nodes {
-			assign(nodes[i], n)
-		}
+		assign(node, n)
 	}
 	return nil
 }
@@ -535,6 +536,20 @@ func (_q *UserQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// WithNamedLine tells the query-builder to eager-load the nodes that are connected to the "line"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithNamedLine(name string, opts ...func(*LineQuery)) *UserQuery {
+	query := (&LineClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if _q.withNamedLine == nil {
+		_q.withNamedLine = make(map[string]*LineQuery)
+	}
+	_q.withNamedLine[name] = query
+	return _q
 }
 
 // UserGroupBy is the group-by builder for User entities.

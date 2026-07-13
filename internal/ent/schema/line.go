@@ -25,7 +25,6 @@ func (Line) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("line_user_id").NotEmpty().Unique().Comment("LINE 平台使用者 ID"),
 		field.String("display_name").Optional().Nillable().Comment("LINE 顯示名稱"),
-		field.String("email").Optional().Nillable().Comment("LINE 帳號電子郵件（可能為空）"),
 		field.String("picture").Optional().Nillable().Comment("LINE 大頭貼 URL"),
 	}
 }

@@ -17,7 +17,7 @@ type mockLineBindRepo struct {
 	getUserByLineUserIDFn   func(ctx context.Context, lineUserID string) (*ent.User, error)
 	getUserByEmailFn        func(ctx context.Context, email string) (*ent.User, error)
 	hasLineBindingForUserFn func(ctx context.Context, userID uuid.UUID) (bool, error)
-	createLineBindingFn     func(ctx context.Context, u *ent.User, lineUserID, displayName string, email, picture *string) error
+	createLineBindingFn     func(ctx context.Context, u *ent.User, lineUserID, displayName string, picture *string) error
 	createUserFn            func(ctx context.Context, name, email string) (*ent.User, error)
 
 	// 這些 counter 用來驗證「有沒有呼叫到」寫入操作。
@@ -50,10 +50,10 @@ func (m *mockLineBindRepo) HasLineBindingForUser(ctx context.Context, userID uui
 	return false, nil
 }
 
-func (m *mockLineBindRepo) CreateLineBinding(ctx context.Context, u *ent.User, lineUserID, displayName string, email, picture *string) error {
+func (m *mockLineBindRepo) CreateLineBinding(ctx context.Context, u *ent.User, lineUserID, displayName string, picture *string) error {
 	m.createLineBindingCalled++
 	if m.createLineBindingFn != nil {
-		return m.createLineBindingFn(ctx, u, lineUserID, displayName, email, picture)
+		return m.createLineBindingFn(ctx, u, lineUserID, displayName, picture)
 	}
 	// 預設成功；是否應被呼叫由 counter 驗證。
 	return nil
@@ -150,7 +150,6 @@ func TestBindUser_EmailExistsWithoutLine_CreatesBinding(t *testing.T) {
 func TestBindUser_EmptyEmail_CreatesUserWithFallbackEmail(t *testing.T) {
 	newID := uuid.New()
 	var createdEmail string
-	var gotEmailPtr *string
 	repo := &mockLineBindRepo{
 		getUserByLineUserIDFn: func(ctx context.Context, lineUserID string) (*ent.User, error) {
 			return nil, &ent.NotFoundError{}
@@ -162,8 +161,7 @@ func TestBindUser_EmptyEmail_CreatesUserWithFallbackEmail(t *testing.T) {
 			createdEmail = email
 			return &ent.User{ID: newID, Name: name, Email: email}, nil
 		},
-		createLineBindingFn: func(ctx context.Context, u *ent.User, lineUserID, displayName string, email, picture *string) error {
-			gotEmailPtr = email
+		createLineBindingFn: func(ctx context.Context, u *ent.User, lineUserID, displayName string, picture *string) error {
 			return nil
 		},
 	}
@@ -177,9 +175,6 @@ func TestBindUser_EmptyEmail_CreatesUserWithFallbackEmail(t *testing.T) {
 	}
 	if createdEmail != "line_U-4@line.local" {
 		t.Fatalf("expected fallback email, got %q", createdEmail)
-	}
-	if gotEmailPtr != nil {
-		t.Fatalf("expected nil line email for empty input, got %v", *gotEmailPtr)
 	}
 }
 

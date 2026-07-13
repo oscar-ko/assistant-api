@@ -65,11 +65,6 @@ func DisplayName(v string) predicate.Line {
 	return predicate.Line(sql.FieldEQ(FieldDisplayName, v))
 }
 
-// Email applies equality check predicate on the "email" field. It's identical to EmailEQ.
-func Email(v string) predicate.Line {
-	return predicate.Line(sql.FieldEQ(FieldEmail, v))
-}
-
 // Picture applies equality check predicate on the "picture" field. It's identical to PictureEQ.
 func Picture(v string) predicate.Line {
 	return predicate.Line(sql.FieldEQ(FieldPicture, v))
@@ -215,81 +210,6 @@ func DisplayNameContainsFold(v string) predicate.Line {
 	return predicate.Line(sql.FieldContainsFold(FieldDisplayName, v))
 }
 
-// EmailEQ applies the EQ predicate on the "email" field.
-func EmailEQ(v string) predicate.Line {
-	return predicate.Line(sql.FieldEQ(FieldEmail, v))
-}
-
-// EmailNEQ applies the NEQ predicate on the "email" field.
-func EmailNEQ(v string) predicate.Line {
-	return predicate.Line(sql.FieldNEQ(FieldEmail, v))
-}
-
-// EmailIn applies the In predicate on the "email" field.
-func EmailIn(vs ...string) predicate.Line {
-	return predicate.Line(sql.FieldIn(FieldEmail, vs...))
-}
-
-// EmailNotIn applies the NotIn predicate on the "email" field.
-func EmailNotIn(vs ...string) predicate.Line {
-	return predicate.Line(sql.FieldNotIn(FieldEmail, vs...))
-}
-
-// EmailGT applies the GT predicate on the "email" field.
-func EmailGT(v string) predicate.Line {
-	return predicate.Line(sql.FieldGT(FieldEmail, v))
-}
-
-// EmailGTE applies the GTE predicate on the "email" field.
-func EmailGTE(v string) predicate.Line {
-	return predicate.Line(sql.FieldGTE(FieldEmail, v))
-}
-
-// EmailLT applies the LT predicate on the "email" field.
-func EmailLT(v string) predicate.Line {
-	return predicate.Line(sql.FieldLT(FieldEmail, v))
-}
-
-// EmailLTE applies the LTE predicate on the "email" field.
-func EmailLTE(v string) predicate.Line {
-	return predicate.Line(sql.FieldLTE(FieldEmail, v))
-}
-
-// EmailContains applies the Contains predicate on the "email" field.
-func EmailContains(v string) predicate.Line {
-	return predicate.Line(sql.FieldContains(FieldEmail, v))
-}
-
-// EmailHasPrefix applies the HasPrefix predicate on the "email" field.
-func EmailHasPrefix(v string) predicate.Line {
-	return predicate.Line(sql.FieldHasPrefix(FieldEmail, v))
-}
-
-// EmailHasSuffix applies the HasSuffix predicate on the "email" field.
-func EmailHasSuffix(v string) predicate.Line {
-	return predicate.Line(sql.FieldHasSuffix(FieldEmail, v))
-}
-
-// EmailIsNil applies the IsNil predicate on the "email" field.
-func EmailIsNil() predicate.Line {
-	return predicate.Line(sql.FieldIsNull(FieldEmail))
-}
-
-// EmailNotNil applies the NotNil predicate on the "email" field.
-func EmailNotNil() predicate.Line {
-	return predicate.Line(sql.FieldNotNull(FieldEmail))
-}
-
-// EmailEqualFold applies the EqualFold predicate on the "email" field.
-func EmailEqualFold(v string) predicate.Line {
-	return predicate.Line(sql.FieldEqualFold(FieldEmail, v))
-}
-
-// EmailContainsFold applies the ContainsFold predicate on the "email" field.
-func EmailContainsFold(v string) predicate.Line {
-	return predicate.Line(sql.FieldContainsFold(FieldEmail, v))
-}
-
 // PictureEQ applies the EQ predicate on the "picture" field.
 func PictureEQ(v string) predicate.Line {
 	return predicate.Line(sql.FieldEQ(FieldPicture, v))
@@ -370,7 +290,7 @@ func HasUser() predicate.Line {
 	return predicate.Line(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.O2O, false, UserTable, UserColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, UserTable, UserColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})

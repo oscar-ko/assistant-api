@@ -308,7 +308,7 @@ input CreateUserInput {
   使用者唯一電子郵件
   """
   email: String!
-  lineID: ID
+  lineIDs: [ID!]
 }
 """
 LineWhereInput is used for filtering Line objects.
@@ -364,24 +364,6 @@ input LineWhereInput {
   displayNameEqualFold: String
   displayNameContainsFold: String
   """
-  email field predicates
-  """
-  email: String
-  emailNEQ: String
-  emailIn: [String!]
-  emailNotIn: [String!]
-  emailGT: String
-  emailGTE: String
-  emailLT: String
-  emailLTE: String
-  emailContains: String
-  emailHasPrefix: String
-  emailHasSuffix: String
-  emailIsNil: Boolean
-  emailNotNil: Boolean
-  emailEqualFold: String
-  emailContainsFold: String
-  """
   picture field predicates
   """
   picture: String
@@ -418,7 +400,8 @@ input UpdateUserInput {
   使用者唯一電子郵件
   """
   email: String
-  lineID: ID
+  addLineIDs: [ID!]
+  removeLineIDs: [ID!]
   clearLine: Boolean
 }
 """

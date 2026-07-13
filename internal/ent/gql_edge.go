@@ -56,10 +56,14 @@ func (_m *Line) User(ctx context.Context) (*User, error) {
 	return result, err
 }
 
-func (_m *User) Line(ctx context.Context) (*Line, error) {
-	result, err := _m.Edges.LineOrErr()
-	if IsNotLoaded(err) {
-		result, err = _m.QueryLine().Only(ctx)
+func (_m *User) Line(ctx context.Context) (result []*Line, err error) {
+	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
+		result, err = _m.NamedLine(graphql.GetFieldContext(ctx).Field.Alias)
+	} else {
+		result, err = _m.Edges.LineOrErr()
 	}
-	return result, MaskNotFound(err)
+	if IsNotLoaded(err) {
+		result, err = _m.QueryLine().All(ctx)
+	}
+	return result, err
 }

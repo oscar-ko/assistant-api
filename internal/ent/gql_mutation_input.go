@@ -8,17 +8,17 @@ import (
 
 // CreateUserInput represents a mutation input for creating users.
 type CreateUserInput struct {
-	Name   string
-	Email  string
-	LineID *uuid.UUID
+	Name    string
+	Email   string
+	LineIDs []uuid.UUID
 }
 
 // Mutate applies the CreateUserInput on the UserMutation builder.
 func (i *CreateUserInput) Mutate(m *UserMutation) {
 	m.SetName(i.Name)
 	m.SetEmail(i.Email)
-	if v := i.LineID; v != nil {
-		m.SetLineID(*v)
+	if v := i.LineIDs; len(v) > 0 {
+		m.AddLineIDs(v...)
 	}
 }
 
@@ -30,10 +30,11 @@ func (c *UserCreate) SetInput(i CreateUserInput) *UserCreate {
 
 // UpdateUserInput represents a mutation input for updating users.
 type UpdateUserInput struct {
-	Name      *string
-	Email     *string
-	ClearLine bool
-	LineID    *uuid.UUID
+	Name          *string
+	Email         *string
+	ClearLine     bool
+	AddLineIDs    []uuid.UUID
+	RemoveLineIDs []uuid.UUID
 }
 
 // Mutate applies the UpdateUserInput on the UserMutation builder.
@@ -47,8 +48,11 @@ func (i *UpdateUserInput) Mutate(m *UserMutation) {
 	if i.ClearLine {
 		m.ClearLine()
 	}
-	if v := i.LineID; v != nil {
-		m.SetLineID(*v)
+	if v := i.AddLineIDs; len(v) > 0 {
+		m.AddLineIDs(v...)
+	}
+	if v := i.RemoveLineIDs; len(v) > 0 {
+		m.RemoveLineIDs(v...)
 	}
 }
 

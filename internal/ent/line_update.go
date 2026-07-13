@@ -63,26 +63,6 @@ func (_u *LineUpdate) ClearDisplayName() *LineUpdate {
 	return _u
 }
 
-// SetEmail sets the "email" field.
-func (_u *LineUpdate) SetEmail(v string) *LineUpdate {
-	_u.mutation.SetEmail(v)
-	return _u
-}
-
-// SetNillableEmail sets the "email" field if the given value is not nil.
-func (_u *LineUpdate) SetNillableEmail(v *string) *LineUpdate {
-	if v != nil {
-		_u.SetEmail(*v)
-	}
-	return _u
-}
-
-// ClearEmail clears the value of the "email" field.
-func (_u *LineUpdate) ClearEmail() *LineUpdate {
-	_u.mutation.ClearEmail()
-	return _u
-}
-
 // SetPicture sets the "picture" field.
 func (_u *LineUpdate) SetPicture(v string) *LineUpdate {
 	_u.mutation.SetPicture(v)
@@ -186,12 +166,6 @@ func (_u *LineUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.DisplayNameCleared() {
 		_spec.ClearField(line.FieldDisplayName, field.TypeString)
 	}
-	if value, ok := _u.mutation.Email(); ok {
-		_spec.SetField(line.FieldEmail, field.TypeString, value)
-	}
-	if _u.mutation.EmailCleared() {
-		_spec.ClearField(line.FieldEmail, field.TypeString)
-	}
 	if value, ok := _u.mutation.Picture(); ok {
 		_spec.SetField(line.FieldPicture, field.TypeString, value)
 	}
@@ -200,7 +174,7 @@ func (_u *LineUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
+			Rel:     sqlgraph.M2O,
 			Inverse: false,
 			Table:   line.UserTable,
 			Columns: []string{line.UserColumn},
@@ -213,7 +187,7 @@ func (_u *LineUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if nodes := _u.mutation.UserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
+			Rel:     sqlgraph.M2O,
 			Inverse: false,
 			Table:   line.UserTable,
 			Columns: []string{line.UserColumn},
@@ -278,26 +252,6 @@ func (_u *LineUpdateOne) SetNillableDisplayName(v *string) *LineUpdateOne {
 // ClearDisplayName clears the value of the "display_name" field.
 func (_u *LineUpdateOne) ClearDisplayName() *LineUpdateOne {
 	_u.mutation.ClearDisplayName()
-	return _u
-}
-
-// SetEmail sets the "email" field.
-func (_u *LineUpdateOne) SetEmail(v string) *LineUpdateOne {
-	_u.mutation.SetEmail(v)
-	return _u
-}
-
-// SetNillableEmail sets the "email" field if the given value is not nil.
-func (_u *LineUpdateOne) SetNillableEmail(v *string) *LineUpdateOne {
-	if v != nil {
-		_u.SetEmail(*v)
-	}
-	return _u
-}
-
-// ClearEmail clears the value of the "email" field.
-func (_u *LineUpdateOne) ClearEmail() *LineUpdateOne {
-	_u.mutation.ClearEmail()
 	return _u
 }
 
@@ -434,12 +388,6 @@ func (_u *LineUpdateOne) sqlSave(ctx context.Context) (_node *Line, err error) {
 	if _u.mutation.DisplayNameCleared() {
 		_spec.ClearField(line.FieldDisplayName, field.TypeString)
 	}
-	if value, ok := _u.mutation.Email(); ok {
-		_spec.SetField(line.FieldEmail, field.TypeString, value)
-	}
-	if _u.mutation.EmailCleared() {
-		_spec.ClearField(line.FieldEmail, field.TypeString)
-	}
 	if value, ok := _u.mutation.Picture(); ok {
 		_spec.SetField(line.FieldPicture, field.TypeString, value)
 	}
@@ -448,7 +396,7 @@ func (_u *LineUpdateOne) sqlSave(ctx context.Context) (_node *Line, err error) {
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
+			Rel:     sqlgraph.M2O,
 			Inverse: false,
 			Table:   line.UserTable,
 			Columns: []string{line.UserColumn},
@@ -461,7 +409,7 @@ func (_u *LineUpdateOne) sqlSave(ctx context.Context) (_node *Line, err error) {
 	}
 	if nodes := _u.mutation.UserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
+			Rel:     sqlgraph.M2O,
 			Inverse: false,
 			Table:   line.UserTable,
 			Columns: []string{line.UserColumn},

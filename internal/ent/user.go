@@ -3,7 +3,6 @@
 package ent
 
 import (
-	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/user"
 	"fmt"
 	"strings"
@@ -26,28 +25,27 @@ type User struct {
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the UserQuery when eager-loading is set.
 	Edges        UserEdges `json:"edges"`
-	line_user    *uuid.UUID
 	selectValues sql.SelectValues
 }
 
 // UserEdges holds the relations/edges for other nodes in the graph.
 type UserEdges struct {
-	// 使用者綁定的 LINE 帳號
-	Line *Line `json:"line,omitempty"`
+	// 使用者綁定的 LINE 帳號清單（可多筆）
+	Line []*Line `json:"line,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [1]bool
 	// totalCount holds the count of the edges above.
 	totalCount [1]map[string]int
+
+	namedLine map[string][]*Line
 }
 
 // LineOrErr returns the Line value or an error if the edge
-// was not loaded in eager-loading, or loaded but was not found.
-func (e UserEdges) LineOrErr() (*Line, error) {
-	if e.Line != nil {
+// was not loaded in eager-loading.
+func (e UserEdges) LineOrErr() ([]*Line, error) {
+	if e.loadedTypes[0] {
 		return e.Line, nil
-	} else if e.loadedTypes[0] {
-		return nil, &NotFoundError{label: line.Label}
 	}
 	return nil, &NotLoadedError{edge: "line"}
 }
@@ -61,8 +59,6 @@ func (*User) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullString)
 		case user.FieldID:
 			values[i] = new(uuid.UUID)
-		case user.ForeignKeys[0]: // line_user
-			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -95,13 +91,6 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field email", values[i])
 			} else if value.Valid {
 				_m.Email = value.String
-			}
-		case user.ForeignKeys[0]:
-			if value, ok := values[i].(*sql.NullScanner); !ok {
-				return fmt.Errorf("unexpected type %T for field line_user", values[i])
-			} else if value.Valid {
-				_m.line_user = new(uuid.UUID)
-				*_m.line_user = *value.S.(*uuid.UUID)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -151,6 +140,30 @@ func (_m *User) String() string {
 	builder.WriteString(_m.Email)
 	builder.WriteByte(')')
 	return builder.String()
+}
+
+// NamedLine returns the Line named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *User) NamedLine(name string) ([]*Line, error) {
+	if _m.Edges.namedLine == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedLine[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *User) appendNamedLine(name string, edges ...*Line) {
+	if _m.Edges.namedLine == nil {
+		_m.Edges.namedLine = make(map[string][]*Line)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedLine[name] = []*Line{}
+	} else {
+		_m.Edges.namedLine[name] = append(_m.Edges.namedLine[name], edges...)
+	}
 }
 
 // Users is a parsable slice of User.

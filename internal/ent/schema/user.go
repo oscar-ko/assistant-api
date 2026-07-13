@@ -42,7 +42,6 @@ func (User) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("line", Line.Type).
 			Ref("user").
-			Unique().
-			Comment("使用者綁定的 LINE 帳號"),
+			Comment("使用者綁定的 LINE 帳號清單（可多筆）"),
 	}
 }

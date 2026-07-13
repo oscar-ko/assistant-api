@@ -15,7 +15,7 @@ type lineBindRepository interface {
 	GetUserByLineUserID(ctx context.Context, lineUserID string) (*ent.User, error)
 	GetUserByEmail(ctx context.Context, email string) (*ent.User, error)
 	HasLineBindingForUser(ctx context.Context, userID uuid.UUID) (bool, error)
-	CreateLineBinding(ctx context.Context, u *ent.User, lineUserID string, displayName string, email *string, picture *string) error
+	CreateLineBinding(ctx context.Context, u *ent.User, lineUserID string, displayName string, picture *string) error
 	CreateUser(ctx context.Context, name, email string) (*ent.User, error)
 }
 
@@ -48,7 +48,7 @@ func bindUser(ctx context.Context, repo lineBindRepository, p *profile) (*ent.Us
 				return nil, fmt.Errorf("user already bound to another line account")
 			}
 
-			if ce := repo.CreateLineBinding(ctx, uByEmail, lineID, name, nullable(email), nullable(picture)); ce != nil {
+			if ce := repo.CreateLineBinding(ctx, uByEmail, lineID, name, nullable(picture)); ce != nil {
 				return nil, ce
 			}
 			return uByEmail, nil
@@ -65,7 +65,7 @@ func bindUser(ctx context.Context, repo lineBindRepository, p *profile) (*ent.Us
 		return nil, err
 	}
 
-	if err := repo.CreateLineBinding(ctx, uNew, lineID, name, nullable(strings.TrimSpace(p.Email)), nullable(picture)); err != nil {
+	if err := repo.CreateLineBinding(ctx, uNew, lineID, name, nullable(picture)); err != nil {
 		return nil, err
 	}
 

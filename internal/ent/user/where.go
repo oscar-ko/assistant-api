@@ -200,7 +200,7 @@ func HasLine() predicate.User {
 	return predicate.User(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.O2O, true, LineTable, LineColumn),
+			sqlgraph.Edge(sqlgraph.O2M, true, LineTable, LineColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})

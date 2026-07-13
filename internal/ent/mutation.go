@@ -2073,7 +2073,6 @@ type LineMutation struct {
 	id            *uuid.UUID
 	line_user_id  *string
 	display_name  *string
-	email         *string
 	picture       *string
 	clearedFields map[string]struct{}
 	user          *uuid.UUID
@@ -2272,55 +2271,6 @@ func (m *LineMutation) ResetDisplayName() {
 	delete(m.clearedFields, line.FieldDisplayName)
 }
 
-// SetEmail sets the "email" field.
-func (m *LineMutation) SetEmail(s string) {
-	m.email = &s
-}
-
-// Email returns the value of the "email" field in the mutation.
-func (m *LineMutation) Email() (r string, exists bool) {
-	v := m.email
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldEmail returns the old "email" field's value of the Line entity.
-// If the Line object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *LineMutation) OldEmail(ctx context.Context) (v *string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldEmail is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldEmail requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldEmail: %w", err)
-	}
-	return oldValue.Email, nil
-}
-
-// ClearEmail clears the value of the "email" field.
-func (m *LineMutation) ClearEmail() {
-	m.email = nil
-	m.clearedFields[line.FieldEmail] = struct{}{}
-}
-
-// EmailCleared returns if the "email" field was cleared in this mutation.
-func (m *LineMutation) EmailCleared() bool {
-	_, ok := m.clearedFields[line.FieldEmail]
-	return ok
-}
-
-// ResetEmail resets all changes to the "email" field.
-func (m *LineMutation) ResetEmail() {
-	m.email = nil
-	delete(m.clearedFields, line.FieldEmail)
-}
-
 // SetPicture sets the "picture" field.
 func (m *LineMutation) SetPicture(s string) {
 	m.picture = &s
@@ -2443,15 +2393,12 @@ func (m *LineMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *LineMutation) Fields() []string {
-	fields := make([]string, 0, 4)
+	fields := make([]string, 0, 3)
 	if m.line_user_id != nil {
 		fields = append(fields, line.FieldLineUserID)
 	}
 	if m.display_name != nil {
 		fields = append(fields, line.FieldDisplayName)
-	}
-	if m.email != nil {
-		fields = append(fields, line.FieldEmail)
 	}
 	if m.picture != nil {
 		fields = append(fields, line.FieldPicture)
@@ -2468,8 +2415,6 @@ func (m *LineMutation) Field(name string) (ent.Value, bool) {
 		return m.LineUserID()
 	case line.FieldDisplayName:
 		return m.DisplayName()
-	case line.FieldEmail:
-		return m.Email()
 	case line.FieldPicture:
 		return m.Picture()
 	}
@@ -2485,8 +2430,6 @@ func (m *LineMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldLineUserID(ctx)
 	case line.FieldDisplayName:
 		return m.OldDisplayName(ctx)
-	case line.FieldEmail:
-		return m.OldEmail(ctx)
 	case line.FieldPicture:
 		return m.OldPicture(ctx)
 	}
@@ -2511,13 +2454,6 @@ func (m *LineMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDisplayName(v)
-		return nil
-	case line.FieldEmail:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetEmail(v)
 		return nil
 	case line.FieldPicture:
 		v, ok := value.(string)
@@ -2559,9 +2495,6 @@ func (m *LineMutation) ClearedFields() []string {
 	if m.FieldCleared(line.FieldDisplayName) {
 		fields = append(fields, line.FieldDisplayName)
 	}
-	if m.FieldCleared(line.FieldEmail) {
-		fields = append(fields, line.FieldEmail)
-	}
 	if m.FieldCleared(line.FieldPicture) {
 		fields = append(fields, line.FieldPicture)
 	}
@@ -2582,9 +2515,6 @@ func (m *LineMutation) ClearField(name string) error {
 	case line.FieldDisplayName:
 		m.ClearDisplayName()
 		return nil
-	case line.FieldEmail:
-		m.ClearEmail()
-		return nil
 	case line.FieldPicture:
 		m.ClearPicture()
 		return nil
@@ -2601,9 +2531,6 @@ func (m *LineMutation) ResetField(name string) error {
 		return nil
 	case line.FieldDisplayName:
 		m.ResetDisplayName()
-		return nil
-	case line.FieldEmail:
-		m.ResetEmail()
 		return nil
 	case line.FieldPicture:
 		m.ResetPicture()
@@ -2695,7 +2622,8 @@ type UserMutation struct {
 	name          *string
 	email         *string
 	clearedFields map[string]struct{}
-	line          *uuid.UUID
+	line          map[uuid.UUID]struct{}
+	removedline   map[uuid.UUID]struct{}
 	clearedline   bool
 	done          bool
 	oldValue      func(context.Context) (*User, error)
@@ -2878,9 +2806,14 @@ func (m *UserMutation) ResetEmail() {
 	m.email = nil
 }
 
-// SetLineID sets the "line" edge to the Line entity by id.
-func (m *UserMutation) SetLineID(id uuid.UUID) {
-	m.line = &id
+// AddLineIDs adds the "line" edge to the Line entity by ids.
+func (m *UserMutation) AddLineIDs(ids ...uuid.UUID) {
+	if m.line == nil {
+		m.line = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.line[ids[i]] = struct{}{}
+	}
 }
 
 // ClearLine clears the "line" edge to the Line entity.
@@ -2893,20 +2826,29 @@ func (m *UserMutation) LineCleared() bool {
 	return m.clearedline
 }
 
-// LineID returns the "line" edge ID in the mutation.
-func (m *UserMutation) LineID() (id uuid.UUID, exists bool) {
-	if m.line != nil {
-		return *m.line, true
+// RemoveLineIDs removes the "line" edge to the Line entity by IDs.
+func (m *UserMutation) RemoveLineIDs(ids ...uuid.UUID) {
+	if m.removedline == nil {
+		m.removedline = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.line, ids[i])
+		m.removedline[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedLine returns the removed IDs of the "line" edge to the Line entity.
+func (m *UserMutation) RemovedLineIDs() (ids []uuid.UUID) {
+	for id := range m.removedline {
+		ids = append(ids, id)
 	}
 	return
 }
 
 // LineIDs returns the "line" edge IDs in the mutation.
-// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
-// LineID instead. It exists only for internal usage by the builders.
 func (m *UserMutation) LineIDs() (ids []uuid.UUID) {
-	if id := m.line; id != nil {
-		ids = append(ids, *id)
+	for id := range m.line {
+		ids = append(ids, id)
 	}
 	return
 }
@@ -2915,6 +2857,7 @@ func (m *UserMutation) LineIDs() (ids []uuid.UUID) {
 func (m *UserMutation) ResetLine() {
 	m.line = nil
 	m.clearedline = false
+	m.removedline = nil
 }
 
 // Where appends a list predicates to the UserMutation builder.
@@ -3079,9 +3022,11 @@ func (m *UserMutation) AddedEdges() []string {
 func (m *UserMutation) AddedIDs(name string) []ent.Value {
 	switch name {
 	case user.EdgeLine:
-		if id := m.line; id != nil {
-			return []ent.Value{*id}
+		ids := make([]ent.Value, 0, len(m.line))
+		for id := range m.line {
+			ids = append(ids, id)
 		}
+		return ids
 	}
 	return nil
 }
@@ -3089,12 +3034,23 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
 	edges := make([]string, 0, 1)
+	if m.removedline != nil {
+		edges = append(edges, user.EdgeLine)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *UserMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case user.EdgeLine:
+		ids := make([]ent.Value, 0, len(m.removedline))
+		for id := range m.removedline {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
@@ -3121,9 +3077,6 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 // if that edge is not defined in the schema.
 func (m *UserMutation) ClearEdge(name string) error {
 	switch name {
-	case user.EdgeLine:
-		m.ClearLine()
-		return nil
 	}
 	return fmt.Errorf("unknown User unique edge %s", name)
 }

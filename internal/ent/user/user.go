@@ -22,7 +22,7 @@ const (
 	// Table holds the table name of the user in the database.
 	Table = "users"
 	// LineTable is the table that holds the line relation/edge.
-	LineTable = "users"
+	LineTable = "lines"
 	// LineInverseTable is the table name for the Line entity.
 	// It exists in this package in order to avoid circular dependency with the "line" package.
 	LineInverseTable = "lines"
@@ -37,21 +37,10 @@ var Columns = []string{
 	FieldEmail,
 }
 
-// ForeignKeys holds the SQL foreign-keys that are owned by the "users"
-// table and are not defined as standalone fields in the schema.
-var ForeignKeys = []string{
-	"line_user",
-}
-
 // ValidColumn reports if the column name is valid (part of the table columns).
 func ValidColumn(column string) bool {
 	for i := range Columns {
 		if column == Columns[i] {
-			return true
-		}
-	}
-	for i := range ForeignKeys {
-		if column == ForeignKeys[i] {
 			return true
 		}
 	}
@@ -85,16 +74,23 @@ func ByEmail(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEmail, opts...).ToFunc()
 }
 
-// ByLineField orders the results by line field.
-func ByLineField(field string, opts ...sql.OrderTermOption) OrderOption {
+// ByLineCount orders the results by line count.
+func ByLineCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newLineStep(), sql.OrderByField(field, opts...))
+		sqlgraph.OrderByNeighborsCount(s, newLineStep(), opts...)
+	}
+}
+
+// ByLine orders the results by line terms.
+func ByLine(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newLineStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
 func newLineStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(LineInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2O, true, LineTable, LineColumn),
+		sqlgraph.Edge(sqlgraph.O2M, true, LineTable, LineColumn),
 	)
 }

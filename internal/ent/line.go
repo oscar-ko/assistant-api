@@ -23,13 +23,12 @@ type Line struct {
 	LineUserID string `json:"line_user_id,omitempty"`
 	// LINE 顯示名稱
 	DisplayName *string `json:"display_name,omitempty"`
-	// LINE 帳號電子郵件（可能為空）
-	Email *string `json:"email,omitempty"`
 	// LINE 大頭貼 URL
 	Picture *string `json:"picture,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the LineQuery when eager-loading is set.
 	Edges        LineEdges `json:"edges"`
+	line_user    *uuid.UUID
 	selectValues sql.SelectValues
 }
 
@@ -60,10 +59,12 @@ func (*Line) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case line.FieldLineUserID, line.FieldDisplayName, line.FieldEmail, line.FieldPicture:
+		case line.FieldLineUserID, line.FieldDisplayName, line.FieldPicture:
 			values[i] = new(sql.NullString)
 		case line.FieldID:
 			values[i] = new(uuid.UUID)
+		case line.ForeignKeys[0]: // line_user
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -98,19 +99,19 @@ func (_m *Line) assignValues(columns []string, values []any) error {
 				_m.DisplayName = new(string)
 				*_m.DisplayName = value.String
 			}
-		case line.FieldEmail:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field email", values[i])
-			} else if value.Valid {
-				_m.Email = new(string)
-				*_m.Email = value.String
-			}
 		case line.FieldPicture:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field picture", values[i])
 			} else if value.Valid {
 				_m.Picture = new(string)
 				*_m.Picture = value.String
+			}
+		case line.ForeignKeys[0]:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field line_user", values[i])
+			} else if value.Valid {
+				_m.line_user = new(uuid.UUID)
+				*_m.line_user = *value.S.(*uuid.UUID)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -158,11 +159,6 @@ func (_m *Line) String() string {
 	builder.WriteString(", ")
 	if v := _m.DisplayName; v != nil {
 		builder.WriteString("display_name=")
-		builder.WriteString(*v)
-	}
-	builder.WriteString(", ")
-	if v := _m.Email; v != nil {
-		builder.WriteString("email=")
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")

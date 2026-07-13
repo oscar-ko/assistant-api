@@ -7,7 +7,6 @@ import (
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/user"
 	"context"
-	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -26,6 +25,7 @@ type LineQuery struct {
 	inters     []Interceptor
 	predicates []predicate.Line
 	withUser   *UserQuery
+	withFKs    bool
 	modifiers  []func(*sql.Selector)
 	loadTotal  []func(context.Context, []*Line) error
 	// intermediate query (i.e. traversal path).
@@ -78,7 +78,7 @@ func (_q *LineQuery) QueryUser() *UserQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(line.Table, line.FieldID, selector),
 			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.O2O, false, line.UserTable, line.UserColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, line.UserTable, line.UserColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -373,11 +373,18 @@ func (_q *LineQuery) prepareQuery(ctx context.Context) error {
 func (_q *LineQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Line, error) {
 	var (
 		nodes       = []*Line{}
+		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
 		loadedTypes = [1]bool{
 			_q.withUser != nil,
 		}
 	)
+	if _q.withUser != nil {
+		withFKs = true
+	}
+	if withFKs {
+		_spec.Node.Columns = append(_spec.Node.Columns, line.ForeignKeys...)
+	}
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*Line).scanValues(nil, columns)
 	}
@@ -414,30 +421,34 @@ func (_q *LineQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Line, e
 }
 
 func (_q *LineQuery) loadUser(ctx context.Context, query *UserQuery, nodes []*Line, init func(*Line), assign func(*Line, *User)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[uuid.UUID]*Line)
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*Line)
 	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
+		if nodes[i].line_user == nil {
+			continue
+		}
+		fk := *nodes[i].line_user
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
 	}
-	query.withFKs = true
-	query.Where(predicate.User(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(line.UserColumn), fks...))
-	}))
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(user.IDIn(ids...))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.line_user
-		if fk == nil {
-			return fmt.Errorf(`foreign-key "line_user" is nil for node %v`, n.ID)
-		}
-		node, ok := nodeids[*fk]
+		nodes, ok := nodeids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "line_user" returned %v for node %v`, *fk, n.ID)
+			return fmt.Errorf(`unexpected foreign-key "line_user" returned %v`, n.ID)
 		}
-		assign(node, n)
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
 	}
 	return nil
 }

@@ -41,20 +41,6 @@ func (_c *LineCreate) SetNillableDisplayName(v *string) *LineCreate {
 	return _c
 }
 
-// SetEmail sets the "email" field.
-func (_c *LineCreate) SetEmail(v string) *LineCreate {
-	_c.mutation.SetEmail(v)
-	return _c
-}
-
-// SetNillableEmail sets the "email" field if the given value is not nil.
-func (_c *LineCreate) SetNillableEmail(v *string) *LineCreate {
-	if v != nil {
-		_c.SetEmail(*v)
-	}
-	return _c
-}
-
 // SetPicture sets the "picture" field.
 func (_c *LineCreate) SetPicture(v string) *LineCreate {
 	_c.mutation.SetPicture(v)
@@ -191,17 +177,13 @@ func (_c *LineCreate) createSpec() (*Line, *sqlgraph.CreateSpec) {
 		_spec.SetField(line.FieldDisplayName, field.TypeString, value)
 		_node.DisplayName = &value
 	}
-	if value, ok := _c.mutation.Email(); ok {
-		_spec.SetField(line.FieldEmail, field.TypeString, value)
-		_node.Email = &value
-	}
 	if value, ok := _c.mutation.Picture(); ok {
 		_spec.SetField(line.FieldPicture, field.TypeString, value)
 		_node.Picture = &value
 	}
 	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
+			Rel:     sqlgraph.M2O,
 			Inverse: false,
 			Table:   line.UserTable,
 			Columns: []string{line.UserColumn},
@@ -213,6 +195,7 @@ func (_c *LineCreate) createSpec() (*Line, *sqlgraph.CreateSpec) {
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
+		_node.line_user = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

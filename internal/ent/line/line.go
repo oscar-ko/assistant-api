@@ -17,8 +17,6 @@ const (
 	FieldLineUserID = "line_user_id"
 	// FieldDisplayName holds the string denoting the display_name field in the database.
 	FieldDisplayName = "display_name"
-	// FieldEmail holds the string denoting the email field in the database.
-	FieldEmail = "email"
 	// FieldPicture holds the string denoting the picture field in the database.
 	FieldPicture = "picture"
 	// EdgeUser holds the string denoting the user edge name in mutations.
@@ -26,7 +24,7 @@ const (
 	// Table holds the table name of the line in the database.
 	Table = "lines"
 	// UserTable is the table that holds the user relation/edge.
-	UserTable = "users"
+	UserTable = "lines"
 	// UserInverseTable is the table name for the User entity.
 	// It exists in this package in order to avoid circular dependency with the "user" package.
 	UserInverseTable = "users"
@@ -39,14 +37,24 @@ var Columns = []string{
 	FieldID,
 	FieldLineUserID,
 	FieldDisplayName,
-	FieldEmail,
 	FieldPicture,
+}
+
+// ForeignKeys holds the SQL foreign-keys that are owned by the "lines"
+// table and are not defined as standalone fields in the schema.
+var ForeignKeys = []string{
+	"line_user",
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
 func ValidColumn(column string) bool {
 	for i := range Columns {
 		if column == Columns[i] {
+			return true
+		}
+	}
+	for i := range ForeignKeys {
+		if column == ForeignKeys[i] {
 			return true
 		}
 	}
@@ -78,11 +86,6 @@ func ByDisplayName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDisplayName, opts...).ToFunc()
 }
 
-// ByEmail orders the results by the email field.
-func ByEmail(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldEmail, opts...).ToFunc()
-}
-
 // ByPicture orders the results by the picture field.
 func ByPicture(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPicture, opts...).ToFunc()
@@ -98,6 +101,6 @@ func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(UserInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2O, false, UserTable, UserColumn),
+		sqlgraph.Edge(sqlgraph.M2O, false, UserTable, UserColumn),
 	)
 }

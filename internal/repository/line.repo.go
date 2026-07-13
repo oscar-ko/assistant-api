@@ -35,11 +35,10 @@ func (r *LineRepo) HasLineBindingForUser(ctx context.Context, userID uuid.UUID) 
 }
 
 // CreateLineBinding 建立 LINE 綁定資料。
-func (r *LineRepo) CreateLineBinding(ctx context.Context, u *ent.User, lineUserID string, displayName string, email *string, picture *string) error {
+func (r *LineRepo) CreateLineBinding(ctx context.Context, u *ent.User, lineUserID string, displayName string, picture *string) error {
 	_, err := r.db.Line.Create().
 		SetLineUserID(lineUserID).
 		SetDisplayName(displayName).
-		SetNillableEmail(email).
 		SetNillablePicture(picture).
 		SetUser(u).
 		Save(ctx)

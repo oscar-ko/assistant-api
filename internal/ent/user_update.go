@@ -57,23 +57,19 @@ func (_u *UserUpdate) SetNillableEmail(v *string) *UserUpdate {
 	return _u
 }
 
-// SetLineID sets the "line" edge to the Line entity by ID.
-func (_u *UserUpdate) SetLineID(id uuid.UUID) *UserUpdate {
-	_u.mutation.SetLineID(id)
+// AddLineIDs adds the "line" edge to the Line entity by IDs.
+func (_u *UserUpdate) AddLineIDs(ids ...uuid.UUID) *UserUpdate {
+	_u.mutation.AddLineIDs(ids...)
 	return _u
 }
 
-// SetNillableLineID sets the "line" edge to the Line entity by ID if the given value is not nil.
-func (_u *UserUpdate) SetNillableLineID(id *uuid.UUID) *UserUpdate {
-	if id != nil {
-		_u = _u.SetLineID(*id)
+// AddLine adds the "line" edges to the Line entity.
+func (_u *UserUpdate) AddLine(v ...*Line) *UserUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
 	}
-	return _u
-}
-
-// SetLine sets the "line" edge to the Line entity.
-func (_u *UserUpdate) SetLine(v *Line) *UserUpdate {
-	return _u.SetLineID(v.ID)
+	return _u.AddLineIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -81,10 +77,25 @@ func (_u *UserUpdate) Mutation() *UserMutation {
 	return _u.mutation
 }
 
-// ClearLine clears the "line" edge to the Line entity.
+// ClearLine clears all "line" edges to the Line entity.
 func (_u *UserUpdate) ClearLine() *UserUpdate {
 	_u.mutation.ClearLine()
 	return _u
+}
+
+// RemoveLineIDs removes the "line" edge to Line entities by IDs.
+func (_u *UserUpdate) RemoveLineIDs(ids ...uuid.UUID) *UserUpdate {
+	_u.mutation.RemoveLineIDs(ids...)
+	return _u
+}
+
+// RemoveLine removes "line" edges to Line entities.
+func (_u *UserUpdate) RemoveLine(v ...*Line) *UserUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveLineIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -149,7 +160,7 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.LineCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
+			Rel:     sqlgraph.O2M,
 			Inverse: true,
 			Table:   user.LineTable,
 			Columns: []string{user.LineColumn},
@@ -160,9 +171,25 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
+	if nodes := _u.mutation.RemovedLineIDs(); len(nodes) > 0 && !_u.mutation.LineCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.LineTable,
+			Columns: []string{user.LineColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(line.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
 	if nodes := _u.mutation.LineIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
+			Rel:     sqlgraph.O2M,
 			Inverse: true,
 			Table:   user.LineTable,
 			Columns: []string{user.LineColumn},
@@ -224,23 +251,19 @@ func (_u *UserUpdateOne) SetNillableEmail(v *string) *UserUpdateOne {
 	return _u
 }
 
-// SetLineID sets the "line" edge to the Line entity by ID.
-func (_u *UserUpdateOne) SetLineID(id uuid.UUID) *UserUpdateOne {
-	_u.mutation.SetLineID(id)
+// AddLineIDs adds the "line" edge to the Line entity by IDs.
+func (_u *UserUpdateOne) AddLineIDs(ids ...uuid.UUID) *UserUpdateOne {
+	_u.mutation.AddLineIDs(ids...)
 	return _u
 }
 
-// SetNillableLineID sets the "line" edge to the Line entity by ID if the given value is not nil.
-func (_u *UserUpdateOne) SetNillableLineID(id *uuid.UUID) *UserUpdateOne {
-	if id != nil {
-		_u = _u.SetLineID(*id)
+// AddLine adds the "line" edges to the Line entity.
+func (_u *UserUpdateOne) AddLine(v ...*Line) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
 	}
-	return _u
-}
-
-// SetLine sets the "line" edge to the Line entity.
-func (_u *UserUpdateOne) SetLine(v *Line) *UserUpdateOne {
-	return _u.SetLineID(v.ID)
+	return _u.AddLineIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -248,10 +271,25 @@ func (_u *UserUpdateOne) Mutation() *UserMutation {
 	return _u.mutation
 }
 
-// ClearLine clears the "line" edge to the Line entity.
+// ClearLine clears all "line" edges to the Line entity.
 func (_u *UserUpdateOne) ClearLine() *UserUpdateOne {
 	_u.mutation.ClearLine()
 	return _u
+}
+
+// RemoveLineIDs removes the "line" edge to Line entities by IDs.
+func (_u *UserUpdateOne) RemoveLineIDs(ids ...uuid.UUID) *UserUpdateOne {
+	_u.mutation.RemoveLineIDs(ids...)
+	return _u
+}
+
+// RemoveLine removes "line" edges to Line entities.
+func (_u *UserUpdateOne) RemoveLine(v ...*Line) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveLineIDs(ids...)
 }
 
 // Where appends a list predicates to the UserUpdate builder.
@@ -346,7 +384,7 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if _u.mutation.LineCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
+			Rel:     sqlgraph.O2M,
 			Inverse: true,
 			Table:   user.LineTable,
 			Columns: []string{user.LineColumn},
@@ -357,9 +395,25 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
+	if nodes := _u.mutation.RemovedLineIDs(); len(nodes) > 0 && !_u.mutation.LineCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.LineTable,
+			Columns: []string{user.LineColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(line.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
 	if nodes := _u.mutation.LineIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
+			Rel:     sqlgraph.O2M,
 			Inverse: true,
 			Table:   user.LineTable,
 			Columns: []string{user.LineColumn},

@@ -330,11 +330,6 @@ func (_q *LineQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 				selectedFields = append(selectedFields, line.FieldDisplayName)
 				fieldSeen[line.FieldDisplayName] = struct{}{}
 			}
-		case "email":
-			if _, ok := fieldSeen[line.FieldEmail]; !ok {
-				selectedFields = append(selectedFields, line.FieldEmail)
-				fieldSeen[line.FieldEmail] = struct{}{}
-			}
 		case "picture":
 			if _, ok := fieldSeen[line.FieldPicture]; !ok {
 				selectedFields = append(selectedFields, line.FieldPicture)
@@ -409,10 +404,12 @@ func (_q *UserQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 				path  = append(path, alias)
 				query = (&LineClient{config: _q.config}).Query()
 			)
-			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, lineImplementors)...); err != nil {
+			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, lineImplementors)...); err != nil {
 				return err
 			}
-			_q.withLine = query
+			_q.WithNamedLine(alias, func(wq *LineQuery) {
+				*wq = *query
+			})
 		case "name":
 			if _, ok := fieldSeen[user.FieldName]; !ok {
 				selectedFields = append(selectedFields, user.FieldName)

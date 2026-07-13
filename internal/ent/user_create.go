@@ -47,23 +47,19 @@ func (_c *UserCreate) SetNillableID(v *uuid.UUID) *UserCreate {
 	return _c
 }
 
-// SetLineID sets the "line" edge to the Line entity by ID.
-func (_c *UserCreate) SetLineID(id uuid.UUID) *UserCreate {
-	_c.mutation.SetLineID(id)
+// AddLineIDs adds the "line" edge to the Line entity by IDs.
+func (_c *UserCreate) AddLineIDs(ids ...uuid.UUID) *UserCreate {
+	_c.mutation.AddLineIDs(ids...)
 	return _c
 }
 
-// SetNillableLineID sets the "line" edge to the Line entity by ID if the given value is not nil.
-func (_c *UserCreate) SetNillableLineID(id *uuid.UUID) *UserCreate {
-	if id != nil {
-		_c = _c.SetLineID(*id)
+// AddLine adds the "line" edges to the Line entity.
+func (_c *UserCreate) AddLine(v ...*Line) *UserCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
 	}
-	return _c
-}
-
-// SetLine sets the "line" edge to the Line entity.
-func (_c *UserCreate) SetLine(v *Line) *UserCreate {
-	return _c.SetLineID(v.ID)
+	return _c.AddLineIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -170,7 +166,7 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	}
 	if nodes := _c.mutation.LineIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
+			Rel:     sqlgraph.O2M,
 			Inverse: true,
 			Table:   user.LineTable,
 			Columns: []string{user.LineColumn},
@@ -182,7 +178,6 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.line_user = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

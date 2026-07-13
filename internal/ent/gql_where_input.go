@@ -1158,23 +1158,6 @@ type LineWhereInput struct {
 	DisplayNameEqualFold    *string  `json:"displayNameEqualFold,omitempty"`
 	DisplayNameContainsFold *string  `json:"displayNameContainsFold,omitempty"`
 
-	// "email" field predicates.
-	Email             *string  `json:"email,omitempty"`
-	EmailNEQ          *string  `json:"emailNEQ,omitempty"`
-	EmailIn           []string `json:"emailIn,omitempty"`
-	EmailNotIn        []string `json:"emailNotIn,omitempty"`
-	EmailGT           *string  `json:"emailGT,omitempty"`
-	EmailGTE          *string  `json:"emailGTE,omitempty"`
-	EmailLT           *string  `json:"emailLT,omitempty"`
-	EmailLTE          *string  `json:"emailLTE,omitempty"`
-	EmailContains     *string  `json:"emailContains,omitempty"`
-	EmailHasPrefix    *string  `json:"emailHasPrefix,omitempty"`
-	EmailHasSuffix    *string  `json:"emailHasSuffix,omitempty"`
-	EmailIsNil        bool     `json:"emailIsNil,omitempty"`
-	EmailNotNil       bool     `json:"emailNotNil,omitempty"`
-	EmailEqualFold    *string  `json:"emailEqualFold,omitempty"`
-	EmailContainsFold *string  `json:"emailContainsFold,omitempty"`
-
 	// "picture" field predicates.
 	Picture             *string  `json:"picture,omitempty"`
 	PictureNEQ          *string  `json:"pictureNEQ,omitempty"`
@@ -1375,51 +1358,6 @@ func (i *LineWhereInput) P() (predicate.Line, error) {
 	}
 	if i.DisplayNameContainsFold != nil {
 		predicates = append(predicates, line.DisplayNameContainsFold(*i.DisplayNameContainsFold))
-	}
-	if i.Email != nil {
-		predicates = append(predicates, line.EmailEQ(*i.Email))
-	}
-	if i.EmailNEQ != nil {
-		predicates = append(predicates, line.EmailNEQ(*i.EmailNEQ))
-	}
-	if len(i.EmailIn) > 0 {
-		predicates = append(predicates, line.EmailIn(i.EmailIn...))
-	}
-	if len(i.EmailNotIn) > 0 {
-		predicates = append(predicates, line.EmailNotIn(i.EmailNotIn...))
-	}
-	if i.EmailGT != nil {
-		predicates = append(predicates, line.EmailGT(*i.EmailGT))
-	}
-	if i.EmailGTE != nil {
-		predicates = append(predicates, line.EmailGTE(*i.EmailGTE))
-	}
-	if i.EmailLT != nil {
-		predicates = append(predicates, line.EmailLT(*i.EmailLT))
-	}
-	if i.EmailLTE != nil {
-		predicates = append(predicates, line.EmailLTE(*i.EmailLTE))
-	}
-	if i.EmailContains != nil {
-		predicates = append(predicates, line.EmailContains(*i.EmailContains))
-	}
-	if i.EmailHasPrefix != nil {
-		predicates = append(predicates, line.EmailHasPrefix(*i.EmailHasPrefix))
-	}
-	if i.EmailHasSuffix != nil {
-		predicates = append(predicates, line.EmailHasSuffix(*i.EmailHasSuffix))
-	}
-	if i.EmailIsNil {
-		predicates = append(predicates, line.EmailIsNil())
-	}
-	if i.EmailNotNil {
-		predicates = append(predicates, line.EmailNotNil())
-	}
-	if i.EmailEqualFold != nil {
-		predicates = append(predicates, line.EmailEqualFold(*i.EmailEqualFold))
-	}
-	if i.EmailContainsFold != nil {
-		predicates = append(predicates, line.EmailContainsFold(*i.EmailContainsFold))
 	}
 	if i.Picture != nil {
 		predicates = append(predicates, line.PictureEQ(*i.Picture))
