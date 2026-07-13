@@ -9,7 +9,7 @@ import (
 )
 
 // webhookHandler 處理 LINE webhook 的 HTTP 入口，並委派到 service 層。
-func webhookHandler(svc WebhookService) gin.HandlerFunc {
+func webhookHandler(svc WebhookProcessor) gin.HandlerFunc {
 	// 若呼叫端未注入實作，使用預設 console 版本，確保路由可直接運作。
 	if svc == nil {
 		svc = NewWebhookService(nil, nil)

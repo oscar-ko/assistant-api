@@ -19,16 +19,16 @@ import (
 	"go.uber.org/zap"
 )
 
-// WebhookService 定義 LINE webhook 的處理介面，方便注入不同實作。
-type WebhookService interface {
+// WebhookProcessor 定義 LINE webhook 的處理介面，方便注入不同實作。
+type WebhookProcessor interface {
 	// ProcessIncoming 接收原始 webhook body 與簽章字串，執行後續處理。
 	// 目前預設實作只做解析與 console 輸出，未做簽章驗證與持久化。
 	ProcessIncoming(body []byte, signature string)
 }
 
-// consoleWebhookService 是最小可用的預設實作：
+// WebhookService 是最小可用的預設實作：
 // 僅解析事件並輸出到 console，便於開發階段觀察 webhook 是否正常進站。
-type consoleWebhookService struct {
+type WebhookService struct {
 	repo               *repository.ChannelMessageRepo
 	decisionService    commanddecision.Service
 	persistenceService messagepersist.Service
@@ -42,12 +42,12 @@ type WebhookServiceOptions struct {
 }
 
 // NewWebhookService 建立預設 webhook service
-func NewWebhookService(repo *repository.ChannelMessageRepo, semanticService semanticdecision.Service) WebhookService {
+func NewWebhookService(repo *repository.ChannelMessageRepo, semanticService semanticdecision.Service) WebhookProcessor {
 	return NewWebhookServiceWithOptions(repo, semanticService, WebhookServiceOptions{})
 }
 
 // NewWebhookServiceWithOptions 建立可帶擴充選項的 webhook service。
-func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, semanticService semanticdecision.Service, options WebhookServiceOptions) WebhookService {
+func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, semanticService semanticdecision.Service, options WebhookServiceOptions) WebhookProcessor {
 	var lineClient *messaging_api.MessagingApiAPI
 	if token := strings.TrimSpace(config.Line.ChannelToken); token != "" {
 		if client, err := messaging_api.NewMessagingApiAPI(token); err == nil {
@@ -66,7 +66,7 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, semanticS
 	persistSvc := messagepersist.NewService(repo, lineSenderNameResolver{repo: repo, client: lineClient, cache: cache, memberNameTTL: memberNameTTL, now: time.Now})
 	chainSvc := commandchain.NewService(repo)
 	decisionSvc := commanddecision.NewService(chainSvc, semanticService)
-	return consoleWebhookService{repo: repo, decisionService: decisionSvc, persistenceService: persistSvc}
+	return &WebhookService{repo: repo, decisionService: decisionSvc, persistenceService: persistSvc}
 }
 
 // webhookRequest 對應 LINE webhook 最上層 payload。
@@ -132,7 +132,7 @@ type webhookMentionee struct {
 // 1. 先把訊息本體印到 console，方便除錯與觀察。
 // 2. 先將訊息寫入資料庫，確保訊息可即時查詢與追蹤。
 // 3. 最後再交給 AI classifier 做延伸判讀，避免阻塞落庫。
-func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
+func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 	var req webhookRequest
 	// 第一段：先將 webhook body 轉成結構化資料。
 	// 如果解析失敗，只記錄錯誤並直接返回，避免 webhook ACK 被卡住。
@@ -212,7 +212,7 @@ func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 
 // persistUnifiedMessage 負責把統一訊息格式寫入 channel 與 channel_message。
 // 這個函式只做資料持久化，不應再混入 AI 判讀或其他額外業務邏輯。
-func (s consoleWebhookService) persistUnifiedMessage(message *unifiedmessage.Message) *ent.ChannelMessage {
+func (s *WebhookService) persistUnifiedMessage(message *unifiedmessage.Message) *ent.ChannelMessage {
 	return s.persistenceService.PersistUnifiedMessage(context.Background(), message)
 }
 
