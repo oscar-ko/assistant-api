@@ -21,7 +21,7 @@ const stateCookieName = "line_oauth_state"
 func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 	lineRepo := repository.NewLineRepo(client)
 	channelMessageRepo := repository.NewChannelMessageRepo(client)
-	messageIntentClassifier := messageintent.NewClassifier(config.AI.MessageIntentClassifierURL)
+	messageIntentClassifier := messageintent.NewClassifier(config.AI.MessageIntentClassifierURL, config.AI.MessageIntentClassifierTimeoutSeconds)
 
 	r.GET("/line/bind", bindPage)
 	r.GET("/line/oauth/start", oauthStart)

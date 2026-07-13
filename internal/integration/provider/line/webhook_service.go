@@ -92,7 +92,6 @@ type webhookMentionee struct {
 
 // ProcessIncoming 解析 webhook、輸出觀察日誌，並嘗試持久化入站訊息。
 func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
-	eventCount := 0
 	var req webhookRequest
 	// 第一段：解析 payload，解析失敗僅記錄並返回，避免阻塞 webhook ACK。
 	if len(body) > 0 {
@@ -105,31 +104,24 @@ func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 			)
 			return
 		}
-		eventCount = len(req.Events)
 	}
 
 	// 第二段：逐筆輸出事件日誌，並將 message 事件寫入資料庫。
 	for _, event := range req.Events {
 		//Save message to database if it's a message event
 		if message, ok := adaptLineEventToUnified(event); ok {
+			zap.L().Info("line message received",
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			)
 			s.persistUnifiedMessage(message)
 		}
 	}
 
-	// 摘要日誌：便於快速確認簽章是否帶入、事件量與 payload 大小。
-	zap.L().Info("line webhook received",
-		zap.Bool("signature_present", signature != ""),
-		zap.Int("body_bytes", len(body)),
-		zap.Int("events", eventCount),
-	)
 }
 
 // persistUnifiedMessage 將統一訊息格式轉成 channel/channel_message 資料並落庫。
 func (s consoleWebhookService) persistUnifiedMessage(message *unifiedmessage.Message) {
-	// 沒有注入 repository 時，維持純 console 模式。
-	if s.repo == nil {
-		return
-	}
 	if message == nil {
 		return
 	}
@@ -138,11 +130,30 @@ func (s consoleWebhookService) persistUnifiedMessage(message *unifiedmessage.Mes
 	}
 
 	ctx := context.Background()
+	mentionedBot := message.MentionsUser(config.Line.BotUserID)
+	text := strings.TrimSpace(message.Text)
+	if s.classifier != nil && message.IsText() && text != "" {
+		_, err := s.classifier.Classify(ctx, messageintent.DefaultPrompt(mentionedBot), text)
+		if err != nil {
+			zap.L().Debug("webhook classify skipped",
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.Bool("mentioned_bot", mentionedBot),
+				zap.Error(err),
+			)
+		}
+	}
+
+	// 沒有注入 repository 時，維持純 console 模式；AI 結果已在上方輸出。
+	if s.repo == nil {
+		return
+	}
+
 	senderID := strings.TrimSpace(message.SenderID)
 	if senderID == "" {
 		senderID = "unknown"
 	}
-	mentionedBot := message.MentionsUser(config.Line.BotUserID)
+
 	// sender_name 透過既有 LINE 綁定資料反查 display_name。
 	senderName, err := s.repo.ResolveLineDisplayNameByLineUserID(ctx, senderID)
 	if err != nil {
@@ -182,27 +193,6 @@ func (s consoleWebhookService) persistUnifiedMessage(message *unifiedmessage.Mes
 		)
 	}
 
-	text := strings.TrimSpace(message.Text)
-	if s.classifier != nil && message.IsText() && text != "" {
-		classification, err := s.classifier.Classify(ctx, messageintent.DefaultPrompt(mentionedBot), text)
-		if err != nil {
-			zap.L().Warn("webhook classify failed",
-				zap.String("channel_id", ch.ID.String()),
-				zap.String("message_id", message.PlatformMessageID),
-				zap.Bool("mentioned_bot", mentionedBot),
-				zap.Error(err),
-			)
-			return
-		}
-		zap.L().Debug("webhook classified",
-			zap.String("channel_id", ch.ID.String()),
-			zap.String("message_id", message.PlatformMessageID),
-			zap.Bool("mentioned_bot", mentionedBot),
-			zap.String("intent_label", classification.IntentLabel),
-			zap.Float64("confidence", classification.Confidence),
-			zap.String("reason", classification.Reason),
-		)
-	}
 }
 
 // resolveSender 依優先序挑選可識別的來源 ID。

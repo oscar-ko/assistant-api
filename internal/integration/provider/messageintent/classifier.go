@@ -35,14 +35,14 @@ type request struct {
 }
 
 // NewClassifier 建立通用訊息分類 client。
-func NewClassifier(baseURL string) Classifier {
+func NewClassifier(baseURL string, timeoutSeconds int) Classifier {
 	trimmed := strings.TrimSpace(baseURL)
 	if trimmed == "" {
 		return nil
 	}
 	return &classifierClient{
 		baseURL: strings.TrimRight(trimmed, "/"),
-		client:  &http.Client{Timeout: 15 * time.Second},
+		client:  &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second},
 	}
 }
 

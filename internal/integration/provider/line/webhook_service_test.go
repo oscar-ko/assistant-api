@@ -51,10 +51,10 @@ func TestConsoleWebhookService_ProcessIncoming_TextMessage(t *testing.T) {
 	body := []byte(`{"events":[{"type":"message","source":{"userId":"U123"},"message":{"type":"text","text":"hello"}}]}`)
 	consoleWebhookService{}.ProcessIncoming(body, "sig")
 
-	if observed.FilterMessage("line message:").Len() > 0 {
-		t.Fatalf("expected no per-message log")
+	if observed.FilterMessage("line message received").Len() == 0 {
+		t.Fatalf("expected incoming line message info log")
 	}
-	if observed.FilterMessage("line webhook received").Len() == 0 {
-		t.Fatalf("expected summary zap log")
+	if observed.FilterMessage("webhook classified").Len() > 0 {
+		t.Fatalf("expected no custom ai result log")
 	}
 }

@@ -42,7 +42,8 @@ type DatabaseConfig struct {
 }
 
 type AIConfig struct {
-	MessageIntentClassifierURL string `mapstructure:"message_intent_classifier_url" yaml:"message_intent_classifier_url"`
+	MessageIntentClassifierURL            string `mapstructure:"message_intent_classifier_url" yaml:"message_intent_classifier_url"`
+	MessageIntentClassifierTimeoutSeconds int    `mapstructure:"message_intent_classifier_timeout_seconds" yaml:"message_intent_classifier_timeout_seconds"`
 }
 
 // LineConfig 為 LINE OAuth 綁定所需參數。
