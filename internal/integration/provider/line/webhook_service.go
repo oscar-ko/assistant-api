@@ -90,12 +90,16 @@ type webhookMentionee struct {
 	UserID string `json:"userId"`
 }
 
-// ProcessIncoming 解析 webhook、輸出觀察日誌，並嘗試持久化入站訊息。
+// ProcessIncoming 負責 LINE webhook 的整體流程編排。
+// 它會先解析原始 payload，再對每則 message 事件做三件事：
+// 1. 先把訊息本體印到 console，方便除錯與觀察。
+// 2. 交給 AI classifier 取得意圖判讀結果。
+// 3. 將訊息寫入資料庫，讓後續查詢與處理可以使用。
 func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 	var req webhookRequest
-	// 第一段：解析 payload，解析失敗僅記錄並返回，避免阻塞 webhook ACK。
+	// 第一段：先將 webhook body 轉成結構化資料。
+	// 如果解析失敗，只記錄錯誤並直接返回，避免 webhook ACK 被卡住。
 	if len(body) > 0 {
-		// 目前採「解析失敗僅記錄」策略，避免阻塞 webhook ACK。
 		if err := json.Unmarshal(body, &req); err != nil {
 			zap.L().Error("line webhook parse failed",
 				zap.Bool("signature_present", signature != ""),
@@ -106,23 +110,70 @@ func (s consoleWebhookService) ProcessIncoming(body []byte, signature string) {
 		}
 	}
 
-	// 第二段：逐筆輸出事件日誌，並將 message 事件寫入資料庫。
+	// 第二段：逐筆掃描事件陣列，只處理 message 事件。
 	for _, event := range req.Events {
-		//Save message to database if it's a message event
+		// 非 message 事件直接略過；只有文字/圖片等訊息才需要進一步處理。
 		if message, ok := adaptLineEventToUnified(event); ok {
+			// 先把原始訊息資訊印出來，方便在 console 直接看到來了什麼內容。
 			zap.L().Info("line message received",
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 				zap.String("text", strings.TrimSpace(message.Text)),
 			)
+
+			// 再交給 classifier 做意圖判讀，結果只用於觀察與後續擴充。
+			classification, err := s.classifyUnifiedMessage(message)
+			if err != nil {
+				// AI 服務失敗時只記 debug，不阻斷 webhook 主流程。
+				zap.L().Debug("webhook classify skipped",
+					zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+					zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+					zap.Bool("mentioned_bot", message.MentionsUser(config.Line.BotUserID)),
+					zap.Error(err),
+				)
+			} else if classification != nil {
+				// AI 有正常回傳時，把判讀結果印到 console，方便觀察模型輸出。
+				zap.L().Info("webhook classified",
+					zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+					zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+					zap.Bool("mentioned_bot", message.MentionsUser(config.Line.BotUserID)),
+					zap.String("intent_label", classification.IntentLabel),
+					zap.Float64("confidence", classification.Confidence),
+					zap.String("reason", strings.TrimSpace(classification.Reason)),
+				)
+			}
+
+			// 最後才把訊息落庫，確保即使 AI 失敗，訊息本身仍然會被保存。
 			s.persistUnifiedMessage(message)
 		}
 	}
 
 }
 
-// persistUnifiedMessage 將統一訊息格式轉成 channel/channel_message 資料並落庫。
+// classifyUnifiedMessage 負責把統一訊息送去 AI classifier，取得意圖判斷結果。
+// 這個步驟只做分類，不負責資料庫寫入，也不負責其他業務處理。
+func (s consoleWebhookService) classifyUnifiedMessage(message *unifiedmessage.Message) (*messageintent.Classification, error) {
+	// 沒有 classifier、沒有訊息、或非文字內容時，都不進行 AI 判讀。
+	if s.classifier == nil || message == nil || !message.IsText() {
+		return nil, nil
+	}
+
+	// 文字內容先做 trim，避免空白字元造成不必要的 API 呼叫。
+	text := strings.TrimSpace(message.Text)
+	if text == "" {
+		return nil, nil
+	}
+
+	// 依照是否 mention bot 組出提示詞，再送到 classifier 服務。
+	ctx := context.Background()
+	mentionedBot := message.MentionsUser(config.Line.BotUserID)
+	return s.classifier.Classify(ctx, messageintent.DefaultPrompt(mentionedBot), text)
+}
+
+// persistUnifiedMessage 負責把統一訊息格式寫入 channel 與 channel_message。
+// 這個函式只做資料持久化，不應再混入 AI 判讀或其他額外業務邏輯。
 func (s consoleWebhookService) persistUnifiedMessage(message *unifiedmessage.Message) {
+	// 沒有訊息或 channel id 時直接返回，避免寫入無效資料。
 	if message == nil {
 		return
 	}
@@ -130,41 +181,20 @@ func (s consoleWebhookService) persistUnifiedMessage(message *unifiedmessage.Mes
 		return
 	}
 
-	ctx := context.Background()
-	mentionedBot := message.MentionsUser(config.Line.BotUserID)
-	text := strings.TrimSpace(message.Text)
-	if s.classifier != nil && message.IsText() && text != "" {
-		classification, err := s.classifier.Classify(ctx, messageintent.DefaultPrompt(mentionedBot), text)
-		if err != nil {
-			zap.L().Debug("webhook classify skipped",
-				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-				zap.Bool("mentioned_bot", mentionedBot),
-				zap.Error(err),
-			)
-		} else if classification != nil {
-			zap.L().Info("webhook classified",
-				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-				zap.Bool("mentioned_bot", mentionedBot),
-				zap.String("intent_label", classification.IntentLabel),
-				zap.Float64("confidence", classification.Confidence),
-				zap.String("reason", strings.TrimSpace(classification.Reason)),
-			)
-		}
-	}
-
-	// 沒有注入 repository 時，維持純 console 模式；AI 結果已在上方輸出。
+	// 沒有注入 repository 時，維持純 console 模式；這時只保留上方的 console 輸出。
 	if s.repo == nil {
 		return
 	}
 
+	// 這裡開始進入資料庫寫入流程，先準備共用 context。
+	ctx := context.Background()
+	// senderID 以 sender 優先，若沒有則使用 unknown，確保欄位有值可追蹤。
 	senderID := strings.TrimSpace(message.SenderID)
 	if senderID == "" {
 		senderID = "unknown"
 	}
 
-	// sender_name 透過既有 LINE 綁定資料反查 display_name。
+	// sender_name 透過既有 LINE 綁定資料反查 display_name，讓資料庫內有可讀名稱。
 	senderName, err := s.repo.ResolveLineDisplayNameByLineUserID(ctx, senderID)
 	if err != nil {
 		zap.L().Warn("line webhook resolve sender name failed",
@@ -173,7 +203,7 @@ func (s consoleWebhookService) persistUnifiedMessage(message *unifiedmessage.Mes
 		)
 	}
 
-	// channel 不存在就建立，存在就沿用。
+	// channel 不存在就建立，存在就沿用，確保訊息有對應的 channel 可掛載。
 	ch, err := s.repo.GetOrCreateChannel(ctx, strings.TrimSpace(message.Platform), strings.TrimSpace(message.ChannelID), strings.TrimSpace(message.ChannelType))
 	if err != nil {
 		zap.L().Error("line webhook persist channel failed",
@@ -184,7 +214,7 @@ func (s consoleWebhookService) persistUnifiedMessage(message *unifiedmessage.Mes
 		return
 	}
 
-	// 寫入 channel_messages，不阻塞 webhook 主流程。
+	// 將訊息寫入 channel_messages；若失敗只記錄錯誤，不阻塞 webhook 主流程。
 	if _, err := s.repo.SaveReceivedMessage(
 		ctx,
 		ch.ID,
@@ -206,41 +236,52 @@ func (s consoleWebhookService) persistUnifiedMessage(message *unifiedmessage.Mes
 }
 
 // resolveSender 依優先序挑選可識別的來源 ID。
-// 優先 userId，再 fallback 到 groupId、roomId。
+// 優先 userId，再 fallback 到 groupId、roomId，最後才回傳 unknown。
 func resolveSender(source webhookEventSource) string {
+	// 先嘗試最精準的一對一使用者 ID。
 	sender := strings.TrimSpace(source.UserID)
 	if sender == "" {
+		// 沒有 userId 時，退回 groupId。
 		sender = strings.TrimSpace(source.GroupID)
 	}
 	if sender == "" {
+		// 再不行就退回 roomId。
 		sender = strings.TrimSpace(source.RoomID)
 	}
 	if sender == "" {
+		// 三種來源都沒有時，統一標成 unknown。
 		return "unknown"
 	}
 	return sender
 }
 
-// resolveChannelIdentity 根據 source 類型推導 channel key 與 channel type。
+// resolveChannelIdentity 根據 LINE event source 類型推導 channel key 與 channel type。
+// 這裡的回傳值會拿去建立或查找對應的 channel。
 func resolveChannelIdentity(source webhookEventSource) (groupID string, channelType string) {
+	// 先把 source type 正規化，避免大小寫或空白影響判斷。
 	sourceType := strings.TrimSpace(strings.ToLower(source.Type))
 	switch sourceType {
 	case "user":
+		// 私聊情境直接用 userId 當 channel key。
 		if userID := strings.TrimSpace(source.UserID); userID != "" {
 			return userID, "private"
 		}
 	case "group":
+		// 群組情境直接用 groupId 當 channel key。
 		if groupID := strings.TrimSpace(source.GroupID); groupID != "" {
 			return groupID, "group"
 		}
 	case "room":
+		// 房間情境也視為 group 類型來處理。
 		if roomID := strings.TrimSpace(source.RoomID); roomID != "" {
 			return roomID, "group"
 		}
 	}
 
+	// 如果 source type 不完整，就退回使用可辨識的 sender 當 channel key。
 	if sender := resolveSender(source); sender != "unknown" {
 		return sender, "private"
 	}
+	// 真的都找不到時，回傳空值讓呼叫端決定略過。
 	return "", ""
 }
