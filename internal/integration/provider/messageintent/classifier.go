@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -29,10 +30,12 @@ type classifierClient struct {
 	client  *http.Client
 }
 
-type request struct {
+type classificationRequest struct {
 	Prompt string `json:"prompt"`
 	Text   string `json:"text"`
 }
+
+const classificationPath = "/predict/message_intent"
 
 // NewClassifier 建立通用訊息分類 client。
 func NewClassifier(baseURL string, timeoutSeconds int) Classifier {
@@ -77,23 +80,11 @@ func (c *classifierClient) Classify(ctx context.Context, prompt string, text str
 	if c.baseURL == "" {
 		return nil, fmt.Errorf("message intent classifier url is empty")
 	}
-	// 將 prompt 與文字整理成送往分類服務的 request payload。
-	payload := request{
-		Prompt: strings.TrimSpace(prompt),
-		Text:   strings.TrimSpace(text),
-	}
-	// 轉成 JSON，準備送出 HTTP request。
-	body, err := json.Marshal(payload)
+
+	req, err := c.buildRequest(ctx, prompt, text)
 	if err != nil {
 		return nil, err
 	}
-	// 建立 POST request，目標是 message intent 的預測端點。
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/predict/message_intent", bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	// 告訴對方這是一個 JSON 格式的 API 呼叫。
-	req.Header.Set("Content-Type", "application/json")
 
 	// 實際送出請求到分類服務。
 	resp, err := c.client.Do(req)
@@ -102,19 +93,57 @@ func (c *classifierClient) Classify(ctx context.Context, prompt string, text str
 	}
 	defer resp.Body.Close()
 
+	return decodeClassificationResponse(resp)
+}
+
+func (c *classifierClient) buildRequest(ctx context.Context, prompt string, text string) (*http.Request, error) {
+	// 將 prompt 與文字整理成送往分類服務的 request payload。
+	payload := classificationRequest{
+		Prompt: strings.TrimSpace(prompt),
+		Text:   strings.TrimSpace(text),
+	}
+
+	// 轉成 JSON，準備送出 HTTP request。
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	// 建立 POST request，目標是 message intent 的預測端點。
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+classificationPath, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+
+	// 告訴對方這是一個 JSON 格式的 API 呼叫。
+	req.Header.Set("Content-Type", "application/json")
+	return req, nil
+}
+
+func decodeClassificationResponse(resp *http.Response) (*Classification, error) {
 	// 只接受 2xx 回應；其他都視為分類服務失敗。
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("message intent classifier returned status %d", resp.StatusCode)
 	}
 
 	// 解析分類服務回傳的 JSON 結果。
-	var decoded Classification
-	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
 		return nil, err
 	}
+
+	var decoded Classification
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return nil, err
+	}
+
+	return normalizeClassification(&decoded), nil
+}
+
+func normalizeClassification(decoded *Classification) *Classification {
 	// 如果模型沒有回 intent_label，預設視為一般訊息。
 	if decoded.IntentLabel == "" {
 		decoded.IntentLabel = "message"
 	}
-	return &decoded, nil
+	return decoded
 }
