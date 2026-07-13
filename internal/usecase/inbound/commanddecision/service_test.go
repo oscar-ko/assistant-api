@@ -91,3 +91,21 @@ func TestDecideMessageNilMessage(t *testing.T) {
 		t.Fatal("expected all decision flags false for nil message")
 	}
 }
+
+func TestDecisionIsCommand(t *testing.T) {
+	if (&Decision{}).IsCommand() {
+		t.Fatal("expected false when classification is nil")
+	}
+
+	if (&Decision{Classification: &semanticdecision.Classification{IntentLabel: "message"}}).IsCommand() {
+		t.Fatal("expected false for message label")
+	}
+
+	if !(&Decision{Classification: &semanticdecision.Classification{IntentLabel: "command"}}).IsCommand() {
+		t.Fatal("expected true for command label")
+	}
+
+	if !(&Decision{Classification: &semanticdecision.Classification{IntentLabel: " Command "}}).IsCommand() {
+		t.Fatal("expected true for case/space-insensitive command label")
+	}
+}

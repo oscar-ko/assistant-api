@@ -2,6 +2,7 @@ package commanddecision
 
 import (
 	"context"
+	"strings"
 
 	"assistant-api/internal/ent"
 	"assistant-api/internal/integration/unifiedmessage"
@@ -17,6 +18,15 @@ type Decision struct {
 	Classification        *semanticdecision.Classification
 	CommandChainError     error
 	ClassificationError   error
+}
+
+// IsCommand 回傳最終是否可視為指令訊息。
+// 目前以語意分類結果 intent_label=command 作為單一布林判斷。
+func (d *Decision) IsCommand() bool {
+	if d == nil || d.Classification == nil {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(d.Classification.IntentLabel), "command")
 }
 
 // Service 封裝跨平台共用的指令判斷流程。
