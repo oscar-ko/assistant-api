@@ -20,6 +20,7 @@ type configuration struct {
 	Server     *ServerConfig     `mapstructure:"server"`
 	Database   *DatabaseConfig   `mapstructure:"database"`
 	PostgreSQL *PostgreSQLConfig `mapstructure:"postgresql"`
+	AI         *AIConfig         `mapstructure:"ai"`
 	Line       *LineConfig       `mapstructure:"line"`
 	GraphQL    *GraphQLConfig    `mapstructure:"graphql"`
 }
@@ -38,6 +39,10 @@ type ServerConfig struct {
 
 type DatabaseConfig struct {
 	AutoSchemaCreate bool `mapstructure:"auto_schema_create" yaml:"auto_schema_create"`
+}
+
+type AIConfig struct {
+	MessageIntentClassifierURL string `mapstructure:"message_intent_classifier_url" yaml:"message_intent_classifier_url"`
 }
 
 // LineConfig 為 LINE OAuth 綁定所需參數。
@@ -90,6 +95,7 @@ var (
 	Server     ServerConfig
 	Database   DatabaseConfig
 	PostgreSQL PostgreSQLConfig
+	AI         AIConfig
 	Line       LineConfig
 	GraphQL    GraphQLConfig
 
@@ -99,6 +105,7 @@ var (
 		Server:     &Server,
 		Database:   &Database,
 		PostgreSQL: &PostgreSQL,
+		AI:         &AI,
 		Line:       &Line,
 		GraphQL:    &GraphQL,
 	}
@@ -139,6 +146,7 @@ func MustLoad() {
 		viper.SetDefault("postgresql.user_name", "")
 		viper.SetDefault("postgresql.password", "")
 		viper.SetDefault("postgresql.parameters", "sslmode=disable")
+		viper.SetDefault("ai.message_intent_classifier_url", "http://127.0.0.1:9002")
 		viper.SetDefault("line.channel_token", "")
 		viper.SetDefault("line.channel_secret", "")
 		viper.SetDefault("line.channel_id", "")

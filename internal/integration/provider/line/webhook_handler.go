@@ -12,7 +12,7 @@ import (
 func webhookHandler(svc WebhookService) gin.HandlerFunc {
 	// 若呼叫端未注入實作，使用預設 console 版本，確保路由可直接運作。
 	if svc == nil {
-		svc = NewWebhookService()
+		svc = NewWebhookService(nil, nil)
 	}
 
 	return func(c *gin.Context) {

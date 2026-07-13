@@ -9,7 +9,8 @@ log:
 
 server:
     port: "8080"
-
+ai:
+    message_intent_classifier_url: "http://127.0.0.1:9002"
 database:
     auto_schema_create: true
 

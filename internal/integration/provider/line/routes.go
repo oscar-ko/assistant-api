@@ -9,6 +9,7 @@ import (
 	"assistant-api/internal/config"
 	"assistant-api/internal/ent"
 	"assistant-api/internal/integration/auth"
+	"assistant-api/internal/integration/provider/messageintent"
 	"assistant-api/internal/repository"
 
 	"github.com/gin-gonic/gin"
@@ -20,12 +21,13 @@ const stateCookieName = "line_oauth_state"
 func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 	lineRepo := repository.NewLineRepo(client)
 	channelMessageRepo := repository.NewChannelMessageRepo(client)
+	messageIntentClassifier := messageintent.NewClassifier(config.AI.MessageIntentClassifierURL)
 
 	r.GET("/line/bind", bindPage)
 	r.GET("/line/oauth/start", oauthStart)
 	r.GET("/line/oauth/callback", oauthCallback(lineRepo))
 	// Webhook 採 handler -> service 分層，便於後續替換 queue/worker 實作。
-	r.POST("/line/webhook", webhookHandler(NewWebhookService(channelMessageRepo)))
+	r.POST("/line/webhook", webhookHandler(NewWebhookService(channelMessageRepo, messageIntentClassifier)))
 }
 
 // bindPage 回傳 LINE 綁定頁面。

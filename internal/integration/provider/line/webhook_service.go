@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"assistant-api/internal/integration/provider/messageintent"
 	"assistant-api/internal/repository"
 
 	"go.uber.org/zap"
@@ -20,15 +21,13 @@ type WebhookService interface {
 // consoleWebhookService 是最小可用的預設實作：
 // 僅解析事件並輸出到 console，便於開發階段觀察 webhook 是否正常進站。
 type consoleWebhookService struct {
-	repo *repository.ChannelMessageRepo
+	repo       *repository.ChannelMessageRepo
+	classifier messageintent.Classifier
 }
 
-// NewWebhookService 建立預設 webhook service（目前為 console 輸出）。
-func NewWebhookService(repo ...*repository.ChannelMessageRepo) WebhookService {
-	if len(repo) > 0 {
-		return consoleWebhookService{repo: repo[0]}
-	}
-	return consoleWebhookService{}
+// NewWebhookService 建立預設 webhook service
+func NewWebhookService(repo *repository.ChannelMessageRepo, classifier messageintent.Classifier) WebhookService {
+	return consoleWebhookService{repo: repo, classifier: classifier}
 }
 
 // webhookRequest 對應 LINE webhook 最上層 payload。
@@ -159,6 +158,26 @@ func (s consoleWebhookService) persistInboundMessage(event webhookEvent) {
 			zap.String("channel_id", ch.ID.String()),
 			zap.String("message_id", event.Message.ID),
 			zap.Error(err),
+		)
+	}
+
+	text := strings.TrimSpace(event.Message.Text)
+	if s.classifier != nil && strings.TrimSpace(event.Message.Type) == "text" && text != "" {
+		classification, err := s.classifier.Classify(ctx, messageintent.DefaultPrompt(), text)
+		if err != nil {
+			zap.L().Warn("webhook classify failed",
+				zap.String("channel_id", ch.ID.String()),
+				zap.String("message_id", event.Message.ID),
+				zap.Error(err),
+			)
+			return
+		}
+		zap.L().Debug("webhook classified",
+			zap.String("channel_id", ch.ID.String()),
+			zap.String("message_id", event.Message.ID),
+			zap.String("intent_label", classification.IntentLabel),
+			zap.Float64("confidence", classification.Confidence),
+			zap.String("reason", classification.Reason),
 		)
 	}
 }

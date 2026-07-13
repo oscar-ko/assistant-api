@@ -1,0 +1,105 @@
+package messageintent
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
+)
+
+// Classification 表示單次訊息意圖分類結果。
+type Classification struct {
+	SchemaVersion string  `json:"schema_version"`
+	IntentLabel   string  `json:"intent_label"`
+	Confidence    float64 `json:"confidence"`
+	Reason        string  `json:"reason"`
+}
+
+// Classifier 定義通用訊息分類能力。
+type Classifier interface {
+	Classify(ctx context.Context, prompt string, text string) (*Classification, error)
+}
+
+type classifierClient struct {
+	baseURL string
+	client  *http.Client
+}
+
+type request struct {
+	Prompt string `json:"prompt"`
+	Text   string `json:"text"`
+}
+
+// NewClassifier 建立通用訊息分類 client。
+func NewClassifier(baseURL string) Classifier {
+	trimmed := strings.TrimSpace(baseURL)
+	if trimmed == "" {
+		return nil
+	}
+	return &classifierClient{
+		baseURL: strings.TrimRight(trimmed, "/"),
+		client:  &http.Client{Timeout: 15 * time.Second},
+	}
+}
+
+// DefaultPrompt 回傳由 Go 端注入的通用分類提示詞。
+func DefaultPrompt() string {
+	return strings.TrimSpace(`
+你是跨通訊軟體的訊息分類器。
+請只根據輸入訊息與系統規則判斷它是否是「指令」或「一般訊息」。
+
+輸出格式必須是 JSON，欄位固定如下：
+schema_version, intent_label, confidence, reason
+
+規則：
+- intent_label 只能是 command 或 message
+- command 表示使用者希望系統執行動作、查詢、建立、更新、刪除、設定或觸發流程
+- message 表示一般聊天、閒聊、回覆、通知、描述或不需要執行動作的內容
+- confidence 為 0 到 1 的數字
+- reason 用一句話簡述判斷依據
+`)
+}
+
+func (c *classifierClient) Classify(ctx context.Context, prompt string, text string) (*Classification, error) {
+	if c == nil {
+		return nil, fmt.Errorf("message intent classifier is not initialized")
+	}
+	if c.baseURL == "" {
+		return nil, fmt.Errorf("message intent classifier url is empty")
+	}
+	payload := request{
+		Prompt: strings.TrimSpace(prompt),
+		Text:   strings.TrimSpace(text),
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/predict/message_intent", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("message intent classifier returned status %d", resp.StatusCode)
+	}
+
+	var decoded Classification
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return nil, err
+	}
+	if decoded.IntentLabel == "" {
+		decoded.IntentLabel = "message"
+	}
+	return &decoded, nil
+}
