@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"time"
 
 	"assistant-api/internal/config"
 	"assistant-api/internal/integration/unifiedmessage"
@@ -30,15 +31,36 @@ type consoleWebhookService struct {
 	persistenceService messagepersist.Service
 }
 
+// WebhookServiceOptions 提供 webhook service 的擴充設定。
+// 目前主要預留 member name cache 與 TTL，方便後續替換 Redis。
+type WebhookServiceOptions struct {
+	MemberNameCache MemberNameCache
+	MemberNameTTL   time.Duration
+}
+
 // NewWebhookService 建立預設 webhook service
 func NewWebhookService(repo *repository.ChannelMessageRepo, intentService messageintent.Service) WebhookService {
+	return NewWebhookServiceWithOptions(repo, intentService, WebhookServiceOptions{})
+}
+
+// NewWebhookServiceWithOptions 建立可帶擴充選項的 webhook service。
+func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, intentService messageintent.Service, options WebhookServiceOptions) WebhookService {
 	var lineClient *messaging_api.MessagingApiAPI
 	if token := strings.TrimSpace(config.Line.ChannelToken); token != "" {
 		if client, err := messaging_api.NewMessagingApiAPI(token); err == nil {
 			lineClient = client
 		}
 	}
-	persistSvc := messagepersist.NewService(repo, lineSenderNameResolver{repo: repo, client: lineClient})
+	cache := options.MemberNameCache
+	if cache == nil {
+		// 目前預設為 Noop：不會真正存取任何快取後端（非 memory/DB/Redis）。
+		cache = NoopMemberNameCache{}
+	}
+	memberNameTTL := options.MemberNameTTL
+	if memberNameTTL <= 0 {
+		memberNameTTL = 10 * time.Minute
+	}
+	persistSvc := messagepersist.NewService(repo, lineSenderNameResolver{repo: repo, client: lineClient, cache: cache, memberNameTTL: memberNameTTL, now: time.Now})
 	return consoleWebhookService{repo: repo, intentService: intentService, persistenceService: persistSvc}
 }
 
@@ -173,8 +195,11 @@ func (s consoleWebhookService) persistUnifiedMessage(message *unifiedmessage.Mes
 }
 
 type lineSenderNameResolver struct {
-	repo    *repository.ChannelMessageRepo
-	client  *messaging_api.MessagingApiAPI
+	repo          *repository.ChannelMessageRepo
+	client        *messaging_api.MessagingApiAPI
+	cache         MemberNameCache
+	memberNameTTL time.Duration
+	now           func() time.Time
 }
 
 func (r lineSenderNameResolver) ResolveSenderName(ctx context.Context, platform string, channelID string, channelType string, senderID string) (string, error) {
@@ -184,13 +209,30 @@ func (r lineSenderNameResolver) ResolveSenderName(ctx context.Context, platform 
 	if !strings.EqualFold(strings.TrimSpace(platform), "line") {
 		return "", nil
 	}
+	cache := r.cache
+	if cache == nil {
+		// 保底回退到 Noop，確保未注入快取時流程可正常運作。
+		cache = NoopMemberNameCache{}
+	}
+	now := r.now
+	if now == nil {
+		now = time.Now
+	}
+	// TTL 判斷只在 cache 實作有實際儲存能力時才有意義；Noop 永遠 miss。
+	if cachedName, expiresAt, found, err := cache.Get(ctx, platform, channelID, channelType, senderID); err == nil && found {
+		if strings.TrimSpace(cachedName) != "" && now().Before(expiresAt) {
+			return strings.TrimSpace(cachedName), nil
+		}
+	}
 
 	name, err := r.repo.ResolveLineDisplayNameByLineUserID(ctx, senderID)
 	if err != nil {
 		return "", err
 	}
 	if strings.TrimSpace(name) != "" {
-		return strings.TrimSpace(name), nil
+		trimmed := strings.TrimSpace(name)
+		_ = cache.Set(ctx, platform, channelID, channelType, senderID, trimmed, now().Add(r.memberNameTTL))
+		return trimmed, nil
 	}
 
 	if r.client == nil {
@@ -199,6 +241,7 @@ func (r lineSenderNameResolver) ResolveSenderName(ctx context.Context, platform 
 
 	resolved := strings.TrimSpace(r.resolveByLineAPI(ctx, channelID, channelType, senderID))
 	if resolved != "" {
+		_ = cache.Set(ctx, platform, channelID, channelType, senderID, resolved, now().Add(r.memberNameTTL))
 		return resolved, nil
 	}
 	return "", nil
