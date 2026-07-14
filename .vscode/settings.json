@@ -1,0 +1,33 @@
+{
+  "todo-tree.general.tags": [
+    "TODO",
+    "FIXME",
+    "NOTE"
+  ],
+  "todo-tree.highlights.enabled": true,
+  "todo-tree.tree.showCountsInTree": true,
+  "todo-tree.tree.scanMode": "workspace",
+  "todo-tree.highlights.customHighlight": {
+    "TODO": {
+      "icon": "check",
+      "type": "tag",
+      "foreground": "#0B0F1A",
+      "background": "#F59E0B",
+      "gutterIcon": true
+    },
+    "FIXME": {
+      "icon": "flame",
+      "type": "tag",
+      "foreground": "#FFFFFF",
+      "background": "#DC2626",
+      "gutterIcon": true
+    },
+    "NOTE": {
+      "icon": "note",
+      "type": "tag",
+      "foreground": "#082F49",
+      "background": "#7DD3FC",
+      "gutterIcon": true
+    }
+  }
+}
