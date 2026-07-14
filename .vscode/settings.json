@@ -4,6 +4,9 @@
     "FIXME",
     "NOTE"
   ],
+  "todo-tree.regex.regex": "(TODO|FIXME|NOTE)",
+  "todo-tree.regex.tagGroup": 0,
+  "todo-tree.regex.regexCaseSensitive": false,
   "todo-tree.highlights.enabled": true,
   "todo-tree.tree.showCountsInTree": true,
   "todo-tree.tree.scanMode": "workspace",

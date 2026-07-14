@@ -1,5 +1,6 @@
 {
   "recommendations": [
-    "Gruntfuggly.todo-tree"
+    "Gruntfuggly.todo-tree",
+    "bokuweb.vscode-ripgrep"
   ]
 }
