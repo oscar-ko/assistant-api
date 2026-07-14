@@ -25,6 +25,7 @@ type client struct {
 	httpClient           *http.Client
 	maxAttempts          int
 	backoffBase          time.Duration
+	aliveProbeInterval   time.Duration
 	aliveProbeTimeout    time.Duration
 	aliveSuccessTTL      time.Duration
 	aliveFailureCooldown time.Duration
@@ -54,12 +55,12 @@ const (
 // - embedPath: embedding API 路徑
 // - maxAttempts: 單次 embedding 最多重試幾次（包含第一次）
 // - retryBackoffMS: 每次重試的基礎等待毫秒數，會隨 attempt 線性放大
-func NewClient(baseURL string, timeoutSeconds int, embedPath string, maxAttempts int, retryBackoffMS int, aliveProbeTimeoutMS int, aliveSuccessTTLMS int, aliveFailureCooldownMS int) Service {
+func NewClient(baseURL string, timeoutSeconds int, embedPath string, maxAttempts int, retryBackoffMS int, aliveProbeIntervalMS int, aliveProbeTimeoutMS int, aliveSuccessTTLMS int, aliveFailureCooldownMS int) Service {
 	baseURL = strings.TrimSpace(baseURL)
 	if baseURL == "" {
 		return nil
 	}
-	if timeoutSeconds <= 0 || maxAttempts <= 0 || retryBackoffMS < minPositiveDurationMS || aliveProbeTimeoutMS < minPositiveDurationMS || aliveSuccessTTLMS < minPositiveDurationMS || aliveFailureCooldownMS < minPositiveDurationMS {
+	if timeoutSeconds <= 0 || maxAttempts <= 0 || retryBackoffMS < minPositiveDurationMS || aliveProbeIntervalMS < minPositiveDurationMS || aliveProbeTimeoutMS < minPositiveDurationMS || aliveSuccessTTLMS < minPositiveDurationMS || aliveFailureCooldownMS < minPositiveDurationMS {
 		return nil
 	}
 	embedPath = strings.TrimSpace(embedPath)
@@ -69,16 +70,19 @@ func NewClient(baseURL string, timeoutSeconds int, embedPath string, maxAttempts
 	if !strings.HasPrefix(embedPath, "/") {
 		embedPath = "/" + embedPath
 	}
-	return &client{
+	c := &client{
 		baseURL:              strings.TrimRight(baseURL, "/"),
 		embedPath:            embedPath,
 		httpClient:           &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second},
 		maxAttempts:          maxAttempts,
 		backoffBase:          time.Duration(retryBackoffMS) * time.Millisecond,
+		aliveProbeInterval:   time.Duration(aliveProbeIntervalMS) * time.Millisecond,
 		aliveProbeTimeout:    time.Duration(aliveProbeTimeoutMS) * time.Millisecond,
 		aliveSuccessTTL:      time.Duration(aliveSuccessTTLMS) * time.Millisecond,
 		aliveFailureCooldown: time.Duration(aliveFailureCooldownMS) * time.Millisecond,
 	}
+	c.startBackgroundProbeLoop()
+	return c
 }
 
 // GetEmbedding 將單一文字送往 embedding service，並在可恢復錯誤時重試。
@@ -205,6 +209,28 @@ func (c *client) probeAlive(ctx context.Context) error {
 	}
 	if cachedErr, ok := c.getCachedProbeResult(); ok {
 		return cachedErr
+	}
+	// 背景探活尚未產出狀態時，首請求做一次同步探測作為保底。
+	return c.probeAliveOnce(ctx)
+}
+
+func (c *client) startBackgroundProbeLoop() {
+	if c == nil {
+		return
+	}
+	go func() {
+		c.probeAliveOnce(context.Background())
+		ticker := time.NewTicker(c.aliveProbeInterval)
+		defer ticker.Stop()
+		for range ticker.C {
+			c.probeAliveOnce(context.Background())
+		}
+	}()
+}
+
+func (c *client) probeAliveOnce(ctx context.Context) error {
+	if c == nil {
+		return fmt.Errorf("embedding client is not initialized")
 	}
 
 	parsed, err := url.Parse(c.baseURL)

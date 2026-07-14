@@ -24,9 +24,11 @@ ai:
     embedding_retry_backoff_ms: 500
     embedding_path: "/embed"
     # embedding 探活策略（毫秒）：
+    # - probe_interval: 背景主動探活週期
     # - probe_timeout: 單次探活最長等待
     # - success_ttl: 成功後快取多久不再探活
     # - failure_cooldown: 失敗後多久內直接快回錯
+    embedding_alive_probe_interval_ms: 2000
     embedding_alive_probe_timeout_ms: 1500
     embedding_alive_success_ttl_ms: 10000
     embedding_alive_failure_cooldown_ms: 3000
@@ -40,6 +42,7 @@ ai:
     reranker_retry_backoff_ms: 300
     reranker_path: "/rerank"
     # reranker 探活策略（毫秒），用途同 embedding。
+    reranker_alive_probe_interval_ms: 2000
     reranker_alive_probe_timeout_ms: 1500
     reranker_alive_success_ttl_ms: 10000
     reranker_alive_failure_cooldown_ms: 3000

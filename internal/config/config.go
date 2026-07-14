@@ -52,6 +52,7 @@ type AIConfig struct {
 	EmbeddingRetryBackoffMS int    `mapstructure:"embedding_retry_backoff_ms" yaml:"embedding_retry_backoff_ms"`
 	EmbeddingPath           string `mapstructure:"embedding_path" yaml:"embedding_path"`
 	// EmbeddingAlive*：探活快取與失敗冷卻策略，避免每次訊息都探活。
+	EmbeddingAliveProbeIntervalMS   int `mapstructure:"embedding_alive_probe_interval_ms" yaml:"embedding_alive_probe_interval_ms"`
 	EmbeddingAliveProbeTimeoutMS    int `mapstructure:"embedding_alive_probe_timeout_ms" yaml:"embedding_alive_probe_timeout_ms"`
 	EmbeddingAliveSuccessTTLMS      int `mapstructure:"embedding_alive_success_ttl_ms" yaml:"embedding_alive_success_ttl_ms"`
 	EmbeddingAliveFailureCooldownMS int `mapstructure:"embedding_alive_failure_cooldown_ms" yaml:"embedding_alive_failure_cooldown_ms"`
@@ -67,6 +68,7 @@ type AIConfig struct {
 	RerankerRetryBackoffMS int    `mapstructure:"reranker_retry_backoff_ms" yaml:"reranker_retry_backoff_ms"`
 	RerankerPath           string `mapstructure:"reranker_path" yaml:"reranker_path"`
 	// RerankerAlive*：探活快取與失敗冷卻策略，避免每次訊息都探活。
+	RerankerAliveProbeIntervalMS   int `mapstructure:"reranker_alive_probe_interval_ms" yaml:"reranker_alive_probe_interval_ms"`
 	RerankerAliveProbeTimeoutMS    int `mapstructure:"reranker_alive_probe_timeout_ms" yaml:"reranker_alive_probe_timeout_ms"`
 	RerankerAliveSuccessTTLMS      int `mapstructure:"reranker_alive_success_ttl_ms" yaml:"reranker_alive_success_ttl_ms"`
 	RerankerAliveFailureCooldownMS int `mapstructure:"reranker_alive_failure_cooldown_ms" yaml:"reranker_alive_failure_cooldown_ms"`
@@ -181,6 +183,7 @@ func MustLoad() {
 		viper.SetDefault("ai.embedding_max_attempts", 4)
 		viper.SetDefault("ai.embedding_retry_backoff_ms", 500)
 		viper.SetDefault("ai.embedding_path", "/embed")
+		viper.SetDefault("ai.embedding_alive_probe_interval_ms", 2000)
 		viper.SetDefault("ai.embedding_alive_probe_timeout_ms", 1500)
 		viper.SetDefault("ai.embedding_alive_success_ttl_ms", 10000)
 		viper.SetDefault("ai.embedding_alive_failure_cooldown_ms", 3000)
@@ -192,6 +195,7 @@ func MustLoad() {
 		viper.SetDefault("ai.reranker_max_attempts", 3)
 		viper.SetDefault("ai.reranker_retry_backoff_ms", 300)
 		viper.SetDefault("ai.reranker_path", "/rerank")
+		viper.SetDefault("ai.reranker_alive_probe_interval_ms", 2000)
 		viper.SetDefault("ai.reranker_alive_probe_timeout_ms", 1500)
 		viper.SetDefault("ai.reranker_alive_success_ttl_ms", 10000)
 		viper.SetDefault("ai.reranker_alive_failure_cooldown_ms", 3000)

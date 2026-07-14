@@ -33,6 +33,7 @@ type client struct {
 	httpClient           *http.Client
 	maxAttempts          int
 	backoffBase          time.Duration
+	aliveProbeInterval   time.Duration
 	aliveProbeTimeout    time.Duration
 	aliveSuccessTTL      time.Duration
 	aliveFailureCooldown time.Duration
@@ -63,13 +64,13 @@ const (
 )
 
 // NewClient 建立 cross-encoder reranker client。
-func NewClient(baseURL string, timeoutSeconds int, rerankPath string, maxAttempts int, retryBackoffMS int, aliveProbeTimeoutMS int, aliveSuccessTTLMS int, aliveFailureCooldownMS int) Service {
+func NewClient(baseURL string, timeoutSeconds int, rerankPath string, maxAttempts int, retryBackoffMS int, aliveProbeIntervalMS int, aliveProbeTimeoutMS int, aliveSuccessTTLMS int, aliveFailureCooldownMS int) Service {
 	// 必要參數：baseURL 不可為空，否則呼叫端應視為未啟用 reranker。
 	baseURL = strings.TrimSpace(baseURL)
 	if baseURL == "" {
 		return nil
 	}
-	if timeoutSeconds <= 0 || maxAttempts <= 0 || retryBackoffMS < minPositiveDurationMS || aliveProbeTimeoutMS < minPositiveDurationMS || aliveSuccessTTLMS < minPositiveDurationMS || aliveFailureCooldownMS < minPositiveDurationMS {
+	if timeoutSeconds <= 0 || maxAttempts <= 0 || retryBackoffMS < minPositiveDurationMS || aliveProbeIntervalMS < minPositiveDurationMS || aliveProbeTimeoutMS < minPositiveDurationMS || aliveSuccessTTLMS < minPositiveDurationMS || aliveFailureCooldownMS < minPositiveDurationMS {
 		return nil
 	}
 	rerankPath = strings.TrimSpace(rerankPath)
@@ -81,16 +82,19 @@ func NewClient(baseURL string, timeoutSeconds int, rerankPath string, maxAttempt
 	}
 
 	// 將 URL/path 標準化後建立 client，後續重試與逾時由同一實例統一控管。
-	return &client{
+	c := &client{
 		baseURL:              strings.TrimRight(baseURL, "/"),
 		rerankPath:           rerankPath,
 		httpClient:           &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second},
 		maxAttempts:          maxAttempts,
 		backoffBase:          time.Duration(retryBackoffMS) * time.Millisecond,
+		aliveProbeInterval:   time.Duration(aliveProbeIntervalMS) * time.Millisecond,
 		aliveProbeTimeout:    time.Duration(aliveProbeTimeoutMS) * time.Millisecond,
 		aliveSuccessTTL:      time.Duration(aliveSuccessTTLMS) * time.Millisecond,
 		aliveFailureCooldown: time.Duration(aliveFailureCooldownMS) * time.Millisecond,
 	}
+	c.startBackgroundProbeLoop()
+	return c
 }
 
 // Rerank 以 query + documents 呼叫 cross-encoder 進行重排。
@@ -252,6 +256,28 @@ func (c *client) probeAlive(ctx context.Context) error {
 	}
 	if cachedErr, ok := c.getCachedProbeResult(); ok {
 		return cachedErr
+	}
+	// 背景探活尚未產出狀態時，首請求做一次同步探測作為保底。
+	return c.probeAliveOnce(ctx)
+}
+
+func (c *client) startBackgroundProbeLoop() {
+	if c == nil {
+		return
+	}
+	go func() {
+		c.probeAliveOnce(context.Background())
+		ticker := time.NewTicker(c.aliveProbeInterval)
+		defer ticker.Stop()
+		for range ticker.C {
+			c.probeAliveOnce(context.Background())
+		}
+	}()
+}
+
+func (c *client) probeAliveOnce(ctx context.Context) error {
+	if c == nil {
+		return fmt.Errorf("reranker client is not initialized")
 	}
 
 	parsed, err := url.Parse(c.baseURL)
