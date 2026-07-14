@@ -29,30 +29,30 @@ func TestResolveSender(t *testing.T) {
 	}
 }
 
-func TestConsoleWebhookService_ProcessIncoming_InvalidJSON(t *testing.T) {
+func TestWebhookService_ProcessIncoming_InvalidJSON(t *testing.T) {
 	core, observed := observer.New(zapcore.DebugLevel)
 	oldLogger := zap.L()
 	zap.ReplaceGlobals(zap.New(core))
 	defer zap.ReplaceGlobals(oldLogger)
 
-	consoleWebhookService{}.ProcessIncoming([]byte("{invalid"), "sig")
+	(&WebhookService{}).ProcessIncoming([]byte("{invalid"), "sig")
 
 	if observed.FilterMessage("line webhook parse failed").Len() == 0 {
 		t.Fatalf("expected parse failed zap log")
 	}
 }
 
-func TestConsoleWebhookService_ProcessIncoming_TextMessage(t *testing.T) {
+func TestWebhookService_ProcessIncoming_TextMessage(t *testing.T) {
 	core, observed := observer.New(zapcore.DebugLevel)
 	oldLogger := zap.L()
 	zap.ReplaceGlobals(zap.New(core))
 	defer zap.ReplaceGlobals(oldLogger)
 
 	body := []byte(`{"events":[{"type":"message","source":{"userId":"U123"},"message":{"type":"text","text":"hello"}}]}`)
-	consoleWebhookService{}.ProcessIncoming(body, "sig")
+	(&WebhookService{}).ProcessIncoming(body, "sig")
 
 	if observed.FilterMessage("line message received").Len() == 0 {
-		t.Fatalf("expected incoming line message info log")
+		t.Fatalf("expected incoming log")
 	}
 	if observed.FilterMessage("webhook classified").Len() > 0 {
 		t.Fatalf("expected no custom ai result log")
