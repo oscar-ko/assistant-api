@@ -70,3 +70,14 @@ internal/
 3. 將 LINE provider 完整放入 `internal/integration/provider/line`。
 4. 新增 Google provider 骨架，再逐步接上 Gmail/Calendar capability。
 5. 最後將舊路由切換到統一路由規則。
+
+## 開發約定
+
+為避免設定來源分散與行為不一致，請遵守以下規則：
+
+1. default 僅可定義在 config 層（`internal/config/config.go` 與 `configs/app.yml`）。
+2. service client（embedding/reranker/未來其他 provider client）不得在程式內做 fallback default。
+3. 若必要設定缺失，constructor 應 fail fast，不得靜默改寫成隱藏預設值。
+
+詳細規範與 code review 檢查項請參考：
+- [docs/config-default-policy.md](docs/config-default-policy.md)
