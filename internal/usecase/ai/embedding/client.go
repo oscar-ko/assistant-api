@@ -12,6 +12,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"assistant-api/internal/config"
+
+	"go.uber.org/zap"
 )
 
 // Service 轉換文字為 embedding 向量。
@@ -45,6 +49,7 @@ type response struct {
 
 const (
 	minPositiveDurationMS = 1
+	devRunMode            = "dev"
 )
 
 // NewClient 建立 embedding client。
@@ -235,26 +240,43 @@ func (c *client) probeAliveOnce(ctx context.Context) error {
 
 	parsed, err := url.Parse(c.baseURL)
 	if err != nil {
-		c.storeProbeResult(fmt.Errorf("invalid embedding base url: %w", err))
-		return fmt.Errorf("invalid embedding base url: %w", err)
+		probeErr := fmt.Errorf("invalid embedding base url: %w", err)
+		becameUnhealthy, _ := c.storeProbeResult(probeErr)
+		if becameUnhealthy && shouldLogProbeTransition() {
+			zap.L().Error("embedding alive probe failed", zap.String("base_url", c.baseURL), zap.Error(probeErr))
+		}
+		return probeErr
 	}
 	host := strings.TrimSpace(parsed.Host)
 	if host == "" {
-		err := fmt.Errorf("embedding base url has empty host")
-		c.storeProbeResult(err)
-		return fmt.Errorf("embedding base url has empty host")
+		probeErr := fmt.Errorf("embedding base url has empty host")
+		becameUnhealthy, _ := c.storeProbeResult(probeErr)
+		if becameUnhealthy && shouldLogProbeTransition() {
+			zap.L().Error("embedding alive probe failed", zap.String("base_url", c.baseURL), zap.Error(probeErr))
+		}
+		return probeErr
 	}
 	probeCtx, cancel := context.WithTimeout(ctx, c.aliveProbeTimeout)
 	defer cancel()
 	dialer := &net.Dialer{}
 	conn, dialErr := dialer.DialContext(probeCtx, "tcp", host)
 	if dialErr != nil {
-		c.storeProbeResult(dialErr)
+		becameUnhealthy, _ := c.storeProbeResult(dialErr)
+		if becameUnhealthy && shouldLogProbeTransition() {
+			zap.L().Error("embedding alive probe failed", zap.String("base_url", c.baseURL), zap.String("host", host), zap.Error(dialErr))
+		}
 		return dialErr
 	}
 	_ = conn.Close()
-	c.storeProbeResult(nil)
+	_, recovered := c.storeProbeResult(nil)
+	if recovered && shouldLogProbeTransition() {
+		zap.L().Info("embedding alive probe recovered", zap.String("base_url", c.baseURL), zap.String("host", host))
+	}
 	return nil
+}
+
+func shouldLogProbeTransition() bool {
+	return strings.EqualFold(strings.TrimSpace(config.RunMode), devRunMode)
 }
 
 // getCachedProbeResult 回傳快取探活結果。
@@ -282,13 +304,18 @@ func (c *client) getCachedProbeResult() (error, bool) {
 	return nil, false
 }
 
-// storeProbeResult 記錄最近一次探活結果，供下一次快速判斷。
-func (c *client) storeProbeResult(err error) {
+// storeProbeResult 記錄最近一次探活結果，並回傳狀態轉換。
+// becameUnhealthy: healthy -> unhealthy
+// recovered: unhealthy -> healthy
+func (c *client) storeProbeResult(err error) (becameUnhealthy bool, recovered bool) {
 	if c == nil {
-		return
+		return false, false
 	}
 	c.probeMu.Lock()
 	defer c.probeMu.Unlock()
+	wasUnhealthy := c.lastProbeErr != nil
+	nowUnhealthy := err != nil
 	c.lastProbeAt = time.Now()
 	c.lastProbeErr = err
+	return !wasUnhealthy && nowUnhealthy, wasUnhealthy && !nowUnhealthy
 }
