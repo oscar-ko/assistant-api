@@ -11,6 +11,7 @@ import (
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
 	"assistant-api/internal/usecase/ai/semanticdecision"
+	"assistant-api/internal/usecase/ai/topkfilter"
 	"assistant-api/internal/usecase/inbound/commandchain"
 	"assistant-api/internal/usecase/inbound/commanddecision"
 	"assistant-api/internal/usecase/inbound/messagepersist"
@@ -32,6 +33,7 @@ type WebhookService struct {
 	repo               *repository.ChannelMessageRepo
 	decisionService    commanddecision.Service
 	persistenceService messagepersist.Service
+	topKFilterService  topkfilter.Service
 }
 
 // WebhookServiceOptions 提供 webhook service 的擴充設定。
@@ -39,6 +41,7 @@ type WebhookService struct {
 type WebhookServiceOptions struct {
 	MemberNameCache MemberNameCache
 	MemberNameTTL   time.Duration
+	TopKFilter      topkfilter.Service
 }
 
 // NewWebhookService 建立預設 webhook service
@@ -68,7 +71,7 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, semanticS
 	persistSvc := messagepersist.NewService(repo, lineSenderNameResolver{repo: repo, client: lineClient, cache: cache, memberNameTTL: memberNameTTL, now: time.Now})
 	chainSvc := commandchain.NewService(repo)
 	decisionSvc := commanddecision.NewService(chainSvc, semanticService)
-	return &WebhookService{repo: repo, decisionService: decisionSvc, persistenceService: persistSvc}
+	return &WebhookService{repo: repo, decisionService: decisionSvc, persistenceService: persistSvc, topKFilterService: options.TopKFilter}
 }
 
 // webhookRequest 對應 LINE webhook 最上層 payload。
@@ -153,6 +156,10 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 	for _, event := range req.Events {
 		// 非 message 事件直接略過；只有文字/圖片等訊息才需要進一步處理。
 		if message, ok := adaptLineEventToUnified(event); ok {
+			if s.topKFilterService != nil {
+				s.topKFilterService.FilterMessage(context.Background(), message)
+			}
+
 			// 先把原始訊息資訊印出來，方便在 console 直接看到來了什麼內容。
 			zap.L().Info("line message received",
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),

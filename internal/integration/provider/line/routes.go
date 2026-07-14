@@ -10,7 +10,9 @@ import (
 	"assistant-api/internal/ent"
 	"assistant-api/internal/integration/auth"
 	"assistant-api/internal/repository"
+	"assistant-api/internal/usecase/ai/embedding"
 	"assistant-api/internal/usecase/ai/semanticdecision"
+	"assistant-api/internal/usecase/ai/topkfilter"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,14 +23,17 @@ const stateCookieName = "line_oauth_state"
 func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 	lineRepo := repository.NewLineRepo(client)
 	channelMessageRepo := repository.NewChannelMessageRepo(client)
+	actionRouteRepo := repository.NewActionRouteRepo(client)
 	semanticDecisionClassifier := semanticdecision.NewClassifier(config.AI.SemanticDecisionServiceURL, config.AI.SemanticDecisionServiceTimeoutSeconds)
 	semanticDecisionService := semanticdecision.NewService(semanticDecisionClassifier)
+	embeddingClient := embedding.NewClient(config.AI.EmbeddingURL, config.AI.EmbeddingTimeoutSeconds, config.AI.EmbeddingPath)
+	filterService := topkfilter.NewService(actionRouteRepo, embeddingClient, "zh-TW", 5)
 
 	r.GET("/line/bind", bindPage)
 	r.GET("/line/oauth/start", oauthStart)
 	r.GET("/line/oauth/callback", oauthCallback(lineRepo))
 	// Webhook 採 handler -> service 分層，便於後續替換 queue/worker 實作。
-	r.POST("/line/webhook", webhookHandler(NewWebhookService(channelMessageRepo, semanticDecisionService)))
+	r.POST("/line/webhook", webhookHandler(NewWebhookServiceWithOptions(channelMessageRepo, semanticDecisionService, WebhookServiceOptions{TopKFilter: filterService})))
 }
 
 // bindPage 回傳 LINE 綁定頁面。
