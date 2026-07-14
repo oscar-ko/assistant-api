@@ -131,7 +131,8 @@ func (s *service) FilterMessage(ctx context.Context, message *unifiedmessage.Mes
 	}
 
 	// 先輸出 retrieval 階段結果，方便與 rerank 後結果分開比較。
-	retrievedLogs := formatCandidateLogs(buildScoredCandidates(candidates))
+	topKScoredCandidates := buildScoredCandidates(candidates)
+	retrievedLogs := formatCandidateLogs(topKScoredCandidates)
 	zap.L().Info("inbound message top-k retrieved candidates",
 		zap.String("platform", platform),
 		zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
@@ -142,7 +143,7 @@ func (s *service) FilterMessage(ctx context.Context, message *unifiedmessage.Mes
 		zap.Strings("candidates", retrievedLogs),
 	)
 
-	scoredCandidates := buildScoredCandidates(candidates)
+	scoredCandidates := topKScoredCandidates
 	rerankApplied := false
 	// 第二階段：若啟用 cross-encoder，則在候選集上做精排。
 	// 失敗時不阻斷流程，回退到 retrieval 原排序。
@@ -170,10 +171,9 @@ func (s *service) FilterMessage(ctx context.Context, message *unifiedmessage.Mes
 	// 這對調整 seed route、embedding 模型或未來的 threshold 都很重要。
 	vectorLogs := formatCandidateLogs(scoredCandidates)
 
-	// 最後輸出正式的 top-k 篩選結果。
-	// 這筆 log 的語意是「該訊息已完成候選篩選」，不是單純 debug preview，
-	// 因此使用 Info level，讓營運與開發在正常日誌中就能直接觀察召回結果。
-	zap.L().Info("inbound message top-k filtered candidates",
+	// 第二次輸出 rerank 結果，並附上與 top-k 的排名對照，方便直接比較差異。
+	rankDiffLogs := formatCandidateRankDiffs(topKScoredCandidates, scoredCandidates)
+	zap.L().Info("inbound message top-k reranked candidates",
 		zap.String("platform", platform),
 		zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 		zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
@@ -182,6 +182,7 @@ func (s *service) FilterMessage(ctx context.Context, message *unifiedmessage.Mes
 		zap.Bool("rerank_applied", rerankApplied),
 		zap.String("text", text),
 		zap.Strings("candidates", vectorLogs),
+		zap.Strings("rank_comparison", rankDiffLogs),
 	)
 }
 
@@ -215,4 +216,68 @@ func buildScoredCandidates(candidates []repository.ActionRouteVectorCandidate) [
 		out = append(out, ScoredCandidate{Candidate: candidate})
 	}
 	return out
+}
+
+// formatCandidateRankDiffs 產生 top-k 與 rerank 的排名對照，便於快速觀察名次變化。
+func formatCandidateRankDiffs(before []ScoredCandidate, after []ScoredCandidate) []string {
+	// 使用 queue 保留同一 key 的多筆排名，避免重複 operation 被後者覆蓋。
+	beforeRankQueue := make(map[string][]int, len(before))
+	for idx, item := range before {
+		key := comparisonKey(item.Candidate)
+		if key == "" {
+			continue
+		}
+		beforeRankQueue[key] = append(beforeRankQueue[key], idx+1)
+	}
+
+	diffs := make([]string, 0, len(after))
+	for idx, item := range after {
+		key := comparisonKey(item.Candidate)
+		if key == "" {
+			continue
+		}
+		afterPos := idx + 1
+		beforeRanks := beforeRankQueue[key]
+		if len(beforeRanks) == 0 {
+			diffs = append(diffs,
+				"op="+strings.TrimSpace(item.Candidate.APIOperation)+
+					" "+
+					"NA->"+strconv.Itoa(afterPos)+
+					" (NA)",
+			)
+			continue
+		}
+
+		// 同 key 多筆時，按出現順序逐筆配對，確保比較結果穩定。
+		beforePos := beforeRanks[0]
+		beforeRankQueue[key] = beforeRanks[1:]
+		shift := beforePos - afterPos
+		diffs = append(diffs,
+			"op="+strings.TrimSpace(item.Candidate.APIOperation)+
+				" "+
+				strconv.Itoa(beforePos)+"->"+strconv.Itoa(afterPos)+
+				" ("+formatRankShift(shift)+")",
+		)
+	}
+
+	return diffs
+}
+
+// comparisonKey 產生候選穩定識別鍵，用於跨階段配對同一筆候選。
+func comparisonKey(candidate repository.ActionRouteVectorCandidate) string {
+	operation := strings.TrimSpace(candidate.APIOperation)
+	skill := strings.TrimSpace(candidate.SkillCode)
+	route := strings.TrimSpace(candidate.RouteText)
+	if operation == "" && route == "" {
+		return ""
+	}
+	return operation + "|" + skill + "|" + route
+}
+
+// formatRankShift 將名次變化轉成簡短人類可讀格式。
+func formatRankShift(shift int) string {
+	if shift > 0 {
+		return "+" + strconv.Itoa(shift)
+	}
+	return strconv.Itoa(shift)
 }

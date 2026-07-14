@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -26,11 +28,18 @@ type Service interface {
 
 // client 封裝對 cross-encoder reranker service 的 HTTP 呼叫細節。
 type client struct {
-	baseURL     string
-	rerankPath  string
-	httpClient  *http.Client
-	maxAttempts int
-	backoffBase time.Duration
+	baseURL              string
+	rerankPath           string
+	httpClient           *http.Client
+	maxAttempts          int
+	backoffBase          time.Duration
+	aliveProbeTimeout    time.Duration
+	aliveSuccessTTL      time.Duration
+	aliveFailureCooldown time.Duration
+
+	probeMu      sync.Mutex
+	lastProbeAt  time.Time
+	lastProbeErr error
 }
 
 // rerankRequest 對應 reranker API 的請求格式。
@@ -50,31 +59,22 @@ type rerankResponse struct {
 }
 
 const (
-	defaultRequestTimeoutSeconds = 60
-	defaultMaxRequestAttempts    = 3
-	defaultRetryBackoffMS        = 300
+	minPositiveDurationMS = 1
 )
 
 // NewClient 建立 cross-encoder reranker client。
-func NewClient(baseURL string, timeoutSeconds int, rerankPath string, maxAttempts int, retryBackoffMS int) Service {
+func NewClient(baseURL string, timeoutSeconds int, rerankPath string, maxAttempts int, retryBackoffMS int, aliveProbeTimeoutMS int, aliveSuccessTTLMS int, aliveFailureCooldownMS int) Service {
 	// 必要參數：baseURL 不可為空，否則呼叫端應視為未啟用 reranker。
 	baseURL = strings.TrimSpace(baseURL)
 	if baseURL == "" {
 		return nil
 	}
-	// 以下為容錯預設，避免配置漏填時直接失效。
-	if timeoutSeconds <= 0 {
-		timeoutSeconds = defaultRequestTimeoutSeconds
-	}
-	if maxAttempts <= 0 {
-		maxAttempts = defaultMaxRequestAttempts
-	}
-	if retryBackoffMS <= 0 {
-		retryBackoffMS = defaultRetryBackoffMS
+	if timeoutSeconds <= 0 || maxAttempts <= 0 || retryBackoffMS < minPositiveDurationMS || aliveProbeTimeoutMS < minPositiveDurationMS || aliveSuccessTTLMS < minPositiveDurationMS || aliveFailureCooldownMS < minPositiveDurationMS {
+		return nil
 	}
 	rerankPath = strings.TrimSpace(rerankPath)
 	if rerankPath == "" {
-		rerankPath = "/rerank"
+		return nil
 	}
 	if !strings.HasPrefix(rerankPath, "/") {
 		rerankPath = "/" + rerankPath
@@ -82,11 +82,14 @@ func NewClient(baseURL string, timeoutSeconds int, rerankPath string, maxAttempt
 
 	// 將 URL/path 標準化後建立 client，後續重試與逾時由同一實例統一控管。
 	return &client{
-		baseURL:     strings.TrimRight(baseURL, "/"),
-		rerankPath:  rerankPath,
-		httpClient:  &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second},
-		maxAttempts: maxAttempts,
-		backoffBase: time.Duration(retryBackoffMS) * time.Millisecond,
+		baseURL:              strings.TrimRight(baseURL, "/"),
+		rerankPath:           rerankPath,
+		httpClient:           &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second},
+		maxAttempts:          maxAttempts,
+		backoffBase:          time.Duration(retryBackoffMS) * time.Millisecond,
+		aliveProbeTimeout:    time.Duration(aliveProbeTimeoutMS) * time.Millisecond,
+		aliveSuccessTTL:      time.Duration(aliveSuccessTTLMS) * time.Millisecond,
+		aliveFailureCooldown: time.Duration(aliveFailureCooldownMS) * time.Millisecond,
 	}
 }
 
@@ -99,6 +102,10 @@ func (c *client) Rerank(ctx context.Context, query string, documents []string, t
 	// 防禦式檢查：避免 nil receiver 導致 panic。
 	if c == nil {
 		return nil, fmt.Errorf("reranker client is not initialized")
+	}
+	// 先做快速探活，避免服務未啟動時還要等完整請求逾時。
+	if aliveErr := c.probeAlive(ctx); aliveErr != nil {
+		return nil, fmt.Errorf("reranker service is not alive: %w", aliveErr)
 	}
 	// query 是重排語意主軸，空字串直接視為請求錯誤。
 	query = strings.TrimSpace(query)
@@ -236,4 +243,73 @@ func (c *client) waitBackoff(ctx context.Context, attempt int) error {
 	case <-timer.C:
 		return nil
 	}
+}
+
+// probeAlive 透過 TCP 快速探測服務是否可連線，避免等待長 timeout 才失敗。
+func (c *client) probeAlive(ctx context.Context) error {
+	if c == nil {
+		return fmt.Errorf("reranker client is not initialized")
+	}
+	if cachedErr, ok := c.getCachedProbeResult(); ok {
+		return cachedErr
+	}
+
+	parsed, err := url.Parse(c.baseURL)
+	if err != nil {
+		c.storeProbeResult(fmt.Errorf("invalid reranker base url: %w", err))
+		return fmt.Errorf("invalid reranker base url: %w", err)
+	}
+	host := strings.TrimSpace(parsed.Host)
+	if host == "" {
+		err := fmt.Errorf("reranker base url has empty host")
+		c.storeProbeResult(err)
+		return fmt.Errorf("reranker base url has empty host")
+	}
+	probeCtx, cancel := context.WithTimeout(ctx, c.aliveProbeTimeout)
+	defer cancel()
+	dialer := &net.Dialer{}
+	conn, dialErr := dialer.DialContext(probeCtx, "tcp", host)
+	if dialErr != nil {
+		c.storeProbeResult(dialErr)
+		return dialErr
+	}
+	_ = conn.Close()
+	c.storeProbeResult(nil)
+	return nil
+}
+
+// getCachedProbeResult 回傳快取探活結果。
+// ok=true 代表可直接使用快取；ok=false 代表需重新探活。
+func (c *client) getCachedProbeResult() (error, bool) {
+	if c == nil {
+		return fmt.Errorf("reranker client is not initialized"), true
+	}
+	now := time.Now()
+	c.probeMu.Lock()
+	defer c.probeMu.Unlock()
+	if c.lastProbeAt.IsZero() {
+		return nil, false
+	}
+	age := now.Sub(c.lastProbeAt)
+	if c.lastProbeErr == nil {
+		if age <= c.aliveSuccessTTL {
+			return nil, true
+		}
+		return nil, false
+	}
+	if age <= c.aliveFailureCooldown {
+		return c.lastProbeErr, true
+	}
+	return nil, false
+}
+
+// storeProbeResult 記錄最近一次探活結果，供下一次快速判斷。
+func (c *client) storeProbeResult(err error) {
+	if c == nil {
+		return
+	}
+	c.probeMu.Lock()
+	defer c.probeMu.Unlock()
+	c.lastProbeAt = time.Now()
+	c.lastProbeErr = err
 }

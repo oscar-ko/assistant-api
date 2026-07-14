@@ -37,6 +37,9 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 		config.AI.EmbeddingPath,
 		config.AI.EmbeddingMaxAttempts,
 		config.AI.EmbeddingRetryBackoffMS,
+		config.AI.EmbeddingAliveProbeTimeoutMS,
+		config.AI.EmbeddingAliveSuccessTTLMS,
+		config.AI.EmbeddingAliveFailureCooldownMS,
 	)
 	filterService := topkfilter.NewService(actionRouteRepo, embeddingClient, "zh-TW", 5)
 	if config.AI.RerankerEnabled {
@@ -49,6 +52,9 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 			config.AI.RerankerPath,
 			config.AI.RerankerMaxAttempts,
 			config.AI.RerankerRetryBackoffMS,
+			config.AI.RerankerAliveProbeTimeoutMS,
+			config.AI.RerankerAliveSuccessTTLMS,
+			config.AI.RerankerAliveFailureCooldownMS,
 		)
 		filterService = topkfilter.NewServiceWithReranker(actionRouteRepo, embeddingClient, rerankerClient, "zh-TW", 5)
 	}

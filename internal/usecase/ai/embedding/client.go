@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -18,11 +20,18 @@ type Service interface {
 }
 
 type client struct {
-	baseURL     string
-	embedPath   string
-	httpClient  *http.Client
-	maxAttempts int
-	backoffBase time.Duration
+	baseURL              string
+	embedPath            string
+	httpClient           *http.Client
+	maxAttempts          int
+	backoffBase          time.Duration
+	aliveProbeTimeout    time.Duration
+	aliveSuccessTTL      time.Duration
+	aliveFailureCooldown time.Duration
+
+	probeMu      sync.Mutex
+	lastProbeAt  time.Time
+	lastProbeErr error
 }
 
 type request struct {
@@ -34,9 +43,7 @@ type response struct {
 }
 
 const (
-	defaultRequestTimeoutSeconds = 60
-	defaultMaxRequestAttempts    = 4
-	defaultRetryBackoffMS        = 500
+	minPositiveDurationMS = 1
 )
 
 // NewClient 建立 embedding client。
@@ -44,36 +51,33 @@ const (
 // 參數說明：
 // - baseURL: embedding service 的主機位址，例如 http://127.0.0.1:9000
 // - timeoutSeconds: 單次 HTTP 請求逾時秒數
-// - embedPath: embedding API 路徑，預設 /embed
+// - embedPath: embedding API 路徑
 // - maxAttempts: 單次 embedding 最多重試幾次（包含第一次）
 // - retryBackoffMS: 每次重試的基礎等待毫秒數，會隨 attempt 線性放大
-func NewClient(baseURL string, timeoutSeconds int, embedPath string, maxAttempts int, retryBackoffMS int) Service {
+func NewClient(baseURL string, timeoutSeconds int, embedPath string, maxAttempts int, retryBackoffMS int, aliveProbeTimeoutMS int, aliveSuccessTTLMS int, aliveFailureCooldownMS int) Service {
 	baseURL = strings.TrimSpace(baseURL)
 	if baseURL == "" {
 		return nil
 	}
-	if timeoutSeconds <= 0 {
-		timeoutSeconds = defaultRequestTimeoutSeconds
-	}
-	if maxAttempts <= 0 {
-		maxAttempts = defaultMaxRequestAttempts
-	}
-	if retryBackoffMS <= 0 {
-		retryBackoffMS = defaultRetryBackoffMS
+	if timeoutSeconds <= 0 || maxAttempts <= 0 || retryBackoffMS < minPositiveDurationMS || aliveProbeTimeoutMS < minPositiveDurationMS || aliveSuccessTTLMS < minPositiveDurationMS || aliveFailureCooldownMS < minPositiveDurationMS {
+		return nil
 	}
 	embedPath = strings.TrimSpace(embedPath)
 	if embedPath == "" {
-		embedPath = "/embed"
+		return nil
 	}
 	if !strings.HasPrefix(embedPath, "/") {
 		embedPath = "/" + embedPath
 	}
 	return &client{
-		baseURL:     strings.TrimRight(baseURL, "/"),
-		embedPath:   embedPath,
-		httpClient:  &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second},
-		maxAttempts: maxAttempts,
-		backoffBase: time.Duration(retryBackoffMS) * time.Millisecond,
+		baseURL:              strings.TrimRight(baseURL, "/"),
+		embedPath:            embedPath,
+		httpClient:           &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second},
+		maxAttempts:          maxAttempts,
+		backoffBase:          time.Duration(retryBackoffMS) * time.Millisecond,
+		aliveProbeTimeout:    time.Duration(aliveProbeTimeoutMS) * time.Millisecond,
+		aliveSuccessTTL:      time.Duration(aliveSuccessTTLMS) * time.Millisecond,
+		aliveFailureCooldown: time.Duration(aliveFailureCooldownMS) * time.Millisecond,
 	}
 }
 
@@ -86,6 +90,10 @@ func NewClient(baseURL string, timeoutSeconds int, embedPath string, maxAttempts
 func (c *client) GetEmbedding(ctx context.Context, text string) ([]float64, error) {
 	if c == nil {
 		return nil, fmt.Errorf("embedding client is not initialized")
+	}
+	// 先做快速探活，避免服務未啟動時還要等完整請求逾時。
+	if aliveErr := c.probeAlive(ctx); aliveErr != nil {
+		return nil, fmt.Errorf("embedding service is not alive: %w", aliveErr)
 	}
 	text = strings.TrimSpace(text)
 	if text == "" {
@@ -188,4 +196,73 @@ func (c *client) waitBackoff(ctx context.Context, attempt int) error {
 	case <-timer.C:
 		return nil
 	}
+}
+
+// probeAlive 透過 TCP 快速探測服務是否可連線，避免等待長 timeout 才失敗。
+func (c *client) probeAlive(ctx context.Context) error {
+	if c == nil {
+		return fmt.Errorf("embedding client is not initialized")
+	}
+	if cachedErr, ok := c.getCachedProbeResult(); ok {
+		return cachedErr
+	}
+
+	parsed, err := url.Parse(c.baseURL)
+	if err != nil {
+		c.storeProbeResult(fmt.Errorf("invalid embedding base url: %w", err))
+		return fmt.Errorf("invalid embedding base url: %w", err)
+	}
+	host := strings.TrimSpace(parsed.Host)
+	if host == "" {
+		err := fmt.Errorf("embedding base url has empty host")
+		c.storeProbeResult(err)
+		return fmt.Errorf("embedding base url has empty host")
+	}
+	probeCtx, cancel := context.WithTimeout(ctx, c.aliveProbeTimeout)
+	defer cancel()
+	dialer := &net.Dialer{}
+	conn, dialErr := dialer.DialContext(probeCtx, "tcp", host)
+	if dialErr != nil {
+		c.storeProbeResult(dialErr)
+		return dialErr
+	}
+	_ = conn.Close()
+	c.storeProbeResult(nil)
+	return nil
+}
+
+// getCachedProbeResult 回傳快取探活結果。
+// ok=true 代表可直接使用快取；ok=false 代表需重新探活。
+func (c *client) getCachedProbeResult() (error, bool) {
+	if c == nil {
+		return fmt.Errorf("embedding client is not initialized"), true
+	}
+	now := time.Now()
+	c.probeMu.Lock()
+	defer c.probeMu.Unlock()
+	if c.lastProbeAt.IsZero() {
+		return nil, false
+	}
+	age := now.Sub(c.lastProbeAt)
+	if c.lastProbeErr == nil {
+		if age <= c.aliveSuccessTTL {
+			return nil, true
+		}
+		return nil, false
+	}
+	if age <= c.aliveFailureCooldown {
+		return c.lastProbeErr, true
+	}
+	return nil, false
+}
+
+// storeProbeResult 記錄最近一次探活結果，供下一次快速判斷。
+func (c *client) storeProbeResult(err error) {
+	if c == nil {
+		return
+	}
+	c.probeMu.Lock()
+	defer c.probeMu.Unlock()
+	c.lastProbeAt = time.Now()
+	c.lastProbeErr = err
 }

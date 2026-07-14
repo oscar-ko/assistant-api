@@ -335,6 +335,9 @@ func buildEmbeddingClientForSeed() embedding.Service {
 		config.AI.EmbeddingPath,
 		config.AI.EmbeddingMaxAttempts,
 		config.AI.EmbeddingRetryBackoffMS,
+		config.AI.EmbeddingAliveProbeTimeoutMS,
+		config.AI.EmbeddingAliveSuccessTTLMS,
+		config.AI.EmbeddingAliveFailureCooldownMS,
 	)
 }
 

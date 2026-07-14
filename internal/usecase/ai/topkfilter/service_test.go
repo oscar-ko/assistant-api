@@ -107,10 +107,10 @@ func TestFilterMessageLogsTopKCandidates(t *testing.T) {
 		t.Fatalf("query vector should be valid json: %v", err)
 	}
 
-	// 驗證 retrieval 與 filtered 兩段日誌都存在，方便比較 rerank 前後差異。
-	entries := observed.FilterMessage("inbound message top-k filtered candidates").All()
+	// 驗證 retrieval 與 reranked 兩段日誌都存在，方便比較 rerank 前後差異。
+	entries := observed.FilterMessage("inbound message top-k reranked candidates").All()
 	if len(entries) != 1 {
-		t.Fatalf("expected one top-k filter log, got %d", len(entries))
+		t.Fatalf("expected one top-k reranked log, got %d", len(entries))
 	}
 	retrieved := observed.FilterMessage("inbound message top-k retrieved candidates").All()
 	if len(retrieved) != 1 {
@@ -144,9 +144,9 @@ func TestFilterMessageUsesRerankerWhenAvailable(t *testing.T) {
 		t.Fatalf("expected reranker to be called")
 	}
 
-	entries := observed.FilterMessage("inbound message top-k filtered candidates").All()
+	entries := observed.FilterMessage("inbound message top-k reranked candidates").All()
 	if len(entries) != 1 {
-		t.Fatalf("expected one top-k filter log, got %d", len(entries))
+		t.Fatalf("expected one top-k reranked log, got %d", len(entries))
 	}
 	retrieved := observed.FilterMessage("inbound message top-k retrieved candidates").All()
 	if len(retrieved) != 1 {
@@ -162,6 +162,14 @@ func TestFilterMessageUsesRerankerWhenAvailable(t *testing.T) {
 	}
 	if !containsAll(candidatesText, []string{"operation=create_todo_task", "rerank_score="}) {
 		t.Fatalf("expected reranked todo route in candidates, got %q", candidatesText)
+	}
+	comparisonValue, ok := entries[0].ContextMap()["rank_comparison"]
+	if !ok {
+		t.Fatalf("expected rank_comparison field in log")
+	}
+	comparisonText := strings.TrimSpace(fmt.Sprint(comparisonValue))
+	if !containsAll(comparisonText, []string{"op=create_todo_task", "2->1 (+1)"}) {
+		t.Fatalf("expected rank comparison to show rerank movement, got %q", comparisonText)
 	}
 }
 

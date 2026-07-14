@@ -51,6 +51,10 @@ type AIConfig struct {
 	EmbeddingMaxAttempts    int    `mapstructure:"embedding_max_attempts" yaml:"embedding_max_attempts"`
 	EmbeddingRetryBackoffMS int    `mapstructure:"embedding_retry_backoff_ms" yaml:"embedding_retry_backoff_ms"`
 	EmbeddingPath           string `mapstructure:"embedding_path" yaml:"embedding_path"`
+	// EmbeddingAlive*：探活快取與失敗冷卻策略，避免每次訊息都探活。
+	EmbeddingAliveProbeTimeoutMS    int `mapstructure:"embedding_alive_probe_timeout_ms" yaml:"embedding_alive_probe_timeout_ms"`
+	EmbeddingAliveSuccessTTLMS      int `mapstructure:"embedding_alive_success_ttl_ms" yaml:"embedding_alive_success_ttl_ms"`
+	EmbeddingAliveFailureCooldownMS int `mapstructure:"embedding_alive_failure_cooldown_ms" yaml:"embedding_alive_failure_cooldown_ms"`
 	// Reranker* 參數控制第二階段 cross-encoder 候選精排服務。
 	// 第一階段召回仍由 embedding + pgvector 負責，兩者分工如下：
 	// - Embedding*: 召回候選（recall）
@@ -62,6 +66,10 @@ type AIConfig struct {
 	RerankerMaxAttempts    int    `mapstructure:"reranker_max_attempts" yaml:"reranker_max_attempts"`
 	RerankerRetryBackoffMS int    `mapstructure:"reranker_retry_backoff_ms" yaml:"reranker_retry_backoff_ms"`
 	RerankerPath           string `mapstructure:"reranker_path" yaml:"reranker_path"`
+	// RerankerAlive*：探活快取與失敗冷卻策略，避免每次訊息都探活。
+	RerankerAliveProbeTimeoutMS    int `mapstructure:"reranker_alive_probe_timeout_ms" yaml:"reranker_alive_probe_timeout_ms"`
+	RerankerAliveSuccessTTLMS      int `mapstructure:"reranker_alive_success_ttl_ms" yaml:"reranker_alive_success_ttl_ms"`
+	RerankerAliveFailureCooldownMS int `mapstructure:"reranker_alive_failure_cooldown_ms" yaml:"reranker_alive_failure_cooldown_ms"`
 }
 
 // LineConfig 為 LINE OAuth 綁定所需參數。
@@ -173,6 +181,9 @@ func MustLoad() {
 		viper.SetDefault("ai.embedding_max_attempts", 4)
 		viper.SetDefault("ai.embedding_retry_backoff_ms", 500)
 		viper.SetDefault("ai.embedding_path", "/embed")
+		viper.SetDefault("ai.embedding_alive_probe_timeout_ms", 1500)
+		viper.SetDefault("ai.embedding_alive_success_ttl_ms", 10000)
+		viper.SetDefault("ai.embedding_alive_failure_cooldown_ms", 3000)
 		// cross-encoder reranker 的預設本機端點（第二階段重排）。
 		// 這些預設值可讓本機在未特別覆寫時，直接對接 9001 服務。
 		viper.SetDefault("ai.reranker_enabled", true)
@@ -181,6 +192,9 @@ func MustLoad() {
 		viper.SetDefault("ai.reranker_max_attempts", 3)
 		viper.SetDefault("ai.reranker_retry_backoff_ms", 300)
 		viper.SetDefault("ai.reranker_path", "/rerank")
+		viper.SetDefault("ai.reranker_alive_probe_timeout_ms", 1500)
+		viper.SetDefault("ai.reranker_alive_success_ttl_ms", 10000)
+		viper.SetDefault("ai.reranker_alive_failure_cooldown_ms", 3000)
 		viper.SetDefault("line.channel_token", "")
 		viper.SetDefault("line.channel_secret", "")
 		viper.SetDefault("line.channel_id", "")
