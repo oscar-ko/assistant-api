@@ -156,16 +156,17 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 	for _, event := range req.Events {
 		// 非 message 事件直接略過；只有文字/圖片等訊息才需要進一步處理。
 		if message, ok := adaptLineEventToUnified(event); ok {
-			if s.topKFilterService != nil {
-				s.topKFilterService.FilterMessage(context.Background(), message)
-			}
-
 			// 先把原始訊息資訊印出來，方便在 console 直接看到來了什麼內容。
 			zap.L().Info("line message received",
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 				zap.String("text", strings.TrimSpace(message.Text)),
 			)
+
+			// 收到訊息後先印 log，再執行 top-k；避免 top-k 延遲影響第一時間觀測。
+			if s.topKFilterService != nil {
+				s.topKFilterService.FilterMessage(context.Background(), message)
+			}
 
 			// 先落庫，確保訊息資料優先可用，不受後續 AI 延遲影響。
 			savedMessage := s.persistUnifiedMessage(message)

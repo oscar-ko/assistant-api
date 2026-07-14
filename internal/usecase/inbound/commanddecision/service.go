@@ -69,7 +69,7 @@ func (s *service) DecideMessage(ctx context.Context, message *unifiedmessage.Mes
 			decision.OnCommandChain = true
 			decision.EffectiveMentionedBot = true
 		}
-	}
+	} // TODO: fix this
 
 	if s != nil && s.semanticService != nil {
 		// 第三階段：交給 semantic service 輸出 intent_label 與信心分數。
