@@ -4,12 +4,17 @@
     "FIXME",
     "NOTE"
   ],
-  "todo-tree.regex.regex": "(TODO|FIXME|NOTE)",
-  "todo-tree.regex.tagGroup": 0,
+  "todo-tree.regex.regex": "(//|#|<!--|;|/\\*|^|^[ \\t]*(-|\\d+.))\\s*($TAGS)",
   "todo-tree.regex.regexCaseSensitive": false,
   "todo-tree.highlights.enabled": true,
+  "todo-tree.highlights.defaultHighlight": {
+    "type": "whole-line",
+    "background": "#FFF3BF",
+    "foreground": "#1F2937"
+  },
   "todo-tree.tree.showCountsInTree": true,
   "todo-tree.tree.scanMode": "workspace",
+  "todo-tree.ripgrep.ripgrep": "C:\\Users\\ypko\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BurntSushi.ripgrep.MSVC_Microsoft.Winget.Source_8wekyb3d8bbwe\\ripgrep-15.1.0-x86_64-pc-windows-msvc\\rg.exe",
   "todo-tree.highlights.customHighlight": {
     "TODO": {
       "icon": "check",
