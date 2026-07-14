@@ -14,6 +14,8 @@ ai:
     semantic_decision_service_timeout_seconds: 90
     embedding_url: "http://127.0.0.1:9000"
     embedding_timeout_seconds: 60
+    embedding_max_attempts: 4
+    embedding_retry_backoff_ms: 500
     embedding_path: "/embed"
 database:
     auto_schema_create: true

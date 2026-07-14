@@ -31,7 +31,7 @@ func (ActionRoute) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			Comment("向量嵌入（PostgreSQL pgvector）").
-			SchemaType(map[string]string{dialect.Postgres: "vector(512)"}),
+			SchemaType(map[string]string{dialect.Postgres: "vector(1024)"}),
 		field.String("locale").NotEmpty().Comment("語系，例如 zh-TW, en, ja"),
 	}
 }
@@ -43,7 +43,7 @@ func (ActionRoute) Indexes() []ent.Index {
 		index.Fields("embedding").
 			Annotations(
 				entsql.IndexType("hnsw"),
-				entsql.OpClass("vector_l2_ops"),
+				entsql.OpClass("vector_cosine_ops"),
 			),
 	}
 }

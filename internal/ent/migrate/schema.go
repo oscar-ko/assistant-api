@@ -49,7 +49,7 @@ var (
 	ActionRoutesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "route_text", Type: field.TypeString, SchemaType: map[string]string{"mysql": "TEXT", "postgres": "text"}},
-		{Name: "embedding", Type: field.TypeOther, Nullable: true, SchemaType: map[string]string{"postgres": "vector(512)"}},
+		{Name: "embedding", Type: field.TypeOther, Nullable: true, SchemaType: map[string]string{"postgres": "vector(1024)"}},
 		{Name: "locale", Type: field.TypeString},
 		{Name: "action_id", Type: field.TypeUUID},
 	}
@@ -82,7 +82,7 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{ActionRoutesColumns[2]},
 				Annotation: &entsql.IndexAnnotation{
-					OpClass: "vector_l2_ops",
+					OpClass: "vector_cosine_ops",
 					Type:    "hnsw",
 				},
 			},

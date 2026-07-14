@@ -329,7 +329,13 @@ func buildEmbeddingClientForSeed() embedding.Service {
 	if strings.TrimSpace(config.AI.EmbeddingURL) == "" {
 		return nil
 	}
-	return embedding.NewClient(config.AI.EmbeddingURL, config.AI.EmbeddingTimeoutSeconds, config.AI.EmbeddingPath)
+	return embedding.NewClient(
+		config.AI.EmbeddingURL,
+		config.AI.EmbeddingTimeoutSeconds,
+		config.AI.EmbeddingPath,
+		config.AI.EmbeddingMaxAttempts,
+		config.AI.EmbeddingRetryBackoffMS,
+	)
 }
 
 // toFloat32Slice 將 embedding API 回傳的 float64 轉為 pgvector 所需的 float32。

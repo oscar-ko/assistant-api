@@ -46,6 +46,8 @@ type AIConfig struct {
 	SemanticDecisionServiceTimeoutSeconds int    `mapstructure:"semantic_decision_service_timeout_seconds" yaml:"semantic_decision_service_timeout_seconds"`
 	EmbeddingURL                          string `mapstructure:"embedding_url" yaml:"embedding_url"`
 	EmbeddingTimeoutSeconds               int    `mapstructure:"embedding_timeout_seconds" yaml:"embedding_timeout_seconds"`
+	EmbeddingMaxAttempts                  int    `mapstructure:"embedding_max_attempts" yaml:"embedding_max_attempts"`
+	EmbeddingRetryBackoffMS               int    `mapstructure:"embedding_retry_backoff_ms" yaml:"embedding_retry_backoff_ms"`
 	EmbeddingPath                         string `mapstructure:"embedding_path" yaml:"embedding_path"`
 }
 
@@ -154,6 +156,8 @@ func MustLoad() {
 		viper.SetDefault("ai.semantic_decision_service_timeout_seconds", 90)
 		viper.SetDefault("ai.embedding_url", "http://127.0.0.1:9000")
 		viper.SetDefault("ai.embedding_timeout_seconds", 60)
+		viper.SetDefault("ai.embedding_max_attempts", 4)
+		viper.SetDefault("ai.embedding_retry_backoff_ms", 500)
 		viper.SetDefault("ai.embedding_path", "/embed")
 		viper.SetDefault("line.channel_token", "")
 		viper.SetDefault("line.channel_secret", "")

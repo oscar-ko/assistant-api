@@ -106,7 +106,8 @@ func (r ActionRouteRepo) SearchTopByVectorAndLocale(ctx context.Context, locale 
 
 	queryVectorLiteral := strings.TrimSpace(queryVector)
 	q = q.Order(func(s *sql.Selector) {
-		s.OrderExpr(sql.ExprP(fmt.Sprintf("embedding <-> '%s'::vector", queryVectorLiteral)))
+		// BGE-M3 retrieval works better with cosine distance than L2.
+		s.OrderExpr(sql.ExprP(fmt.Sprintf("embedding <=> '%s'::vector", queryVectorLiteral)))
 	}).Limit(topK)
 
 	routes, err := q.All(ctx)
@@ -119,7 +120,7 @@ func (r ActionRouteRepo) SearchTopByVectorAndLocale(ctx context.Context, locale 
 		if route.Embedding == nil || route.Edges.Action == nil || route.Edges.Action.Edges.Skill == nil {
 			continue
 		}
-		distance := l2Distance(route.Embedding.Slice(), queryVec)
+		distance := cosineDistance(route.Embedding.Slice(), queryVec)
 		candidates = append(candidates, ActionRouteVectorCandidate{
 			APIOperation: route.Edges.Action.APIOperation,
 			SkillCode:    route.Edges.Action.Edges.Skill.SkillCode,
@@ -321,7 +322,7 @@ func parseEmbeddingVector(s string) ([]float32, error) {
 	return vec, nil
 }
 
-func l2Distance(a, b []float32) float64 {
+func cosineDistance(a, b []float32) float64 {
 	if len(a) == 0 || len(b) == 0 {
 		return math.Inf(1)
 	}
@@ -329,13 +330,22 @@ func l2Distance(a, b []float32) float64 {
 	if len(b) < n {
 		n = len(b)
 	}
-	var sum float64
+	var dot float64
+	var normA float64
+	var normB float64
 	for i := 0; i < n; i++ {
-		d := float64(a[i] - b[i])
-		sum += d * d
+		av := float64(a[i])
+		bv := float64(b[i])
+		dot += av * bv
+		normA += av * av
+		normB += bv * bv
 	}
 	if len(a) != len(b) {
 		return math.Inf(1)
 	}
-	return math.Sqrt(sum)
+	if normA == 0 || normB == 0 {
+		return math.Inf(1)
+	}
+	cosineSim := dot / (math.Sqrt(normA) * math.Sqrt(normB))
+	return 1.0 - cosineSim
 }

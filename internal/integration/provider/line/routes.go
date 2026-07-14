@@ -26,7 +26,13 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 	actionRouteRepo := repository.NewActionRouteRepo(client)
 	semanticDecisionClassifier := semanticdecision.NewClassifier(config.AI.SemanticDecisionServiceURL, config.AI.SemanticDecisionServiceTimeoutSeconds)
 	semanticDecisionService := semanticdecision.NewService(semanticDecisionClassifier)
-	embeddingClient := embedding.NewClient(config.AI.EmbeddingURL, config.AI.EmbeddingTimeoutSeconds, config.AI.EmbeddingPath)
+	embeddingClient := embedding.NewClient(
+		config.AI.EmbeddingURL,
+		config.AI.EmbeddingTimeoutSeconds,
+		config.AI.EmbeddingPath,
+		config.AI.EmbeddingMaxAttempts,
+		config.AI.EmbeddingRetryBackoffMS,
+	)
 	filterService := topkfilter.NewService(actionRouteRepo, embeddingClient, "zh-TW", 5)
 
 	r.GET("/line/bind", bindPage)
