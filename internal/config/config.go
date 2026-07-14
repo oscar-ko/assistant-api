@@ -42,13 +42,26 @@ type DatabaseConfig struct {
 }
 
 type AIConfig struct {
+	// SemanticDecision*：語義決策服務（意圖/決策）端點設定。
 	SemanticDecisionServiceURL            string `mapstructure:"semantic_decision_service_url" yaml:"semantic_decision_service_url"`
 	SemanticDecisionServiceTimeoutSeconds int    `mapstructure:"semantic_decision_service_timeout_seconds" yaml:"semantic_decision_service_timeout_seconds"`
-	EmbeddingURL                          string `mapstructure:"embedding_url" yaml:"embedding_url"`
-	EmbeddingTimeoutSeconds               int    `mapstructure:"embedding_timeout_seconds" yaml:"embedding_timeout_seconds"`
-	EmbeddingMaxAttempts                  int    `mapstructure:"embedding_max_attempts" yaml:"embedding_max_attempts"`
-	EmbeddingRetryBackoffMS               int    `mapstructure:"embedding_retry_backoff_ms" yaml:"embedding_retry_backoff_ms"`
-	EmbeddingPath                         string `mapstructure:"embedding_path" yaml:"embedding_path"`
+	// Embedding*：第一階段候選召回使用的向量化服務設定。
+	EmbeddingURL            string `mapstructure:"embedding_url" yaml:"embedding_url"`
+	EmbeddingTimeoutSeconds int    `mapstructure:"embedding_timeout_seconds" yaml:"embedding_timeout_seconds"`
+	EmbeddingMaxAttempts    int    `mapstructure:"embedding_max_attempts" yaml:"embedding_max_attempts"`
+	EmbeddingRetryBackoffMS int    `mapstructure:"embedding_retry_backoff_ms" yaml:"embedding_retry_backoff_ms"`
+	EmbeddingPath           string `mapstructure:"embedding_path" yaml:"embedding_path"`
+	// Reranker* 參數控制第二階段 cross-encoder 候選精排服務。
+	// 第一階段召回仍由 embedding + pgvector 負責，兩者分工如下：
+	// - Embedding*: 召回候選（recall）
+	// - Reranker*: 精排候選（precision）
+	// - RerankerEnabled: 可切換是否啟用第二階段
+	RerankerEnabled        bool   `mapstructure:"reranker_enabled" yaml:"reranker_enabled"`
+	RerankerURL            string `mapstructure:"reranker_url" yaml:"reranker_url"`
+	RerankerTimeoutSeconds int    `mapstructure:"reranker_timeout_seconds" yaml:"reranker_timeout_seconds"`
+	RerankerMaxAttempts    int    `mapstructure:"reranker_max_attempts" yaml:"reranker_max_attempts"`
+	RerankerRetryBackoffMS int    `mapstructure:"reranker_retry_backoff_ms" yaml:"reranker_retry_backoff_ms"`
+	RerankerPath           string `mapstructure:"reranker_path" yaml:"reranker_path"`
 }
 
 // LineConfig 為 LINE OAuth 綁定所需參數。
@@ -125,6 +138,7 @@ func MustLoad() {
 		if path != "" {
 			viper.SetConfigFile(path)
 		} else {
+			// 預設策略：優先讀專案 configs/app.yml，並保留多層路徑容錯。
 			viper.SetConfigFile(defaultConfigPath)
 			viper.SetConfigName("app")
 			viper.SetConfigType("yaml")
@@ -159,6 +173,14 @@ func MustLoad() {
 		viper.SetDefault("ai.embedding_max_attempts", 4)
 		viper.SetDefault("ai.embedding_retry_backoff_ms", 500)
 		viper.SetDefault("ai.embedding_path", "/embed")
+		// cross-encoder reranker 的預設本機端點（第二階段重排）。
+		// 這些預設值可讓本機在未特別覆寫時，直接對接 9001 服務。
+		viper.SetDefault("ai.reranker_enabled", true)
+		viper.SetDefault("ai.reranker_url", "http://127.0.0.1:9001")
+		viper.SetDefault("ai.reranker_timeout_seconds", 60)
+		viper.SetDefault("ai.reranker_max_attempts", 3)
+		viper.SetDefault("ai.reranker_retry_backoff_ms", 300)
+		viper.SetDefault("ai.reranker_path", "/rerank")
 		viper.SetDefault("line.channel_token", "")
 		viper.SetDefault("line.channel_secret", "")
 		viper.SetDefault("line.channel_id", "")
@@ -171,9 +193,11 @@ func MustLoad() {
 		viper.SetDefault("graphql.playground_path", "/playground")
 
 		if err := viper.ReadInConfig(); err != nil {
+			// APP_CONFIG 未指定時，輸出通用錯誤訊息。
 			if path == "" {
 				log.Fatalf("failed to read config file: %v", err)
 			}
+			// APP_CONFIG 有指定時，回報完整路徑方便排錯。
 			log.Fatalf("failed to read config file %q: %v", path, err)
 		}
 
@@ -186,6 +210,7 @@ func MustLoad() {
 			"graphql.playground_path",
 		}
 		for _, key := range requiredKeys {
+			// required key 缺失即中止啟動，避免 runtime 才爆設定錯誤。
 			if !viper.IsSet(key) {
 				log.Fatalf("%v", fmt.Errorf("missing required config key: %s", key))
 			}

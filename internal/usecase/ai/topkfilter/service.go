@@ -2,7 +2,7 @@ package topkfilter
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -10,6 +10,7 @@ import (
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
 	"assistant-api/internal/usecase/ai/embedding"
+	"assistant-api/internal/usecase/ai/reranker"
 
 	"go.uber.org/zap"
 )
@@ -42,12 +43,13 @@ type Service interface {
 	FilterMessage(ctx context.Context, message *unifiedmessage.Message)
 }
 
-// service 是 top-k 篩選流程的實際實作。
-// searcher 負責向量檢索；embedder 負責把文字轉成 embedding；
-// locale/topK 則定義這個 service 的查詢預設行為。
+// service 是 top-k pipeline 的編排層。
+// 它只負責流程控制，不直接實作 retrieval 或 rerank 細節：
+// - retriever: 第一階段候選召回（vector retrieval）
+// - reranker: 第二階段候選重排（cross-encoder rerank）
+// locale/topK 則用於輸出可觀測資訊。
 type service struct {
-	searcher Searcher
-	embedder embedding.Service
+	pipeline CandidatePipeline
 	locale   string
 	topK     int
 }
@@ -58,17 +60,27 @@ type service struct {
 // - locale 未指定時回退到 zh-TW，對齊目前 action_route seed。
 // - topK 非正數時回退到預設 5，避免呼叫端忘記設定造成空查詢或過大查詢。
 func NewService(searcher Searcher, embedder embedding.Service, locale string, topK int) Service {
-	if searcher == nil || embedder == nil {
+	return NewServiceWithReranker(searcher, embedder, nil, locale, topK)
+}
+
+// NewServiceWithReranker 組裝具備 cross-encoder 重排能力的 top-k 篩選服務。
+func NewServiceWithReranker(searcher Searcher, embedder embedding.Service, rerankerSvc reranker.Service, locale string, topK int) Service {
+	// 組裝第一階段召回器（top-k retrieval）。
+	retriever := NewTopKRetriever(searcher, embedder, locale, topK)
+	// 組裝第二階段重排器（cross-encoder rerank）。
+	reorder := NewCandidateReranker(rerankerSvc, topK)
+	// 將兩階段串成可觀測的候選處理管線。
+	pipeline := NewCandidatePipelineWithStages(retriever, reorder)
+	if pipeline == nil {
 		return nil
 	}
-	locale = strings.TrimSpace(locale)
-	if locale == "" {
+	if strings.TrimSpace(locale) == "" {
 		locale = defaultLocale
 	}
 	if topK <= 0 {
 		topK = defaultTopK
 	}
-	return &service{searcher: searcher, embedder: embedder, locale: locale, topK: topK}
+	return &service{pipeline: pipeline, locale: locale, topK: topK}
 }
 
 // FilterMessage 會在訊息一進來時先做正式的 top-k 候選篩選。
@@ -83,7 +95,7 @@ func NewService(searcher Searcher, embedder embedding.Service, locale string, to
 func (s *service) FilterMessage(ctx context.Context, message *unifiedmessage.Message) {
 	// 第一層保護：service 未完整組裝、訊息不存在、或訊息不是文字時直接跳過。
 	// 這能避免在 webhook 高頻入口對圖片/貼圖/空 payload 誤打 embedding API。
-	if s == nil || s.searcher == nil || s.embedder == nil || message == nil || !message.IsText() {
+	if s == nil || s.pipeline == nil || message == nil || !message.IsText() {
 		return
 	}
 
@@ -93,50 +105,60 @@ func (s *service) FilterMessage(ctx context.Context, message *unifiedmessage.Mes
 	if text == "" {
 		return
 	}
+	// platform 來自 unified message，讓 log 不再綁定特定通訊軟體。
+	platform := strings.TrimSpace(message.Platform)
 
-	// 先把使用者文字轉成 embedding。這是整個 top-k 篩選的前置條件；
-	// 若 embedding 失敗，就無法進一步做向量比對。
-	// 失敗策略採 debug log + return：
-	// - 不阻塞 webhook 主流程
-	// - 仍保留 channel/message 維度，方便回頭追查是哪則訊息失敗
-	vector, err := s.embedder.GetEmbedding(ctx, text)
+	// 第一階段：向量召回 top-k 候選。
+	candidates, err := s.pipeline.RetrieveCandidates(ctx, text)
 	if err != nil {
-		zap.L().Debug("line message top-k filter skipped",
+		reason := "vector_retrieval_failed"
+		switch {
+		case errors.Is(err, errEmbeddingFailed):
+			reason = "embedding_failed"
+		case errors.Is(err, errMarshalQueryVectorFailed):
+			reason = "marshal_query_vector_failed"
+		case errors.Is(err, errVectorSearchFailed):
+			reason = "vector_search_failed"
+		}
+		zap.L().Debug("inbound message top-k filter skipped",
+			zap.String("platform", platform),
 			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-			zap.String("reason", "embedding_failed"),
+			zap.String("reason", reason),
 			zap.Error(err),
 		)
 		return
 	}
 
-	// repository 目前接受的是 JSON 字串型態的 query vector，
-	// 因此這裡把 embedding 結果編碼成 JSON array，例如 [0.1,0.2,0.3]。
-	// 這讓 usecase 層不需要知道底層 pgvector literal 的細節。
-	queryVector, err := json.Marshal(vector)
-	if err != nil {
-		zap.L().Debug("line message top-k filter skipped",
-			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-			zap.String("reason", "marshal_query_vector_failed"),
-			zap.Error(err),
-		)
-		return
-	}
+	// 先輸出 retrieval 階段結果，方便與 rerank 後結果分開比較。
+	retrievedLogs := formatCandidateLogs(buildScoredCandidates(candidates))
+	zap.L().Info("inbound message top-k retrieved candidates",
+		zap.String("platform", platform),
+		zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+		zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+		zap.String("locale", s.locale),
+		zap.Int("top_k", s.topK),
+		zap.String("text", text),
+		zap.Strings("candidates", retrievedLogs),
+	)
 
-	// 正式執行 top-k 向量篩選。
-	// skillCodes 目前先傳 nil，表示不先做人為技能白名單限制，
-	// 讓資料庫依距離自然排序出整體最相關候選。
-	// 若未來有上游 intent / domain constraint，再把 skillCodes 接進來即可。
-	candidates, err := s.searcher.SearchTopByVectorAndLocale(ctx, s.locale, string(queryVector), s.topK, nil)
-	if err != nil {
-		zap.L().Debug("line message top-k filter skipped",
+	scoredCandidates := buildScoredCandidates(candidates)
+	rerankApplied := false
+	// 第二階段：若啟用 cross-encoder，則在候選集上做精排。
+	// 失敗時不阻斷流程，回退到 retrieval 原排序。
+	reordered, applied, rerankErr := s.pipeline.RerankCandidates(ctx, text, candidates)
+	if rerankErr != nil {
+		zap.L().Debug("inbound message top-k rerank skipped",
+			zap.String("platform", platform),
 			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-			zap.String("reason", "vector_search_failed"),
-			zap.Error(err),
+			zap.String("reason", "rerank_failed"),
+			zap.Error(rerankErr),
 		)
-		return
+	} else {
+		// 僅在重排成功時覆寫候選結果，保留失敗 fallback 能力。
+		scoredCandidates = reordered
+		rerankApplied = applied
 	}
 
 	// 將候選整理成易讀的單行摘要，刻意把 rank / operation / skill /
@@ -146,26 +168,51 @@ func (s *service) FilterMessage(ctx context.Context, message *unifiedmessage.Mes
 	// - 對應到哪條 route_text
 	// - 距離是否過近或過遠
 	// 這對調整 seed route、embedding 模型或未來的 threshold 都很重要。
+	vectorLogs := formatCandidateLogs(scoredCandidates)
+
+	// 最後輸出正式的 top-k 篩選結果。
+	// 這筆 log 的語意是「該訊息已完成候選篩選」，不是單純 debug preview，
+	// 因此使用 Info level，讓營運與開發在正常日誌中就能直接觀察召回結果。
+	zap.L().Info("inbound message top-k filtered candidates",
+		zap.String("platform", platform),
+		zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+		zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+		zap.String("locale", s.locale),
+		zap.Int("top_k", s.topK),
+		zap.Bool("rerank_applied", rerankApplied),
+		zap.String("text", text),
+		zap.Strings("candidates", vectorLogs),
+	)
+}
+
+// formatCandidateLogs 將候選轉成易讀字串，供結構化日誌輸出。
+// 若某筆包含 Score，會額外帶上 rerank_score，方便直接比較前後排序。
+func formatCandidateLogs(candidates []ScoredCandidate) []string {
 	vectorLogs := make([]string, 0, len(candidates))
-	for idx, candidate := range candidates {
+	for idx, item := range candidates {
+		candidate := item.Candidate
+		rerankScore := ""
+		if item.Score != nil {
+			// 分數存在即輸出，代表該候選有被某個 stage 評分。
+			rerankScore = " rerank_score=" + fmt.Sprintf("%.6f", *item.Score)
+		}
 		vectorLogs = append(vectorLogs,
 			"rank="+strconv.Itoa(idx+1)+
 				" operation="+strings.TrimSpace(candidate.APIOperation)+
 				" skill="+strings.TrimSpace(candidate.SkillCode)+
 				" distance="+fmt.Sprintf("%.6f", candidate.Distance)+
+				rerankScore+
 				" route_text="+strconv.Quote(strings.TrimSpace(candidate.RouteText)),
 		)
 	}
+	return vectorLogs
+}
 
-	// 最後輸出正式的 top-k 篩選結果。
-	// 這筆 log 的語意是「該訊息已完成候選篩選」，不是單純 debug preview，
-	// 因此使用 Info level，讓營運與開發在正常日誌中就能直接觀察召回結果。
-	zap.L().Info("line message top-k filtered candidates",
-		zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-		zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-		zap.String("locale", s.locale),
-		zap.Int("top_k", s.topK),
-		zap.String("text", text),
-		zap.Strings("candidates", vectorLogs),
-	)
+// buildScoredCandidates 將純候選包成顯式結構，表示目前沒有額外分數。
+func buildScoredCandidates(candidates []repository.ActionRouteVectorCandidate) []ScoredCandidate {
+	out := make([]ScoredCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		out = append(out, ScoredCandidate{Candidate: candidate})
+	}
+	return out
 }

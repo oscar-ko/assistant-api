@@ -1,5 +1,6 @@
 run_mode: "dev"
 
+# 日誌設定：控制輸出等級與檔案輪替策略。
 log:
     level: "info"
     filename: ""
@@ -8,18 +9,35 @@ log:
     max_backups: 5
 
 server:
+    # API 服務對外監聽埠。
     port: "8080"
+
+# AI 相關設定：包含語義決策、召回 embedding 與 reranker 精排。
 ai:
+    # 語義決策服務（意圖/任務判斷）端點。
     semantic_decision_service_url: "http://127.0.0.1:9002"
     semantic_decision_service_timeout_seconds: 90
+    # 第一階段：embedding 向量服務（用於 top-k 候選召回）。
     embedding_url: "http://127.0.0.1:9000"
     embedding_timeout_seconds: 60
     embedding_max_attempts: 4
     embedding_retry_backoff_ms: 500
     embedding_path: "/embed"
+    # cross-encoder reranker (第二階段精排)
+    # 用法：先由 embedding/pgvector 召回候選，再用 reranker 重排候選順序。
+    # 調整方向：品質優先可拉高 timeout/attempts，延遲優先則反向調整。
+    reranker_enabled: true
+    reranker_url: "http://127.0.0.1:9001"
+    reranker_timeout_seconds: 60
+    reranker_max_attempts: 3
+    reranker_retry_backoff_ms: 300
+    reranker_path: "/rerank"
+
+# 資料庫 schema 自動建立開關（開發環境常設為 true）。
 database:
     auto_schema_create: true
 
+# PostgreSQL 連線資訊。
 postgresql:
     address: "127.0.0.1:5432"
     database: "assistant_dev2"
@@ -27,6 +45,7 @@ postgresql:
     password: "d22340014"
     parameters: "sslmode=disable"
 
+# LINE 平台整合設定（OAuth + webhook bot 資訊）。
 line:
     channel_token: "nyIJ/34bQBdUCMDt4qnZHMUMTacR0r4d6DC8DZRbEemdkh2jn+pJdz6b8ID3znqivrpU9VMM6r+Vb+s5R4wJoayE5Ndux1lk2JxzuqlTNEotrhZ9qfnS2huRjmPLb4iUykRggJ3Xr71QPynULjAb1AdB04t89/1O/w1cDnyilFU="
     channel_secret: "7966f875a2c3c7bcf8a22a27b048d524"
@@ -37,6 +56,7 @@ line:
     assistant_bot_url: "https://line.me/R/ti/p/@001ondgw"
     scopes: "openid profile email"
 
+# GraphQL API 與 Playground 路由。
 graphql:
     query_path: "/query"
     playground_path: "/playground"
