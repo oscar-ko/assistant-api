@@ -245,6 +245,12 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 		finalDecision, err := s.semanticService.DecideFinalAction(context.Background(), message.Text, actionCandidates)
 		if err != nil {
 			if semanticdecision.IsNoMatchError(err) {
+				zap.L().Info("line message action decision no_match",
+					zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+					zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+					zap.String("text", strings.TrimSpace(message.Text)),
+					zap.String("error_message", err.Error()),
+				)
 				// no_match 是語意層的「正常結果」：代表候選 action 都不適配。
 				// 這時不應視為錯誤，而是直接改走問答模型回答使用者問題。
 				s.routeMessageToQuestionAnswer(message, 0.0, config.AI.SemanticDecision.CommandConfidenceThreshold, "no_match")
@@ -264,6 +270,17 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 			// 這裡保持靜默跳過，避免把「未決策」誤記錄成錯誤。
 			continue
 		}
+
+		// 無論後續是否因低信心改走問答，先把 action decision 原始判讀結果印出來，
+		// 方便觀察模型在候選 action 之間的實際選擇與信心值。
+		zap.L().Info("line message action decision evaluated",
+			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			zap.String("text", strings.TrimSpace(message.Text)),
+			zap.String("api_operation", finalDecision.APIOperation),
+			zap.Float64("confidence", finalDecision.Confidence),
+			zap.String("reason", strings.TrimSpace(finalDecision.Reason)),
+		)
 
 		// 低信心門檻：若 final semantic decision 信心值不足，
 		// 判定為「使用者在問 LLM」而非可執行指令，直接停止 action 路徑。
