@@ -12,6 +12,7 @@ import (
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/usecase/ai/embedding"
+	"assistant-api/internal/usecase/ai/semanticdecision"
 
 	"github.com/google/uuid"
 	"github.com/pgvector/pgvector-go"
@@ -81,7 +82,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Enable translation for a specific locale in the current channel.",
 					APIOperation:   "start_translation_locale",
 					RouteTexts:     []string{"開啟翻譯", "開始翻譯模式", "新增翻譯語系", "幫我開啟某語言翻譯", "請翻譯成指定語言"},
-					CommandPurpose: "用途: 協助模型判斷此指令是啟用翻譯語系。必要參數: target_locale(目標語系)、channel_scope。缺參策略: 僅接受使用者明確指定 target_locale；若缺 target_locale，先提問請使用者提供，不可自行推測。",
+					CommandPurpose: fmt.Sprintf("用途: 協助模型判斷此指令是啟用翻譯語系。必要參數: %s(目標語系)、channel_scope。缺參策略: 僅接受使用者明確指定 %s；若缺 %s，先提問請使用者提供，不可自行推測。", semanticdecision.ActionParamTargetLocale, semanticdecision.ActionParamTargetLocale, semanticdecision.ActionParamTargetLocale),
 				},
 				{
 					ActionCode:     action.ActionCodeDisable,
@@ -97,7 +98,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Disable translation for a specific locale in the current channel.",
 					APIOperation:   "stop_translation_locale",
 					RouteTexts:     []string{"關閉某語言翻譯", "停止指定語言翻譯", "移除翻譯語系", "把某個語言的翻譯關掉", "不要某語言翻譯"},
-					CommandPurpose: "用途: 協助模型判斷此指令是停用指定翻譯語系。必要參數: target_locale、channel_scope。缺參策略: 若缺 target_locale，必須先提問取得語系後再執行，不可推測。",
+					CommandPurpose: fmt.Sprintf("用途: 協助模型判斷此指令是停用指定翻譯語系。必要參數: %s、channel_scope。缺參策略: 若缺 %s，必須先提問取得語系後再執行，不可推測。", semanticdecision.ActionParamTargetLocale, semanticdecision.ActionParamTargetLocale),
 				},
 			},
 		},

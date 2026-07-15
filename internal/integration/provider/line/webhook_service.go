@@ -10,20 +10,15 @@ import (
 	"assistant-api/internal/ent"
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
+	"assistant-api/internal/usecase/actionpost"
 	"assistant-api/internal/usecase/ai/semanticdecision"
 	"assistant-api/internal/usecase/ai/topkfilter"
 	"assistant-api/internal/usecase/inbound/commandchain"
 	"assistant-api/internal/usecase/inbound/commanddecision"
 	"assistant-api/internal/usecase/inbound/messagepersist"
 
-	"github.com/google/uuid"
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
 	"go.uber.org/zap"
-)
-
-const (
-	translationStartOperation = "start_translation_locale"
-	translationSkillCode      = "channel.translation"
 )
 
 // WebhookProcessor 定義 LINE webhook 的處理介面，方便注入不同實作。
@@ -36,16 +31,13 @@ type WebhookProcessor interface {
 // WebhookService 是最小可用的預設實作：
 // 僅解析事件並輸出到 console，便於開發階段觀察 webhook 是否正常進站。
 type WebhookService struct {
-	repo               *repository.ChannelMessageRepo
-	decisionService    commanddecision.Service
-	semanticService    semanticdecision.Service
-	persistenceService messagepersist.Service
-	topKFilterService  topkfilter.Service
+	repo                 *repository.ChannelMessageRepo
+	decisionService      commanddecision.Service
+	semanticService      semanticdecision.Service
+	persistenceService   messagepersist.Service
+	topKFilterService    topkfilter.Service
+	actionPostDispatcher *actionpost.Dispatcher
 }
-
-// actionPostHandler 是「已決策 action 之後」的擴充處理函式簽名。
-// 設計成統一簽名可讓未來新增帳單、提醒等 action 時只需註冊 handler。
-type actionPostHandler func(message *unifiedmessage.Message, lineUserID string, decision *semanticdecision.ActionDecision, matchedSkillCode string)
 
 // WebhookServiceOptions 提供 webhook service 的擴充設定。
 // 目前主要預留 member name cache 與 TTL，方便後續替換 Redis。
@@ -84,11 +76,12 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 	chainSvc := commandchain.NewService(repo)
 	decisionSvc := commanddecision.NewService(chainSvc)
 	return &WebhookService{
-		repo:               repo,
-		decisionService:    decisionSvc,
-		semanticService:    options.SemanticDecision,
-		persistenceService: persistSvc,
-		topKFilterService:  options.TopKFilter,
+		repo:                 repo,
+		decisionService:      decisionSvc,
+		semanticService:      options.SemanticDecision,
+		persistenceService:   persistSvc,
+		topKFilterService:    options.TopKFilter,
+		actionPostDispatcher: actionpost.NewDefaultDispatcher(repo),
 	}
 }
 
@@ -336,195 +329,18 @@ func (s *WebhookService) dispatchActionPostHandlers(message *unifiedmessage.Mess
 	if s == nil || decision == nil {
 		return
 	}
-	// 以 operation -> handler 的 registry 做分派，
-	// 避免在主流程內不斷擴張 if/else 或 switch，降低耦合度。
-	handlers := map[string]actionPostHandler{
-		translationStartOperation: s.persistTranslationCommandState,
+	if s.actionPostDispatcher == nil {
+		// 保底 lazy init，確保測試直接組 struct 時仍可共用同一份 dispatcher。
+		s.actionPostDispatcher = actionpost.NewDefaultDispatcher(s.repo)
 	}
-	// operation 做 trim + lower，避免大小寫差異導致 handler miss。
-	operation := strings.ToLower(strings.TrimSpace(decision.APIOperation))
-	handler, ok := handlers[operation]
-	if !ok || handler == nil {
-		// 未註冊 handler 的 action 保持靜默略過，
-		// 讓 action 決策本身不被 side-effect 缺失阻塞。
-		return
-	}
-	handler(message, lineUserID, decision, matchedSkillCode)
-}
-
-// persistTranslationCommandState 將翻譯啟用指令的副作用落庫。
-// 當 action 為 start_translation_locale 且參數含 target locale 時：
-// 1) 將發起者加入 channel_service_member
-// 2) 將 target locale 寫入 translation_locales
-// 此函式採「可觀測但不阻塞主流程」策略：任何一步失敗僅記錄告警並安全返回。
-func (s *WebhookService) persistTranslationCommandState(message *unifiedmessage.Message, lineUserID string, decision *semanticdecision.ActionDecision, matchedSkillCode string) {
-	// 第一層防護：必要依賴未就緒時直接返回，避免 panic。
-	if s == nil || s.repo == nil || message == nil || decision == nil {
-		return
-	}
-	// 僅處理「啟用翻譯語系」這個 action，其他 action 由各自 handler 負責。
-	if !strings.EqualFold(strings.TrimSpace(decision.APIOperation), translationStartOperation) {
-		return
-	}
-
-	// 從通用 action_params 解析 locale；若缺參數，按照策略不做任何寫入。
-	targetLocales := translationTargetLocalesFromDecision(decision)
-	if len(targetLocales) == 0 {
-		return
-	}
-
-	// unified message 的 ChannelID 是字串 UUID，這裡轉成實際主鍵供 repo 使用。
-	channelUUID, err := uuid.Parse(strings.TrimSpace(message.ChannelID))
-	if err != nil || channelUUID == uuid.Nil {
-		zap.L().Warn("line translation command persistence skipped: invalid channel id",
-			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-			zap.Error(err),
-		)
-		return
-	}
-
-	lineUserID = strings.TrimSpace(lineUserID)
-	if lineUserID == "" {
-		// 若 event source 沒帶 userId，退回 message sender，盡量保留可追溯性。
-		lineUserID = strings.TrimSpace(message.SenderID)
-	}
-	if lineUserID == "" || strings.EqualFold(lineUserID, "unknown") {
-		zap.L().Warn("line translation command persistence skipped: missing line user id",
-			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-		)
-		return
-	}
-
-	ownerUserID, err := s.repo.ResolveUserIDByLineUserID(context.Background(), lineUserID)
-	if err != nil {
-		zap.L().Warn("line translation command persistence skipped: resolve owner user failed",
-			zap.String("line_user_id", lineUserID),
-			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-			zap.Error(err),
-		)
-		return
-	}
-	if ownerUserID == uuid.Nil {
-		// 找不到 LINE 綁定 user 時不應建立匿名 member，避免污染資料。
-		zap.L().Warn("line translation command persistence skipped: line user not bound",
-			zap.String("line_user_id", lineUserID),
-			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-		)
-		return
-	}
-
-	skillCode := strings.TrimSpace(matchedSkillCode)
-	if skillCode == "" {
-		// 保底：若候選映射不到 skill_code，使用 translation 預設 skill_code。
-		skillCode = translationSkillCode
-	}
-	skillID, err := s.repo.ResolveSkillIDByCode(context.Background(), skillCode)
-	if err != nil {
-		zap.L().Warn("line translation command persistence skipped: resolve skill failed",
-			zap.String("skill_code", skillCode),
-			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-			zap.Error(err),
-		)
-		return
-	}
-	if skillID == uuid.Nil {
-		zap.L().Warn("line translation command persistence skipped: skill not found",
-			zap.String("skill_code", skillCode),
-			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-		)
-		return
-	}
-
-	if err := s.repo.AddServiceMemberToChannel(context.Background(), channelUUID, ownerUserID, skillID); err != nil {
-		zap.L().Warn("line translation command persistence failed to add service member",
-			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-			zap.String("line_user_id", lineUserID),
-			zap.String("skill_code", skillCode),
-			zap.Error(err),
-		)
-		return
-	}
-
-	appliedLocales := make([]string, 0, len(targetLocales))
-	for _, targetLocale := range targetLocales {
-		// locale 寫入採逐筆容錯：單一語系失敗不影響其他語系寫入。
-		if err := s.repo.AddTranslationLocaleToChannel(context.Background(), channelUUID, skillID, ownerUserID, targetLocale); err != nil {
-			zap.L().Warn("line translation command persistence failed to add target locale",
-				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-				zap.String("line_user_id", lineUserID),
-				zap.String("skill_code", skillCode),
-				zap.String("target_locale", targetLocale),
-				zap.Error(err),
-			)
-			continue
-		}
-		appliedLocales = append(appliedLocales, targetLocale)
-	}
-
-	if len(appliedLocales) == 0 {
-		// 全部 locale 都失敗時不輸出 success log，避免誤導監控判讀。
-		return
-	}
-
-	zap.L().Info("line translation command state persisted",
-		zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-		zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-		zap.String("line_user_id", lineUserID),
-		zap.String("skill_code", skillCode),
-		zap.Strings("target_locales", appliedLocales),
-	)
+	s.actionPostDispatcher.Dispatch(message, lineUserID, decision, matchedSkillCode)
 }
 
 // translationTargetLocalesFromDecision 從通用 action_params 擷取翻譯語系參數。
 // 兼容 target_locale（單值）與 target_locales（多值）兩種格式，
 // 輸出會經過清理與去重，避免同語系重覆寫入。
 func translationTargetLocalesFromDecision(decision *semanticdecision.ActionDecision) []string {
-	if decision == nil {
-		return nil
-	}
-	// 同時支援 target_locale（單值）與 target_locales（多值），
-	// 讓舊新模型契約都能被同一段邏輯接收。
-	locales := make([]string, 0)
-	if value, ok := decision.ParamString("target_locale"); ok {
-		locales = append(locales, value)
-	}
-	locales = append(locales, decision.ParamStringSlice("target_locales")...)
-	return dedupeLocales(locales)
-}
-
-// dedupeLocales 做 locale 清理：去空值、大小寫不敏感去重，保留第一個有效值。
-// dedupeLocales 對 locale 清單做正規化去重。
-// 規則：去除空白、大小寫不敏感比對、保留首個出現值的原始字面。
-func dedupeLocales(locales []string) []string {
-	if len(locales) == 0 {
-		return nil
-	}
-	seen := make(map[string]struct{}, len(locales))
-	out := make([]string, 0, len(locales))
-	for _, locale := range locales {
-		trimmed := strings.TrimSpace(locale)
-		if trimmed == "" {
-			continue
-		}
-		key := strings.ToLower(trimmed)
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		out = append(out, trimmed)
-	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
+	return actionpost.ExtractTranslationTargetLocales(decision)
 }
 
 func (s *WebhookService) routeMessageToQuestionAnswer(message *unifiedmessage.Message, actionConfidence float64, actionThreshold float64, cause string) {
