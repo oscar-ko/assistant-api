@@ -12,6 +12,7 @@ import (
 	"assistant-api/internal/repository"
 	"assistant-api/internal/usecase/ai/embedding"
 	"assistant-api/internal/usecase/ai/reranker"
+	"assistant-api/internal/usecase/ai/semanticdecision"
 	"assistant-api/internal/usecase/ai/topkfilter"
 
 	"github.com/gin-gonic/gin"
@@ -56,13 +57,18 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 		)
 		filterService = topkfilter.NewServiceWithReranker(actionRouteRepo, embeddingClient, rerankerClient, "zh-TW", config.AI.Embedding.RetrievalTopK, config.AI.Reranker.TopK)
 	}
+	// 第三階段：語意決策服務，把 rerank 後的候選交給模型選出最終唯一一個 action。
+	semanticDecisionService := semanticdecision.NewService(semanticdecision.NewClassifier(
+		config.AI.SemanticDecision.ServiceURL,
+		config.AI.SemanticDecision.ServiceTimeoutSeconds,
+	))
 
 	// OAuth 相關端點。
 	r.GET("/line/bind", bindPage)
 	r.GET("/line/oauth/start", oauthStart)
 	r.GET("/line/oauth/callback", oauthCallback(lineRepo))
 	// Webhook 採 handler -> service 分層，便於後續替換 queue/worker 實作。
-	r.POST("/line/webhook", webhookHandler(NewWebhookServiceWithOptions(channelMessageRepo, WebhookServiceOptions{TopKFilter: filterService})))
+	r.POST("/line/webhook", webhookHandler(NewWebhookServiceWithOptions(channelMessageRepo, WebhookServiceOptions{SemanticDecision: semanticDecisionService, TopKFilter: filterService})))
 }
 
 // bindPage 回傳 LINE 綁定頁面。

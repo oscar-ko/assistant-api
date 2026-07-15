@@ -37,10 +37,10 @@ type Searcher interface {
 }
 
 // Service 定義「收到訊息後做 top-k 候選篩選」的 usecase 介面。
-// 這個介面刻意只暴露單一入口，讓 webhook 或其他 inbound adapter
-// 不需要知道 embedding、pgvector 或 route repository 的細節。
+// 回傳值為經過 retrieval + rerank 後的最終候選清單，方便呼叫端再將
+// 結果交給下一階段（例如 semantic decision）做最終決策。
 type Service interface {
-	FilterMessage(ctx context.Context, message *unifiedmessage.Message)
+	FilterMessage(ctx context.Context, message *unifiedmessage.Message) []ScoredCandidate
 }
 
 // service 是 top-k pipeline 的編排層。
@@ -96,20 +96,20 @@ func NewServiceWithReranker(searcher Searcher, embedder embedding.Service, reran
 // 3. 用 query vector 對 action_route 做 pgvector top-k 查詢。
 // 4. 將候選結果整理成結構化 log，方便觀察每則訊息被篩到哪些操作。
 //
-// 這裡刻意不回傳候選值，而是先專注在 webhook 入口的「先篩選、先記錄」。
-// 若未來需要把候選帶往下一段正式決策，可再把回傳值或 context carrier 補上。
-func (s *service) FilterMessage(ctx context.Context, message *unifiedmessage.Message) {
+// 回傳值為最終（rerank 成功則經過重排，否則回退原 retrieval 順序）的候選清單，
+// 讓呼叫端可以把這些候選帶往下一步正式決策（例如 semantic decision）。
+func (s *service) FilterMessage(ctx context.Context, message *unifiedmessage.Message) []ScoredCandidate {
 	// 第一層保護：service 未完整組裝、訊息不存在、或訊息不是文字時直接跳過。
 	// 這能避免在 webhook 高頻入口對圖片/貼圖/空 payload 誤打 embedding API。
 	if s == nil || s.pipeline == nil || message == nil || !message.IsText() {
-		return
+		return nil
 	}
 
 	// 第二層保護：即使 message type 是 text，也仍要排除只含空白的內容。
 	// 空字串沒有語意價值，送去 embedding 只會增加不必要的延遲與噪音。
 	text := strings.TrimSpace(message.Text)
 	if text == "" {
-		return
+		return nil
 	}
 	// platform 來自 unified message，讓 log 不再綁定特定通訊軟體。
 	platform := strings.TrimSpace(message.Platform)
@@ -133,7 +133,7 @@ func (s *service) FilterMessage(ctx context.Context, message *unifiedmessage.Mes
 			zap.String("reason", reason),
 			zap.Error(err),
 		)
-		return
+		return nil
 	}
 
 	// 先輸出 retrieval 階段結果，方便與 rerank 後結果分開比較。
@@ -190,6 +190,10 @@ func (s *service) FilterMessage(ctx context.Context, message *unifiedmessage.Mes
 		zap.Strings("candidates", vectorLogs),
 		zap.Strings("rank_comparison", rankDiffLogs),
 	)
+
+	// 回傳最終候選（reranked 優先，rerank 失敗則為 retrieval 原序），
+	// 交由呼叫端決定是否要送進下一步的最終決策（例如 semantic decision）。
+	return scoredCandidates
 }
 
 // formatCandidateLogs 將候選轉成易讀字串，供結構化日誌輸出。

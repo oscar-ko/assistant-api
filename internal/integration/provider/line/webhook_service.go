@@ -10,6 +10,7 @@ import (
 	"assistant-api/internal/ent"
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
+	"assistant-api/internal/usecase/ai/semanticdecision"
 	"assistant-api/internal/usecase/ai/topkfilter"
 	"assistant-api/internal/usecase/inbound/commandchain"
 	"assistant-api/internal/usecase/inbound/commanddecision"
@@ -31,6 +32,7 @@ type WebhookProcessor interface {
 type WebhookService struct {
 	repo               *repository.ChannelMessageRepo
 	decisionService    commanddecision.Service
+	semanticService    semanticdecision.Service
 	persistenceService messagepersist.Service
 	topKFilterService  topkfilter.Service
 }
@@ -38,9 +40,10 @@ type WebhookService struct {
 // WebhookServiceOptions 提供 webhook service 的擴充設定。
 // 目前主要預留 member name cache 與 TTL，方便後續替換 Redis。
 type WebhookServiceOptions struct {
-	MemberNameCache MemberNameCache
-	MemberNameTTL   time.Duration
-	TopKFilter      topkfilter.Service
+	MemberNameCache  MemberNameCache
+	MemberNameTTL    time.Duration
+	SemanticDecision semanticdecision.Service
+	TopKFilter       topkfilter.Service
 }
 
 // NewWebhookService 建立預設 webhook service
@@ -70,7 +73,13 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 	persistSvc := messagepersist.NewService(repo, lineSenderNameResolver{repo: repo, client: lineClient, cache: cache, memberNameTTL: memberNameTTL, now: time.Now})
 	chainSvc := commandchain.NewService(repo)
 	decisionSvc := commanddecision.NewService(chainSvc)
-	return &WebhookService{repo: repo, decisionService: decisionSvc, persistenceService: persistSvc, topKFilterService: options.TopKFilter}
+	return &WebhookService{
+		repo:               repo,
+		decisionService:    decisionSvc,
+		semanticService:    options.SemanticDecision,
+		persistenceService: persistSvc,
+		topKFilterService:  options.TopKFilter,
+	}
 }
 
 // webhookRequest 對應 LINE webhook 最上層 payload。
@@ -217,9 +226,38 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 			)
 		}
 
-		if s.topKFilterService != nil {
-			s.topKFilterService.FilterMessage(context.Background(), message)
+		if s.topKFilterService == nil {
+			continue
 		}
+
+		// 第三階段：把 reranker 精排後的候選交給語意決策模型，選出最終唯一一個 action。
+		candidates := s.topKFilterService.FilterMessage(context.Background(), message)
+		if len(candidates) == 0 || s.semanticService == nil {
+			continue
+		}
+
+		actionCandidates := toActionCandidates(candidates)
+		finalDecision, err := s.semanticService.DecideFinalAction(context.Background(), message.Text, actionCandidates)
+		if err != nil {
+			zap.L().Debug("line message final action decision skipped",
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.Error(err),
+			)
+			continue
+		}
+		if finalDecision == nil {
+			continue
+		}
+
+		zap.L().Info("line message final action decided",
+			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			zap.String("text", strings.TrimSpace(message.Text)),
+			zap.String("api_operation", finalDecision.APIOperation),
+			zap.Float64("confidence", finalDecision.Confidence),
+			zap.String("reason", finalDecision.Reason),
+		)
 	}
 
 }
@@ -228,6 +266,21 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 // 這個函式只做資料持久化，不應再混入 AI 判讀或其他額外業務邏輯。
 func (s *WebhookService) persistUnifiedMessage(message *unifiedmessage.Message) *ent.ChannelMessage {
 	return s.persistenceService.PersistUnifiedMessage(context.Background(), message)
+}
+
+// toActionCandidates 把 topkfilter 的 reranked 候選轉成 semanticdecision 可用的文字描述，
+// 刻意在這裡做轉換，避免 semanticdecision 直接依賴 topkfilter/ranking 內部型別。
+func toActionCandidates(candidates []topkfilter.ScoredCandidate) []semanticdecision.ActionCandidate {
+	out := make([]semanticdecision.ActionCandidate, 0, len(candidates))
+	for _, item := range candidates {
+		out = append(out, semanticdecision.ActionCandidate{
+			Operation: item.Candidate.APIOperation,
+			SkillCode: item.Candidate.SkillCode,
+			RouteText: item.Candidate.RouteText,
+			Score:     item.Score,
+		})
+	}
+	return out
 }
 
 type lineSenderNameResolver struct {
