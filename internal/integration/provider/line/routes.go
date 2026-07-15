@@ -12,7 +12,6 @@ import (
 	"assistant-api/internal/repository"
 	"assistant-api/internal/usecase/ai/embedding"
 	"assistant-api/internal/usecase/ai/reranker"
-	"assistant-api/internal/usecase/ai/semanticdecision"
 	"assistant-api/internal/usecase/ai/topkfilter"
 
 	"github.com/gin-gonic/gin"
@@ -27,9 +26,6 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 	channelMessageRepo := repository.NewChannelMessageRepo(client)
 	// action route repository 提供 top-k 向量召回查詢能力。
 	actionRouteRepo := repository.NewActionRouteRepo(client)
-	// semantic decision 仍保留在 webhook service，由後續決策流程使用。
-	semanticDecisionClassifier := semanticdecision.NewClassifier(config.AI.SemanticDecisionServiceURL, config.AI.SemanticDecisionServiceTimeoutSeconds)
-	semanticDecisionService := semanticdecision.NewService(semanticDecisionClassifier)
 	// embedding client 是第一階段召回必備依賴。
 	embeddingClient := embedding.NewClient(
 		config.AI.EmbeddingURL,
@@ -66,7 +62,7 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 	r.GET("/line/oauth/start", oauthStart)
 	r.GET("/line/oauth/callback", oauthCallback(lineRepo))
 	// Webhook 採 handler -> service 分層，便於後續替換 queue/worker 實作。
-	r.POST("/line/webhook", webhookHandler(NewWebhookServiceWithOptions(channelMessageRepo, semanticDecisionService, WebhookServiceOptions{TopKFilter: filterService})))
+	r.POST("/line/webhook", webhookHandler(NewWebhookServiceWithOptions(channelMessageRepo, WebhookServiceOptions{TopKFilter: filterService})))
 }
 
 // bindPage 回傳 LINE 綁定頁面。

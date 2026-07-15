@@ -2,12 +2,10 @@ package commanddecision
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"assistant-api/internal/ent"
 	"assistant-api/internal/integration/unifiedmessage"
-	"assistant-api/internal/usecase/ai/semanticdecision"
 
 	"github.com/google/uuid"
 )
@@ -15,71 +13,65 @@ import (
 type mockCommandChain struct {
 	onChain bool
 	err     error
+	called  bool
 }
 
-func (m mockCommandChain) IsCommandChainMessage(ctx context.Context, message *ent.ChannelMessage, mentionedBot bool) (bool, error) {
+func (m *mockCommandChain) IsCommandChainMessage(ctx context.Context, message *ent.ChannelMessage, mentionedBot bool) (bool, error) {
 	_ = ctx
 	_ = message
 	_ = mentionedBot
+	m.called = true
 	return m.onChain, m.err
-}
-
-type mockSemanticService struct {
-	classification *semanticdecision.Classification
-	err            error
-}
-
-func (m mockSemanticService) ClassifyMessage(ctx context.Context, message *unifiedmessage.Message, mentionedBot bool) (*semanticdecision.Classification, error) {
-	_ = ctx
-	_ = message
-	_ = mentionedBot
-	return m.classification, m.err
 }
 
 func TestDecideMessageMentionAndChain(t *testing.T) {
 	message := &unifiedmessage.Message{Mentions: []unifiedmessage.Mention{{UserID: "BOT001"}}}
 	saved := &ent.ChannelMessage{ID: uuid.New()}
 
-	svc := NewService(mockCommandChain{onChain: true}, nil)
+	chain := &mockCommandChain{onChain: true}
+	svc := NewService(chain)
 	decision := svc.DecideMessage(context.Background(), message, saved, "BOT001")
 
-	if !decision.MentionedBot {
+	if !decision.IsMentionedBot {
 		t.Fatal("expected mentioned_bot=true")
 	}
-	if !decision.OnCommandChain {
+	if !decision.IsOnCommandChain {
 		t.Fatal("expected on_command_chain=true")
 	}
-	if !decision.EffectiveMentionedBot {
+	if !decision.IsEffectiveMentionedBot {
 		t.Fatal("expected effective_mentioned_bot=true")
+	}
+	if !decision.IsCommand() {
+		t.Fatal("expected command mode to be true")
+	}
+	if !chain.called {
+		t.Fatal("expected command chain to be called")
 	}
 }
 
-func TestDecideMessageChainErrorDoesNotBlockClassification(t *testing.T) {
-	message := &unifiedmessage.Message{Text: "help"}
+func TestDecideMessageChainErrorDoesNotBlockCommandMode(t *testing.T) {
+	message := &unifiedmessage.Message{Text: "help", Mentions: []unifiedmessage.Mention{{UserID: "BOT001"}}}
 	saved := &ent.ChannelMessage{ID: uuid.New()}
-	classification := &semanticdecision.Classification{IntentLabel: "command", Confidence: 0.8}
 
-	svc := NewService(
-		mockCommandChain{err: errors.New("chain failure")},
-		mockSemanticService{classification: classification},
-	)
+	chain := &mockCommandChain{err: context.Canceled}
+	svc := NewService(chain)
 	decision := svc.DecideMessage(context.Background(), message, saved, "BOT001")
 
 	if decision.CommandChainError == nil {
 		t.Fatal("expected command chain error")
 	}
-	if decision.Classification == nil {
-		t.Fatal("expected classification still available")
+	if !decision.IsCommand() {
+		t.Fatal("expected command mode to stay true")
 	}
-	if decision.Classification.IntentLabel != "command" {
-		t.Fatalf("unexpected intent label: %s", decision.Classification.IntentLabel)
+	if !chain.called {
+		t.Fatal("expected command chain to be called")
 	}
 }
 
 func TestDecideMessageNilMessage(t *testing.T) {
-	svc := NewService(nil, nil)
+	svc := NewService(nil)
 	if svc != nil {
-		t.Fatal("expected nil service when both dependencies are nil")
+		t.Fatal("expected nil service when dependency is nil")
 	}
 
 	impl := &service{}
@@ -87,30 +79,8 @@ func TestDecideMessageNilMessage(t *testing.T) {
 	if decision == nil {
 		t.Fatal("expected decision")
 	}
-	if decision.MentionedBot || decision.OnCommandChain || decision.EffectiveMentionedBot {
+	if decision.IsMentionedBot || decision.IsOnCommandChain || decision.IsEffectiveMentionedBot || decision.IsCommand() {
 		t.Fatal("expected all decision flags false for nil message")
-	}
-}
-
-func TestDecisionIsCommand(t *testing.T) {
-	if (&Decision{}).IsCommand() {
-		t.Fatal("expected false when classification is nil")
-	}
-
-	if !(&Decision{IsPrivateChannel: true}).IsCommand() {
-		t.Fatal("expected true when force command mode is enabled")
-	}
-
-	if (&Decision{Classification: &semanticdecision.Classification{IntentLabel: "message"}}).IsCommand() {
-		t.Fatal("expected false for message label")
-	}
-
-	if !(&Decision{Classification: &semanticdecision.Classification{IntentLabel: "command"}}).IsCommand() {
-		t.Fatal("expected true for command label")
-	}
-
-	if !(&Decision{Classification: &semanticdecision.Classification{IntentLabel: " Command "}}).IsCommand() {
-		t.Fatal("expected true for case/space-insensitive command label")
 	}
 }
 
@@ -125,10 +95,33 @@ func TestDecideMessagePrivateChannelForcesCommandMode(t *testing.T) {
 	if !decision.IsPrivateChannel {
 		t.Fatal("expected private channel to force command mode")
 	}
-	if !decision.EffectiveMentionedBot {
+	if !decision.IsCommand() {
+		t.Fatal("expected private channel command mode to be true")
+	}
+	if !decision.IsEffectiveMentionedBot {
 		t.Fatal("expected private channel to behave like effective mention")
 	}
 	if !decision.IsCommand() {
 		t.Fatal("expected private channel decision to be command")
+	}
+}
+
+func TestDecideMessageSkipsComparisonOutsideCommandMode(t *testing.T) {
+	message := &unifiedmessage.Message{ChannelType: "group", Text: "hello"}
+	saved := &ent.ChannelMessage{ID: uuid.New()}
+	chain := &mockCommandChain{}
+
+	decision := (&service{commandChain: chain}).DecideMessage(context.Background(), message, saved, "BOT001")
+	if decision == nil {
+		t.Fatal("expected decision")
+	}
+	if decision.IsCommand() {
+		t.Fatal("expected non-command message to stay out of command mode")
+	}
+	if chain.called {
+		t.Fatal("expected command chain to be skipped")
+	}
+	if decision.CommandChainError != nil || decision.IsOnCommandChain {
+		t.Fatal("expected command comparison to be skipped")
 	}
 }

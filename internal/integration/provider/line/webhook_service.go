@@ -10,7 +10,6 @@ import (
 	"assistant-api/internal/ent"
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
-	"assistant-api/internal/usecase/ai/semanticdecision"
 	"assistant-api/internal/usecase/ai/topkfilter"
 	"assistant-api/internal/usecase/inbound/commandchain"
 	"assistant-api/internal/usecase/inbound/commanddecision"
@@ -45,12 +44,12 @@ type WebhookServiceOptions struct {
 }
 
 // NewWebhookService 建立預設 webhook service
-func NewWebhookService(repo *repository.ChannelMessageRepo, semanticService semanticdecision.Service) WebhookProcessor {
-	return NewWebhookServiceWithOptions(repo, semanticService, WebhookServiceOptions{})
+func NewWebhookService(repo *repository.ChannelMessageRepo) WebhookProcessor {
+	return NewWebhookServiceWithOptions(repo, WebhookServiceOptions{})
 }
 
 // NewWebhookServiceWithOptions 建立可帶擴充選項的 webhook service。
-func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, semanticService semanticdecision.Service, options WebhookServiceOptions) WebhookProcessor {
+func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options WebhookServiceOptions) WebhookProcessor {
 	var lineClient *messaging_api.MessagingApiAPI
 	if token := strings.TrimSpace(config.Line.ChannelToken); token != "" {
 		if client, err := messaging_api.NewMessagingApiAPI(token); err == nil {
@@ -70,7 +69,7 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, semanticS
 	// sender 名稱解析流程：cache -> 綁定資料表 -> LINE API，最後再回寫 cache。
 	persistSvc := messagepersist.NewService(repo, lineSenderNameResolver{repo: repo, client: lineClient, cache: cache, memberNameTTL: memberNameTTL, now: time.Now})
 	chainSvc := commandchain.NewService(repo)
-	decisionSvc := commanddecision.NewService(chainSvc, semanticService)
+	decisionSvc := commanddecision.NewService(chainSvc)
 	return &WebhookService{repo: repo, decisionService: decisionSvc, persistenceService: persistSvc, topKFilterService: options.TopKFilter}
 }
 
@@ -170,8 +169,8 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 
 			// 先落庫，確保訊息資料優先可用，不受後續 AI 延遲影響。
 			savedMessage := s.persistUnifiedMessage(message)
-			decision := &commanddecision.Decision{MentionedBot: message.MentionsUser(config.Line.BotUserID)}
-			decision.EffectiveMentionedBot = decision.MentionedBot
+			decision := &commanddecision.Decision{IsMentionedBot: message.MentionsUser(config.Line.BotUserID)}
+			decision.IsEffectiveMentionedBot = decision.IsMentionedBot
 			if s.decisionService != nil {
 				decision = s.decisionService.DecideMessage(context.Background(), message, savedMessage, config.Line.BotUserID)
 			}
@@ -182,39 +181,17 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 					zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 					zap.Error(decision.CommandChainError),
 				)
-			} else if decision.OnCommandChain {
+			} else if decision.IsOnCommandChain {
 				zap.L().Info("command chain message",
 					zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 					zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-					zap.Bool("mentioned_bot", decision.MentionedBot),
-					zap.Bool("effective_mentioned_bot", decision.EffectiveMentionedBot),
+					zap.Bool("mentioned_bot", decision.IsMentionedBot),
+					zap.Bool("effective_mentioned_bot", decision.IsEffectiveMentionedBot),
 					zap.String("reply_to_msg_id", strings.TrimSpace(message.ReplyToMsgID)),
 				)
 			}
 
-			if decision.ClassificationError != nil {
-				// AI 服務失敗時只記 debug，不阻斷 webhook 主流程。
-				zap.L().Debug("webhook classify skipped",
-					zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-					zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-					zap.Bool("mentioned_bot", decision.MentionedBot),
-					zap.Bool("effective_mentioned_bot", decision.EffectiveMentionedBot),
-					zap.Error(decision.ClassificationError),
-				)
-			} else if decision.Classification != nil {
-				// AI 有正常回傳時，把判讀結果印到 console，方便觀察模型輸出。
-				zap.L().Info("webhook classified",
-					zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-					zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-					zap.Bool("mentioned_bot", decision.MentionedBot),
-					zap.Bool("effective_mentioned_bot", decision.EffectiveMentionedBot),
-					zap.String("intent_label", decision.Classification.IntentLabel),
-					zap.Float64("confidence", decision.Classification.Confidence),
-					zap.String("reason", strings.TrimSpace(decision.Classification.Reason)),
-				)
-			}
-
-			// AI 流程最後執行；即使失敗也不影響訊息已落庫。
+			// command decision 現在只做規則判斷，不再做 AI classification。
 		}
 	}
 
