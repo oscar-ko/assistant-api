@@ -97,6 +97,10 @@ func TestDecisionIsCommand(t *testing.T) {
 		t.Fatal("expected false when classification is nil")
 	}
 
+	if !(&Decision{IsPrivateChannel: true}).IsCommand() {
+		t.Fatal("expected true when force command mode is enabled")
+	}
+
 	if (&Decision{Classification: &semanticdecision.Classification{IntentLabel: "message"}}).IsCommand() {
 		t.Fatal("expected false for message label")
 	}
@@ -107,5 +111,24 @@ func TestDecisionIsCommand(t *testing.T) {
 
 	if !(&Decision{Classification: &semanticdecision.Classification{IntentLabel: " Command "}}).IsCommand() {
 		t.Fatal("expected true for case/space-insensitive command label")
+	}
+}
+
+func TestDecideMessagePrivateChannelForcesCommandMode(t *testing.T) {
+	message := &unifiedmessage.Message{ChannelType: "private", Text: "hello"}
+	saved := &ent.ChannelMessage{ID: uuid.New()}
+
+	decision := (&service{}).DecideMessage(context.Background(), message, saved, "BOT001")
+	if decision == nil {
+		t.Fatal("expected decision")
+	}
+	if !decision.IsPrivateChannel {
+		t.Fatal("expected private channel to force command mode")
+	}
+	if !decision.EffectiveMentionedBot {
+		t.Fatal("expected private channel to behave like effective mention")
+	}
+	if !decision.IsCommand() {
+		t.Fatal("expected private channel decision to be command")
 	}
 }

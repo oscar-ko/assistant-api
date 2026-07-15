@@ -15,6 +15,7 @@ type Decision struct {
 	MentionedBot          bool
 	OnCommandChain        bool
 	EffectiveMentionedBot bool
+	IsPrivateChannel      bool
 	Classification        *semanticdecision.Classification
 	CommandChainError     error
 	ClassificationError   error
@@ -23,7 +24,13 @@ type Decision struct {
 // IsCommand 回傳最終是否可視為指令訊息。
 // 目前以語意分類結果 intent_label=command 作為單一布林判斷。
 func (d *Decision) IsCommand() bool {
-	if d == nil || d.Classification == nil {
+	if d == nil {
+		return false
+	}
+	if d.IsPrivateChannel {
+		return true
+	}
+	if d.Classification == nil {
 		return false
 	}
 	return strings.EqualFold(strings.TrimSpace(d.Classification.IntentLabel), "command")
@@ -56,8 +63,14 @@ func (s *service) DecideMessage(ctx context.Context, message *unifiedmessage.Mes
 
 	// 第一階段：先判斷訊息是否直接 mention bot。
 	decision := &Decision{MentionedBot: message.MentionsUser(botUserID)}
+	if strings.EqualFold(strings.TrimSpace(message.ChannelType), "private") {
+		decision.IsPrivateChannel = true
+	}
 	// effectiveMentionedBot 會作為後續 semantic classify 的規則輸入。
 	decision.EffectiveMentionedBot = decision.MentionedBot
+	if decision.IsPrivateChannel {
+		decision.EffectiveMentionedBot = true
+	}
 
 	if s != nil && s.commandChain != nil && savedMessage != nil {
 		// 第二階段：若在指令訊息鍊上，強制視為有效 mention。
