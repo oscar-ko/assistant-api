@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -69,17 +68,6 @@ type UpstreamError struct {
 	StatusCode int
 	Detail     string
 	Body       string
-}
-
-// IsNoMatchError 判斷上游語意決策是否明確回報 no_match。
-// 這個 helper 讓 webhook 可把 no_match 視為正常分流訊號（走問答），
-// 而不是當成系統錯誤直接中斷流程。
-func IsNoMatchError(err error) bool {
-	var upstreamErr *UpstreamError
-	if !errors.As(err, &upstreamErr) {
-		return false
-	}
-	return strings.EqualFold(strings.TrimSpace(upstreamErr.Detail), "no_match")
 }
 
 func (e *UpstreamError) Error() string {

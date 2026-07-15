@@ -244,18 +244,6 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 		actionCandidates := toActionCandidates(candidates)
 		finalDecision, err := s.semanticService.DecideFinalAction(context.Background(), message.Text, actionCandidates)
 		if err != nil {
-			if semanticdecision.IsNoMatchError(err) {
-				zap.L().Info("line message action decision no_match",
-					zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-					zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-					zap.String("text", strings.TrimSpace(message.Text)),
-					zap.String("error_message", err.Error()),
-				)
-				// no_match 是語意層的「正常結果」：代表候選 action 都不適配。
-				// 這時不應視為錯誤，而是直接改走問答模型回答使用者問題。
-				s.routeMessageToQuestionAnswer(message, 0.0, config.AI.SemanticDecision.CommandConfidenceThreshold, "no_match")
-				continue
-			}
 			zap.L().Warn("line message final action decision failed",
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),

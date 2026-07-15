@@ -257,15 +257,18 @@ func TestWebhookService_ProcessIncoming_LowConfidenceTreatedAsChat(t *testing.T)
 	}
 }
 
-func TestWebhookService_ProcessIncoming_NoMatchRoutesToQuestionAnswer(t *testing.T) {
+func TestWebhookService_ProcessIncoming_ZeroConfidenceNoMatchRoutesToQuestionAnswer(t *testing.T) {
 	core, observed := observer.New(zapcore.DebugLevel)
 	oldLogger := zap.L()
 	zap.ReplaceGlobals(zap.New(core))
 	defer zap.ReplaceGlobals(oldLogger)
 
+	oldCommandThreshold := config.AI.SemanticDecision.CommandConfidenceThreshold
 	oldQuestionThreshold := config.AI.SemanticDecision.QuestionConfidenceThreshold
+	config.AI.SemanticDecision.CommandConfidenceThreshold = 0.7
 	config.AI.SemanticDecision.QuestionConfidenceThreshold = 0.6
 	defer func() {
+		config.AI.SemanticDecision.CommandConfidenceThreshold = oldCommandThreshold
 		config.AI.SemanticDecision.QuestionConfidenceThreshold = oldQuestionThreshold
 	}()
 
@@ -276,24 +279,24 @@ func TestWebhookService_ProcessIncoming_NoMatchRoutesToQuestionAnswer(t *testing
 		},
 	}
 	decisionStub := &stubSemanticDecision{
-		err:    &semanticdecision.UpstreamError{Path: "/predict/action_decision", StatusCode: 422, Detail: "no_match"},
-		answer: &semanticdecision.QuestionAnswer{SchemaVersion: "v1", Answer: "你可以看《星際效應》。", Confidence: 0.88},
+		decision: &semanticdecision.ActionDecision{APIOperation: "", Confidence: 0.0, Reason: "no candidate matched"},
+		answer:   &semanticdecision.QuestionAnswer{SchemaVersion: "v1", Answer: "你可以看《星際效應》。", Confidence: 0.88},
 	}
 
 	(&WebhookService{topKFilterService: filterStub, semanticService: decisionStub}).ProcessIncoming(body, "sig")
 
 	// no_match 被視為正常語意結果，必須改走問答分支。
 	if !decisionStub.answerCalled {
-		t.Fatalf("expected AnswerQuestion to be called when action decision returns no_match")
+		t.Fatalf("expected AnswerQuestion to be called when action decision confidence is 0")
 	}
 	entries := observed.FilterMessage("line message semantic question answered").All()
 	if len(entries) == 0 {
 		t.Fatalf("expected semantic question answered log")
 	}
-	if entries[0].ContextMap()["cause"] != "no_match" {
-		t.Fatalf("expected cause=no_match, got %v", entries[0].ContextMap()["cause"])
+	if entries[0].ContextMap()["cause"] != "low_action_confidence" {
+		t.Fatalf("expected cause=low_action_confidence, got %v", entries[0].ContextMap()["cause"])
 	}
 	if observed.FilterMessage("line message final action decided").Len() != 0 {
-		t.Fatalf("expected no final action log when action decision is no_match")
+		t.Fatalf("expected no final action log when action decision is zero-confidence no-match")
 	}
 }
