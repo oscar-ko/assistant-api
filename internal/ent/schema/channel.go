@@ -38,6 +38,7 @@ func (Channel) Fields() []ent.Field {
 func (Channel) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("messages", ChannelMessage.Type).Comment("此頻道底下的訊息列表"),
+		edge.From("translation_members", ChannelTranslationMember.Type).Ref("channel").Comment("此頻道啟用翻譯的成員"),
 	}
 }
 

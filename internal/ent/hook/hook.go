@@ -56,6 +56,18 @@ func (f ChannelMessageFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Val
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChannelMessageMutation", m)
 }
 
+// The ChannelTranslationMemberFunc type is an adapter to allow the use of ordinary
+// function as ChannelTranslationMember mutator.
+type ChannelTranslationMemberFunc func(context.Context, *ent.ChannelTranslationMemberMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ChannelTranslationMemberFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ChannelTranslationMemberMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChannelTranslationMemberMutation", m)
+}
+
 // The LineFunc type is an adapter to allow the use of ordinary
 // function as Line mutator.
 type LineFunc func(context.Context, *ent.LineMutation) (ent.Value, error)

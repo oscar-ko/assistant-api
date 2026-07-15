@@ -8,6 +8,7 @@ import (
 	"assistant-api/internal/ent"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/channeltranslationmember"
 	"assistant-api/internal/ent/line"
 
 	"github.com/google/uuid"
@@ -244,4 +245,39 @@ func (r *ChannelMessageRepo) LinkRelatedMessageByReply(ctx context.Context, mess
 		return nil, fmt.Errorf("link related message failed: %w", err)
 	}
 	return updated, nil
+}
+
+// AddTranslationMemberToChannel adds a user into channel_translation_members.
+// The operation is idempotent and ignored if (channel_id, user_id) already exists.
+func (r *ChannelMessageRepo) AddTranslationMemberToChannel(ctx context.Context, channelID uuid.UUID, ownerID uuid.UUID, sourceLocale string, targetLocale string) error {
+	if channelID == uuid.Nil {
+		return fmt.Errorf("channel id is required")
+	}
+	if ownerID == uuid.Nil {
+		return fmt.Errorf("owner id is required")
+	}
+
+	exists, err := r.db.ChannelTranslationMember.Query().
+		Where(
+			channeltranslationmember.ChannelIDEQ(channelID),
+			channeltranslationmember.UserIDEQ(ownerID),
+		).
+		Exist(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to query translation member: %w", err)
+	}
+	if exists {
+		return nil
+	}
+
+	if _, err := r.db.ChannelTranslationMember.Create().
+		SetChannelID(channelID).
+		SetUserID(ownerID).
+		Save(ctx); err != nil {
+		return fmt.Errorf("failed to add translation member to channel: %w", err)
+	}
+
+	_ = sourceLocale
+	_ = targetLocale
+	return nil
 }

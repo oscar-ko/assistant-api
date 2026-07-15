@@ -7,6 +7,7 @@ import (
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/channeltranslationmember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/skill"
@@ -865,6 +866,10 @@ type ChannelWhereInput struct {
 	// "messages" edge predicates.
 	HasMessages     *bool                       `json:"hasMessages,omitempty"`
 	HasMessagesWith []*ChannelMessageWhereInput `json:"hasMessagesWith,omitempty"`
+
+	// "translation_members" edge predicates.
+	HasTranslationMembers     *bool                                 `json:"hasTranslationMembers,omitempty"`
+	HasTranslationMembersWith []*ChannelTranslationMemberWhereInput `json:"hasTranslationMembersWith,omitempty"`
 }
 
 // AddPredicates adds custom predicates to the where input to be used during the filtering phase.
@@ -1160,6 +1165,24 @@ func (i *ChannelWhereInput) P() (predicate.Channel, error) {
 			with = append(with, p)
 		}
 		predicates = append(predicates, channel.HasMessagesWith(with...))
+	}
+	if i.HasTranslationMembers != nil {
+		p := channel.HasTranslationMembers()
+		if !*i.HasTranslationMembers {
+			p = channel.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasTranslationMembersWith) > 0 {
+		with := make([]predicate.ChannelTranslationMember, 0, len(i.HasTranslationMembersWith))
+		for _, w := range i.HasTranslationMembersWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasTranslationMembersWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, channel.HasTranslationMembersWith(with...))
 	}
 	switch len(predicates) {
 	case 0:
@@ -1863,6 +1886,340 @@ func (i *ChannelMessageWhereInput) P() (predicate.ChannelMessage, error) {
 	}
 }
 
+// ChannelTranslationMemberWhereInput represents a where input for filtering ChannelTranslationMember queries.
+type ChannelTranslationMemberWhereInput struct {
+	Predicates []predicate.ChannelTranslationMember  `json:"-"`
+	Not        *ChannelTranslationMemberWhereInput   `json:"not,omitempty"`
+	Or         []*ChannelTranslationMemberWhereInput `json:"or,omitempty"`
+	And        []*ChannelTranslationMemberWhereInput `json:"and,omitempty"`
+
+	// "id" field predicates.
+	ID      *uuid.UUID  `json:"id,omitempty"`
+	IDNEQ   *uuid.UUID  `json:"idNEQ,omitempty"`
+	IDIn    []uuid.UUID `json:"idIn,omitempty"`
+	IDNotIn []uuid.UUID `json:"idNotIn,omitempty"`
+	IDGT    *uuid.UUID  `json:"idGT,omitempty"`
+	IDGTE   *uuid.UUID  `json:"idGTE,omitempty"`
+	IDLT    *uuid.UUID  `json:"idLT,omitempty"`
+	IDLTE   *uuid.UUID  `json:"idLTE,omitempty"`
+
+	// "created_at" field predicates.
+	CreatedAt      *time.Time  `json:"createdAt,omitempty"`
+	CreatedAtNEQ   *time.Time  `json:"createdAtNEQ,omitempty"`
+	CreatedAtIn    []time.Time `json:"createdAtIn,omitempty"`
+	CreatedAtNotIn []time.Time `json:"createdAtNotIn,omitempty"`
+	CreatedAtGT    *time.Time  `json:"createdAtGT,omitempty"`
+	CreatedAtGTE   *time.Time  `json:"createdAtGTE,omitempty"`
+	CreatedAtLT    *time.Time  `json:"createdAtLT,omitempty"`
+	CreatedAtLTE   *time.Time  `json:"createdAtLTE,omitempty"`
+
+	// "updated_at" field predicates.
+	UpdatedAt      *time.Time  `json:"updatedAt,omitempty"`
+	UpdatedAtNEQ   *time.Time  `json:"updatedAtNEQ,omitempty"`
+	UpdatedAtIn    []time.Time `json:"updatedAtIn,omitempty"`
+	UpdatedAtNotIn []time.Time `json:"updatedAtNotIn,omitempty"`
+	UpdatedAtGT    *time.Time  `json:"updatedAtGT,omitempty"`
+	UpdatedAtGTE   *time.Time  `json:"updatedAtGTE,omitempty"`
+	UpdatedAtLT    *time.Time  `json:"updatedAtLT,omitempty"`
+	UpdatedAtLTE   *time.Time  `json:"updatedAtLTE,omitempty"`
+
+	// "channel_id" field predicates.
+	ChannelID      *uuid.UUID  `json:"channelID,omitempty"`
+	ChannelIDNEQ   *uuid.UUID  `json:"channelIDNEQ,omitempty"`
+	ChannelIDIn    []uuid.UUID `json:"channelIDIn,omitempty"`
+	ChannelIDNotIn []uuid.UUID `json:"channelIDNotIn,omitempty"`
+
+	// "user_id" field predicates.
+	UserID      *uuid.UUID  `json:"userID,omitempty"`
+	UserIDNEQ   *uuid.UUID  `json:"userIDNEQ,omitempty"`
+	UserIDIn    []uuid.UUID `json:"userIDIn,omitempty"`
+	UserIDNotIn []uuid.UUID `json:"userIDNotIn,omitempty"`
+
+	// "platform_user_id" field predicates.
+	PlatformUserID             *string  `json:"platformUserID,omitempty"`
+	PlatformUserIDNEQ          *string  `json:"platformUserIDNEQ,omitempty"`
+	PlatformUserIDIn           []string `json:"platformUserIDIn,omitempty"`
+	PlatformUserIDNotIn        []string `json:"platformUserIDNotIn,omitempty"`
+	PlatformUserIDGT           *string  `json:"platformUserIDGT,omitempty"`
+	PlatformUserIDGTE          *string  `json:"platformUserIDGTE,omitempty"`
+	PlatformUserIDLT           *string  `json:"platformUserIDLT,omitempty"`
+	PlatformUserIDLTE          *string  `json:"platformUserIDLTE,omitempty"`
+	PlatformUserIDContains     *string  `json:"platformUserIDContains,omitempty"`
+	PlatformUserIDHasPrefix    *string  `json:"platformUserIDHasPrefix,omitempty"`
+	PlatformUserIDHasSuffix    *string  `json:"platformUserIDHasSuffix,omitempty"`
+	PlatformUserIDIsNil        bool     `json:"platformUserIDIsNil,omitempty"`
+	PlatformUserIDNotNil       bool     `json:"platformUserIDNotNil,omitempty"`
+	PlatformUserIDEqualFold    *string  `json:"platformUserIDEqualFold,omitempty"`
+	PlatformUserIDContainsFold *string  `json:"platformUserIDContainsFold,omitempty"`
+
+	// "channel" edge predicates.
+	HasChannel     *bool                `json:"hasChannel,omitempty"`
+	HasChannelWith []*ChannelWhereInput `json:"hasChannelWith,omitempty"`
+
+	// "user" edge predicates.
+	HasUser     *bool             `json:"hasUser,omitempty"`
+	HasUserWith []*UserWhereInput `json:"hasUserWith,omitempty"`
+}
+
+// AddPredicates adds custom predicates to the where input to be used during the filtering phase.
+func (i *ChannelTranslationMemberWhereInput) AddPredicates(predicates ...predicate.ChannelTranslationMember) {
+	i.Predicates = append(i.Predicates, predicates...)
+}
+
+// Filter applies the ChannelTranslationMemberWhereInput filter on the ChannelTranslationMemberQuery builder.
+func (i *ChannelTranslationMemberWhereInput) Filter(q *ChannelTranslationMemberQuery) (*ChannelTranslationMemberQuery, error) {
+	if i == nil {
+		return q, nil
+	}
+	p, err := i.P()
+	if err != nil {
+		if err == ErrEmptyChannelTranslationMemberWhereInput {
+			return q, nil
+		}
+		return nil, err
+	}
+	return q.Where(p), nil
+}
+
+// ErrEmptyChannelTranslationMemberWhereInput is returned in case the ChannelTranslationMemberWhereInput is empty.
+var ErrEmptyChannelTranslationMemberWhereInput = errors.New("ent: empty predicate ChannelTranslationMemberWhereInput")
+
+// P returns a predicate for filtering channeltranslationmembers.
+// An error is returned if the input is empty or invalid.
+func (i *ChannelTranslationMemberWhereInput) P() (predicate.ChannelTranslationMember, error) {
+	var predicates []predicate.ChannelTranslationMember
+	if i.Not != nil {
+		p, err := i.Not.P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'not'", err)
+		}
+		predicates = append(predicates, channeltranslationmember.Not(p))
+	}
+	switch n := len(i.Or); {
+	case n == 1:
+		p, err := i.Or[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'or'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		or := make([]predicate.ChannelTranslationMember, 0, n)
+		for _, w := range i.Or {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'or'", err)
+			}
+			or = append(or, p)
+		}
+		predicates = append(predicates, channeltranslationmember.Or(or...))
+	}
+	switch n := len(i.And); {
+	case n == 1:
+		p, err := i.And[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'and'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		and := make([]predicate.ChannelTranslationMember, 0, n)
+		for _, w := range i.And {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'and'", err)
+			}
+			and = append(and, p)
+		}
+		predicates = append(predicates, channeltranslationmember.And(and...))
+	}
+	predicates = append(predicates, i.Predicates...)
+	if i.ID != nil {
+		predicates = append(predicates, channeltranslationmember.IDEQ(*i.ID))
+	}
+	if i.IDNEQ != nil {
+		predicates = append(predicates, channeltranslationmember.IDNEQ(*i.IDNEQ))
+	}
+	if len(i.IDIn) > 0 {
+		predicates = append(predicates, channeltranslationmember.IDIn(i.IDIn...))
+	}
+	if len(i.IDNotIn) > 0 {
+		predicates = append(predicates, channeltranslationmember.IDNotIn(i.IDNotIn...))
+	}
+	if i.IDGT != nil {
+		predicates = append(predicates, channeltranslationmember.IDGT(*i.IDGT))
+	}
+	if i.IDGTE != nil {
+		predicates = append(predicates, channeltranslationmember.IDGTE(*i.IDGTE))
+	}
+	if i.IDLT != nil {
+		predicates = append(predicates, channeltranslationmember.IDLT(*i.IDLT))
+	}
+	if i.IDLTE != nil {
+		predicates = append(predicates, channeltranslationmember.IDLTE(*i.IDLTE))
+	}
+	if i.CreatedAt != nil {
+		predicates = append(predicates, channeltranslationmember.CreatedAtEQ(*i.CreatedAt))
+	}
+	if i.CreatedAtNEQ != nil {
+		predicates = append(predicates, channeltranslationmember.CreatedAtNEQ(*i.CreatedAtNEQ))
+	}
+	if len(i.CreatedAtIn) > 0 {
+		predicates = append(predicates, channeltranslationmember.CreatedAtIn(i.CreatedAtIn...))
+	}
+	if len(i.CreatedAtNotIn) > 0 {
+		predicates = append(predicates, channeltranslationmember.CreatedAtNotIn(i.CreatedAtNotIn...))
+	}
+	if i.CreatedAtGT != nil {
+		predicates = append(predicates, channeltranslationmember.CreatedAtGT(*i.CreatedAtGT))
+	}
+	if i.CreatedAtGTE != nil {
+		predicates = append(predicates, channeltranslationmember.CreatedAtGTE(*i.CreatedAtGTE))
+	}
+	if i.CreatedAtLT != nil {
+		predicates = append(predicates, channeltranslationmember.CreatedAtLT(*i.CreatedAtLT))
+	}
+	if i.CreatedAtLTE != nil {
+		predicates = append(predicates, channeltranslationmember.CreatedAtLTE(*i.CreatedAtLTE))
+	}
+	if i.UpdatedAt != nil {
+		predicates = append(predicates, channeltranslationmember.UpdatedAtEQ(*i.UpdatedAt))
+	}
+	if i.UpdatedAtNEQ != nil {
+		predicates = append(predicates, channeltranslationmember.UpdatedAtNEQ(*i.UpdatedAtNEQ))
+	}
+	if len(i.UpdatedAtIn) > 0 {
+		predicates = append(predicates, channeltranslationmember.UpdatedAtIn(i.UpdatedAtIn...))
+	}
+	if len(i.UpdatedAtNotIn) > 0 {
+		predicates = append(predicates, channeltranslationmember.UpdatedAtNotIn(i.UpdatedAtNotIn...))
+	}
+	if i.UpdatedAtGT != nil {
+		predicates = append(predicates, channeltranslationmember.UpdatedAtGT(*i.UpdatedAtGT))
+	}
+	if i.UpdatedAtGTE != nil {
+		predicates = append(predicates, channeltranslationmember.UpdatedAtGTE(*i.UpdatedAtGTE))
+	}
+	if i.UpdatedAtLT != nil {
+		predicates = append(predicates, channeltranslationmember.UpdatedAtLT(*i.UpdatedAtLT))
+	}
+	if i.UpdatedAtLTE != nil {
+		predicates = append(predicates, channeltranslationmember.UpdatedAtLTE(*i.UpdatedAtLTE))
+	}
+	if i.ChannelID != nil {
+		predicates = append(predicates, channeltranslationmember.ChannelIDEQ(*i.ChannelID))
+	}
+	if i.ChannelIDNEQ != nil {
+		predicates = append(predicates, channeltranslationmember.ChannelIDNEQ(*i.ChannelIDNEQ))
+	}
+	if len(i.ChannelIDIn) > 0 {
+		predicates = append(predicates, channeltranslationmember.ChannelIDIn(i.ChannelIDIn...))
+	}
+	if len(i.ChannelIDNotIn) > 0 {
+		predicates = append(predicates, channeltranslationmember.ChannelIDNotIn(i.ChannelIDNotIn...))
+	}
+	if i.UserID != nil {
+		predicates = append(predicates, channeltranslationmember.UserIDEQ(*i.UserID))
+	}
+	if i.UserIDNEQ != nil {
+		predicates = append(predicates, channeltranslationmember.UserIDNEQ(*i.UserIDNEQ))
+	}
+	if len(i.UserIDIn) > 0 {
+		predicates = append(predicates, channeltranslationmember.UserIDIn(i.UserIDIn...))
+	}
+	if len(i.UserIDNotIn) > 0 {
+		predicates = append(predicates, channeltranslationmember.UserIDNotIn(i.UserIDNotIn...))
+	}
+	if i.PlatformUserID != nil {
+		predicates = append(predicates, channeltranslationmember.PlatformUserIDEQ(*i.PlatformUserID))
+	}
+	if i.PlatformUserIDNEQ != nil {
+		predicates = append(predicates, channeltranslationmember.PlatformUserIDNEQ(*i.PlatformUserIDNEQ))
+	}
+	if len(i.PlatformUserIDIn) > 0 {
+		predicates = append(predicates, channeltranslationmember.PlatformUserIDIn(i.PlatformUserIDIn...))
+	}
+	if len(i.PlatformUserIDNotIn) > 0 {
+		predicates = append(predicates, channeltranslationmember.PlatformUserIDNotIn(i.PlatformUserIDNotIn...))
+	}
+	if i.PlatformUserIDGT != nil {
+		predicates = append(predicates, channeltranslationmember.PlatformUserIDGT(*i.PlatformUserIDGT))
+	}
+	if i.PlatformUserIDGTE != nil {
+		predicates = append(predicates, channeltranslationmember.PlatformUserIDGTE(*i.PlatformUserIDGTE))
+	}
+	if i.PlatformUserIDLT != nil {
+		predicates = append(predicates, channeltranslationmember.PlatformUserIDLT(*i.PlatformUserIDLT))
+	}
+	if i.PlatformUserIDLTE != nil {
+		predicates = append(predicates, channeltranslationmember.PlatformUserIDLTE(*i.PlatformUserIDLTE))
+	}
+	if i.PlatformUserIDContains != nil {
+		predicates = append(predicates, channeltranslationmember.PlatformUserIDContains(*i.PlatformUserIDContains))
+	}
+	if i.PlatformUserIDHasPrefix != nil {
+		predicates = append(predicates, channeltranslationmember.PlatformUserIDHasPrefix(*i.PlatformUserIDHasPrefix))
+	}
+	if i.PlatformUserIDHasSuffix != nil {
+		predicates = append(predicates, channeltranslationmember.PlatformUserIDHasSuffix(*i.PlatformUserIDHasSuffix))
+	}
+	if i.PlatformUserIDIsNil {
+		predicates = append(predicates, channeltranslationmember.PlatformUserIDIsNil())
+	}
+	if i.PlatformUserIDNotNil {
+		predicates = append(predicates, channeltranslationmember.PlatformUserIDNotNil())
+	}
+	if i.PlatformUserIDEqualFold != nil {
+		predicates = append(predicates, channeltranslationmember.PlatformUserIDEqualFold(*i.PlatformUserIDEqualFold))
+	}
+	if i.PlatformUserIDContainsFold != nil {
+		predicates = append(predicates, channeltranslationmember.PlatformUserIDContainsFold(*i.PlatformUserIDContainsFold))
+	}
+
+	if i.HasChannel != nil {
+		p := channeltranslationmember.HasChannel()
+		if !*i.HasChannel {
+			p = channeltranslationmember.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasChannelWith) > 0 {
+		with := make([]predicate.Channel, 0, len(i.HasChannelWith))
+		for _, w := range i.HasChannelWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasChannelWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, channeltranslationmember.HasChannelWith(with...))
+	}
+	if i.HasUser != nil {
+		p := channeltranslationmember.HasUser()
+		if !*i.HasUser {
+			p = channeltranslationmember.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasUserWith) > 0 {
+		with := make([]predicate.User, 0, len(i.HasUserWith))
+		for _, w := range i.HasUserWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasUserWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, channeltranslationmember.HasUserWith(with...))
+	}
+	switch len(predicates) {
+	case 0:
+		return nil, ErrEmptyChannelTranslationMemberWhereInput
+	case 1:
+		return predicates[0], nil
+	default:
+		return channeltranslationmember.And(predicates...), nil
+	}
+}
+
 // LineWhereInput represents a where input for filtering Line queries.
 type LineWhereInput struct {
 	Predicates []predicate.Line  `json:"-"`
@@ -2553,6 +2910,10 @@ type UserWhereInput struct {
 	// "line" edge predicates.
 	HasLine     *bool             `json:"hasLine,omitempty"`
 	HasLineWith []*LineWhereInput `json:"hasLineWith,omitempty"`
+
+	// "channel_translation_members" edge predicates.
+	HasChannelTranslationMembers     *bool                                 `json:"hasChannelTranslationMembers,omitempty"`
+	HasChannelTranslationMembersWith []*ChannelTranslationMemberWhereInput `json:"hasChannelTranslationMembersWith,omitempty"`
 }
 
 // AddPredicates adds custom predicates to the where input to be used during the filtering phase.
@@ -2746,6 +3107,24 @@ func (i *UserWhereInput) P() (predicate.User, error) {
 			with = append(with, p)
 		}
 		predicates = append(predicates, user.HasLineWith(with...))
+	}
+	if i.HasChannelTranslationMembers != nil {
+		p := user.HasChannelTranslationMembers()
+		if !*i.HasChannelTranslationMembers {
+			p = user.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasChannelTranslationMembersWith) > 0 {
+		with := make([]predicate.ChannelTranslationMember, 0, len(i.HasChannelTranslationMembersWith))
+		for _, w := range i.HasChannelTranslationMembersWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasChannelTranslationMembersWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, user.HasChannelTranslationMembersWith(with...))
 	}
 	switch len(predicates) {
 	case 0:

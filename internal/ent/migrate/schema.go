@@ -155,6 +155,52 @@ var (
 			},
 		},
 	}
+	// ChannelTranslationMembersColumns holds the columns for the "channel_translation_members" table.
+	ChannelTranslationMembersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "platform_user_id", Type: field.TypeString, Nullable: true},
+		{Name: "channel_id", Type: field.TypeUUID},
+		{Name: "user_id", Type: field.TypeUUID},
+	}
+	// ChannelTranslationMembersTable holds the schema information for the "channel_translation_members" table.
+	ChannelTranslationMembersTable = &schema.Table{
+		Name:       "channel_translation_members",
+		Columns:    ChannelTranslationMembersColumns,
+		PrimaryKey: []*schema.Column{ChannelTranslationMembersColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "channel_translation_members_channels_channel",
+				Columns:    []*schema.Column{ChannelTranslationMembersColumns[4]},
+				RefColumns: []*schema.Column{ChannelsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "channel_translation_members_users_user",
+				Columns:    []*schema.Column{ChannelTranslationMembersColumns[5]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "channeltranslationmember_channel_id_user_id",
+				Unique:  true,
+				Columns: []*schema.Column{ChannelTranslationMembersColumns[4], ChannelTranslationMembersColumns[5]},
+			},
+			{
+				Name:    "channeltranslationmember_channel_id_platform_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{ChannelTranslationMembersColumns[4], ChannelTranslationMembersColumns[3]},
+			},
+			{
+				Name:    "channeltranslationmember_platform_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{ChannelTranslationMembersColumns[3]},
+			},
+		},
+	}
 	// LinesColumns holds the columns for the "lines" table.
 	LinesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -215,6 +261,7 @@ var (
 		ActionRoutesTable,
 		ChannelsTable,
 		ChannelMessagesTable,
+		ChannelTranslationMembersTable,
 		LinesTable,
 		SkillsTable,
 		UsersTable,
@@ -226,5 +273,7 @@ func init() {
 	ActionRoutesTable.ForeignKeys[0].RefTable = ActionsTable
 	ChannelMessagesTable.ForeignKeys[0].RefTable = ChannelsTable
 	ChannelMessagesTable.ForeignKeys[1].RefTable = ChannelMessagesTable
+	ChannelTranslationMembersTable.ForeignKeys[0].RefTable = ChannelsTable
+	ChannelTranslationMembersTable.ForeignKeys[1].RefTable = UsersTable
 	LinesTable.ForeignKeys[0].RefTable = UsersTable
 }

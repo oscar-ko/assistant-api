@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"assistant-api/internal/ent/channeltranslationmember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -60,6 +61,21 @@ func (_c *UserCreate) AddLine(v ...*Line) *UserCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddLineIDs(ids...)
+}
+
+// AddChannelTranslationMemberIDs adds the "channel_translation_members" edge to the ChannelTranslationMember entity by IDs.
+func (_c *UserCreate) AddChannelTranslationMemberIDs(ids ...uuid.UUID) *UserCreate {
+	_c.mutation.AddChannelTranslationMemberIDs(ids...)
+	return _c
+}
+
+// AddChannelTranslationMembers adds the "channel_translation_members" edges to the ChannelTranslationMember entity.
+func (_c *UserCreate) AddChannelTranslationMembers(v ...*ChannelTranslationMember) *UserCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddChannelTranslationMemberIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -173,6 +189,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(line.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ChannelTranslationMembersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.ChannelTranslationMembersTable,
+			Columns: []string{user.ChannelTranslationMembersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channeltranslationmember.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

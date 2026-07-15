@@ -7,6 +7,7 @@ import (
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/channeltranslationmember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/user"
@@ -43,6 +44,11 @@ var channelmessageImplementors = []string{"ChannelMessage", "Node"}
 
 // IsNode implements the Node interface check for GQLGen.
 func (*ChannelMessage) IsNode() {}
+
+var channeltranslationmemberImplementors = []string{"ChannelTranslationMember", "Node"}
+
+// IsNode implements the Node interface check for GQLGen.
+func (*ChannelTranslationMember) IsNode() {}
 
 var lineImplementors = []string{"Line", "Node"}
 
@@ -149,6 +155,15 @@ func (c *Client) noder(ctx context.Context, table string, id uuid.UUID) (Noder, 
 			Where(channelmessage.ID(id))
 		if fc := graphql.GetFieldContext(ctx); fc != nil {
 			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, channelmessageImplementors...); err != nil {
+				return nil, err
+			}
+		}
+		return query.Only(ctx)
+	case channeltranslationmember.Table:
+		query := c.ChannelTranslationMember.Query().
+			Where(channeltranslationmember.ID(id))
+		if fc := graphql.GetFieldContext(ctx); fc != nil {
+			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, channeltranslationmemberImplementors...); err != nil {
 				return nil, err
 			}
 		}
@@ -305,6 +320,22 @@ func (c *Client) noders(ctx context.Context, table string, ids []uuid.UUID) ([]N
 		query := c.ChannelMessage.Query().
 			Where(channelmessage.IDIn(ids...))
 		query, err := query.CollectFields(ctx, channelmessageImplementors...)
+		if err != nil {
+			return nil, err
+		}
+		nodes, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, node := range nodes {
+			for _, noder := range idmap[node.ID] {
+				*noder = node
+			}
+		}
+	case channeltranslationmember.Table:
+		query := c.ChannelTranslationMember.Query().
+			Where(channeltranslationmember.IDIn(ids...))
+		query, err := query.CollectFields(ctx, channeltranslationmemberImplementors...)
 		if err != nil {
 			return nil, err
 		}

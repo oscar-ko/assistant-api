@@ -7,6 +7,7 @@ import (
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/channeltranslationmember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/user"
@@ -1096,6 +1097,255 @@ func (_m *ChannelMessage) ToEdge(order *ChannelMessageOrder) *ChannelMessageEdge
 		order = DefaultChannelMessageOrder
 	}
 	return &ChannelMessageEdge{
+		Node:   _m,
+		Cursor: order.Field.toCursor(_m),
+	}
+}
+
+// ChannelTranslationMemberEdge is the edge representation of ChannelTranslationMember.
+type ChannelTranslationMemberEdge struct {
+	Node   *ChannelTranslationMember `json:"node"`
+	Cursor Cursor                    `json:"cursor"`
+}
+
+// ChannelTranslationMemberConnection is the connection containing edges to ChannelTranslationMember.
+type ChannelTranslationMemberConnection struct {
+	Edges      []*ChannelTranslationMemberEdge `json:"edges"`
+	PageInfo   PageInfo                        `json:"pageInfo"`
+	TotalCount int                             `json:"totalCount"`
+}
+
+func (c *ChannelTranslationMemberConnection) build(nodes []*ChannelTranslationMember, pager *channeltranslationmemberPager, after *Cursor, first *int, before *Cursor, last *int) {
+	c.PageInfo.HasNextPage = before != nil
+	c.PageInfo.HasPreviousPage = after != nil
+	if first != nil && *first+1 == len(nodes) {
+		c.PageInfo.HasNextPage = true
+		nodes = nodes[:len(nodes)-1]
+	} else if last != nil && *last+1 == len(nodes) {
+		c.PageInfo.HasPreviousPage = true
+		nodes = nodes[:len(nodes)-1]
+	}
+	var nodeAt func(int) *ChannelTranslationMember
+	if last != nil {
+		n := len(nodes) - 1
+		nodeAt = func(i int) *ChannelTranslationMember {
+			return nodes[n-i]
+		}
+	} else {
+		nodeAt = func(i int) *ChannelTranslationMember {
+			return nodes[i]
+		}
+	}
+	c.Edges = make([]*ChannelTranslationMemberEdge, len(nodes))
+	for i := range nodes {
+		node := nodeAt(i)
+		c.Edges[i] = &ChannelTranslationMemberEdge{
+			Node:   node,
+			Cursor: pager.toCursor(node),
+		}
+	}
+	if l := len(c.Edges); l > 0 {
+		c.PageInfo.StartCursor = &c.Edges[0].Cursor
+		c.PageInfo.EndCursor = &c.Edges[l-1].Cursor
+	}
+	if c.TotalCount == 0 {
+		c.TotalCount = len(nodes)
+	}
+}
+
+// ChannelTranslationMemberPaginateOption enables pagination customization.
+type ChannelTranslationMemberPaginateOption func(*channeltranslationmemberPager) error
+
+// WithChannelTranslationMemberOrder configures pagination ordering.
+func WithChannelTranslationMemberOrder(order *ChannelTranslationMemberOrder) ChannelTranslationMemberPaginateOption {
+	if order == nil {
+		order = DefaultChannelTranslationMemberOrder
+	}
+	o := *order
+	return func(pager *channeltranslationmemberPager) error {
+		if err := o.Direction.Validate(); err != nil {
+			return err
+		}
+		if o.Field == nil {
+			o.Field = DefaultChannelTranslationMemberOrder.Field
+		}
+		pager.order = &o
+		return nil
+	}
+}
+
+// WithChannelTranslationMemberFilter configures pagination filter.
+func WithChannelTranslationMemberFilter(filter func(*ChannelTranslationMemberQuery) (*ChannelTranslationMemberQuery, error)) ChannelTranslationMemberPaginateOption {
+	return func(pager *channeltranslationmemberPager) error {
+		if filter == nil {
+			return errors.New("ChannelTranslationMemberQuery filter cannot be nil")
+		}
+		pager.filter = filter
+		return nil
+	}
+}
+
+type channeltranslationmemberPager struct {
+	reverse bool
+	order   *ChannelTranslationMemberOrder
+	filter  func(*ChannelTranslationMemberQuery) (*ChannelTranslationMemberQuery, error)
+}
+
+func newChannelTranslationMemberPager(opts []ChannelTranslationMemberPaginateOption, reverse bool) (*channeltranslationmemberPager, error) {
+	pager := &channeltranslationmemberPager{reverse: reverse}
+	for _, opt := range opts {
+		if err := opt(pager); err != nil {
+			return nil, err
+		}
+	}
+	if pager.order == nil {
+		pager.order = DefaultChannelTranslationMemberOrder
+	}
+	return pager, nil
+}
+
+func (p *channeltranslationmemberPager) applyFilter(query *ChannelTranslationMemberQuery) (*ChannelTranslationMemberQuery, error) {
+	if p.filter != nil {
+		return p.filter(query)
+	}
+	return query, nil
+}
+
+func (p *channeltranslationmemberPager) toCursor(_m *ChannelTranslationMember) Cursor {
+	return p.order.Field.toCursor(_m)
+}
+
+func (p *channeltranslationmemberPager) applyCursors(query *ChannelTranslationMemberQuery, after, before *Cursor) (*ChannelTranslationMemberQuery, error) {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	for _, predicate := range entgql.CursorsPredicate(after, before, DefaultChannelTranslationMemberOrder.Field.column, p.order.Field.column, direction) {
+		query = query.Where(predicate)
+	}
+	return query, nil
+}
+
+func (p *channeltranslationmemberPager) applyOrder(query *ChannelTranslationMemberQuery) *ChannelTranslationMemberQuery {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	query = query.Order(p.order.Field.toTerm(direction.OrderTermOption()))
+	if p.order.Field != DefaultChannelTranslationMemberOrder.Field {
+		query = query.Order(DefaultChannelTranslationMemberOrder.Field.toTerm(direction.OrderTermOption()))
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return query
+}
+
+func (p *channeltranslationmemberPager) orderExpr(query *ChannelTranslationMemberQuery) sql.Querier {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return sql.ExprFunc(func(b *sql.Builder) {
+		b.Ident(p.order.Field.column).Pad().WriteString(string(direction))
+		if p.order.Field != DefaultChannelTranslationMemberOrder.Field {
+			b.Comma().Ident(DefaultChannelTranslationMemberOrder.Field.column).Pad().WriteString(string(direction))
+		}
+	})
+}
+
+// Paginate executes the query and returns a relay based cursor connection to ChannelTranslationMember.
+func (_m *ChannelTranslationMemberQuery) Paginate(
+	ctx context.Context, after *Cursor, first *int,
+	before *Cursor, last *int, opts ...ChannelTranslationMemberPaginateOption,
+) (*ChannelTranslationMemberConnection, error) {
+	if err := validateFirstLast(first, last); err != nil {
+		return nil, err
+	}
+	pager, err := newChannelTranslationMemberPager(opts, last != nil)
+	if err != nil {
+		return nil, err
+	}
+	if _m, err = pager.applyFilter(_m); err != nil {
+		return nil, err
+	}
+	conn := &ChannelTranslationMemberConnection{Edges: []*ChannelTranslationMemberEdge{}}
+	ignoredEdges := !hasCollectedField(ctx, edgesField)
+	if hasCollectedField(ctx, totalCountField) || hasCollectedField(ctx, pageInfoField) {
+		hasPagination := after != nil || first != nil || before != nil || last != nil
+		if hasPagination || ignoredEdges {
+			c := _m.Clone()
+			c.ctx.Fields = nil
+			if conn.TotalCount, err = c.Count(ctx); err != nil {
+				return nil, err
+			}
+			conn.PageInfo.HasNextPage = first != nil && conn.TotalCount > 0
+			conn.PageInfo.HasPreviousPage = last != nil && conn.TotalCount > 0
+		}
+	}
+	if ignoredEdges || (first != nil && *first == 0) || (last != nil && *last == 0) {
+		return conn, nil
+	}
+	if _m, err = pager.applyCursors(_m, after, before); err != nil {
+		return nil, err
+	}
+	limit := paginateLimit(first, last)
+	if limit != 0 {
+		_m.Limit(limit)
+	}
+	if field := collectedField(ctx, edgesField, nodeField); field != nil {
+		if err := _m.collectField(ctx, limit == 1, graphql.GetOperationContext(ctx), *field, []string{edgesField, nodeField}); err != nil {
+			return nil, err
+		}
+	}
+	_m = pager.applyOrder(_m)
+	nodes, err := _m.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	conn.build(nodes, pager, after, first, before, last)
+	return conn, nil
+}
+
+// ChannelTranslationMemberOrderField defines the ordering field of ChannelTranslationMember.
+type ChannelTranslationMemberOrderField struct {
+	// Value extracts the ordering value from the given ChannelTranslationMember.
+	Value    func(*ChannelTranslationMember) (ent.Value, error)
+	column   string // field or computed.
+	toTerm   func(...sql.OrderTermOption) channeltranslationmember.OrderOption
+	toCursor func(*ChannelTranslationMember) Cursor
+}
+
+// ChannelTranslationMemberOrder defines the ordering of ChannelTranslationMember.
+type ChannelTranslationMemberOrder struct {
+	Direction OrderDirection                      `json:"direction"`
+	Field     *ChannelTranslationMemberOrderField `json:"field"`
+}
+
+// DefaultChannelTranslationMemberOrder is the default ordering of ChannelTranslationMember.
+var DefaultChannelTranslationMemberOrder = &ChannelTranslationMemberOrder{
+	Direction: entgql.OrderDirectionAsc,
+	Field: &ChannelTranslationMemberOrderField{
+		Value: func(_m *ChannelTranslationMember) (ent.Value, error) {
+			return _m.ID, nil
+		},
+		column: channeltranslationmember.FieldID,
+		toTerm: channeltranslationmember.ByID,
+		toCursor: func(_m *ChannelTranslationMember) Cursor {
+			return Cursor{ID: _m.ID}
+		},
+	},
+}
+
+// ToEdge converts ChannelTranslationMember into ChannelTranslationMemberEdge.
+func (_m *ChannelTranslationMember) ToEdge(order *ChannelTranslationMemberOrder) *ChannelTranslationMemberEdge {
+	if order == nil {
+		order = DefaultChannelTranslationMemberOrder
+	}
+	return &ChannelTranslationMemberEdge{
 		Node:   _m,
 		Cursor: order.Field.toCursor(_m),
 	}

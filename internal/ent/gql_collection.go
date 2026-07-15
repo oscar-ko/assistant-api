@@ -7,6 +7,7 @@ import (
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/channeltranslationmember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/user"
@@ -267,6 +268,19 @@ func (_q *ChannelQuery) collectField(ctx context.Context, oneNode bool, opCtx *g
 			_q.WithNamedMessages(alias, func(wq *ChannelMessageQuery) {
 				*wq = *query
 			})
+
+		case "translationMembers":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&ChannelTranslationMemberClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, channeltranslationmemberImplementors)...); err != nil {
+				return err
+			}
+			_q.WithNamedTranslationMembers(alias, func(wq *ChannelTranslationMemberQuery) {
+				*wq = *query
+			})
 		case "createdAt":
 			if _, ok := fieldSeen[channel.FieldCreatedAt]; !ok {
 				selectedFields = append(selectedFields, channel.FieldCreatedAt)
@@ -509,6 +523,123 @@ func newChannelMessagePaginateArgs(rv map[string]any) *channelmessagePaginateArg
 }
 
 // CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
+func (_q *ChannelTranslationMemberQuery) CollectFields(ctx context.Context, satisfies ...string) (*ChannelTranslationMemberQuery, error) {
+	fc := graphql.GetFieldContext(ctx)
+	if fc == nil {
+		return _q, nil
+	}
+	if err := _q.collectField(ctx, false, graphql.GetOperationContext(ctx), fc.Field, nil, satisfies...); err != nil {
+		return nil, err
+	}
+	return _q, nil
+}
+
+func (_q *ChannelTranslationMemberQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
+	path = append([]string(nil), path...)
+	var (
+		unknownSeen    bool
+		fieldSeen      = make(map[string]struct{}, len(channeltranslationmember.Columns))
+		selectedFields = []string{channeltranslationmember.FieldID}
+	)
+	for _, field := range graphql.CollectFields(opCtx, collected.Selections, satisfies) {
+		switch field.Name {
+
+		case "channel":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&ChannelClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, channelImplementors)...); err != nil {
+				return err
+			}
+			_q.withChannel = query
+			if _, ok := fieldSeen[channeltranslationmember.FieldChannelID]; !ok {
+				selectedFields = append(selectedFields, channeltranslationmember.FieldChannelID)
+				fieldSeen[channeltranslationmember.FieldChannelID] = struct{}{}
+			}
+
+		case "user":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&UserClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, userImplementors)...); err != nil {
+				return err
+			}
+			_q.withUser = query
+			if _, ok := fieldSeen[channeltranslationmember.FieldUserID]; !ok {
+				selectedFields = append(selectedFields, channeltranslationmember.FieldUserID)
+				fieldSeen[channeltranslationmember.FieldUserID] = struct{}{}
+			}
+		case "createdAt":
+			if _, ok := fieldSeen[channeltranslationmember.FieldCreatedAt]; !ok {
+				selectedFields = append(selectedFields, channeltranslationmember.FieldCreatedAt)
+				fieldSeen[channeltranslationmember.FieldCreatedAt] = struct{}{}
+			}
+		case "updatedAt":
+			if _, ok := fieldSeen[channeltranslationmember.FieldUpdatedAt]; !ok {
+				selectedFields = append(selectedFields, channeltranslationmember.FieldUpdatedAt)
+				fieldSeen[channeltranslationmember.FieldUpdatedAt] = struct{}{}
+			}
+		case "channelID":
+			if _, ok := fieldSeen[channeltranslationmember.FieldChannelID]; !ok {
+				selectedFields = append(selectedFields, channeltranslationmember.FieldChannelID)
+				fieldSeen[channeltranslationmember.FieldChannelID] = struct{}{}
+			}
+		case "userID":
+			if _, ok := fieldSeen[channeltranslationmember.FieldUserID]; !ok {
+				selectedFields = append(selectedFields, channeltranslationmember.FieldUserID)
+				fieldSeen[channeltranslationmember.FieldUserID] = struct{}{}
+			}
+		case "platformUserID":
+			if _, ok := fieldSeen[channeltranslationmember.FieldPlatformUserID]; !ok {
+				selectedFields = append(selectedFields, channeltranslationmember.FieldPlatformUserID)
+				fieldSeen[channeltranslationmember.FieldPlatformUserID] = struct{}{}
+			}
+		case "id":
+		case "__typename":
+		default:
+			unknownSeen = true
+		}
+	}
+	if !unknownSeen {
+		_q.Select(selectedFields...)
+	}
+	return nil
+}
+
+type channeltranslationmemberPaginateArgs struct {
+	first, last   *int
+	after, before *Cursor
+	opts          []ChannelTranslationMemberPaginateOption
+}
+
+func newChannelTranslationMemberPaginateArgs(rv map[string]any) *channeltranslationmemberPaginateArgs {
+	args := &channeltranslationmemberPaginateArgs{}
+	if rv == nil {
+		return args
+	}
+	if v := rv[firstField]; v != nil {
+		args.first = v.(*int)
+	}
+	if v := rv[lastField]; v != nil {
+		args.last = v.(*int)
+	}
+	if v := rv[afterField]; v != nil {
+		args.after = v.(*Cursor)
+	}
+	if v := rv[beforeField]; v != nil {
+		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[whereField].(*ChannelTranslationMemberWhereInput); ok {
+		args.opts = append(args.opts, WithChannelTranslationMemberFilter(v.Filter))
+	}
+	return args
+}
+
+// CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
 func (_q *LineQuery) CollectFields(ctx context.Context, satisfies ...string) (*LineQuery, error) {
 	fc := graphql.GetFieldContext(ctx)
 	if fc == nil {
@@ -718,6 +849,19 @@ func (_q *UserQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 				return err
 			}
 			_q.WithNamedLine(alias, func(wq *LineQuery) {
+				*wq = *query
+			})
+
+		case "channelTranslationMembers":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&ChannelTranslationMemberClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, channeltranslationmemberImplementors)...); err != nil {
+				return err
+			}
+			_q.WithNamedChannelTranslationMembers(alias, func(wq *ChannelTranslationMemberQuery) {
 				*wq = *query
 			})
 		case "name":

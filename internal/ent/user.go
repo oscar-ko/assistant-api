@@ -32,13 +32,16 @@ type User struct {
 type UserEdges struct {
 	// 使用者綁定的 LINE 帳號清單（可多筆）
 	Line []*Line `json:"line,omitempty"`
+	// 使用者啟用翻譯的頻道成員設定
+	ChannelTranslationMembers []*ChannelTranslationMember `json:"channel_translation_members,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 	// totalCount holds the count of the edges above.
-	totalCount [1]map[string]int
+	totalCount [2]map[string]int
 
-	namedLine map[string][]*Line
+	namedLine                      map[string][]*Line
+	namedChannelTranslationMembers map[string][]*ChannelTranslationMember
 }
 
 // LineOrErr returns the Line value or an error if the edge
@@ -48,6 +51,15 @@ func (e UserEdges) LineOrErr() ([]*Line, error) {
 		return e.Line, nil
 	}
 	return nil, &NotLoadedError{edge: "line"}
+}
+
+// ChannelTranslationMembersOrErr returns the ChannelTranslationMembers value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) ChannelTranslationMembersOrErr() ([]*ChannelTranslationMember, error) {
+	if e.loadedTypes[1] {
+		return e.ChannelTranslationMembers, nil
+	}
+	return nil, &NotLoadedError{edge: "channel_translation_members"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -110,6 +122,11 @@ func (_m *User) QueryLine() *LineQuery {
 	return NewUserClient(_m.config).QueryLine(_m)
 }
 
+// QueryChannelTranslationMembers queries the "channel_translation_members" edge of the User entity.
+func (_m *User) QueryChannelTranslationMembers() *ChannelTranslationMemberQuery {
+	return NewUserClient(_m.config).QueryChannelTranslationMembers(_m)
+}
+
 // Update returns a builder for updating this User.
 // Note that you need to call User.Unwrap() before calling this method if this User
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -163,6 +180,30 @@ func (_m *User) appendNamedLine(name string, edges ...*Line) {
 		_m.Edges.namedLine[name] = []*Line{}
 	} else {
 		_m.Edges.namedLine[name] = append(_m.Edges.namedLine[name], edges...)
+	}
+}
+
+// NamedChannelTranslationMembers returns the ChannelTranslationMembers named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *User) NamedChannelTranslationMembers(name string) ([]*ChannelTranslationMember, error) {
+	if _m.Edges.namedChannelTranslationMembers == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedChannelTranslationMembers[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *User) appendNamedChannelTranslationMembers(name string, edges ...*ChannelTranslationMember) {
+	if _m.Edges.namedChannelTranslationMembers == nil {
+		_m.Edges.namedChannelTranslationMembers = make(map[string][]*ChannelTranslationMember)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedChannelTranslationMembers[name] = []*ChannelTranslationMember{}
+	} else {
+		_m.Edges.namedChannelTranslationMembers[name] = append(_m.Edges.namedChannelTranslationMembers[name], edges...)
 	}
 }
 

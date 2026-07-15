@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"assistant-api/internal/ent/channeltranslationmember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/user"
@@ -21,14 +22,16 @@ import (
 // UserQuery is the builder for querying User entities.
 type UserQuery struct {
 	config
-	ctx           *QueryContext
-	order         []user.OrderOption
-	inters        []Interceptor
-	predicates    []predicate.User
-	withLine      *LineQuery
-	modifiers     []func(*sql.Selector)
-	loadTotal     []func(context.Context, []*User) error
-	withNamedLine map[string]*LineQuery
+	ctx                                *QueryContext
+	order                              []user.OrderOption
+	inters                             []Interceptor
+	predicates                         []predicate.User
+	withLine                           *LineQuery
+	withChannelTranslationMembers      *ChannelTranslationMemberQuery
+	modifiers                          []func(*sql.Selector)
+	loadTotal                          []func(context.Context, []*User) error
+	withNamedLine                      map[string]*LineQuery
+	withNamedChannelTranslationMembers map[string]*ChannelTranslationMemberQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -80,6 +83,28 @@ func (_q *UserQuery) QueryLine() *LineQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(line.Table, line.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, true, user.LineTable, user.LineColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryChannelTranslationMembers chains the current query on the "channel_translation_members" edge.
+func (_q *UserQuery) QueryChannelTranslationMembers() *ChannelTranslationMemberQuery {
+	query := (&ChannelTranslationMemberClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(channeltranslationmember.Table, channeltranslationmember.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, user.ChannelTranslationMembersTable, user.ChannelTranslationMembersColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -274,12 +299,13 @@ func (_q *UserQuery) Clone() *UserQuery {
 		return nil
 	}
 	return &UserQuery{
-		config:     _q.config,
-		ctx:        _q.ctx.Clone(),
-		order:      append([]user.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.User{}, _q.predicates...),
-		withLine:   _q.withLine.Clone(),
+		config:                        _q.config,
+		ctx:                           _q.ctx.Clone(),
+		order:                         append([]user.OrderOption{}, _q.order...),
+		inters:                        append([]Interceptor{}, _q.inters...),
+		predicates:                    append([]predicate.User{}, _q.predicates...),
+		withLine:                      _q.withLine.Clone(),
+		withChannelTranslationMembers: _q.withChannelTranslationMembers.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -294,6 +320,17 @@ func (_q *UserQuery) WithLine(opts ...func(*LineQuery)) *UserQuery {
 		opt(query)
 	}
 	_q.withLine = query
+	return _q
+}
+
+// WithChannelTranslationMembers tells the query-builder to eager-load the nodes that are connected to
+// the "channel_translation_members" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithChannelTranslationMembers(opts ...func(*ChannelTranslationMemberQuery)) *UserQuery {
+	query := (&ChannelTranslationMemberClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withChannelTranslationMembers = query
 	return _q
 }
 
@@ -375,8 +412,9 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [2]bool{
 			_q.withLine != nil,
+			_q.withChannelTranslationMembers != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -407,10 +445,26 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 			return nil, err
 		}
 	}
+	if query := _q.withChannelTranslationMembers; query != nil {
+		if err := _q.loadChannelTranslationMembers(ctx, query, nodes,
+			func(n *User) { n.Edges.ChannelTranslationMembers = []*ChannelTranslationMember{} },
+			func(n *User, e *ChannelTranslationMember) {
+				n.Edges.ChannelTranslationMembers = append(n.Edges.ChannelTranslationMembers, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
 	for name, query := range _q.withNamedLine {
 		if err := _q.loadLine(ctx, query, nodes,
 			func(n *User) { n.appendNamedLine(name) },
 			func(n *User, e *Line) { n.appendNamedLine(name, e) }); err != nil {
+			return nil, err
+		}
+	}
+	for name, query := range _q.withNamedChannelTranslationMembers {
+		if err := _q.loadChannelTranslationMembers(ctx, query, nodes,
+			func(n *User) { n.appendNamedChannelTranslationMembers(name) },
+			func(n *User, e *ChannelTranslationMember) { n.appendNamedChannelTranslationMembers(name, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -448,6 +502,36 @@ func (_q *UserQuery) loadLine(ctx context.Context, query *LineQuery, nodes []*Us
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "line_user" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadChannelTranslationMembers(ctx context.Context, query *ChannelTranslationMemberQuery, nodes []*User, init func(*User), assign func(*User, *ChannelTranslationMember)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(channeltranslationmember.FieldUserID)
+	}
+	query.Where(predicate.ChannelTranslationMember(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.ChannelTranslationMembersColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.UserID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
 		}
 		assign(node, n)
 	}
@@ -549,6 +633,20 @@ func (_q *UserQuery) WithNamedLine(name string, opts ...func(*LineQuery)) *UserQ
 		_q.withNamedLine = make(map[string]*LineQuery)
 	}
 	_q.withNamedLine[name] = query
+	return _q
+}
+
+// WithNamedChannelTranslationMembers tells the query-builder to eager-load the nodes that are connected to the "channel_translation_members"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithNamedChannelTranslationMembers(name string, opts ...func(*ChannelTranslationMemberQuery)) *UserQuery {
+	query := (&ChannelTranslationMemberClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if _q.withNamedChannelTranslationMembers == nil {
+		_q.withNamedChannelTranslationMembers = make(map[string]*ChannelTranslationMemberQuery)
+	}
+	_q.withNamedChannelTranslationMembers[name] = query
 	return _q
 }
 

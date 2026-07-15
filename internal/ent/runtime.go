@@ -7,6 +7,7 @@ import (
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/channeltranslationmember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/schema"
 	"assistant-api/internal/ent/skill"
@@ -120,6 +121,27 @@ func init() {
 	channelmessageDescID := channelmessageMixinFields0[0].Descriptor()
 	// channelmessage.DefaultID holds the default value on creation for the id field.
 	channelmessage.DefaultID = channelmessageDescID.Default.(func() uuid.UUID)
+	channeltranslationmemberMixin := schema.ChannelTranslationMember{}.Mixin()
+	channeltranslationmemberMixinFields0 := channeltranslationmemberMixin[0].Fields()
+	_ = channeltranslationmemberMixinFields0
+	channeltranslationmemberMixinFields1 := channeltranslationmemberMixin[1].Fields()
+	_ = channeltranslationmemberMixinFields1
+	channeltranslationmemberFields := schema.ChannelTranslationMember{}.Fields()
+	_ = channeltranslationmemberFields
+	// channeltranslationmemberDescCreatedAt is the schema descriptor for created_at field.
+	channeltranslationmemberDescCreatedAt := channeltranslationmemberMixinFields1[0].Descriptor()
+	// channeltranslationmember.DefaultCreatedAt holds the default value on creation for the created_at field.
+	channeltranslationmember.DefaultCreatedAt = channeltranslationmemberDescCreatedAt.Default.(func() time.Time)
+	// channeltranslationmemberDescUpdatedAt is the schema descriptor for updated_at field.
+	channeltranslationmemberDescUpdatedAt := channeltranslationmemberMixinFields1[1].Descriptor()
+	// channeltranslationmember.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	channeltranslationmember.DefaultUpdatedAt = channeltranslationmemberDescUpdatedAt.Default.(func() time.Time)
+	// channeltranslationmember.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	channeltranslationmember.UpdateDefaultUpdatedAt = channeltranslationmemberDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// channeltranslationmemberDescID is the schema descriptor for id field.
+	channeltranslationmemberDescID := channeltranslationmemberMixinFields0[0].Descriptor()
+	// channeltranslationmember.DefaultID holds the default value on creation for the id field.
+	channeltranslationmember.DefaultID = channeltranslationmemberDescID.Default.(func() uuid.UUID)
 	lineMixin := schema.Line{}.Mixin()
 	lineMixinFields0 := lineMixin[0].Fields()
 	_ = lineMixinFields0

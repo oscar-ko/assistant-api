@@ -8,9 +8,10 @@ import (
 
 // CreateUserInput represents a mutation input for creating users.
 type CreateUserInput struct {
-	Name    string
-	Email   string
-	LineIDs []uuid.UUID
+	Name                        string
+	Email                       string
+	LineIDs                     []uuid.UUID
+	ChannelTranslationMemberIDs []uuid.UUID
 }
 
 // Mutate applies the CreateUserInput on the UserMutation builder.
@@ -19,6 +20,9 @@ func (i *CreateUserInput) Mutate(m *UserMutation) {
 	m.SetEmail(i.Email)
 	if v := i.LineIDs; len(v) > 0 {
 		m.AddLineIDs(v...)
+	}
+	if v := i.ChannelTranslationMemberIDs; len(v) > 0 {
+		m.AddChannelTranslationMemberIDs(v...)
 	}
 }
 
@@ -30,11 +34,14 @@ func (c *UserCreate) SetInput(i CreateUserInput) *UserCreate {
 
 // UpdateUserInput represents a mutation input for updating users.
 type UpdateUserInput struct {
-	Name          *string
-	Email         *string
-	ClearLine     bool
-	AddLineIDs    []uuid.UUID
-	RemoveLineIDs []uuid.UUID
+	Name                              *string
+	Email                             *string
+	ClearLine                         bool
+	AddLineIDs                        []uuid.UUID
+	RemoveLineIDs                     []uuid.UUID
+	ClearChannelTranslationMembers    bool
+	AddChannelTranslationMemberIDs    []uuid.UUID
+	RemoveChannelTranslationMemberIDs []uuid.UUID
 }
 
 // Mutate applies the UpdateUserInput on the UserMutation builder.
@@ -53,6 +60,15 @@ func (i *UpdateUserInput) Mutate(m *UserMutation) {
 	}
 	if v := i.RemoveLineIDs; len(v) > 0 {
 		m.RemoveLineIDs(v...)
+	}
+	if i.ClearChannelTranslationMembers {
+		m.ClearChannelTranslationMembers()
+	}
+	if v := i.AddChannelTranslationMemberIDs; len(v) > 0 {
+		m.AddChannelTranslationMemberIDs(v...)
+	}
+	if v := i.RemoveChannelTranslationMemberIDs; len(v) > 0 {
+		m.RemoveChannelTranslationMemberIDs(v...)
 	}
 }
 
