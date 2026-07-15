@@ -55,6 +55,12 @@ type AIConfig struct {
 type SemanticDecisionConfig struct {
 	ServiceURL            string `mapstructure:"service_url" yaml:"service_url"`
 	ServiceTimeoutSeconds int    `mapstructure:"service_timeout_seconds" yaml:"service_timeout_seconds"`
+	// CommandConfidenceThreshold 決定 final action 信心值低於多少時，
+	// 直接視為對話意圖（非指令 action）。0 代表關閉此門檻判斷。
+	CommandConfidenceThreshold float64 `mapstructure:"command_confidence_threshold" yaml:"command_confidence_threshold"`
+	// QuestionConfidenceThreshold 決定問答回覆信心值低於多少時，
+	// 應改由其他 cloud LLM 回答會更合適。0 代表關閉此門檻判斷。
+	QuestionConfidenceThreshold float64 `mapstructure:"question_confidence_threshold" yaml:"question_confidence_threshold"`
 }
 
 // EmbeddingConfig 為第一階段候選召回使用的向量化服務設定。
@@ -198,6 +204,12 @@ func MustLoad() {
 		viper.SetDefault("postgresql.parameters", "sslmode=disable")
 		viper.SetDefault("ai.semantic_decision.service_url", "http://127.0.0.1:9002")
 		viper.SetDefault("ai.semantic_decision.service_timeout_seconds", 90)
+		// 第一層門檻：action decision confidence 低於此值時，
+		// 不直接執行 action，改走 question-answer 分支。
+		viper.SetDefault("ai.semantic_decision.command_confidence_threshold", 0.7)
+		// 第二層門檻：question-answer confidence 低於此值時，
+		// 標記建議改送 cloud LLM（例如時事/高難推理問題）。
+		viper.SetDefault("ai.semantic_decision.question_confidence_threshold", 0.6)
 		viper.SetDefault("ai.embedding.url", "http://127.0.0.1:9000")
 		viper.SetDefault("ai.embedding.timeout_seconds", 60)
 		viper.SetDefault("ai.embedding.max_attempts", 4)

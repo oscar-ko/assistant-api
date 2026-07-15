@@ -10,6 +10,8 @@ type Service interface {
 	// DecideFinalAction 依 reranker 篩選後的候選清單與原始訊息文字，
 	// 讓語意決策模型從候選中選出最終應執行的單一 action。
 	DecideFinalAction(ctx context.Context, text string, candidates []ActionCandidate) (*ActionDecision, error)
+	// AnswerQuestion 把訊息當作一般問題，回傳答案與信心度。
+	AnswerQuestion(ctx context.Context, text string) (*QuestionAnswer, error)
 }
 
 type service struct {
@@ -39,4 +41,19 @@ func (s *service) DecideFinalAction(ctx context.Context, text string, candidates
 	}
 
 	return s.client.ClassifyAction(ctx, BuildFinalActionPrompt(candidates), trimmedText)
+}
+
+// AnswerQuestion 把訊息視為一般問答問題，交給語意服務回覆 answer + confidence。
+func (s *service) AnswerQuestion(ctx context.Context, text string) (*QuestionAnswer, error) {
+	if s == nil || s.client == nil {
+		// 保持可安全退化：服務未注入時，不讓流程 panic。
+		return nil, nil
+	}
+	trimmedText := strings.TrimSpace(text)
+	if trimmedText == "" {
+		// 空訊息不送問答模型，避免無意義呼叫。
+		return nil, nil
+	}
+
+	return s.client.AnswerQuestion(ctx, BuildQuestionAnswerPrompt(), trimmedText)
 }

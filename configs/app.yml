@@ -45,7 +45,7 @@ ai:
         path: "/rerank"
         # 第二階段精排後最終保留幾筆候選，這筆數會小於 retrieval_top_k，
         # 代表從較大候選集中縮減到最終要交給 semantic decision 判斷的筆數。
-        top_k: 5
+        top_k: 3
         # reranker 探活策略（毫秒），用途同 embedding。
         alive_probe_interval_ms: 2000
         alive_probe_timeout_ms: 1500
@@ -59,6 +59,14 @@ ai:
     semantic_decision:
         service_url: "http://127.0.0.1:9002"
         service_timeout_seconds: 90
+        # 最終 action decision 若低於此信心值，視為「對話問題」而非可執行指令。
+        # 0 代表關閉此門檻機制。
+        # 例如 no_match 或低匹配語意時，會改走 question_answer。
+        command_confidence_threshold: 0.7
+        # 問答模式回覆若低於此信心值，表示更適合交給 cloud LLM 回答。
+        # 0 代表關閉此門檻機制。
+        # 此值只影響是否標記 recommend_cloud_llm，不改變問答本身是否執行。
+        question_confidence_threshold: 0.6
 
 # 資料庫 schema 自動建立開關（開發環境常設為 true）。
 database:

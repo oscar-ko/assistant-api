@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"assistant-api/internal/config"
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
 	"assistant-api/internal/usecase/ai/semanticdecision"
@@ -27,10 +28,13 @@ func (s *stubTopKFilter) FilterMessage(ctx context.Context, message *unifiedmess
 }
 
 type stubSemanticDecision struct {
-	called     bool
-	decision   *semanticdecision.ActionDecision
-	err        error
-	candidates []semanticdecision.ActionCandidate
+	called       bool
+	decision     *semanticdecision.ActionDecision
+	err          error
+	candidates   []semanticdecision.ActionCandidate
+	answerCalled bool
+	answer       *semanticdecision.QuestionAnswer
+	answerErr    error
 }
 
 func (s *stubSemanticDecision) DecideFinalAction(ctx context.Context, text string, candidates []semanticdecision.ActionCandidate) (*semanticdecision.ActionDecision, error) {
@@ -39,6 +43,13 @@ func (s *stubSemanticDecision) DecideFinalAction(ctx context.Context, text strin
 	s.called = true
 	s.candidates = candidates
 	return s.decision, s.err
+}
+
+func (s *stubSemanticDecision) AnswerQuestion(ctx context.Context, text string) (*semanticdecision.QuestionAnswer, error) {
+	_ = ctx
+	_ = text
+	s.answerCalled = true
+	return s.answer, s.answerErr
 }
 
 func TestResolveSender(t *testing.T) {
@@ -195,5 +206,94 @@ func TestWebhookService_ProcessIncoming_FinalActionNotInCandidates(t *testing.T)
 	}
 	if entries[0].ContextMap()["valid_selection"] != false {
 		t.Fatalf("expected valid_selection=false, got %v", entries[0].ContextMap()["valid_selection"])
+	}
+}
+
+func TestWebhookService_ProcessIncoming_LowConfidenceTreatedAsChat(t *testing.T) {
+	core, observed := observer.New(zapcore.DebugLevel)
+	oldLogger := zap.L()
+	zap.ReplaceGlobals(zap.New(core))
+	defer zap.ReplaceGlobals(oldLogger)
+
+	oldThreshold := config.AI.SemanticDecision.CommandConfidenceThreshold
+	oldQuestionThreshold := config.AI.SemanticDecision.QuestionConfidenceThreshold
+	config.AI.SemanticDecision.CommandConfidenceThreshold = 0.7
+	config.AI.SemanticDecision.QuestionConfidenceThreshold = 0.6
+	defer func() {
+		config.AI.SemanticDecision.CommandConfidenceThreshold = oldThreshold
+		config.AI.SemanticDecision.QuestionConfidenceThreshold = oldQuestionThreshold
+	}()
+
+	body := []byte(`{"events":[{"type":"message","source":{"type":"private","userId":"U123"},"message":{"type":"text","text":"這個問題幫我解釋一下"}}]}`)
+	filterStub := &stubTopKFilter{
+		candidates: []topkfilter.ScoredCandidate{
+			{Candidate: repository.ActionRouteVectorCandidate{APIOperation: "start_translation_locale", SkillCode: "channel.translation", RouteText: "開啟翻譯"}},
+		},
+	}
+	decisionStub := &stubSemanticDecision{
+		decision: &semanticdecision.ActionDecision{APIOperation: "start_translation_locale", Confidence: 0.42, Reason: "stub reason"},
+		answer:   &semanticdecision.QuestionAnswer{SchemaVersion: "v1", Answer: "這是一個問題的回覆", Confidence: 0.35},
+	}
+
+	(&WebhookService{topKFilterService: filterStub, semanticService: decisionStub}).ProcessIncoming(body, "sig")
+
+	// 低 action confidence 應走問答分支，而不是產生最終 action。
+	if !decisionStub.answerCalled {
+		t.Fatalf("expected AnswerQuestion to be called on low action confidence")
+	}
+	answerEntries := observed.FilterMessage("line message semantic question answered").All()
+	if len(answerEntries) == 0 {
+		t.Fatalf("expected semantic question answered log")
+	}
+	if answerEntries[0].ContextMap()["recommend_cloud_llm"] != true {
+		t.Fatalf("expected recommend_cloud_llm=true, got %v", answerEntries[0].ContextMap()["recommend_cloud_llm"])
+	}
+	if observed.FilterMessage("line message semantic answer suggests cloud llm fallback").Len() == 0 {
+		t.Fatalf("expected cloud llm fallback warning log")
+	}
+	// 既然已分流到問答，final action log 不應出現。
+	if observed.FilterMessage("line message final action decided").Len() != 0 {
+		t.Fatalf("expected no final action log when confidence is below threshold")
+	}
+}
+
+func TestWebhookService_ProcessIncoming_NoMatchRoutesToQuestionAnswer(t *testing.T) {
+	core, observed := observer.New(zapcore.DebugLevel)
+	oldLogger := zap.L()
+	zap.ReplaceGlobals(zap.New(core))
+	defer zap.ReplaceGlobals(oldLogger)
+
+	oldQuestionThreshold := config.AI.SemanticDecision.QuestionConfidenceThreshold
+	config.AI.SemanticDecision.QuestionConfidenceThreshold = 0.6
+	defer func() {
+		config.AI.SemanticDecision.QuestionConfidenceThreshold = oldQuestionThreshold
+	}()
+
+	body := []byte(`{"events":[{"type":"message","source":{"type":"private","userId":"U123"},"message":{"type":"text","text":"推薦一部電影"}}]}`)
+	filterStub := &stubTopKFilter{
+		candidates: []topkfilter.ScoredCandidate{
+			{Candidate: repository.ActionRouteVectorCandidate{APIOperation: "start_translation_locale", SkillCode: "channel.translation", RouteText: "開啟翻譯"}},
+		},
+	}
+	decisionStub := &stubSemanticDecision{
+		err:    &semanticdecision.UpstreamError{Path: "/predict/action_decision", StatusCode: 422, Detail: "no_match"},
+		answer: &semanticdecision.QuestionAnswer{SchemaVersion: "v1", Answer: "你可以看《星際效應》。", Confidence: 0.88},
+	}
+
+	(&WebhookService{topKFilterService: filterStub, semanticService: decisionStub}).ProcessIncoming(body, "sig")
+
+	// no_match 被視為正常語意結果，必須改走問答分支。
+	if !decisionStub.answerCalled {
+		t.Fatalf("expected AnswerQuestion to be called when action decision returns no_match")
+	}
+	entries := observed.FilterMessage("line message semantic question answered").All()
+	if len(entries) == 0 {
+		t.Fatalf("expected semantic question answered log")
+	}
+	if entries[0].ContextMap()["cause"] != "no_match" {
+		t.Fatalf("expected cause=no_match, got %v", entries[0].ContextMap()["cause"])
+	}
+	if observed.FilterMessage("line message final action decided").Len() != 0 {
+		t.Fatalf("expected no final action log when action decision is no_match")
 	}
 }

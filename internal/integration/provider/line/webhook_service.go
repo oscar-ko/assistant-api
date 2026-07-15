@@ -244,9 +244,17 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 		actionCandidates := toActionCandidates(candidates)
 		finalDecision, err := s.semanticService.DecideFinalAction(context.Background(), message.Text, actionCandidates)
 		if err != nil {
-			zap.L().Debug("line message final action decision skipped",
+			if semanticdecision.IsNoMatchError(err) {
+				// no_match 是語意層的「正常結果」：代表候選 action 都不適配。
+				// 這時不應視為錯誤，而是直接改走問答模型回答使用者問題。
+				s.routeMessageToQuestionAnswer(message, 0.0, config.AI.SemanticDecision.CommandConfidenceThreshold, "no_match")
+				continue
+			}
+			zap.L().Warn("line message final action decision failed",
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.String("text", strings.TrimSpace(message.Text)),
+				zap.String("error_message", err.Error()),
 				zap.Error(err),
 			)
 			continue
@@ -254,6 +262,16 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 		if finalDecision == nil {
 			// 模型端允許回 nil（例如策略性略過），呼叫端視為本次不下最終 action。
 			// 這裡保持靜默跳過，避免把「未決策」誤記錄成錯誤。
+			continue
+		}
+
+		// 低信心門檻：若 final semantic decision 信心值不足，
+		// 判定為「使用者在問 LLM」而非可執行指令，直接停止 action 路徑。
+		confidenceThreshold := config.AI.SemanticDecision.CommandConfidenceThreshold
+		if confidenceThreshold > 0 && finalDecision.Confidence < confidenceThreshold {
+			// 雖然挑到了某個 action，但信心值不足時仍改走問答，
+			// 避免低把握度 action 造成誤觸發。
+			s.routeMessageToQuestionAnswer(message, finalDecision.Confidence, confidenceThreshold, "low_action_confidence")
 			continue
 		}
 
@@ -293,6 +311,63 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 		)
 	}
 
+}
+
+func (s *WebhookService) routeMessageToQuestionAnswer(message *unifiedmessage.Message, actionConfidence float64, actionThreshold float64, cause string) {
+	if s == nil || s.semanticService == nil || message == nil {
+		return
+	}
+
+	// 進入此函式代表已判定「不應直接執行 action」，
+	// 改由問答模型生成自然語言回覆與 answer confidence。
+	qa, qaErr := s.semanticService.AnswerQuestion(context.Background(), message.Text)
+	if qaErr != nil {
+		zap.L().Warn("line message semantic question answer failed",
+			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			zap.String("cause", cause),
+			zap.Float64("action_confidence", actionConfidence),
+			zap.Float64("action_threshold", actionThreshold),
+			zap.Error(qaErr),
+		)
+		return
+	}
+	if qa == nil {
+		// 上游可能在特殊策略下回 nil；這裡僅記錄，避免當成系統錯誤。
+		zap.L().Info("line message semantic question answer skipped",
+			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			zap.String("cause", cause),
+			zap.Float64("action_confidence", actionConfidence),
+			zap.Float64("action_threshold", actionThreshold),
+		)
+		return
+	}
+
+	questionThreshold := config.AI.SemanticDecision.QuestionConfidenceThreshold
+	// 第二道門檻：問答答案信心不足時，標記建議改送 cloud LLM。
+	// 目前先記錄 recommend_cloud_llm，不在此函式直接呼叫外部 cloud provider。
+	recommendCloudLLM := questionThreshold > 0 && qa.Confidence < questionThreshold
+	zap.L().Info("line message semantic question answered",
+		zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+		zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+		zap.String("text", strings.TrimSpace(message.Text)),
+		zap.String("cause", cause),
+		zap.Float64("action_confidence", actionConfidence),
+		zap.Float64("action_threshold", actionThreshold),
+		zap.String("answer", strings.TrimSpace(qa.Answer)),
+		zap.Float64("answer_confidence", qa.Confidence),
+		zap.Float64("answer_threshold", questionThreshold),
+		zap.Bool("recommend_cloud_llm", recommendCloudLLM),
+	)
+	if recommendCloudLLM {
+		zap.L().Warn("line message semantic answer suggests cloud llm fallback",
+			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			zap.Float64("answer_confidence", qa.Confidence),
+			zap.Float64("answer_threshold", questionThreshold),
+		)
+	}
 }
 
 // persistUnifiedMessage 負責把統一訊息格式寫入 channel 與 channel_message。
