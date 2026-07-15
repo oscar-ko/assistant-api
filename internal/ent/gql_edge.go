@@ -48,14 +48,14 @@ func (_m *Channel) Messages(ctx context.Context) (result []*ChannelMessage, err 
 	return result, err
 }
 
-func (_m *Channel) TranslationMembers(ctx context.Context) (result []*ChannelTranslationMember, err error) {
+func (_m *Channel) ServiceMembers(ctx context.Context) (result []*ChannelServiceMember, err error) {
 	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
-		result, err = _m.NamedTranslationMembers(graphql.GetFieldContext(ctx).Field.Alias)
+		result, err = _m.NamedServiceMembers(graphql.GetFieldContext(ctx).Field.Alias)
 	} else {
-		result, err = _m.Edges.TranslationMembersOrErr()
+		result, err = _m.Edges.ServiceMembersOrErr()
 	}
 	if IsNotLoaded(err) {
-		result, err = _m.QueryTranslationMembers().All(ctx)
+		result, err = _m.QueryServiceMembers().All(ctx)
 	}
 	return result, err
 }
@@ -88,7 +88,7 @@ func (_m *ChannelMessage) Replies(ctx context.Context) (result []*ChannelMessage
 	return result, err
 }
 
-func (_m *ChannelTranslationMember) Channel(ctx context.Context) (*Channel, error) {
+func (_m *ChannelServiceMember) Channel(ctx context.Context) (*Channel, error) {
 	result, err := _m.Edges.ChannelOrErr()
 	if IsNotLoaded(err) {
 		result, err = _m.QueryChannel().Only(ctx)
@@ -96,10 +96,18 @@ func (_m *ChannelTranslationMember) Channel(ctx context.Context) (*Channel, erro
 	return result, err
 }
 
-func (_m *ChannelTranslationMember) User(ctx context.Context) (*User, error) {
+func (_m *ChannelServiceMember) User(ctx context.Context) (*User, error) {
 	result, err := _m.Edges.UserOrErr()
 	if IsNotLoaded(err) {
 		result, err = _m.QueryUser().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *ChannelServiceMember) Skill(ctx context.Context) (*Skill, error) {
+	result, err := _m.Edges.SkillOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QuerySkill().Only(ctx)
 	}
 	return result, err
 }
@@ -124,6 +132,18 @@ func (_m *Skill) Actions(ctx context.Context) (result []*Action, err error) {
 	return result, err
 }
 
+func (_m *Skill) ChannelServiceMembers(ctx context.Context) (result []*ChannelServiceMember, err error) {
+	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
+		result, err = _m.NamedChannelServiceMembers(graphql.GetFieldContext(ctx).Field.Alias)
+	} else {
+		result, err = _m.Edges.ChannelServiceMembersOrErr()
+	}
+	if IsNotLoaded(err) {
+		result, err = _m.QueryChannelServiceMembers().All(ctx)
+	}
+	return result, err
+}
+
 func (_m *User) Line(ctx context.Context) (result []*Line, err error) {
 	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
 		result, err = _m.NamedLine(graphql.GetFieldContext(ctx).Field.Alias)
@@ -136,14 +156,14 @@ func (_m *User) Line(ctx context.Context) (result []*Line, err error) {
 	return result, err
 }
 
-func (_m *User) ChannelTranslationMembers(ctx context.Context) (result []*ChannelTranslationMember, err error) {
+func (_m *User) ChannelServiceMembers(ctx context.Context) (result []*ChannelServiceMember, err error) {
 	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
-		result, err = _m.NamedChannelTranslationMembers(graphql.GetFieldContext(ctx).Field.Alias)
+		result, err = _m.NamedChannelServiceMembers(graphql.GetFieldContext(ctx).Field.Alias)
 	} else {
-		result, err = _m.Edges.ChannelTranslationMembersOrErr()
+		result, err = _m.Edges.ChannelServiceMembersOrErr()
 	}
 	if IsNotLoaded(err) {
-		result, err = _m.QueryChannelTranslationMembers().All(ctx)
+		result, err = _m.QueryChannelServiceMembers().All(ctx)
 	}
 	return result, err
 }

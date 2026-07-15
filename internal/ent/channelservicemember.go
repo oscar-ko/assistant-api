@@ -4,7 +4,8 @@ package ent
 
 import (
 	"assistant-api/internal/ent/channel"
-	"assistant-api/internal/ent/channeltranslationmember"
+	"assistant-api/internal/ent/channelservicemember"
+	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/user"
 	"fmt"
 	"strings"
@@ -15,8 +16,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// ChannelTranslationMember is the model entity for the ChannelTranslationMember schema.
-type ChannelTranslationMember struct {
+// ChannelServiceMember is the model entity for the ChannelServiceMember schema.
+type ChannelServiceMember struct {
 	config `json:"-"`
 	// ID of the ent.
 	// 全域唯一主鍵 UUID
@@ -29,30 +30,34 @@ type ChannelTranslationMember struct {
 	ChannelID uuid.UUID `json:"channel_id,omitempty"`
 	// UserID holds the value of the "user_id" field.
 	UserID uuid.UUID `json:"user_id,omitempty"`
+	// 服務技能識別（對應 skills.id）
+	SkillID uuid.UUID `json:"skill_id,omitempty"`
 	// 平台上的使用者 ID (如 LINE userId)
 	PlatformUserID string `json:"platform_user_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
-	// The values are being populated by the ChannelTranslationMemberQuery when eager-loading is set.
-	Edges        ChannelTranslationMemberEdges `json:"edges"`
+	// The values are being populated by the ChannelServiceMemberQuery when eager-loading is set.
+	Edges        ChannelServiceMemberEdges `json:"edges"`
 	selectValues sql.SelectValues
 }
 
-// ChannelTranslationMemberEdges holds the relations/edges for other nodes in the graph.
-type ChannelTranslationMemberEdges struct {
-	// translation 所屬頻道
+// ChannelServiceMemberEdges holds the relations/edges for other nodes in the graph.
+type ChannelServiceMemberEdges struct {
+	// service 所屬頻道
 	Channel *Channel `json:"channel,omitempty"`
-	// 啟用 translation 的成員
+	// 啟用 service 的成員
 	User *User `json:"user,omitempty"`
+	// 對應的服務技能
+	Skill *Skill `json:"skill,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 	// totalCount holds the count of the edges above.
-	totalCount [2]map[string]int
+	totalCount [3]map[string]int
 }
 
 // ChannelOrErr returns the Channel value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
-func (e ChannelTranslationMemberEdges) ChannelOrErr() (*Channel, error) {
+func (e ChannelServiceMemberEdges) ChannelOrErr() (*Channel, error) {
 	if e.Channel != nil {
 		return e.Channel, nil
 	} else if e.loadedTypes[0] {
@@ -63,7 +68,7 @@ func (e ChannelTranslationMemberEdges) ChannelOrErr() (*Channel, error) {
 
 // UserOrErr returns the User value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
-func (e ChannelTranslationMemberEdges) UserOrErr() (*User, error) {
+func (e ChannelServiceMemberEdges) UserOrErr() (*User, error) {
 	if e.User != nil {
 		return e.User, nil
 	} else if e.loadedTypes[1] {
@@ -72,16 +77,27 @@ func (e ChannelTranslationMemberEdges) UserOrErr() (*User, error) {
 	return nil, &NotLoadedError{edge: "user"}
 }
 
+// SkillOrErr returns the Skill value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e ChannelServiceMemberEdges) SkillOrErr() (*Skill, error) {
+	if e.Skill != nil {
+		return e.Skill, nil
+	} else if e.loadedTypes[2] {
+		return nil, &NotFoundError{label: skill.Label}
+	}
+	return nil, &NotLoadedError{edge: "skill"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
-func (*ChannelTranslationMember) scanValues(columns []string) ([]any, error) {
+func (*ChannelServiceMember) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case channeltranslationmember.FieldPlatformUserID:
+		case channelservicemember.FieldPlatformUserID:
 			values[i] = new(sql.NullString)
-		case channeltranslationmember.FieldCreatedAt, channeltranslationmember.FieldUpdatedAt:
+		case channelservicemember.FieldCreatedAt, channelservicemember.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
-		case channeltranslationmember.FieldID, channeltranslationmember.FieldChannelID, channeltranslationmember.FieldUserID:
+		case channelservicemember.FieldID, channelservicemember.FieldChannelID, channelservicemember.FieldUserID, channelservicemember.FieldSkillID:
 			values[i] = new(uuid.UUID)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -91,44 +107,50 @@ func (*ChannelTranslationMember) scanValues(columns []string) ([]any, error) {
 }
 
 // assignValues assigns the values that were returned from sql.Rows (after scanning)
-// to the ChannelTranslationMember fields.
-func (_m *ChannelTranslationMember) assignValues(columns []string, values []any) error {
+// to the ChannelServiceMember fields.
+func (_m *ChannelServiceMember) assignValues(columns []string, values []any) error {
 	if m, n := len(values), len(columns); m < n {
 		return fmt.Errorf("mismatch number of scan values: %d != %d", m, n)
 	}
 	for i := range columns {
 		switch columns[i] {
-		case channeltranslationmember.FieldID:
+		case channelservicemember.FieldID:
 			if value, ok := values[i].(*uuid.UUID); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
 			} else if value != nil {
 				_m.ID = *value
 			}
-		case channeltranslationmember.FieldCreatedAt:
+		case channelservicemember.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
 				_m.CreatedAt = value.Time
 			}
-		case channeltranslationmember.FieldUpdatedAt:
+		case channelservicemember.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
 			} else if value.Valid {
 				_m.UpdatedAt = value.Time
 			}
-		case channeltranslationmember.FieldChannelID:
+		case channelservicemember.FieldChannelID:
 			if value, ok := values[i].(*uuid.UUID); !ok {
 				return fmt.Errorf("unexpected type %T for field channel_id", values[i])
 			} else if value != nil {
 				_m.ChannelID = *value
 			}
-		case channeltranslationmember.FieldUserID:
+		case channelservicemember.FieldUserID:
 			if value, ok := values[i].(*uuid.UUID); !ok {
 				return fmt.Errorf("unexpected type %T for field user_id", values[i])
 			} else if value != nil {
 				_m.UserID = *value
 			}
-		case channeltranslationmember.FieldPlatformUserID:
+		case channelservicemember.FieldSkillID:
+			if value, ok := values[i].(*uuid.UUID); !ok {
+				return fmt.Errorf("unexpected type %T for field skill_id", values[i])
+			} else if value != nil {
+				_m.SkillID = *value
+			}
+		case channelservicemember.FieldPlatformUserID:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field platform_user_id", values[i])
 			} else if value.Valid {
@@ -141,44 +163,49 @@ func (_m *ChannelTranslationMember) assignValues(columns []string, values []any)
 	return nil
 }
 
-// Value returns the ent.Value that was dynamically selected and assigned to the ChannelTranslationMember.
+// Value returns the ent.Value that was dynamically selected and assigned to the ChannelServiceMember.
 // This includes values selected through modifiers, order, etc.
-func (_m *ChannelTranslationMember) Value(name string) (ent.Value, error) {
+func (_m *ChannelServiceMember) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
 }
 
-// QueryChannel queries the "channel" edge of the ChannelTranslationMember entity.
-func (_m *ChannelTranslationMember) QueryChannel() *ChannelQuery {
-	return NewChannelTranslationMemberClient(_m.config).QueryChannel(_m)
+// QueryChannel queries the "channel" edge of the ChannelServiceMember entity.
+func (_m *ChannelServiceMember) QueryChannel() *ChannelQuery {
+	return NewChannelServiceMemberClient(_m.config).QueryChannel(_m)
 }
 
-// QueryUser queries the "user" edge of the ChannelTranslationMember entity.
-func (_m *ChannelTranslationMember) QueryUser() *UserQuery {
-	return NewChannelTranslationMemberClient(_m.config).QueryUser(_m)
+// QueryUser queries the "user" edge of the ChannelServiceMember entity.
+func (_m *ChannelServiceMember) QueryUser() *UserQuery {
+	return NewChannelServiceMemberClient(_m.config).QueryUser(_m)
 }
 
-// Update returns a builder for updating this ChannelTranslationMember.
-// Note that you need to call ChannelTranslationMember.Unwrap() before calling this method if this ChannelTranslationMember
+// QuerySkill queries the "skill" edge of the ChannelServiceMember entity.
+func (_m *ChannelServiceMember) QuerySkill() *SkillQuery {
+	return NewChannelServiceMemberClient(_m.config).QuerySkill(_m)
+}
+
+// Update returns a builder for updating this ChannelServiceMember.
+// Note that you need to call ChannelServiceMember.Unwrap() before calling this method if this ChannelServiceMember
 // was returned from a transaction, and the transaction was committed or rolled back.
-func (_m *ChannelTranslationMember) Update() *ChannelTranslationMemberUpdateOne {
-	return NewChannelTranslationMemberClient(_m.config).UpdateOne(_m)
+func (_m *ChannelServiceMember) Update() *ChannelServiceMemberUpdateOne {
+	return NewChannelServiceMemberClient(_m.config).UpdateOne(_m)
 }
 
-// Unwrap unwraps the ChannelTranslationMember entity that was returned from a transaction after it was closed,
+// Unwrap unwraps the ChannelServiceMember entity that was returned from a transaction after it was closed,
 // so that all future queries will be executed through the driver which created the transaction.
-func (_m *ChannelTranslationMember) Unwrap() *ChannelTranslationMember {
+func (_m *ChannelServiceMember) Unwrap() *ChannelServiceMember {
 	_tx, ok := _m.config.driver.(*txDriver)
 	if !ok {
-		panic("ent: ChannelTranslationMember is not a transactional entity")
+		panic("ent: ChannelServiceMember is not a transactional entity")
 	}
 	_m.config.driver = _tx.drv
 	return _m
 }
 
 // String implements the fmt.Stringer.
-func (_m *ChannelTranslationMember) String() string {
+func (_m *ChannelServiceMember) String() string {
 	var builder strings.Builder
-	builder.WriteString("ChannelTranslationMember(")
+	builder.WriteString("ChannelServiceMember(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
@@ -192,11 +219,14 @@ func (_m *ChannelTranslationMember) String() string {
 	builder.WriteString("user_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UserID))
 	builder.WriteString(", ")
+	builder.WriteString("skill_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SkillID))
+	builder.WriteString(", ")
 	builder.WriteString("platform_user_id=")
 	builder.WriteString(_m.PlatformUserID)
 	builder.WriteByte(')')
 	return builder.String()
 }
 
-// ChannelTranslationMembers is a parsable slice of ChannelTranslationMember.
-type ChannelTranslationMembers []*ChannelTranslationMember
+// ChannelServiceMembers is a parsable slice of ChannelServiceMember.
+type ChannelServiceMembers []*ChannelServiceMember

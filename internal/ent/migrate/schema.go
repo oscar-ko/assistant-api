@@ -155,49 +155,66 @@ var (
 			},
 		},
 	}
-	// ChannelTranslationMembersColumns holds the columns for the "channel_translation_members" table.
-	ChannelTranslationMembersColumns = []*schema.Column{
+	// ChannelServiceMembersColumns holds the columns for the "channel_service_members" table.
+	ChannelServiceMembersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "platform_user_id", Type: field.TypeString, Nullable: true},
 		{Name: "channel_id", Type: field.TypeUUID},
 		{Name: "user_id", Type: field.TypeUUID},
+		{Name: "skill_id", Type: field.TypeUUID},
 	}
-	// ChannelTranslationMembersTable holds the schema information for the "channel_translation_members" table.
-	ChannelTranslationMembersTable = &schema.Table{
-		Name:       "channel_translation_members",
-		Columns:    ChannelTranslationMembersColumns,
-		PrimaryKey: []*schema.Column{ChannelTranslationMembersColumns[0]},
+	// ChannelServiceMembersTable holds the schema information for the "channel_service_members" table.
+	ChannelServiceMembersTable = &schema.Table{
+		Name:       "channel_service_members",
+		Columns:    ChannelServiceMembersColumns,
+		PrimaryKey: []*schema.Column{ChannelServiceMembersColumns[0]},
 		ForeignKeys: []*schema.ForeignKey{
 			{
-				Symbol:     "channel_translation_members_channels_channel",
-				Columns:    []*schema.Column{ChannelTranslationMembersColumns[4]},
+				Symbol:     "channel_service_members_channels_channel",
+				Columns:    []*schema.Column{ChannelServiceMembersColumns[4]},
 				RefColumns: []*schema.Column{ChannelsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
-				Symbol:     "channel_translation_members_users_user",
-				Columns:    []*schema.Column{ChannelTranslationMembersColumns[5]},
+				Symbol:     "channel_service_members_users_user",
+				Columns:    []*schema.Column{ChannelServiceMembersColumns[5]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "channel_service_members_skills_skill",
+				Columns:    []*schema.Column{ChannelServiceMembersColumns[6]},
+				RefColumns: []*schema.Column{SkillsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 		},
 		Indexes: []*schema.Index{
 			{
-				Name:    "channeltranslationmember_channel_id_user_id",
+				Name:    "channelservicemember_channel_id_user_id_skill_id",
 				Unique:  true,
-				Columns: []*schema.Column{ChannelTranslationMembersColumns[4], ChannelTranslationMembersColumns[5]},
+				Columns: []*schema.Column{ChannelServiceMembersColumns[4], ChannelServiceMembersColumns[5], ChannelServiceMembersColumns[6]},
 			},
 			{
-				Name:    "channeltranslationmember_channel_id_platform_user_id",
+				Name:    "channelservicemember_channel_id_skill_id",
 				Unique:  false,
-				Columns: []*schema.Column{ChannelTranslationMembersColumns[4], ChannelTranslationMembersColumns[3]},
+				Columns: []*schema.Column{ChannelServiceMembersColumns[4], ChannelServiceMembersColumns[6]},
 			},
 			{
-				Name:    "channeltranslationmember_platform_user_id",
+				Name:    "channelservicemember_user_id_skill_id",
 				Unique:  false,
-				Columns: []*schema.Column{ChannelTranslationMembersColumns[3]},
+				Columns: []*schema.Column{ChannelServiceMembersColumns[5], ChannelServiceMembersColumns[6]},
+			},
+			{
+				Name:    "channelservicemember_channel_id_platform_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{ChannelServiceMembersColumns[4], ChannelServiceMembersColumns[3]},
+			},
+			{
+				Name:    "channelservicemember_platform_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{ChannelServiceMembersColumns[3]},
 			},
 		},
 	}
@@ -261,7 +278,7 @@ var (
 		ActionRoutesTable,
 		ChannelsTable,
 		ChannelMessagesTable,
-		ChannelTranslationMembersTable,
+		ChannelServiceMembersTable,
 		LinesTable,
 		SkillsTable,
 		UsersTable,
@@ -273,7 +290,8 @@ func init() {
 	ActionRoutesTable.ForeignKeys[0].RefTable = ActionsTable
 	ChannelMessagesTable.ForeignKeys[0].RefTable = ChannelsTable
 	ChannelMessagesTable.ForeignKeys[1].RefTable = ChannelMessagesTable
-	ChannelTranslationMembersTable.ForeignKeys[0].RefTable = ChannelsTable
-	ChannelTranslationMembersTable.ForeignKeys[1].RefTable = UsersTable
+	ChannelServiceMembersTable.ForeignKeys[0].RefTable = ChannelsTable
+	ChannelServiceMembersTable.ForeignKeys[1].RefTable = UsersTable
+	ChannelServiceMembersTable.ForeignKeys[2].RefTable = SkillsTable
 	LinesTable.ForeignKeys[0].RefTable = UsersTable
 }

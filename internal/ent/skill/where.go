@@ -298,6 +298,29 @@ func HasActionsWith(preds ...predicate.Action) predicate.Skill {
 	})
 }
 
+// HasChannelServiceMembers applies the HasEdge predicate on the "channel_service_members" edge.
+func HasChannelServiceMembers() predicate.Skill {
+	return predicate.Skill(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, ChannelServiceMembersTable, ChannelServiceMembersColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasChannelServiceMembersWith applies the HasEdge predicate on the "channel_service_members" edge with a given conditions (other predicates).
+func HasChannelServiceMembersWith(preds ...predicate.ChannelServiceMember) predicate.Skill {
+	return predicate.Skill(func(s *sql.Selector) {
+		step := newChannelServiceMembersStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Skill) predicate.Skill {
 	return predicate.Skill(sql.AndPredicates(predicates...))

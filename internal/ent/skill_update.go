@@ -4,6 +4,7 @@ package ent
 
 import (
 	"assistant-api/internal/ent/action"
+	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/skill"
 	"context"
@@ -92,6 +93,21 @@ func (_u *SkillUpdate) AddActions(v ...*Action) *SkillUpdate {
 	return _u.AddActionIDs(ids...)
 }
 
+// AddChannelServiceMemberIDs adds the "channel_service_members" edge to the ChannelServiceMember entity by IDs.
+func (_u *SkillUpdate) AddChannelServiceMemberIDs(ids ...uuid.UUID) *SkillUpdate {
+	_u.mutation.AddChannelServiceMemberIDs(ids...)
+	return _u
+}
+
+// AddChannelServiceMembers adds the "channel_service_members" edges to the ChannelServiceMember entity.
+func (_u *SkillUpdate) AddChannelServiceMembers(v ...*ChannelServiceMember) *SkillUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddChannelServiceMemberIDs(ids...)
+}
+
 // Mutation returns the SkillMutation object of the builder.
 func (_u *SkillUpdate) Mutation() *SkillMutation {
 	return _u.mutation
@@ -116,6 +132,27 @@ func (_u *SkillUpdate) RemoveActions(v ...*Action) *SkillUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveActionIDs(ids...)
+}
+
+// ClearChannelServiceMembers clears all "channel_service_members" edges to the ChannelServiceMember entity.
+func (_u *SkillUpdate) ClearChannelServiceMembers() *SkillUpdate {
+	_u.mutation.ClearChannelServiceMembers()
+	return _u
+}
+
+// RemoveChannelServiceMemberIDs removes the "channel_service_members" edge to ChannelServiceMember entities by IDs.
+func (_u *SkillUpdate) RemoveChannelServiceMemberIDs(ids ...uuid.UUID) *SkillUpdate {
+	_u.mutation.RemoveChannelServiceMemberIDs(ids...)
+	return _u
+}
+
+// RemoveChannelServiceMembers removes "channel_service_members" edges to ChannelServiceMember entities.
+func (_u *SkillUpdate) RemoveChannelServiceMembers(v ...*ChannelServiceMember) *SkillUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveChannelServiceMemberIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -229,6 +266,51 @@ func (_u *SkillUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ChannelServiceMembersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   skill.ChannelServiceMembersTable,
+			Columns: []string{skill.ChannelServiceMembersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelservicemember.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedChannelServiceMembersIDs(); len(nodes) > 0 && !_u.mutation.ChannelServiceMembersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   skill.ChannelServiceMembersTable,
+			Columns: []string{skill.ChannelServiceMembersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelservicemember.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ChannelServiceMembersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   skill.ChannelServiceMembersTable,
+			Columns: []string{skill.ChannelServiceMembersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelservicemember.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{skill.Label}
@@ -312,6 +394,21 @@ func (_u *SkillUpdateOne) AddActions(v ...*Action) *SkillUpdateOne {
 	return _u.AddActionIDs(ids...)
 }
 
+// AddChannelServiceMemberIDs adds the "channel_service_members" edge to the ChannelServiceMember entity by IDs.
+func (_u *SkillUpdateOne) AddChannelServiceMemberIDs(ids ...uuid.UUID) *SkillUpdateOne {
+	_u.mutation.AddChannelServiceMemberIDs(ids...)
+	return _u
+}
+
+// AddChannelServiceMembers adds the "channel_service_members" edges to the ChannelServiceMember entity.
+func (_u *SkillUpdateOne) AddChannelServiceMembers(v ...*ChannelServiceMember) *SkillUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddChannelServiceMemberIDs(ids...)
+}
+
 // Mutation returns the SkillMutation object of the builder.
 func (_u *SkillUpdateOne) Mutation() *SkillMutation {
 	return _u.mutation
@@ -336,6 +433,27 @@ func (_u *SkillUpdateOne) RemoveActions(v ...*Action) *SkillUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveActionIDs(ids...)
+}
+
+// ClearChannelServiceMembers clears all "channel_service_members" edges to the ChannelServiceMember entity.
+func (_u *SkillUpdateOne) ClearChannelServiceMembers() *SkillUpdateOne {
+	_u.mutation.ClearChannelServiceMembers()
+	return _u
+}
+
+// RemoveChannelServiceMemberIDs removes the "channel_service_members" edge to ChannelServiceMember entities by IDs.
+func (_u *SkillUpdateOne) RemoveChannelServiceMemberIDs(ids ...uuid.UUID) *SkillUpdateOne {
+	_u.mutation.RemoveChannelServiceMemberIDs(ids...)
+	return _u
+}
+
+// RemoveChannelServiceMembers removes "channel_service_members" edges to ChannelServiceMember entities.
+func (_u *SkillUpdateOne) RemoveChannelServiceMembers(v ...*ChannelServiceMember) *SkillUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveChannelServiceMemberIDs(ids...)
 }
 
 // Where appends a list predicates to the SkillUpdate builder.
@@ -472,6 +590,51 @@ func (_u *SkillUpdateOne) sqlSave(ctx context.Context) (_node *Skill, err error)
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(action.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ChannelServiceMembersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   skill.ChannelServiceMembersTable,
+			Columns: []string{skill.ChannelServiceMembersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelservicemember.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedChannelServiceMembersIDs(); len(nodes) > 0 && !_u.mutation.ChannelServiceMembersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   skill.ChannelServiceMembersTable,
+			Columns: []string{skill.ChannelServiceMembersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelservicemember.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ChannelServiceMembersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   skill.ChannelServiceMembersTable,
+			Columns: []string{skill.ChannelServiceMembersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelservicemember.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

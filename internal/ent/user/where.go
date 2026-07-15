@@ -218,21 +218,21 @@ func HasLineWith(preds ...predicate.Line) predicate.User {
 	})
 }
 
-// HasChannelTranslationMembers applies the HasEdge predicate on the "channel_translation_members" edge.
-func HasChannelTranslationMembers() predicate.User {
+// HasChannelServiceMembers applies the HasEdge predicate on the "channel_service_members" edge.
+func HasChannelServiceMembers() predicate.User {
 	return predicate.User(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, true, ChannelTranslationMembersTable, ChannelTranslationMembersColumn),
+			sqlgraph.Edge(sqlgraph.O2M, true, ChannelServiceMembersTable, ChannelServiceMembersColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})
 }
 
-// HasChannelTranslationMembersWith applies the HasEdge predicate on the "channel_translation_members" edge with a given conditions (other predicates).
-func HasChannelTranslationMembersWith(preds ...predicate.ChannelTranslationMember) predicate.User {
+// HasChannelServiceMembersWith applies the HasEdge predicate on the "channel_service_members" edge with a given conditions (other predicates).
+func HasChannelServiceMembersWith(preds ...predicate.ChannelServiceMember) predicate.User {
 	return predicate.User(func(s *sql.Selector) {
-		step := newChannelTranslationMembersStep()
+		step := newChannelServiceMembersStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

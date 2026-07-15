@@ -8,7 +8,7 @@ import (
 	"assistant-api/internal/ent"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
-	"assistant-api/internal/ent/channeltranslationmember"
+	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 
 	"github.com/google/uuid"
@@ -247,37 +247,39 @@ func (r *ChannelMessageRepo) LinkRelatedMessageByReply(ctx context.Context, mess
 	return updated, nil
 }
 
-// AddTranslationMemberToChannel adds a user into channel_translation_members.
-// The operation is idempotent and ignored if (channel_id, user_id) already exists.
-func (r *ChannelMessageRepo) AddTranslationMemberToChannel(ctx context.Context, channelID uuid.UUID, ownerID uuid.UUID, sourceLocale string, targetLocale string) error {
+// AddServiceMemberToChannel adds a user into channel_service_members.
+// The operation is idempotent and ignored if (channel_id, user_id, skill_id) already exists.
+func (r *ChannelMessageRepo) AddServiceMemberToChannel(ctx context.Context, channelID uuid.UUID, ownerID uuid.UUID, skillID uuid.UUID) error {
 	if channelID == uuid.Nil {
 		return fmt.Errorf("channel id is required")
 	}
 	if ownerID == uuid.Nil {
 		return fmt.Errorf("owner id is required")
 	}
+	if skillID == uuid.Nil {
+		return fmt.Errorf("skill id is required")
+	}
 
-	exists, err := r.db.ChannelTranslationMember.Query().
+	exists, err := r.db.ChannelServiceMember.Query().
 		Where(
-			channeltranslationmember.ChannelIDEQ(channelID),
-			channeltranslationmember.UserIDEQ(ownerID),
+			channelservicemember.ChannelIDEQ(channelID),
+			channelservicemember.UserIDEQ(ownerID),
+			channelservicemember.SkillIDEQ(skillID),
 		).
 		Exist(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to query translation member: %w", err)
+		return fmt.Errorf("failed to query service member: %w", err)
 	}
 	if exists {
 		return nil
 	}
 
-	if _, err := r.db.ChannelTranslationMember.Create().
+	if _, err := r.db.ChannelServiceMember.Create().
 		SetChannelID(channelID).
 		SetUserID(ownerID).
+		SetSkillID(skillID).
 		Save(ctx); err != nil {
-		return fmt.Errorf("failed to add translation member to channel: %w", err)
+		return fmt.Errorf("failed to add service member to channel: %w", err)
 	}
-
-	_ = sourceLocale
-	_ = targetLocale
 	return nil
 }

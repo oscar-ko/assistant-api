@@ -45,16 +45,16 @@ type Channel struct {
 type ChannelEdges struct {
 	// 此頻道底下的訊息列表
 	Messages []*ChannelMessage `json:"messages,omitempty"`
-	// 此頻道啟用翻譯的成員
-	TranslationMembers []*ChannelTranslationMember `json:"translation_members,omitempty"`
+	// 此頻道啟用服務的成員
+	ServiceMembers []*ChannelServiceMember `json:"service_members,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [2]bool
 	// totalCount holds the count of the edges above.
 	totalCount [2]map[string]int
 
-	namedMessages           map[string][]*ChannelMessage
-	namedTranslationMembers map[string][]*ChannelTranslationMember
+	namedMessages       map[string][]*ChannelMessage
+	namedServiceMembers map[string][]*ChannelServiceMember
 }
 
 // MessagesOrErr returns the Messages value or an error if the edge
@@ -66,13 +66,13 @@ func (e ChannelEdges) MessagesOrErr() ([]*ChannelMessage, error) {
 	return nil, &NotLoadedError{edge: "messages"}
 }
 
-// TranslationMembersOrErr returns the TranslationMembers value or an error if the edge
+// ServiceMembersOrErr returns the ServiceMembers value or an error if the edge
 // was not loaded in eager-loading.
-func (e ChannelEdges) TranslationMembersOrErr() ([]*ChannelTranslationMember, error) {
+func (e ChannelEdges) ServiceMembersOrErr() ([]*ChannelServiceMember, error) {
 	if e.loadedTypes[1] {
-		return e.TranslationMembers, nil
+		return e.ServiceMembers, nil
 	}
-	return nil, &NotLoadedError{edge: "translation_members"}
+	return nil, &NotLoadedError{edge: "service_members"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -177,9 +177,9 @@ func (_m *Channel) QueryMessages() *ChannelMessageQuery {
 	return NewChannelClient(_m.config).QueryMessages(_m)
 }
 
-// QueryTranslationMembers queries the "translation_members" edge of the Channel entity.
-func (_m *Channel) QueryTranslationMembers() *ChannelTranslationMemberQuery {
-	return NewChannelClient(_m.config).QueryTranslationMembers(_m)
+// QueryServiceMembers queries the "service_members" edge of the Channel entity.
+func (_m *Channel) QueryServiceMembers() *ChannelServiceMemberQuery {
+	return NewChannelClient(_m.config).QueryServiceMembers(_m)
 }
 
 // Update returns a builder for updating this Channel.
@@ -256,27 +256,27 @@ func (_m *Channel) appendNamedMessages(name string, edges ...*ChannelMessage) {
 	}
 }
 
-// NamedTranslationMembers returns the TranslationMembers named value or an error if the edge was not
+// NamedServiceMembers returns the ServiceMembers named value or an error if the edge was not
 // loaded in eager-loading with this name.
-func (_m *Channel) NamedTranslationMembers(name string) ([]*ChannelTranslationMember, error) {
-	if _m.Edges.namedTranslationMembers == nil {
+func (_m *Channel) NamedServiceMembers(name string) ([]*ChannelServiceMember, error) {
+	if _m.Edges.namedServiceMembers == nil {
 		return nil, &NotLoadedError{edge: name}
 	}
-	nodes, ok := _m.Edges.namedTranslationMembers[name]
+	nodes, ok := _m.Edges.namedServiceMembers[name]
 	if !ok {
 		return nil, &NotLoadedError{edge: name}
 	}
 	return nodes, nil
 }
 
-func (_m *Channel) appendNamedTranslationMembers(name string, edges ...*ChannelTranslationMember) {
-	if _m.Edges.namedTranslationMembers == nil {
-		_m.Edges.namedTranslationMembers = make(map[string][]*ChannelTranslationMember)
+func (_m *Channel) appendNamedServiceMembers(name string, edges ...*ChannelServiceMember) {
+	if _m.Edges.namedServiceMembers == nil {
+		_m.Edges.namedServiceMembers = make(map[string][]*ChannelServiceMember)
 	}
 	if len(edges) == 0 {
-		_m.Edges.namedTranslationMembers[name] = []*ChannelTranslationMember{}
+		_m.Edges.namedServiceMembers[name] = []*ChannelServiceMember{}
 	} else {
-		_m.Edges.namedTranslationMembers[name] = append(_m.Edges.namedTranslationMembers[name], edges...)
+		_m.Edges.namedServiceMembers[name] = append(_m.Edges.namedServiceMembers[name], edges...)
 	}
 }
 

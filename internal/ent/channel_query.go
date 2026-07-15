@@ -5,7 +5,7 @@ package ent
 import (
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
-	"assistant-api/internal/ent/channeltranslationmember"
+	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/predicate"
 	"context"
 	"database/sql/driver"
@@ -22,16 +22,16 @@ import (
 // ChannelQuery is the builder for querying Channel entities.
 type ChannelQuery struct {
 	config
-	ctx                         *QueryContext
-	order                       []channel.OrderOption
-	inters                      []Interceptor
-	predicates                  []predicate.Channel
-	withMessages                *ChannelMessageQuery
-	withTranslationMembers      *ChannelTranslationMemberQuery
-	modifiers                   []func(*sql.Selector)
-	loadTotal                   []func(context.Context, []*Channel) error
-	withNamedMessages           map[string]*ChannelMessageQuery
-	withNamedTranslationMembers map[string]*ChannelTranslationMemberQuery
+	ctx                     *QueryContext
+	order                   []channel.OrderOption
+	inters                  []Interceptor
+	predicates              []predicate.Channel
+	withMessages            *ChannelMessageQuery
+	withServiceMembers      *ChannelServiceMemberQuery
+	modifiers               []func(*sql.Selector)
+	loadTotal               []func(context.Context, []*Channel) error
+	withNamedMessages       map[string]*ChannelMessageQuery
+	withNamedServiceMembers map[string]*ChannelServiceMemberQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -90,9 +90,9 @@ func (_q *ChannelQuery) QueryMessages() *ChannelMessageQuery {
 	return query
 }
 
-// QueryTranslationMembers chains the current query on the "translation_members" edge.
-func (_q *ChannelQuery) QueryTranslationMembers() *ChannelTranslationMemberQuery {
-	query := (&ChannelTranslationMemberClient{config: _q.config}).Query()
+// QueryServiceMembers chains the current query on the "service_members" edge.
+func (_q *ChannelQuery) QueryServiceMembers() *ChannelServiceMemberQuery {
+	query := (&ChannelServiceMemberClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -103,8 +103,8 @@ func (_q *ChannelQuery) QueryTranslationMembers() *ChannelTranslationMemberQuery
 		}
 		step := sqlgraph.NewStep(
 			sqlgraph.From(channel.Table, channel.FieldID, selector),
-			sqlgraph.To(channeltranslationmember.Table, channeltranslationmember.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, true, channel.TranslationMembersTable, channel.TranslationMembersColumn),
+			sqlgraph.To(channelservicemember.Table, channelservicemember.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, channel.ServiceMembersTable, channel.ServiceMembersColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -299,13 +299,13 @@ func (_q *ChannelQuery) Clone() *ChannelQuery {
 		return nil
 	}
 	return &ChannelQuery{
-		config:                 _q.config,
-		ctx:                    _q.ctx.Clone(),
-		order:                  append([]channel.OrderOption{}, _q.order...),
-		inters:                 append([]Interceptor{}, _q.inters...),
-		predicates:             append([]predicate.Channel{}, _q.predicates...),
-		withMessages:           _q.withMessages.Clone(),
-		withTranslationMembers: _q.withTranslationMembers.Clone(),
+		config:             _q.config,
+		ctx:                _q.ctx.Clone(),
+		order:              append([]channel.OrderOption{}, _q.order...),
+		inters:             append([]Interceptor{}, _q.inters...),
+		predicates:         append([]predicate.Channel{}, _q.predicates...),
+		withMessages:       _q.withMessages.Clone(),
+		withServiceMembers: _q.withServiceMembers.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -323,14 +323,14 @@ func (_q *ChannelQuery) WithMessages(opts ...func(*ChannelMessageQuery)) *Channe
 	return _q
 }
 
-// WithTranslationMembers tells the query-builder to eager-load the nodes that are connected to
-// the "translation_members" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *ChannelQuery) WithTranslationMembers(opts ...func(*ChannelTranslationMemberQuery)) *ChannelQuery {
-	query := (&ChannelTranslationMemberClient{config: _q.config}).Query()
+// WithServiceMembers tells the query-builder to eager-load the nodes that are connected to
+// the "service_members" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ChannelQuery) WithServiceMembers(opts ...func(*ChannelServiceMemberQuery)) *ChannelQuery {
+	query := (&ChannelServiceMemberClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withTranslationMembers = query
+	_q.withServiceMembers = query
 	return _q
 }
 
@@ -414,7 +414,7 @@ func (_q *ChannelQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Chan
 		_spec       = _q.querySpec()
 		loadedTypes = [2]bool{
 			_q.withMessages != nil,
-			_q.withTranslationMembers != nil,
+			_q.withServiceMembers != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -445,12 +445,10 @@ func (_q *ChannelQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Chan
 			return nil, err
 		}
 	}
-	if query := _q.withTranslationMembers; query != nil {
-		if err := _q.loadTranslationMembers(ctx, query, nodes,
-			func(n *Channel) { n.Edges.TranslationMembers = []*ChannelTranslationMember{} },
-			func(n *Channel, e *ChannelTranslationMember) {
-				n.Edges.TranslationMembers = append(n.Edges.TranslationMembers, e)
-			}); err != nil {
+	if query := _q.withServiceMembers; query != nil {
+		if err := _q.loadServiceMembers(ctx, query, nodes,
+			func(n *Channel) { n.Edges.ServiceMembers = []*ChannelServiceMember{} },
+			func(n *Channel, e *ChannelServiceMember) { n.Edges.ServiceMembers = append(n.Edges.ServiceMembers, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -461,10 +459,10 @@ func (_q *ChannelQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Chan
 			return nil, err
 		}
 	}
-	for name, query := range _q.withNamedTranslationMembers {
-		if err := _q.loadTranslationMembers(ctx, query, nodes,
-			func(n *Channel) { n.appendNamedTranslationMembers(name) },
-			func(n *Channel, e *ChannelTranslationMember) { n.appendNamedTranslationMembers(name, e) }); err != nil {
+	for name, query := range _q.withNamedServiceMembers {
+		if err := _q.loadServiceMembers(ctx, query, nodes,
+			func(n *Channel) { n.appendNamedServiceMembers(name) },
+			func(n *Channel, e *ChannelServiceMember) { n.appendNamedServiceMembers(name, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -506,7 +504,7 @@ func (_q *ChannelQuery) loadMessages(ctx context.Context, query *ChannelMessageQ
 	}
 	return nil
 }
-func (_q *ChannelQuery) loadTranslationMembers(ctx context.Context, query *ChannelTranslationMemberQuery, nodes []*Channel, init func(*Channel), assign func(*Channel, *ChannelTranslationMember)) error {
+func (_q *ChannelQuery) loadServiceMembers(ctx context.Context, query *ChannelServiceMemberQuery, nodes []*Channel, init func(*Channel), assign func(*Channel, *ChannelServiceMember)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[uuid.UUID]*Channel)
 	for i := range nodes {
@@ -517,10 +515,10 @@ func (_q *ChannelQuery) loadTranslationMembers(ctx context.Context, query *Chann
 		}
 	}
 	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(channeltranslationmember.FieldChannelID)
+		query.ctx.AppendFieldOnce(channelservicemember.FieldChannelID)
 	}
-	query.Where(predicate.ChannelTranslationMember(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(channel.TranslationMembersColumn), fks...))
+	query.Where(predicate.ChannelServiceMember(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(channel.ServiceMembersColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {
@@ -635,17 +633,17 @@ func (_q *ChannelQuery) WithNamedMessages(name string, opts ...func(*ChannelMess
 	return _q
 }
 
-// WithNamedTranslationMembers tells the query-builder to eager-load the nodes that are connected to the "translation_members"
+// WithNamedServiceMembers tells the query-builder to eager-load the nodes that are connected to the "service_members"
 // edge with the given name. The optional arguments are used to configure the query builder of the edge.
-func (_q *ChannelQuery) WithNamedTranslationMembers(name string, opts ...func(*ChannelTranslationMemberQuery)) *ChannelQuery {
-	query := (&ChannelTranslationMemberClient{config: _q.config}).Query()
+func (_q *ChannelQuery) WithNamedServiceMembers(name string, opts ...func(*ChannelServiceMemberQuery)) *ChannelQuery {
+	query := (&ChannelServiceMemberClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	if _q.withNamedTranslationMembers == nil {
-		_q.withNamedTranslationMembers = make(map[string]*ChannelTranslationMemberQuery)
+	if _q.withNamedServiceMembers == nil {
+		_q.withNamedServiceMembers = make(map[string]*ChannelServiceMemberQuery)
 	}
-	_q.withNamedTranslationMembers[name] = query
+	_q.withNamedServiceMembers[name] = query
 	return _q
 }
 

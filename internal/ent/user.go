@@ -32,16 +32,16 @@ type User struct {
 type UserEdges struct {
 	// 使用者綁定的 LINE 帳號清單（可多筆）
 	Line []*Line `json:"line,omitempty"`
-	// 使用者啟用翻譯的頻道成員設定
-	ChannelTranslationMembers []*ChannelTranslationMember `json:"channel_translation_members,omitempty"`
+	// 使用者啟用服務的頻道成員設定
+	ChannelServiceMembers []*ChannelServiceMember `json:"channel_service_members,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [2]bool
 	// totalCount holds the count of the edges above.
 	totalCount [2]map[string]int
 
-	namedLine                      map[string][]*Line
-	namedChannelTranslationMembers map[string][]*ChannelTranslationMember
+	namedLine                  map[string][]*Line
+	namedChannelServiceMembers map[string][]*ChannelServiceMember
 }
 
 // LineOrErr returns the Line value or an error if the edge
@@ -53,13 +53,13 @@ func (e UserEdges) LineOrErr() ([]*Line, error) {
 	return nil, &NotLoadedError{edge: "line"}
 }
 
-// ChannelTranslationMembersOrErr returns the ChannelTranslationMembers value or an error if the edge
+// ChannelServiceMembersOrErr returns the ChannelServiceMembers value or an error if the edge
 // was not loaded in eager-loading.
-func (e UserEdges) ChannelTranslationMembersOrErr() ([]*ChannelTranslationMember, error) {
+func (e UserEdges) ChannelServiceMembersOrErr() ([]*ChannelServiceMember, error) {
 	if e.loadedTypes[1] {
-		return e.ChannelTranslationMembers, nil
+		return e.ChannelServiceMembers, nil
 	}
-	return nil, &NotLoadedError{edge: "channel_translation_members"}
+	return nil, &NotLoadedError{edge: "channel_service_members"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -122,9 +122,9 @@ func (_m *User) QueryLine() *LineQuery {
 	return NewUserClient(_m.config).QueryLine(_m)
 }
 
-// QueryChannelTranslationMembers queries the "channel_translation_members" edge of the User entity.
-func (_m *User) QueryChannelTranslationMembers() *ChannelTranslationMemberQuery {
-	return NewUserClient(_m.config).QueryChannelTranslationMembers(_m)
+// QueryChannelServiceMembers queries the "channel_service_members" edge of the User entity.
+func (_m *User) QueryChannelServiceMembers() *ChannelServiceMemberQuery {
+	return NewUserClient(_m.config).QueryChannelServiceMembers(_m)
 }
 
 // Update returns a builder for updating this User.
@@ -183,27 +183,27 @@ func (_m *User) appendNamedLine(name string, edges ...*Line) {
 	}
 }
 
-// NamedChannelTranslationMembers returns the ChannelTranslationMembers named value or an error if the edge was not
+// NamedChannelServiceMembers returns the ChannelServiceMembers named value or an error if the edge was not
 // loaded in eager-loading with this name.
-func (_m *User) NamedChannelTranslationMembers(name string) ([]*ChannelTranslationMember, error) {
-	if _m.Edges.namedChannelTranslationMembers == nil {
+func (_m *User) NamedChannelServiceMembers(name string) ([]*ChannelServiceMember, error) {
+	if _m.Edges.namedChannelServiceMembers == nil {
 		return nil, &NotLoadedError{edge: name}
 	}
-	nodes, ok := _m.Edges.namedChannelTranslationMembers[name]
+	nodes, ok := _m.Edges.namedChannelServiceMembers[name]
 	if !ok {
 		return nil, &NotLoadedError{edge: name}
 	}
 	return nodes, nil
 }
 
-func (_m *User) appendNamedChannelTranslationMembers(name string, edges ...*ChannelTranslationMember) {
-	if _m.Edges.namedChannelTranslationMembers == nil {
-		_m.Edges.namedChannelTranslationMembers = make(map[string][]*ChannelTranslationMember)
+func (_m *User) appendNamedChannelServiceMembers(name string, edges ...*ChannelServiceMember) {
+	if _m.Edges.namedChannelServiceMembers == nil {
+		_m.Edges.namedChannelServiceMembers = make(map[string][]*ChannelServiceMember)
 	}
 	if len(edges) == 0 {
-		_m.Edges.namedChannelTranslationMembers[name] = []*ChannelTranslationMember{}
+		_m.Edges.namedChannelServiceMembers[name] = []*ChannelServiceMember{}
 	} else {
-		_m.Edges.namedChannelTranslationMembers[name] = append(_m.Edges.namedChannelTranslationMembers[name], edges...)
+		_m.Edges.namedChannelServiceMembers[name] = append(_m.Edges.namedChannelServiceMembers[name], edges...)
 	}
 }
 

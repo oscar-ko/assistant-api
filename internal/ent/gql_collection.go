@@ -7,7 +7,7 @@ import (
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
-	"assistant-api/internal/ent/channeltranslationmember"
+	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/user"
@@ -269,16 +269,16 @@ func (_q *ChannelQuery) collectField(ctx context.Context, oneNode bool, opCtx *g
 				*wq = *query
 			})
 
-		case "translationMembers":
+		case "serviceMembers":
 			var (
 				alias = field.Alias
 				path  = append(path, alias)
-				query = (&ChannelTranslationMemberClient{config: _q.config}).Query()
+				query = (&ChannelServiceMemberClient{config: _q.config}).Query()
 			)
-			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, channeltranslationmemberImplementors)...); err != nil {
+			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, channelservicememberImplementors)...); err != nil {
 				return err
 			}
-			_q.WithNamedTranslationMembers(alias, func(wq *ChannelTranslationMemberQuery) {
+			_q.WithNamedServiceMembers(alias, func(wq *ChannelServiceMemberQuery) {
 				*wq = *query
 			})
 		case "createdAt":
@@ -523,7 +523,7 @@ func newChannelMessagePaginateArgs(rv map[string]any) *channelmessagePaginateArg
 }
 
 // CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
-func (_q *ChannelTranslationMemberQuery) CollectFields(ctx context.Context, satisfies ...string) (*ChannelTranslationMemberQuery, error) {
+func (_q *ChannelServiceMemberQuery) CollectFields(ctx context.Context, satisfies ...string) (*ChannelServiceMemberQuery, error) {
 	fc := graphql.GetFieldContext(ctx)
 	if fc == nil {
 		return _q, nil
@@ -534,12 +534,12 @@ func (_q *ChannelTranslationMemberQuery) CollectFields(ctx context.Context, sati
 	return _q, nil
 }
 
-func (_q *ChannelTranslationMemberQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
+func (_q *ChannelServiceMemberQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
 	path = append([]string(nil), path...)
 	var (
 		unknownSeen    bool
-		fieldSeen      = make(map[string]struct{}, len(channeltranslationmember.Columns))
-		selectedFields = []string{channeltranslationmember.FieldID}
+		fieldSeen      = make(map[string]struct{}, len(channelservicemember.Columns))
+		selectedFields = []string{channelservicemember.FieldID}
 	)
 	for _, field := range graphql.CollectFields(opCtx, collected.Selections, satisfies) {
 		switch field.Name {
@@ -554,9 +554,9 @@ func (_q *ChannelTranslationMemberQuery) collectField(ctx context.Context, oneNo
 				return err
 			}
 			_q.withChannel = query
-			if _, ok := fieldSeen[channeltranslationmember.FieldChannelID]; !ok {
-				selectedFields = append(selectedFields, channeltranslationmember.FieldChannelID)
-				fieldSeen[channeltranslationmember.FieldChannelID] = struct{}{}
+			if _, ok := fieldSeen[channelservicemember.FieldChannelID]; !ok {
+				selectedFields = append(selectedFields, channelservicemember.FieldChannelID)
+				fieldSeen[channelservicemember.FieldChannelID] = struct{}{}
 			}
 
 		case "user":
@@ -569,34 +569,54 @@ func (_q *ChannelTranslationMemberQuery) collectField(ctx context.Context, oneNo
 				return err
 			}
 			_q.withUser = query
-			if _, ok := fieldSeen[channeltranslationmember.FieldUserID]; !ok {
-				selectedFields = append(selectedFields, channeltranslationmember.FieldUserID)
-				fieldSeen[channeltranslationmember.FieldUserID] = struct{}{}
+			if _, ok := fieldSeen[channelservicemember.FieldUserID]; !ok {
+				selectedFields = append(selectedFields, channelservicemember.FieldUserID)
+				fieldSeen[channelservicemember.FieldUserID] = struct{}{}
+			}
+
+		case "skill":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&SkillClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, skillImplementors)...); err != nil {
+				return err
+			}
+			_q.withSkill = query
+			if _, ok := fieldSeen[channelservicemember.FieldSkillID]; !ok {
+				selectedFields = append(selectedFields, channelservicemember.FieldSkillID)
+				fieldSeen[channelservicemember.FieldSkillID] = struct{}{}
 			}
 		case "createdAt":
-			if _, ok := fieldSeen[channeltranslationmember.FieldCreatedAt]; !ok {
-				selectedFields = append(selectedFields, channeltranslationmember.FieldCreatedAt)
-				fieldSeen[channeltranslationmember.FieldCreatedAt] = struct{}{}
+			if _, ok := fieldSeen[channelservicemember.FieldCreatedAt]; !ok {
+				selectedFields = append(selectedFields, channelservicemember.FieldCreatedAt)
+				fieldSeen[channelservicemember.FieldCreatedAt] = struct{}{}
 			}
 		case "updatedAt":
-			if _, ok := fieldSeen[channeltranslationmember.FieldUpdatedAt]; !ok {
-				selectedFields = append(selectedFields, channeltranslationmember.FieldUpdatedAt)
-				fieldSeen[channeltranslationmember.FieldUpdatedAt] = struct{}{}
+			if _, ok := fieldSeen[channelservicemember.FieldUpdatedAt]; !ok {
+				selectedFields = append(selectedFields, channelservicemember.FieldUpdatedAt)
+				fieldSeen[channelservicemember.FieldUpdatedAt] = struct{}{}
 			}
 		case "channelID":
-			if _, ok := fieldSeen[channeltranslationmember.FieldChannelID]; !ok {
-				selectedFields = append(selectedFields, channeltranslationmember.FieldChannelID)
-				fieldSeen[channeltranslationmember.FieldChannelID] = struct{}{}
+			if _, ok := fieldSeen[channelservicemember.FieldChannelID]; !ok {
+				selectedFields = append(selectedFields, channelservicemember.FieldChannelID)
+				fieldSeen[channelservicemember.FieldChannelID] = struct{}{}
 			}
 		case "userID":
-			if _, ok := fieldSeen[channeltranslationmember.FieldUserID]; !ok {
-				selectedFields = append(selectedFields, channeltranslationmember.FieldUserID)
-				fieldSeen[channeltranslationmember.FieldUserID] = struct{}{}
+			if _, ok := fieldSeen[channelservicemember.FieldUserID]; !ok {
+				selectedFields = append(selectedFields, channelservicemember.FieldUserID)
+				fieldSeen[channelservicemember.FieldUserID] = struct{}{}
+			}
+		case "skillID":
+			if _, ok := fieldSeen[channelservicemember.FieldSkillID]; !ok {
+				selectedFields = append(selectedFields, channelservicemember.FieldSkillID)
+				fieldSeen[channelservicemember.FieldSkillID] = struct{}{}
 			}
 		case "platformUserID":
-			if _, ok := fieldSeen[channeltranslationmember.FieldPlatformUserID]; !ok {
-				selectedFields = append(selectedFields, channeltranslationmember.FieldPlatformUserID)
-				fieldSeen[channeltranslationmember.FieldPlatformUserID] = struct{}{}
+			if _, ok := fieldSeen[channelservicemember.FieldPlatformUserID]; !ok {
+				selectedFields = append(selectedFields, channelservicemember.FieldPlatformUserID)
+				fieldSeen[channelservicemember.FieldPlatformUserID] = struct{}{}
 			}
 		case "id":
 		case "__typename":
@@ -610,14 +630,14 @@ func (_q *ChannelTranslationMemberQuery) collectField(ctx context.Context, oneNo
 	return nil
 }
 
-type channeltranslationmemberPaginateArgs struct {
+type channelservicememberPaginateArgs struct {
 	first, last   *int
 	after, before *Cursor
-	opts          []ChannelTranslationMemberPaginateOption
+	opts          []ChannelServiceMemberPaginateOption
 }
 
-func newChannelTranslationMemberPaginateArgs(rv map[string]any) *channeltranslationmemberPaginateArgs {
-	args := &channeltranslationmemberPaginateArgs{}
+func newChannelServiceMemberPaginateArgs(rv map[string]any) *channelservicememberPaginateArgs {
+	args := &channelservicememberPaginateArgs{}
 	if rv == nil {
 		return args
 	}
@@ -633,8 +653,8 @@ func newChannelTranslationMemberPaginateArgs(rv map[string]any) *channeltranslat
 	if v := rv[beforeField]; v != nil {
 		args.before = v.(*Cursor)
 	}
-	if v, ok := rv[whereField].(*ChannelTranslationMemberWhereInput); ok {
-		args.opts = append(args.opts, WithChannelTranslationMemberFilter(v.Filter))
+	if v, ok := rv[whereField].(*ChannelServiceMemberWhereInput); ok {
+		args.opts = append(args.opts, WithChannelServiceMemberFilter(v.Filter))
 	}
 	return args
 }
@@ -761,6 +781,19 @@ func (_q *SkillQuery) collectField(ctx context.Context, oneNode bool, opCtx *gra
 			_q.WithNamedActions(alias, func(wq *ActionQuery) {
 				*wq = *query
 			})
+
+		case "channelServiceMembers":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&ChannelServiceMemberClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, channelservicememberImplementors)...); err != nil {
+				return err
+			}
+			_q.WithNamedChannelServiceMembers(alias, func(wq *ChannelServiceMemberQuery) {
+				*wq = *query
+			})
 		case "skillCode":
 			if _, ok := fieldSeen[skill.FieldSkillCode]; !ok {
 				selectedFields = append(selectedFields, skill.FieldSkillCode)
@@ -852,16 +885,16 @@ func (_q *UserQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 				*wq = *query
 			})
 
-		case "channelTranslationMembers":
+		case "channelServiceMembers":
 			var (
 				alias = field.Alias
 				path  = append(path, alias)
-				query = (&ChannelTranslationMemberClient{config: _q.config}).Query()
+				query = (&ChannelServiceMemberClient{config: _q.config}).Query()
 			)
-			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, channeltranslationmemberImplementors)...); err != nil {
+			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, channelservicememberImplementors)...); err != nil {
 				return err
 			}
-			_q.WithNamedChannelTranslationMembers(alias, func(wq *ChannelTranslationMemberQuery) {
+			_q.WithNamedChannelServiceMembers(alias, func(wq *ChannelServiceMemberQuery) {
 				*wq = *query
 			})
 		case "name":

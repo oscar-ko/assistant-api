@@ -4,8 +4,9 @@ package ent
 
 import (
 	"assistant-api/internal/ent/channel"
-	"assistant-api/internal/ent/channeltranslationmember"
+	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/predicate"
+	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/user"
 	"context"
 	"fmt"
@@ -18,55 +19,56 @@ import (
 	"github.com/google/uuid"
 )
 
-// ChannelTranslationMemberQuery is the builder for querying ChannelTranslationMember entities.
-type ChannelTranslationMemberQuery struct {
+// ChannelServiceMemberQuery is the builder for querying ChannelServiceMember entities.
+type ChannelServiceMemberQuery struct {
 	config
 	ctx         *QueryContext
-	order       []channeltranslationmember.OrderOption
+	order       []channelservicemember.OrderOption
 	inters      []Interceptor
-	predicates  []predicate.ChannelTranslationMember
+	predicates  []predicate.ChannelServiceMember
 	withChannel *ChannelQuery
 	withUser    *UserQuery
+	withSkill   *SkillQuery
 	modifiers   []func(*sql.Selector)
-	loadTotal   []func(context.Context, []*ChannelTranslationMember) error
+	loadTotal   []func(context.Context, []*ChannelServiceMember) error
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
-// Where adds a new predicate for the ChannelTranslationMemberQuery builder.
-func (_q *ChannelTranslationMemberQuery) Where(ps ...predicate.ChannelTranslationMember) *ChannelTranslationMemberQuery {
+// Where adds a new predicate for the ChannelServiceMemberQuery builder.
+func (_q *ChannelServiceMemberQuery) Where(ps ...predicate.ChannelServiceMember) *ChannelServiceMemberQuery {
 	_q.predicates = append(_q.predicates, ps...)
 	return _q
 }
 
 // Limit the number of records to be returned by this query.
-func (_q *ChannelTranslationMemberQuery) Limit(limit int) *ChannelTranslationMemberQuery {
+func (_q *ChannelServiceMemberQuery) Limit(limit int) *ChannelServiceMemberQuery {
 	_q.ctx.Limit = &limit
 	return _q
 }
 
 // Offset to start from.
-func (_q *ChannelTranslationMemberQuery) Offset(offset int) *ChannelTranslationMemberQuery {
+func (_q *ChannelServiceMemberQuery) Offset(offset int) *ChannelServiceMemberQuery {
 	_q.ctx.Offset = &offset
 	return _q
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
-func (_q *ChannelTranslationMemberQuery) Unique(unique bool) *ChannelTranslationMemberQuery {
+func (_q *ChannelServiceMemberQuery) Unique(unique bool) *ChannelServiceMemberQuery {
 	_q.ctx.Unique = &unique
 	return _q
 }
 
 // Order specifies how the records should be ordered.
-func (_q *ChannelTranslationMemberQuery) Order(o ...channeltranslationmember.OrderOption) *ChannelTranslationMemberQuery {
+func (_q *ChannelServiceMemberQuery) Order(o ...channelservicemember.OrderOption) *ChannelServiceMemberQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
 
 // QueryChannel chains the current query on the "channel" edge.
-func (_q *ChannelTranslationMemberQuery) QueryChannel() *ChannelQuery {
+func (_q *ChannelServiceMemberQuery) QueryChannel() *ChannelQuery {
 	query := (&ChannelClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
@@ -77,9 +79,9 @@ func (_q *ChannelTranslationMemberQuery) QueryChannel() *ChannelQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(channeltranslationmember.Table, channeltranslationmember.FieldID, selector),
+			sqlgraph.From(channelservicemember.Table, channelservicemember.FieldID, selector),
 			sqlgraph.To(channel.Table, channel.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, channeltranslationmember.ChannelTable, channeltranslationmember.ChannelColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, channelservicemember.ChannelTable, channelservicemember.ChannelColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -88,7 +90,7 @@ func (_q *ChannelTranslationMemberQuery) QueryChannel() *ChannelQuery {
 }
 
 // QueryUser chains the current query on the "user" edge.
-func (_q *ChannelTranslationMemberQuery) QueryUser() *UserQuery {
+func (_q *ChannelServiceMemberQuery) QueryUser() *UserQuery {
 	query := (&UserClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
@@ -99,9 +101,9 @@ func (_q *ChannelTranslationMemberQuery) QueryUser() *UserQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(channeltranslationmember.Table, channeltranslationmember.FieldID, selector),
+			sqlgraph.From(channelservicemember.Table, channelservicemember.FieldID, selector),
 			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, channeltranslationmember.UserTable, channeltranslationmember.UserColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, channelservicemember.UserTable, channelservicemember.UserColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -109,21 +111,43 @@ func (_q *ChannelTranslationMemberQuery) QueryUser() *UserQuery {
 	return query
 }
 
-// First returns the first ChannelTranslationMember entity from the query.
-// Returns a *NotFoundError when no ChannelTranslationMember was found.
-func (_q *ChannelTranslationMemberQuery) First(ctx context.Context) (*ChannelTranslationMember, error) {
+// QuerySkill chains the current query on the "skill" edge.
+func (_q *ChannelServiceMemberQuery) QuerySkill() *SkillQuery {
+	query := (&SkillClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(channelservicemember.Table, channelservicemember.FieldID, selector),
+			sqlgraph.To(skill.Table, skill.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, channelservicemember.SkillTable, channelservicemember.SkillColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// First returns the first ChannelServiceMember entity from the query.
+// Returns a *NotFoundError when no ChannelServiceMember was found.
+func (_q *ChannelServiceMemberQuery) First(ctx context.Context) (*ChannelServiceMember, error) {
 	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{channeltranslationmember.Label}
+		return nil, &NotFoundError{channelservicemember.Label}
 	}
 	return nodes[0], nil
 }
 
 // FirstX is like First, but panics if an error occurs.
-func (_q *ChannelTranslationMemberQuery) FirstX(ctx context.Context) *ChannelTranslationMember {
+func (_q *ChannelServiceMemberQuery) FirstX(ctx context.Context) *ChannelServiceMember {
 	node, err := _q.First(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -131,22 +155,22 @@ func (_q *ChannelTranslationMemberQuery) FirstX(ctx context.Context) *ChannelTra
 	return node
 }
 
-// FirstID returns the first ChannelTranslationMember ID from the query.
-// Returns a *NotFoundError when no ChannelTranslationMember ID was found.
-func (_q *ChannelTranslationMemberQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
+// FirstID returns the first ChannelServiceMember ID from the query.
+// Returns a *NotFoundError when no ChannelServiceMember ID was found.
+func (_q *ChannelServiceMemberQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
 	var ids []uuid.UUID
 	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{channeltranslationmember.Label}
+		err = &NotFoundError{channelservicemember.Label}
 		return
 	}
 	return ids[0], nil
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *ChannelTranslationMemberQuery) FirstIDX(ctx context.Context) uuid.UUID {
+func (_q *ChannelServiceMemberQuery) FirstIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -154,10 +178,10 @@ func (_q *ChannelTranslationMemberQuery) FirstIDX(ctx context.Context) uuid.UUID
 	return id
 }
 
-// Only returns a single ChannelTranslationMember entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when more than one ChannelTranslationMember entity is found.
-// Returns a *NotFoundError when no ChannelTranslationMember entities are found.
-func (_q *ChannelTranslationMemberQuery) Only(ctx context.Context) (*ChannelTranslationMember, error) {
+// Only returns a single ChannelServiceMember entity found by the query, ensuring it only returns one.
+// Returns a *NotSingularError when more than one ChannelServiceMember entity is found.
+// Returns a *NotFoundError when no ChannelServiceMember entities are found.
+func (_q *ChannelServiceMemberQuery) Only(ctx context.Context) (*ChannelServiceMember, error) {
 	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
@@ -166,14 +190,14 @@ func (_q *ChannelTranslationMemberQuery) Only(ctx context.Context) (*ChannelTran
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{channeltranslationmember.Label}
+		return nil, &NotFoundError{channelservicemember.Label}
 	default:
-		return nil, &NotSingularError{channeltranslationmember.Label}
+		return nil, &NotSingularError{channelservicemember.Label}
 	}
 }
 
 // OnlyX is like Only, but panics if an error occurs.
-func (_q *ChannelTranslationMemberQuery) OnlyX(ctx context.Context) *ChannelTranslationMember {
+func (_q *ChannelServiceMemberQuery) OnlyX(ctx context.Context) *ChannelServiceMember {
 	node, err := _q.Only(ctx)
 	if err != nil {
 		panic(err)
@@ -181,10 +205,10 @@ func (_q *ChannelTranslationMemberQuery) OnlyX(ctx context.Context) *ChannelTran
 	return node
 }
 
-// OnlyID is like Only, but returns the only ChannelTranslationMember ID in the query.
-// Returns a *NotSingularError when more than one ChannelTranslationMember ID is found.
+// OnlyID is like Only, but returns the only ChannelServiceMember ID in the query.
+// Returns a *NotSingularError when more than one ChannelServiceMember ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *ChannelTranslationMemberQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
+func (_q *ChannelServiceMemberQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
 	var ids []uuid.UUID
 	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
@@ -193,15 +217,15 @@ func (_q *ChannelTranslationMemberQuery) OnlyID(ctx context.Context) (id uuid.UU
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{channeltranslationmember.Label}
+		err = &NotFoundError{channelservicemember.Label}
 	default:
-		err = &NotSingularError{channeltranslationmember.Label}
+		err = &NotSingularError{channelservicemember.Label}
 	}
 	return
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *ChannelTranslationMemberQuery) OnlyIDX(ctx context.Context) uuid.UUID {
+func (_q *ChannelServiceMemberQuery) OnlyIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -209,18 +233,18 @@ func (_q *ChannelTranslationMemberQuery) OnlyIDX(ctx context.Context) uuid.UUID 
 	return id
 }
 
-// All executes the query and returns a list of ChannelTranslationMembers.
-func (_q *ChannelTranslationMemberQuery) All(ctx context.Context) ([]*ChannelTranslationMember, error) {
+// All executes the query and returns a list of ChannelServiceMembers.
+func (_q *ChannelServiceMemberQuery) All(ctx context.Context) ([]*ChannelServiceMember, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*ChannelTranslationMember, *ChannelTranslationMemberQuery]()
-	return withInterceptors[[]*ChannelTranslationMember](ctx, _q, qr, _q.inters)
+	qr := querierAll[[]*ChannelServiceMember, *ChannelServiceMemberQuery]()
+	return withInterceptors[[]*ChannelServiceMember](ctx, _q, qr, _q.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
-func (_q *ChannelTranslationMemberQuery) AllX(ctx context.Context) []*ChannelTranslationMember {
+func (_q *ChannelServiceMemberQuery) AllX(ctx context.Context) []*ChannelServiceMember {
 	nodes, err := _q.All(ctx)
 	if err != nil {
 		panic(err)
@@ -228,20 +252,20 @@ func (_q *ChannelTranslationMemberQuery) AllX(ctx context.Context) []*ChannelTra
 	return nodes
 }
 
-// IDs executes the query and returns a list of ChannelTranslationMember IDs.
-func (_q *ChannelTranslationMemberQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
+// IDs executes the query and returns a list of ChannelServiceMember IDs.
+func (_q *ChannelServiceMemberQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(channeltranslationmember.FieldID).Scan(ctx, &ids); err != nil {
+	if err = _q.Select(channelservicemember.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *ChannelTranslationMemberQuery) IDsX(ctx context.Context) []uuid.UUID {
+func (_q *ChannelServiceMemberQuery) IDsX(ctx context.Context) []uuid.UUID {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -250,16 +274,16 @@ func (_q *ChannelTranslationMemberQuery) IDsX(ctx context.Context) []uuid.UUID {
 }
 
 // Count returns the count of the given query.
-func (_q *ChannelTranslationMemberQuery) Count(ctx context.Context) (int, error) {
+func (_q *ChannelServiceMemberQuery) Count(ctx context.Context) (int, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*ChannelTranslationMemberQuery](), _q.inters)
+	return withInterceptors[int](ctx, _q, querierCount[*ChannelServiceMemberQuery](), _q.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
-func (_q *ChannelTranslationMemberQuery) CountX(ctx context.Context) int {
+func (_q *ChannelServiceMemberQuery) CountX(ctx context.Context) int {
 	count, err := _q.Count(ctx)
 	if err != nil {
 		panic(err)
@@ -268,7 +292,7 @@ func (_q *ChannelTranslationMemberQuery) CountX(ctx context.Context) int {
 }
 
 // Exist returns true if the query has elements in the graph.
-func (_q *ChannelTranslationMemberQuery) Exist(ctx context.Context) (bool, error) {
+func (_q *ChannelServiceMemberQuery) Exist(ctx context.Context) (bool, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
@@ -281,7 +305,7 @@ func (_q *ChannelTranslationMemberQuery) Exist(ctx context.Context) (bool, error
 }
 
 // ExistX is like Exist, but panics if an error occurs.
-func (_q *ChannelTranslationMemberQuery) ExistX(ctx context.Context) bool {
+func (_q *ChannelServiceMemberQuery) ExistX(ctx context.Context) bool {
 	exist, err := _q.Exist(ctx)
 	if err != nil {
 		panic(err)
@@ -289,20 +313,21 @@ func (_q *ChannelTranslationMemberQuery) ExistX(ctx context.Context) bool {
 	return exist
 }
 
-// Clone returns a duplicate of the ChannelTranslationMemberQuery builder, including all associated steps. It can be
+// Clone returns a duplicate of the ChannelServiceMemberQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
-func (_q *ChannelTranslationMemberQuery) Clone() *ChannelTranslationMemberQuery {
+func (_q *ChannelServiceMemberQuery) Clone() *ChannelServiceMemberQuery {
 	if _q == nil {
 		return nil
 	}
-	return &ChannelTranslationMemberQuery{
+	return &ChannelServiceMemberQuery{
 		config:      _q.config,
 		ctx:         _q.ctx.Clone(),
-		order:       append([]channeltranslationmember.OrderOption{}, _q.order...),
+		order:       append([]channelservicemember.OrderOption{}, _q.order...),
 		inters:      append([]Interceptor{}, _q.inters...),
-		predicates:  append([]predicate.ChannelTranslationMember{}, _q.predicates...),
+		predicates:  append([]predicate.ChannelServiceMember{}, _q.predicates...),
 		withChannel: _q.withChannel.Clone(),
 		withUser:    _q.withUser.Clone(),
+		withSkill:   _q.withSkill.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -311,7 +336,7 @@ func (_q *ChannelTranslationMemberQuery) Clone() *ChannelTranslationMemberQuery 
 
 // WithChannel tells the query-builder to eager-load the nodes that are connected to
 // the "channel" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *ChannelTranslationMemberQuery) WithChannel(opts ...func(*ChannelQuery)) *ChannelTranslationMemberQuery {
+func (_q *ChannelServiceMemberQuery) WithChannel(opts ...func(*ChannelQuery)) *ChannelServiceMemberQuery {
 	query := (&ChannelClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
@@ -322,12 +347,23 @@ func (_q *ChannelTranslationMemberQuery) WithChannel(opts ...func(*ChannelQuery)
 
 // WithUser tells the query-builder to eager-load the nodes that are connected to
 // the "user" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *ChannelTranslationMemberQuery) WithUser(opts ...func(*UserQuery)) *ChannelTranslationMemberQuery {
+func (_q *ChannelServiceMemberQuery) WithUser(opts ...func(*UserQuery)) *ChannelServiceMemberQuery {
 	query := (&UserClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
 	_q.withUser = query
+	return _q
+}
+
+// WithSkill tells the query-builder to eager-load the nodes that are connected to
+// the "skill" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ChannelServiceMemberQuery) WithSkill(opts ...func(*SkillQuery)) *ChannelServiceMemberQuery {
+	query := (&SkillClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withSkill = query
 	return _q
 }
 
@@ -341,15 +377,15 @@ func (_q *ChannelTranslationMemberQuery) WithUser(opts ...func(*UserQuery)) *Cha
 //		Count int `json:"count,omitempty"`
 //	}
 //
-//	client.ChannelTranslationMember.Query().
-//		GroupBy(channeltranslationmember.FieldCreatedAt).
+//	client.ChannelServiceMember.Query().
+//		GroupBy(channelservicemember.FieldCreatedAt).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *ChannelTranslationMemberQuery) GroupBy(field string, fields ...string) *ChannelTranslationMemberGroupBy {
+func (_q *ChannelServiceMemberQuery) GroupBy(field string, fields ...string) *ChannelServiceMemberGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &ChannelTranslationMemberGroupBy{build: _q}
+	grbuild := &ChannelServiceMemberGroupBy{build: _q}
 	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = channeltranslationmember.Label
+	grbuild.label = channelservicemember.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
 }
@@ -363,23 +399,23 @@ func (_q *ChannelTranslationMemberQuery) GroupBy(field string, fields ...string)
 //		CreatedAt time.Time `json:"created_at,omitempty"`
 //	}
 //
-//	client.ChannelTranslationMember.Query().
-//		Select(channeltranslationmember.FieldCreatedAt).
+//	client.ChannelServiceMember.Query().
+//		Select(channelservicemember.FieldCreatedAt).
 //		Scan(ctx, &v)
-func (_q *ChannelTranslationMemberQuery) Select(fields ...string) *ChannelTranslationMemberSelect {
+func (_q *ChannelServiceMemberQuery) Select(fields ...string) *ChannelServiceMemberSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &ChannelTranslationMemberSelect{ChannelTranslationMemberQuery: _q}
-	sbuild.label = channeltranslationmember.Label
+	sbuild := &ChannelServiceMemberSelect{ChannelServiceMemberQuery: _q}
+	sbuild.label = channelservicemember.Label
 	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
 
-// Aggregate returns a ChannelTranslationMemberSelect configured with the given aggregations.
-func (_q *ChannelTranslationMemberQuery) Aggregate(fns ...AggregateFunc) *ChannelTranslationMemberSelect {
+// Aggregate returns a ChannelServiceMemberSelect configured with the given aggregations.
+func (_q *ChannelServiceMemberQuery) Aggregate(fns ...AggregateFunc) *ChannelServiceMemberSelect {
 	return _q.Select().Aggregate(fns...)
 }
 
-func (_q *ChannelTranslationMemberQuery) prepareQuery(ctx context.Context) error {
+func (_q *ChannelServiceMemberQuery) prepareQuery(ctx context.Context) error {
 	for _, inter := range _q.inters {
 		if inter == nil {
 			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
@@ -391,7 +427,7 @@ func (_q *ChannelTranslationMemberQuery) prepareQuery(ctx context.Context) error
 		}
 	}
 	for _, f := range _q.ctx.Fields {
-		if !channeltranslationmember.ValidColumn(f) {
+		if !channelservicemember.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
@@ -405,20 +441,21 @@ func (_q *ChannelTranslationMemberQuery) prepareQuery(ctx context.Context) error
 	return nil
 }
 
-func (_q *ChannelTranslationMemberQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*ChannelTranslationMember, error) {
+func (_q *ChannelServiceMemberQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*ChannelServiceMember, error) {
 	var (
-		nodes       = []*ChannelTranslationMember{}
+		nodes       = []*ChannelServiceMember{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [3]bool{
 			_q.withChannel != nil,
 			_q.withUser != nil,
+			_q.withSkill != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
-		return (*ChannelTranslationMember).scanValues(nil, columns)
+		return (*ChannelServiceMember).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
-		node := &ChannelTranslationMember{config: _q.config}
+		node := &ChannelServiceMember{config: _q.config}
 		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
@@ -437,13 +474,19 @@ func (_q *ChannelTranslationMemberQuery) sqlAll(ctx context.Context, hooks ...qu
 	}
 	if query := _q.withChannel; query != nil {
 		if err := _q.loadChannel(ctx, query, nodes, nil,
-			func(n *ChannelTranslationMember, e *Channel) { n.Edges.Channel = e }); err != nil {
+			func(n *ChannelServiceMember, e *Channel) { n.Edges.Channel = e }); err != nil {
 			return nil, err
 		}
 	}
 	if query := _q.withUser; query != nil {
 		if err := _q.loadUser(ctx, query, nodes, nil,
-			func(n *ChannelTranslationMember, e *User) { n.Edges.User = e }); err != nil {
+			func(n *ChannelServiceMember, e *User) { n.Edges.User = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withSkill; query != nil {
+		if err := _q.loadSkill(ctx, query, nodes, nil,
+			func(n *ChannelServiceMember, e *Skill) { n.Edges.Skill = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -455,9 +498,9 @@ func (_q *ChannelTranslationMemberQuery) sqlAll(ctx context.Context, hooks ...qu
 	return nodes, nil
 }
 
-func (_q *ChannelTranslationMemberQuery) loadChannel(ctx context.Context, query *ChannelQuery, nodes []*ChannelTranslationMember, init func(*ChannelTranslationMember), assign func(*ChannelTranslationMember, *Channel)) error {
+func (_q *ChannelServiceMemberQuery) loadChannel(ctx context.Context, query *ChannelQuery, nodes []*ChannelServiceMember, init func(*ChannelServiceMember), assign func(*ChannelServiceMember, *Channel)) error {
 	ids := make([]uuid.UUID, 0, len(nodes))
-	nodeids := make(map[uuid.UUID][]*ChannelTranslationMember)
+	nodeids := make(map[uuid.UUID][]*ChannelServiceMember)
 	for i := range nodes {
 		fk := nodes[i].ChannelID
 		if _, ok := nodeids[fk]; !ok {
@@ -484,9 +527,9 @@ func (_q *ChannelTranslationMemberQuery) loadChannel(ctx context.Context, query 
 	}
 	return nil
 }
-func (_q *ChannelTranslationMemberQuery) loadUser(ctx context.Context, query *UserQuery, nodes []*ChannelTranslationMember, init func(*ChannelTranslationMember), assign func(*ChannelTranslationMember, *User)) error {
+func (_q *ChannelServiceMemberQuery) loadUser(ctx context.Context, query *UserQuery, nodes []*ChannelServiceMember, init func(*ChannelServiceMember), assign func(*ChannelServiceMember, *User)) error {
 	ids := make([]uuid.UUID, 0, len(nodes))
-	nodeids := make(map[uuid.UUID][]*ChannelTranslationMember)
+	nodeids := make(map[uuid.UUID][]*ChannelServiceMember)
 	for i := range nodes {
 		fk := nodes[i].UserID
 		if _, ok := nodeids[fk]; !ok {
@@ -513,8 +556,37 @@ func (_q *ChannelTranslationMemberQuery) loadUser(ctx context.Context, query *Us
 	}
 	return nil
 }
+func (_q *ChannelServiceMemberQuery) loadSkill(ctx context.Context, query *SkillQuery, nodes []*ChannelServiceMember, init func(*ChannelServiceMember), assign func(*ChannelServiceMember, *Skill)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*ChannelServiceMember)
+	for i := range nodes {
+		fk := nodes[i].SkillID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(skill.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "skill_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
 
-func (_q *ChannelTranslationMemberQuery) sqlCount(ctx context.Context) (int, error) {
+func (_q *ChannelServiceMemberQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
 	if len(_q.modifiers) > 0 {
 		_spec.Modifiers = _q.modifiers
@@ -526,8 +598,8 @@ func (_q *ChannelTranslationMemberQuery) sqlCount(ctx context.Context) (int, err
 	return sqlgraph.CountNodes(ctx, _q.driver, _spec)
 }
 
-func (_q *ChannelTranslationMemberQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(channeltranslationmember.Table, channeltranslationmember.Columns, sqlgraph.NewFieldSpec(channeltranslationmember.FieldID, field.TypeUUID))
+func (_q *ChannelServiceMemberQuery) querySpec() *sqlgraph.QuerySpec {
+	_spec := sqlgraph.NewQuerySpec(channelservicemember.Table, channelservicemember.Columns, sqlgraph.NewFieldSpec(channelservicemember.FieldID, field.TypeUUID))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -536,17 +608,20 @@ func (_q *ChannelTranslationMemberQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, channeltranslationmember.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, channelservicemember.FieldID)
 		for i := range fields {
-			if fields[i] != channeltranslationmember.FieldID {
+			if fields[i] != channelservicemember.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
 		}
 		if _q.withChannel != nil {
-			_spec.Node.AddColumnOnce(channeltranslationmember.FieldChannelID)
+			_spec.Node.AddColumnOnce(channelservicemember.FieldChannelID)
 		}
 		if _q.withUser != nil {
-			_spec.Node.AddColumnOnce(channeltranslationmember.FieldUserID)
+			_spec.Node.AddColumnOnce(channelservicemember.FieldUserID)
+		}
+		if _q.withSkill != nil {
+			_spec.Node.AddColumnOnce(channelservicemember.FieldSkillID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {
@@ -572,12 +647,12 @@ func (_q *ChannelTranslationMemberQuery) querySpec() *sqlgraph.QuerySpec {
 	return _spec
 }
 
-func (_q *ChannelTranslationMemberQuery) sqlQuery(ctx context.Context) *sql.Selector {
+func (_q *ChannelServiceMemberQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(_q.driver.Dialect())
-	t1 := builder.Table(channeltranslationmember.Table)
+	t1 := builder.Table(channelservicemember.Table)
 	columns := _q.ctx.Fields
 	if len(columns) == 0 {
-		columns = channeltranslationmember.Columns
+		columns = channelservicemember.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if _q.sql != nil {
@@ -604,28 +679,28 @@ func (_q *ChannelTranslationMemberQuery) sqlQuery(ctx context.Context) *sql.Sele
 	return selector
 }
 
-// ChannelTranslationMemberGroupBy is the group-by builder for ChannelTranslationMember entities.
-type ChannelTranslationMemberGroupBy struct {
+// ChannelServiceMemberGroupBy is the group-by builder for ChannelServiceMember entities.
+type ChannelServiceMemberGroupBy struct {
 	selector
-	build *ChannelTranslationMemberQuery
+	build *ChannelServiceMemberQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
-func (_g *ChannelTranslationMemberGroupBy) Aggregate(fns ...AggregateFunc) *ChannelTranslationMemberGroupBy {
+func (_g *ChannelServiceMemberGroupBy) Aggregate(fns ...AggregateFunc) *ChannelServiceMemberGroupBy {
 	_g.fns = append(_g.fns, fns...)
 	return _g
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_g *ChannelTranslationMemberGroupBy) Scan(ctx context.Context, v any) error {
+func (_g *ChannelServiceMemberGroupBy) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
 	if err := _g.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*ChannelTranslationMemberQuery, *ChannelTranslationMemberGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return scanWithInterceptors[*ChannelServiceMemberQuery, *ChannelServiceMemberGroupBy](ctx, _g.build, _g, _g.build.inters, v)
 }
 
-func (_g *ChannelTranslationMemberGroupBy) sqlScan(ctx context.Context, root *ChannelTranslationMemberQuery, v any) error {
+func (_g *ChannelServiceMemberGroupBy) sqlScan(ctx context.Context, root *ChannelServiceMemberQuery, v any) error {
 	selector := root.sqlQuery(ctx).Select()
 	aggregation := make([]string, 0, len(_g.fns))
 	for _, fn := range _g.fns {
@@ -652,28 +727,28 @@ func (_g *ChannelTranslationMemberGroupBy) sqlScan(ctx context.Context, root *Ch
 	return sql.ScanSlice(rows, v)
 }
 
-// ChannelTranslationMemberSelect is the builder for selecting fields of ChannelTranslationMember entities.
-type ChannelTranslationMemberSelect struct {
-	*ChannelTranslationMemberQuery
+// ChannelServiceMemberSelect is the builder for selecting fields of ChannelServiceMember entities.
+type ChannelServiceMemberSelect struct {
+	*ChannelServiceMemberQuery
 	selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
-func (_s *ChannelTranslationMemberSelect) Aggregate(fns ...AggregateFunc) *ChannelTranslationMemberSelect {
+func (_s *ChannelServiceMemberSelect) Aggregate(fns ...AggregateFunc) *ChannelServiceMemberSelect {
 	_s.fns = append(_s.fns, fns...)
 	return _s
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_s *ChannelTranslationMemberSelect) Scan(ctx context.Context, v any) error {
+func (_s *ChannelServiceMemberSelect) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
 	if err := _s.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*ChannelTranslationMemberQuery, *ChannelTranslationMemberSelect](ctx, _s.ChannelTranslationMemberQuery, _s, _s.inters, v)
+	return scanWithInterceptors[*ChannelServiceMemberQuery, *ChannelServiceMemberSelect](ctx, _s.ChannelServiceMemberQuery, _s, _s.inters, v)
 }
 
-func (_s *ChannelTranslationMemberSelect) sqlScan(ctx context.Context, root *ChannelTranslationMemberQuery, v any) error {
+func (_s *ChannelServiceMemberSelect) sqlScan(ctx context.Context, root *ChannelServiceMemberQuery, v any) error {
 	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(_s.fns))
 	for _, fn := range _s.fns {

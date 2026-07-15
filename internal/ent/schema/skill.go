@@ -36,6 +36,7 @@ func (Skill) Indexes() []ent.Index {
 func (Skill) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("actions", Action.Type),
+		edge.From("channel_service_members", ChannelServiceMember.Type).Ref("skill"),
 	}
 }
 

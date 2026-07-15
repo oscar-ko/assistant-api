@@ -21,6 +21,8 @@ const (
 	FieldDescription = "description"
 	// EdgeActions holds the string denoting the actions edge name in mutations.
 	EdgeActions = "actions"
+	// EdgeChannelServiceMembers holds the string denoting the channel_service_members edge name in mutations.
+	EdgeChannelServiceMembers = "channel_service_members"
 	// Table holds the table name of the skill in the database.
 	Table = "skills"
 	// ActionsTable is the table that holds the actions relation/edge.
@@ -30,6 +32,13 @@ const (
 	ActionsInverseTable = "actions"
 	// ActionsColumn is the table column denoting the actions relation/edge.
 	ActionsColumn = "skill_id"
+	// ChannelServiceMembersTable is the table that holds the channel_service_members relation/edge.
+	ChannelServiceMembersTable = "channel_service_members"
+	// ChannelServiceMembersInverseTable is the table name for the ChannelServiceMember entity.
+	// It exists in this package in order to avoid circular dependency with the "channelservicemember" package.
+	ChannelServiceMembersInverseTable = "channel_service_members"
+	// ChannelServiceMembersColumn is the table column denoting the channel_service_members relation/edge.
+	ChannelServiceMembersColumn = "skill_id"
 )
 
 // Columns holds all SQL columns for skill fields.
@@ -95,10 +104,31 @@ func ByActions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newActionsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByChannelServiceMembersCount orders the results by channel_service_members count.
+func ByChannelServiceMembersCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newChannelServiceMembersStep(), opts...)
+	}
+}
+
+// ByChannelServiceMembers orders the results by channel_service_members terms.
+func ByChannelServiceMembers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newChannelServiceMembersStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newActionsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ActionsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, ActionsTable, ActionsColumn),
+	)
+}
+func newChannelServiceMembersStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ChannelServiceMembersInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, true, ChannelServiceMembersTable, ChannelServiceMembersColumn),
 	)
 }

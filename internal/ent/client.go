@@ -15,7 +15,7 @@ import (
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
-	"assistant-api/internal/ent/channeltranslationmember"
+	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/user"
@@ -40,8 +40,8 @@ type Client struct {
 	Channel *ChannelClient
 	// ChannelMessage is the client for interacting with the ChannelMessage builders.
 	ChannelMessage *ChannelMessageClient
-	// ChannelTranslationMember is the client for interacting with the ChannelTranslationMember builders.
-	ChannelTranslationMember *ChannelTranslationMemberClient
+	// ChannelServiceMember is the client for interacting with the ChannelServiceMember builders.
+	ChannelServiceMember *ChannelServiceMemberClient
 	// Line is the client for interacting with the Line builders.
 	Line *LineClient
 	// Skill is the client for interacting with the Skill builders.
@@ -63,7 +63,7 @@ func (c *Client) init() {
 	c.ActionRoute = NewActionRouteClient(c.config)
 	c.Channel = NewChannelClient(c.config)
 	c.ChannelMessage = NewChannelMessageClient(c.config)
-	c.ChannelTranslationMember = NewChannelTranslationMemberClient(c.config)
+	c.ChannelServiceMember = NewChannelServiceMemberClient(c.config)
 	c.Line = NewLineClient(c.config)
 	c.Skill = NewSkillClient(c.config)
 	c.User = NewUserClient(c.config)
@@ -157,16 +157,16 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:                      ctx,
-		config:                   cfg,
-		Action:                   NewActionClient(cfg),
-		ActionRoute:              NewActionRouteClient(cfg),
-		Channel:                  NewChannelClient(cfg),
-		ChannelMessage:           NewChannelMessageClient(cfg),
-		ChannelTranslationMember: NewChannelTranslationMemberClient(cfg),
-		Line:                     NewLineClient(cfg),
-		Skill:                    NewSkillClient(cfg),
-		User:                     NewUserClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		Action:               NewActionClient(cfg),
+		ActionRoute:          NewActionRouteClient(cfg),
+		Channel:              NewChannelClient(cfg),
+		ChannelMessage:       NewChannelMessageClient(cfg),
+		ChannelServiceMember: NewChannelServiceMemberClient(cfg),
+		Line:                 NewLineClient(cfg),
+		Skill:                NewSkillClient(cfg),
+		User:                 NewUserClient(cfg),
 	}, nil
 }
 
@@ -184,16 +184,16 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:                      ctx,
-		config:                   cfg,
-		Action:                   NewActionClient(cfg),
-		ActionRoute:              NewActionRouteClient(cfg),
-		Channel:                  NewChannelClient(cfg),
-		ChannelMessage:           NewChannelMessageClient(cfg),
-		ChannelTranslationMember: NewChannelTranslationMemberClient(cfg),
-		Line:                     NewLineClient(cfg),
-		Skill:                    NewSkillClient(cfg),
-		User:                     NewUserClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		Action:               NewActionClient(cfg),
+		ActionRoute:          NewActionRouteClient(cfg),
+		Channel:              NewChannelClient(cfg),
+		ChannelMessage:       NewChannelMessageClient(cfg),
+		ChannelServiceMember: NewChannelServiceMemberClient(cfg),
+		Line:                 NewLineClient(cfg),
+		Skill:                NewSkillClient(cfg),
+		User:                 NewUserClient(cfg),
 	}, nil
 }
 
@@ -223,8 +223,8 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.Action, c.ActionRoute, c.Channel, c.ChannelMessage,
-		c.ChannelTranslationMember, c.Line, c.Skill, c.User,
+		c.Action, c.ActionRoute, c.Channel, c.ChannelMessage, c.ChannelServiceMember,
+		c.Line, c.Skill, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -234,8 +234,8 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.Action, c.ActionRoute, c.Channel, c.ChannelMessage,
-		c.ChannelTranslationMember, c.Line, c.Skill, c.User,
+		c.Action, c.ActionRoute, c.Channel, c.ChannelMessage, c.ChannelServiceMember,
+		c.Line, c.Skill, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -252,8 +252,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Channel.mutate(ctx, m)
 	case *ChannelMessageMutation:
 		return c.ChannelMessage.mutate(ctx, m)
-	case *ChannelTranslationMemberMutation:
-		return c.ChannelTranslationMember.mutate(ctx, m)
+	case *ChannelServiceMemberMutation:
+		return c.ChannelServiceMember.mutate(ctx, m)
 	case *LineMutation:
 		return c.Line.mutate(ctx, m)
 	case *SkillMutation:
@@ -703,15 +703,15 @@ func (c *ChannelClient) QueryMessages(_m *Channel) *ChannelMessageQuery {
 	return query
 }
 
-// QueryTranslationMembers queries the translation_members edge of a Channel.
-func (c *ChannelClient) QueryTranslationMembers(_m *Channel) *ChannelTranslationMemberQuery {
-	query := (&ChannelTranslationMemberClient{config: c.config}).Query()
+// QueryServiceMembers queries the service_members edge of a Channel.
+func (c *ChannelClient) QueryServiceMembers(_m *Channel) *ChannelServiceMemberQuery {
+	query := (&ChannelServiceMemberClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(channel.Table, channel.FieldID, id),
-			sqlgraph.To(channeltranslationmember.Table, channeltranslationmember.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, true, channel.TranslationMembersTable, channel.TranslationMembersColumn),
+			sqlgraph.To(channelservicemember.Table, channelservicemember.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, channel.ServiceMembersTable, channel.ServiceMembersColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -925,107 +925,107 @@ func (c *ChannelMessageClient) mutate(ctx context.Context, m *ChannelMessageMuta
 	}
 }
 
-// ChannelTranslationMemberClient is a client for the ChannelTranslationMember schema.
-type ChannelTranslationMemberClient struct {
+// ChannelServiceMemberClient is a client for the ChannelServiceMember schema.
+type ChannelServiceMemberClient struct {
 	config
 }
 
-// NewChannelTranslationMemberClient returns a client for the ChannelTranslationMember from the given config.
-func NewChannelTranslationMemberClient(c config) *ChannelTranslationMemberClient {
-	return &ChannelTranslationMemberClient{config: c}
+// NewChannelServiceMemberClient returns a client for the ChannelServiceMember from the given config.
+func NewChannelServiceMemberClient(c config) *ChannelServiceMemberClient {
+	return &ChannelServiceMemberClient{config: c}
 }
 
 // Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `channeltranslationmember.Hooks(f(g(h())))`.
-func (c *ChannelTranslationMemberClient) Use(hooks ...Hook) {
-	c.hooks.ChannelTranslationMember = append(c.hooks.ChannelTranslationMember, hooks...)
+// A call to `Use(f, g, h)` equals to `channelservicemember.Hooks(f(g(h())))`.
+func (c *ChannelServiceMemberClient) Use(hooks ...Hook) {
+	c.hooks.ChannelServiceMember = append(c.hooks.ChannelServiceMember, hooks...)
 }
 
 // Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `channeltranslationmember.Intercept(f(g(h())))`.
-func (c *ChannelTranslationMemberClient) Intercept(interceptors ...Interceptor) {
-	c.inters.ChannelTranslationMember = append(c.inters.ChannelTranslationMember, interceptors...)
+// A call to `Intercept(f, g, h)` equals to `channelservicemember.Intercept(f(g(h())))`.
+func (c *ChannelServiceMemberClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ChannelServiceMember = append(c.inters.ChannelServiceMember, interceptors...)
 }
 
-// Create returns a builder for creating a ChannelTranslationMember entity.
-func (c *ChannelTranslationMemberClient) Create() *ChannelTranslationMemberCreate {
-	mutation := newChannelTranslationMemberMutation(c.config, OpCreate)
-	return &ChannelTranslationMemberCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Create returns a builder for creating a ChannelServiceMember entity.
+func (c *ChannelServiceMemberClient) Create() *ChannelServiceMemberCreate {
+	mutation := newChannelServiceMemberMutation(c.config, OpCreate)
+	return &ChannelServiceMemberCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// CreateBulk returns a builder for creating a bulk of ChannelTranslationMember entities.
-func (c *ChannelTranslationMemberClient) CreateBulk(builders ...*ChannelTranslationMemberCreate) *ChannelTranslationMemberCreateBulk {
-	return &ChannelTranslationMemberCreateBulk{config: c.config, builders: builders}
+// CreateBulk returns a builder for creating a bulk of ChannelServiceMember entities.
+func (c *ChannelServiceMemberClient) CreateBulk(builders ...*ChannelServiceMemberCreate) *ChannelServiceMemberCreateBulk {
+	return &ChannelServiceMemberCreateBulk{config: c.config, builders: builders}
 }
 
 // MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
 // a builder and applies setFunc on it.
-func (c *ChannelTranslationMemberClient) MapCreateBulk(slice any, setFunc func(*ChannelTranslationMemberCreate, int)) *ChannelTranslationMemberCreateBulk {
+func (c *ChannelServiceMemberClient) MapCreateBulk(slice any, setFunc func(*ChannelServiceMemberCreate, int)) *ChannelServiceMemberCreateBulk {
 	rv := reflect.ValueOf(slice)
 	if rv.Kind() != reflect.Slice {
-		return &ChannelTranslationMemberCreateBulk{err: fmt.Errorf("calling to ChannelTranslationMemberClient.MapCreateBulk with wrong type %T, need slice", slice)}
+		return &ChannelServiceMemberCreateBulk{err: fmt.Errorf("calling to ChannelServiceMemberClient.MapCreateBulk with wrong type %T, need slice", slice)}
 	}
-	builders := make([]*ChannelTranslationMemberCreate, rv.Len())
+	builders := make([]*ChannelServiceMemberCreate, rv.Len())
 	for i := 0; i < rv.Len(); i++ {
 		builders[i] = c.Create()
 		setFunc(builders[i], i)
 	}
-	return &ChannelTranslationMemberCreateBulk{config: c.config, builders: builders}
+	return &ChannelServiceMemberCreateBulk{config: c.config, builders: builders}
 }
 
-// Update returns an update builder for ChannelTranslationMember.
-func (c *ChannelTranslationMemberClient) Update() *ChannelTranslationMemberUpdate {
-	mutation := newChannelTranslationMemberMutation(c.config, OpUpdate)
-	return &ChannelTranslationMemberUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Update returns an update builder for ChannelServiceMember.
+func (c *ChannelServiceMemberClient) Update() *ChannelServiceMemberUpdate {
+	mutation := newChannelServiceMemberMutation(c.config, OpUpdate)
+	return &ChannelServiceMemberUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
-func (c *ChannelTranslationMemberClient) UpdateOne(_m *ChannelTranslationMember) *ChannelTranslationMemberUpdateOne {
-	mutation := newChannelTranslationMemberMutation(c.config, OpUpdateOne, withChannelTranslationMember(_m))
-	return &ChannelTranslationMemberUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *ChannelServiceMemberClient) UpdateOne(_m *ChannelServiceMember) *ChannelServiceMemberUpdateOne {
+	mutation := newChannelServiceMemberMutation(c.config, OpUpdateOne, withChannelServiceMember(_m))
+	return &ChannelServiceMemberUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOneID returns an update builder for the given id.
-func (c *ChannelTranslationMemberClient) UpdateOneID(id uuid.UUID) *ChannelTranslationMemberUpdateOne {
-	mutation := newChannelTranslationMemberMutation(c.config, OpUpdateOne, withChannelTranslationMemberID(id))
-	return &ChannelTranslationMemberUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *ChannelServiceMemberClient) UpdateOneID(id uuid.UUID) *ChannelServiceMemberUpdateOne {
+	mutation := newChannelServiceMemberMutation(c.config, OpUpdateOne, withChannelServiceMemberID(id))
+	return &ChannelServiceMemberUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// Delete returns a delete builder for ChannelTranslationMember.
-func (c *ChannelTranslationMemberClient) Delete() *ChannelTranslationMemberDelete {
-	mutation := newChannelTranslationMemberMutation(c.config, OpDelete)
-	return &ChannelTranslationMemberDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Delete returns a delete builder for ChannelServiceMember.
+func (c *ChannelServiceMemberClient) Delete() *ChannelServiceMemberDelete {
+	mutation := newChannelServiceMemberMutation(c.config, OpDelete)
+	return &ChannelServiceMemberDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
-func (c *ChannelTranslationMemberClient) DeleteOne(_m *ChannelTranslationMember) *ChannelTranslationMemberDeleteOne {
+func (c *ChannelServiceMemberClient) DeleteOne(_m *ChannelServiceMember) *ChannelServiceMemberDeleteOne {
 	return c.DeleteOneID(_m.ID)
 }
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *ChannelTranslationMemberClient) DeleteOneID(id uuid.UUID) *ChannelTranslationMemberDeleteOne {
-	builder := c.Delete().Where(channeltranslationmember.ID(id))
+func (c *ChannelServiceMemberClient) DeleteOneID(id uuid.UUID) *ChannelServiceMemberDeleteOne {
+	builder := c.Delete().Where(channelservicemember.ID(id))
 	builder.mutation.id = &id
 	builder.mutation.op = OpDeleteOne
-	return &ChannelTranslationMemberDeleteOne{builder}
+	return &ChannelServiceMemberDeleteOne{builder}
 }
 
-// Query returns a query builder for ChannelTranslationMember.
-func (c *ChannelTranslationMemberClient) Query() *ChannelTranslationMemberQuery {
-	return &ChannelTranslationMemberQuery{
+// Query returns a query builder for ChannelServiceMember.
+func (c *ChannelServiceMemberClient) Query() *ChannelServiceMemberQuery {
+	return &ChannelServiceMemberQuery{
 		config: c.config,
-		ctx:    &QueryContext{Type: TypeChannelTranslationMember},
+		ctx:    &QueryContext{Type: TypeChannelServiceMember},
 		inters: c.Interceptors(),
 	}
 }
 
-// Get returns a ChannelTranslationMember entity by its id.
-func (c *ChannelTranslationMemberClient) Get(ctx context.Context, id uuid.UUID) (*ChannelTranslationMember, error) {
-	return c.Query().Where(channeltranslationmember.ID(id)).Only(ctx)
+// Get returns a ChannelServiceMember entity by its id.
+func (c *ChannelServiceMemberClient) Get(ctx context.Context, id uuid.UUID) (*ChannelServiceMember, error) {
+	return c.Query().Where(channelservicemember.ID(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
-func (c *ChannelTranslationMemberClient) GetX(ctx context.Context, id uuid.UUID) *ChannelTranslationMember {
+func (c *ChannelServiceMemberClient) GetX(ctx context.Context, id uuid.UUID) *ChannelServiceMember {
 	obj, err := c.Get(ctx, id)
 	if err != nil {
 		panic(err)
@@ -1033,15 +1033,15 @@ func (c *ChannelTranslationMemberClient) GetX(ctx context.Context, id uuid.UUID)
 	return obj
 }
 
-// QueryChannel queries the channel edge of a ChannelTranslationMember.
-func (c *ChannelTranslationMemberClient) QueryChannel(_m *ChannelTranslationMember) *ChannelQuery {
+// QueryChannel queries the channel edge of a ChannelServiceMember.
+func (c *ChannelServiceMemberClient) QueryChannel(_m *ChannelServiceMember) *ChannelQuery {
 	query := (&ChannelClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
-			sqlgraph.From(channeltranslationmember.Table, channeltranslationmember.FieldID, id),
+			sqlgraph.From(channelservicemember.Table, channelservicemember.FieldID, id),
 			sqlgraph.To(channel.Table, channel.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, channeltranslationmember.ChannelTable, channeltranslationmember.ChannelColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, channelservicemember.ChannelTable, channelservicemember.ChannelColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -1049,15 +1049,31 @@ func (c *ChannelTranslationMemberClient) QueryChannel(_m *ChannelTranslationMemb
 	return query
 }
 
-// QueryUser queries the user edge of a ChannelTranslationMember.
-func (c *ChannelTranslationMemberClient) QueryUser(_m *ChannelTranslationMember) *UserQuery {
+// QueryUser queries the user edge of a ChannelServiceMember.
+func (c *ChannelServiceMemberClient) QueryUser(_m *ChannelServiceMember) *UserQuery {
 	query := (&UserClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
-			sqlgraph.From(channeltranslationmember.Table, channeltranslationmember.FieldID, id),
+			sqlgraph.From(channelservicemember.Table, channelservicemember.FieldID, id),
 			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, channeltranslationmember.UserTable, channeltranslationmember.UserColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, channelservicemember.UserTable, channelservicemember.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySkill queries the skill edge of a ChannelServiceMember.
+func (c *ChannelServiceMemberClient) QuerySkill(_m *ChannelServiceMember) *SkillQuery {
+	query := (&SkillClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(channelservicemember.Table, channelservicemember.FieldID, id),
+			sqlgraph.To(skill.Table, skill.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, channelservicemember.SkillTable, channelservicemember.SkillColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -1066,27 +1082,27 @@ func (c *ChannelTranslationMemberClient) QueryUser(_m *ChannelTranslationMember)
 }
 
 // Hooks returns the client hooks.
-func (c *ChannelTranslationMemberClient) Hooks() []Hook {
-	return c.hooks.ChannelTranslationMember
+func (c *ChannelServiceMemberClient) Hooks() []Hook {
+	return c.hooks.ChannelServiceMember
 }
 
 // Interceptors returns the client interceptors.
-func (c *ChannelTranslationMemberClient) Interceptors() []Interceptor {
-	return c.inters.ChannelTranslationMember
+func (c *ChannelServiceMemberClient) Interceptors() []Interceptor {
+	return c.inters.ChannelServiceMember
 }
 
-func (c *ChannelTranslationMemberClient) mutate(ctx context.Context, m *ChannelTranslationMemberMutation) (Value, error) {
+func (c *ChannelServiceMemberClient) mutate(ctx context.Context, m *ChannelServiceMemberMutation) (Value, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&ChannelTranslationMemberCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&ChannelServiceMemberCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&ChannelTranslationMemberUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&ChannelServiceMemberUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&ChannelTranslationMemberUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&ChannelServiceMemberUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&ChannelTranslationMemberDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&ChannelServiceMemberDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
-		return nil, fmt.Errorf("ent: unknown ChannelTranslationMember mutation op: %q", m.Op())
+		return nil, fmt.Errorf("ent: unknown ChannelServiceMember mutation op: %q", m.Op())
 	}
 }
 
@@ -1363,6 +1379,22 @@ func (c *SkillClient) QueryActions(_m *Skill) *ActionQuery {
 	return query
 }
 
+// QueryChannelServiceMembers queries the channel_service_members edge of a Skill.
+func (c *SkillClient) QueryChannelServiceMembers(_m *Skill) *ChannelServiceMemberQuery {
+	query := (&ChannelServiceMemberClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(skill.Table, skill.FieldID, id),
+			sqlgraph.To(channelservicemember.Table, channelservicemember.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, skill.ChannelServiceMembersTable, skill.ChannelServiceMembersColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *SkillClient) Hooks() []Hook {
 	return c.hooks.Skill
@@ -1512,15 +1544,15 @@ func (c *UserClient) QueryLine(_m *User) *LineQuery {
 	return query
 }
 
-// QueryChannelTranslationMembers queries the channel_translation_members edge of a User.
-func (c *UserClient) QueryChannelTranslationMembers(_m *User) *ChannelTranslationMemberQuery {
-	query := (&ChannelTranslationMemberClient{config: c.config}).Query()
+// QueryChannelServiceMembers queries the channel_service_members edge of a User.
+func (c *UserClient) QueryChannelServiceMembers(_m *User) *ChannelServiceMemberQuery {
+	query := (&ChannelServiceMemberClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(user.Table, user.FieldID, id),
-			sqlgraph.To(channeltranslationmember.Table, channeltranslationmember.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, true, user.ChannelTranslationMembersTable, user.ChannelTranslationMembersColumn),
+			sqlgraph.To(channelservicemember.Table, channelservicemember.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, user.ChannelServiceMembersTable, user.ChannelServiceMembersColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -1556,11 +1588,11 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Action, ActionRoute, Channel, ChannelMessage, ChannelTranslationMember, Line,
-		Skill, User []ent.Hook
+		Action, ActionRoute, Channel, ChannelMessage, ChannelServiceMember, Line, Skill,
+		User []ent.Hook
 	}
 	inters struct {
-		Action, ActionRoute, Channel, ChannelMessage, ChannelTranslationMember, Line,
-		Skill, User []ent.Interceptor
+		Action, ActionRoute, Channel, ChannelMessage, ChannelServiceMember, Line, Skill,
+		User []ent.Interceptor
 	}
 )

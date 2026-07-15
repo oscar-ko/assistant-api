@@ -3,7 +3,7 @@
 package ent
 
 import (
-	"assistant-api/internal/ent/channeltranslationmember"
+	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -63,19 +63,19 @@ func (_c *UserCreate) AddLine(v ...*Line) *UserCreate {
 	return _c.AddLineIDs(ids...)
 }
 
-// AddChannelTranslationMemberIDs adds the "channel_translation_members" edge to the ChannelTranslationMember entity by IDs.
-func (_c *UserCreate) AddChannelTranslationMemberIDs(ids ...uuid.UUID) *UserCreate {
-	_c.mutation.AddChannelTranslationMemberIDs(ids...)
+// AddChannelServiceMemberIDs adds the "channel_service_members" edge to the ChannelServiceMember entity by IDs.
+func (_c *UserCreate) AddChannelServiceMemberIDs(ids ...uuid.UUID) *UserCreate {
+	_c.mutation.AddChannelServiceMemberIDs(ids...)
 	return _c
 }
 
-// AddChannelTranslationMembers adds the "channel_translation_members" edges to the ChannelTranslationMember entity.
-func (_c *UserCreate) AddChannelTranslationMembers(v ...*ChannelTranslationMember) *UserCreate {
+// AddChannelServiceMembers adds the "channel_service_members" edges to the ChannelServiceMember entity.
+func (_c *UserCreate) AddChannelServiceMembers(v ...*ChannelServiceMember) *UserCreate {
 	ids := make([]uuid.UUID, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _c.AddChannelTranslationMemberIDs(ids...)
+	return _c.AddChannelServiceMemberIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -196,15 +196,15 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.ChannelTranslationMembersIDs(); len(nodes) > 0 {
+	if nodes := _c.mutation.ChannelServiceMembersIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
-			Table:   user.ChannelTranslationMembersTable,
-			Columns: []string{user.ChannelTranslationMembersColumn},
+			Table:   user.ChannelServiceMembersTable,
+			Columns: []string{user.ChannelServiceMembersColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(channeltranslationmember.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(channelservicemember.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

@@ -36,8 +36,8 @@ const (
 	FieldInactiveMessageCount = "inactive_message_count"
 	// EdgeMessages holds the string denoting the messages edge name in mutations.
 	EdgeMessages = "messages"
-	// EdgeTranslationMembers holds the string denoting the translation_members edge name in mutations.
-	EdgeTranslationMembers = "translation_members"
+	// EdgeServiceMembers holds the string denoting the service_members edge name in mutations.
+	EdgeServiceMembers = "service_members"
 	// Table holds the table name of the channel in the database.
 	Table = "channels"
 	// MessagesTable is the table that holds the messages relation/edge.
@@ -47,13 +47,13 @@ const (
 	MessagesInverseTable = "channel_messages"
 	// MessagesColumn is the table column denoting the messages relation/edge.
 	MessagesColumn = "channel_id"
-	// TranslationMembersTable is the table that holds the translation_members relation/edge.
-	TranslationMembersTable = "channel_translation_members"
-	// TranslationMembersInverseTable is the table name for the ChannelTranslationMember entity.
-	// It exists in this package in order to avoid circular dependency with the "channeltranslationmember" package.
-	TranslationMembersInverseTable = "channel_translation_members"
-	// TranslationMembersColumn is the table column denoting the translation_members relation/edge.
-	TranslationMembersColumn = "channel_id"
+	// ServiceMembersTable is the table that holds the service_members relation/edge.
+	ServiceMembersTable = "channel_service_members"
+	// ServiceMembersInverseTable is the table name for the ChannelServiceMember entity.
+	// It exists in this package in order to avoid circular dependency with the "channelservicemember" package.
+	ServiceMembersInverseTable = "channel_service_members"
+	// ServiceMembersColumn is the table column denoting the service_members relation/edge.
+	ServiceMembersColumn = "channel_id"
 )
 
 // Columns holds all SQL columns for channel fields.
@@ -214,17 +214,17 @@ func ByMessages(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
-// ByTranslationMembersCount orders the results by translation_members count.
-func ByTranslationMembersCount(opts ...sql.OrderTermOption) OrderOption {
+// ByServiceMembersCount orders the results by service_members count.
+func ByServiceMembersCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newTranslationMembersStep(), opts...)
+		sqlgraph.OrderByNeighborsCount(s, newServiceMembersStep(), opts...)
 	}
 }
 
-// ByTranslationMembers orders the results by translation_members terms.
-func ByTranslationMembers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+// ByServiceMembers orders the results by service_members terms.
+func ByServiceMembers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newTranslationMembersStep(), append([]sql.OrderTerm{term}, terms...)...)
+		sqlgraph.OrderByNeighborTerms(s, newServiceMembersStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
 func newMessagesStep() *sqlgraph.Step {
@@ -234,11 +234,11 @@ func newMessagesStep() *sqlgraph.Step {
 		sqlgraph.Edge(sqlgraph.O2M, false, MessagesTable, MessagesColumn),
 	)
 }
-func newTranslationMembersStep() *sqlgraph.Step {
+func newServiceMembersStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(TranslationMembersInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, true, TranslationMembersTable, TranslationMembersColumn),
+		sqlgraph.To(ServiceMembersInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, true, ServiceMembersTable, ServiceMembersColumn),
 	)
 }
 

@@ -34,13 +34,16 @@ type Skill struct {
 type SkillEdges struct {
 	// Actions holds the value of the actions edge.
 	Actions []*Action `json:"actions,omitempty"`
+	// ChannelServiceMembers holds the value of the channel_service_members edge.
+	ChannelServiceMembers []*ChannelServiceMember `json:"channel_service_members,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 	// totalCount holds the count of the edges above.
-	totalCount [1]map[string]int
+	totalCount [2]map[string]int
 
-	namedActions map[string][]*Action
+	namedActions               map[string][]*Action
+	namedChannelServiceMembers map[string][]*ChannelServiceMember
 }
 
 // ActionsOrErr returns the Actions value or an error if the edge
@@ -50,6 +53,15 @@ func (e SkillEdges) ActionsOrErr() ([]*Action, error) {
 		return e.Actions, nil
 	}
 	return nil, &NotLoadedError{edge: "actions"}
+}
+
+// ChannelServiceMembersOrErr returns the ChannelServiceMembers value or an error if the edge
+// was not loaded in eager-loading.
+func (e SkillEdges) ChannelServiceMembersOrErr() ([]*ChannelServiceMember, error) {
+	if e.loadedTypes[1] {
+		return e.ChannelServiceMembers, nil
+	}
+	return nil, &NotLoadedError{edge: "channel_service_members"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -119,6 +131,11 @@ func (_m *Skill) QueryActions() *ActionQuery {
 	return NewSkillClient(_m.config).QueryActions(_m)
 }
 
+// QueryChannelServiceMembers queries the "channel_service_members" edge of the Skill entity.
+func (_m *Skill) QueryChannelServiceMembers() *ChannelServiceMemberQuery {
+	return NewSkillClient(_m.config).QueryChannelServiceMembers(_m)
+}
+
 // Update returns a builder for updating this Skill.
 // Note that you need to call Skill.Unwrap() before calling this method if this Skill
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -177,6 +194,30 @@ func (_m *Skill) appendNamedActions(name string, edges ...*Action) {
 		_m.Edges.namedActions[name] = []*Action{}
 	} else {
 		_m.Edges.namedActions[name] = append(_m.Edges.namedActions[name], edges...)
+	}
+}
+
+// NamedChannelServiceMembers returns the ChannelServiceMembers named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *Skill) NamedChannelServiceMembers(name string) ([]*ChannelServiceMember, error) {
+	if _m.Edges.namedChannelServiceMembers == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedChannelServiceMembers[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *Skill) appendNamedChannelServiceMembers(name string, edges ...*ChannelServiceMember) {
+	if _m.Edges.namedChannelServiceMembers == nil {
+		_m.Edges.namedChannelServiceMembers = make(map[string][]*ChannelServiceMember)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedChannelServiceMembers[name] = []*ChannelServiceMember{}
+	} else {
+		_m.Edges.namedChannelServiceMembers[name] = append(_m.Edges.namedChannelServiceMembers[name], edges...)
 	}
 }
 

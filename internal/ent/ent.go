@@ -7,7 +7,7 @@ import (
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
-	"assistant-api/internal/ent/channeltranslationmember"
+	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/user"
@@ -80,14 +80,14 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			action.Table:                   action.ValidColumn,
-			actionroute.Table:              actionroute.ValidColumn,
-			channel.Table:                  channel.ValidColumn,
-			channelmessage.Table:           channelmessage.ValidColumn,
-			channeltranslationmember.Table: channeltranslationmember.ValidColumn,
-			line.Table:                     line.ValidColumn,
-			skill.Table:                    skill.ValidColumn,
-			user.Table:                     user.ValidColumn,
+			action.Table:               action.ValidColumn,
+			actionroute.Table:          actionroute.ValidColumn,
+			channel.Table:              channel.ValidColumn,
+			channelmessage.Table:       channelmessage.ValidColumn,
+			channelservicemember.Table: channelservicemember.ValidColumn,
+			line.Table:                 line.ValidColumn,
+			skill.Table:                skill.ValidColumn,
+			user.Table:                 user.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

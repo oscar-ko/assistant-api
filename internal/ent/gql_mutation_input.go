@@ -8,10 +8,10 @@ import (
 
 // CreateUserInput represents a mutation input for creating users.
 type CreateUserInput struct {
-	Name                        string
-	Email                       string
-	LineIDs                     []uuid.UUID
-	ChannelTranslationMemberIDs []uuid.UUID
+	Name                    string
+	Email                   string
+	LineIDs                 []uuid.UUID
+	ChannelServiceMemberIDs []uuid.UUID
 }
 
 // Mutate applies the CreateUserInput on the UserMutation builder.
@@ -21,8 +21,8 @@ func (i *CreateUserInput) Mutate(m *UserMutation) {
 	if v := i.LineIDs; len(v) > 0 {
 		m.AddLineIDs(v...)
 	}
-	if v := i.ChannelTranslationMemberIDs; len(v) > 0 {
-		m.AddChannelTranslationMemberIDs(v...)
+	if v := i.ChannelServiceMemberIDs; len(v) > 0 {
+		m.AddChannelServiceMemberIDs(v...)
 	}
 }
 
@@ -34,14 +34,14 @@ func (c *UserCreate) SetInput(i CreateUserInput) *UserCreate {
 
 // UpdateUserInput represents a mutation input for updating users.
 type UpdateUserInput struct {
-	Name                              *string
-	Email                             *string
-	ClearLine                         bool
-	AddLineIDs                        []uuid.UUID
-	RemoveLineIDs                     []uuid.UUID
-	ClearChannelTranslationMembers    bool
-	AddChannelTranslationMemberIDs    []uuid.UUID
-	RemoveChannelTranslationMemberIDs []uuid.UUID
+	Name                          *string
+	Email                         *string
+	ClearLine                     bool
+	AddLineIDs                    []uuid.UUID
+	RemoveLineIDs                 []uuid.UUID
+	ClearChannelServiceMembers    bool
+	AddChannelServiceMemberIDs    []uuid.UUID
+	RemoveChannelServiceMemberIDs []uuid.UUID
 }
 
 // Mutate applies the UpdateUserInput on the UserMutation builder.
@@ -61,14 +61,14 @@ func (i *UpdateUserInput) Mutate(m *UserMutation) {
 	if v := i.RemoveLineIDs; len(v) > 0 {
 		m.RemoveLineIDs(v...)
 	}
-	if i.ClearChannelTranslationMembers {
-		m.ClearChannelTranslationMembers()
+	if i.ClearChannelServiceMembers {
+		m.ClearChannelServiceMembers()
 	}
-	if v := i.AddChannelTranslationMemberIDs; len(v) > 0 {
-		m.AddChannelTranslationMemberIDs(v...)
+	if v := i.AddChannelServiceMemberIDs; len(v) > 0 {
+		m.AddChannelServiceMemberIDs(v...)
 	}
-	if v := i.RemoveChannelTranslationMemberIDs; len(v) > 0 {
-		m.RemoveChannelTranslationMemberIDs(v...)
+	if v := i.RemoveChannelServiceMemberIDs; len(v) > 0 {
+		m.RemoveChannelServiceMemberIDs(v...)
 	}
 }
 

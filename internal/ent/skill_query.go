@@ -4,6 +4,7 @@ package ent
 
 import (
 	"assistant-api/internal/ent/action"
+	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/skill"
 	"context"
@@ -21,14 +22,16 @@ import (
 // SkillQuery is the builder for querying Skill entities.
 type SkillQuery struct {
 	config
-	ctx              *QueryContext
-	order            []skill.OrderOption
-	inters           []Interceptor
-	predicates       []predicate.Skill
-	withActions      *ActionQuery
-	modifiers        []func(*sql.Selector)
-	loadTotal        []func(context.Context, []*Skill) error
-	withNamedActions map[string]*ActionQuery
+	ctx                            *QueryContext
+	order                          []skill.OrderOption
+	inters                         []Interceptor
+	predicates                     []predicate.Skill
+	withActions                    *ActionQuery
+	withChannelServiceMembers      *ChannelServiceMemberQuery
+	modifiers                      []func(*sql.Selector)
+	loadTotal                      []func(context.Context, []*Skill) error
+	withNamedActions               map[string]*ActionQuery
+	withNamedChannelServiceMembers map[string]*ChannelServiceMemberQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -80,6 +83,28 @@ func (_q *SkillQuery) QueryActions() *ActionQuery {
 			sqlgraph.From(skill.Table, skill.FieldID, selector),
 			sqlgraph.To(action.Table, action.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, skill.ActionsTable, skill.ActionsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryChannelServiceMembers chains the current query on the "channel_service_members" edge.
+func (_q *SkillQuery) QueryChannelServiceMembers() *ChannelServiceMemberQuery {
+	query := (&ChannelServiceMemberClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(skill.Table, skill.FieldID, selector),
+			sqlgraph.To(channelservicemember.Table, channelservicemember.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, skill.ChannelServiceMembersTable, skill.ChannelServiceMembersColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -274,12 +299,13 @@ func (_q *SkillQuery) Clone() *SkillQuery {
 		return nil
 	}
 	return &SkillQuery{
-		config:      _q.config,
-		ctx:         _q.ctx.Clone(),
-		order:       append([]skill.OrderOption{}, _q.order...),
-		inters:      append([]Interceptor{}, _q.inters...),
-		predicates:  append([]predicate.Skill{}, _q.predicates...),
-		withActions: _q.withActions.Clone(),
+		config:                    _q.config,
+		ctx:                       _q.ctx.Clone(),
+		order:                     append([]skill.OrderOption{}, _q.order...),
+		inters:                    append([]Interceptor{}, _q.inters...),
+		predicates:                append([]predicate.Skill{}, _q.predicates...),
+		withActions:               _q.withActions.Clone(),
+		withChannelServiceMembers: _q.withChannelServiceMembers.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -294,6 +320,17 @@ func (_q *SkillQuery) WithActions(opts ...func(*ActionQuery)) *SkillQuery {
 		opt(query)
 	}
 	_q.withActions = query
+	return _q
+}
+
+// WithChannelServiceMembers tells the query-builder to eager-load the nodes that are connected to
+// the "channel_service_members" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *SkillQuery) WithChannelServiceMembers(opts ...func(*ChannelServiceMemberQuery)) *SkillQuery {
+	query := (&ChannelServiceMemberClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withChannelServiceMembers = query
 	return _q
 }
 
@@ -375,8 +412,9 @@ func (_q *SkillQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Skill,
 	var (
 		nodes       = []*Skill{}
 		_spec       = _q.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [2]bool{
 			_q.withActions != nil,
+			_q.withChannelServiceMembers != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -407,10 +445,26 @@ func (_q *SkillQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Skill,
 			return nil, err
 		}
 	}
+	if query := _q.withChannelServiceMembers; query != nil {
+		if err := _q.loadChannelServiceMembers(ctx, query, nodes,
+			func(n *Skill) { n.Edges.ChannelServiceMembers = []*ChannelServiceMember{} },
+			func(n *Skill, e *ChannelServiceMember) {
+				n.Edges.ChannelServiceMembers = append(n.Edges.ChannelServiceMembers, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
 	for name, query := range _q.withNamedActions {
 		if err := _q.loadActions(ctx, query, nodes,
 			func(n *Skill) { n.appendNamedActions(name) },
 			func(n *Skill, e *Action) { n.appendNamedActions(name, e) }); err != nil {
+			return nil, err
+		}
+	}
+	for name, query := range _q.withNamedChannelServiceMembers {
+		if err := _q.loadChannelServiceMembers(ctx, query, nodes,
+			func(n *Skill) { n.appendNamedChannelServiceMembers(name) },
+			func(n *Skill, e *ChannelServiceMember) { n.appendNamedChannelServiceMembers(name, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -437,6 +491,36 @@ func (_q *SkillQuery) loadActions(ctx context.Context, query *ActionQuery, nodes
 	}
 	query.Where(predicate.Action(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(skill.ActionsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.SkillID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "skill_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *SkillQuery) loadChannelServiceMembers(ctx context.Context, query *ChannelServiceMemberQuery, nodes []*Skill, init func(*Skill), assign func(*Skill, *ChannelServiceMember)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Skill)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(channelservicemember.FieldSkillID)
+	}
+	query.Where(predicate.ChannelServiceMember(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(skill.ChannelServiceMembersColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {
@@ -548,6 +632,20 @@ func (_q *SkillQuery) WithNamedActions(name string, opts ...func(*ActionQuery)) 
 		_q.withNamedActions = make(map[string]*ActionQuery)
 	}
 	_q.withNamedActions[name] = query
+	return _q
+}
+
+// WithNamedChannelServiceMembers tells the query-builder to eager-load the nodes that are connected to the "channel_service_members"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (_q *SkillQuery) WithNamedChannelServiceMembers(name string, opts ...func(*ChannelServiceMemberQuery)) *SkillQuery {
+	query := (&ChannelServiceMemberClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if _q.withNamedChannelServiceMembers == nil {
+		_q.withNamedChannelServiceMembers = make(map[string]*ChannelServiceMemberQuery)
+	}
+	_q.withNamedChannelServiceMembers[name] = query
 	return _q
 }
 

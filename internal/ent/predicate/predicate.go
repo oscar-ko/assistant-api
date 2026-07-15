@@ -18,8 +18,8 @@ type Channel func(*sql.Selector)
 // ChannelMessage is the predicate function for channelmessage builders.
 type ChannelMessage func(*sql.Selector)
 
-// ChannelTranslationMember is the predicate function for channeltranslationmember builders.
-type ChannelTranslationMember func(*sql.Selector)
+// ChannelServiceMember is the predicate function for channelservicemember builders.
+type ChannelServiceMember func(*sql.Selector)
 
 // Line is the predicate function for line builders.
 type Line func(*sql.Selector)

@@ -19,8 +19,8 @@ const (
 	FieldEmail = "email"
 	// EdgeLine holds the string denoting the line edge name in mutations.
 	EdgeLine = "line"
-	// EdgeChannelTranslationMembers holds the string denoting the channel_translation_members edge name in mutations.
-	EdgeChannelTranslationMembers = "channel_translation_members"
+	// EdgeChannelServiceMembers holds the string denoting the channel_service_members edge name in mutations.
+	EdgeChannelServiceMembers = "channel_service_members"
 	// Table holds the table name of the user in the database.
 	Table = "users"
 	// LineTable is the table that holds the line relation/edge.
@@ -30,13 +30,13 @@ const (
 	LineInverseTable = "lines"
 	// LineColumn is the table column denoting the line relation/edge.
 	LineColumn = "line_user"
-	// ChannelTranslationMembersTable is the table that holds the channel_translation_members relation/edge.
-	ChannelTranslationMembersTable = "channel_translation_members"
-	// ChannelTranslationMembersInverseTable is the table name for the ChannelTranslationMember entity.
-	// It exists in this package in order to avoid circular dependency with the "channeltranslationmember" package.
-	ChannelTranslationMembersInverseTable = "channel_translation_members"
-	// ChannelTranslationMembersColumn is the table column denoting the channel_translation_members relation/edge.
-	ChannelTranslationMembersColumn = "user_id"
+	// ChannelServiceMembersTable is the table that holds the channel_service_members relation/edge.
+	ChannelServiceMembersTable = "channel_service_members"
+	// ChannelServiceMembersInverseTable is the table name for the ChannelServiceMember entity.
+	// It exists in this package in order to avoid circular dependency with the "channelservicemember" package.
+	ChannelServiceMembersInverseTable = "channel_service_members"
+	// ChannelServiceMembersColumn is the table column denoting the channel_service_members relation/edge.
+	ChannelServiceMembersColumn = "user_id"
 )
 
 // Columns holds all SQL columns for user fields.
@@ -97,17 +97,17 @@ func ByLine(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
-// ByChannelTranslationMembersCount orders the results by channel_translation_members count.
-func ByChannelTranslationMembersCount(opts ...sql.OrderTermOption) OrderOption {
+// ByChannelServiceMembersCount orders the results by channel_service_members count.
+func ByChannelServiceMembersCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newChannelTranslationMembersStep(), opts...)
+		sqlgraph.OrderByNeighborsCount(s, newChannelServiceMembersStep(), opts...)
 	}
 }
 
-// ByChannelTranslationMembers orders the results by channel_translation_members terms.
-func ByChannelTranslationMembers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+// ByChannelServiceMembers orders the results by channel_service_members terms.
+func ByChannelServiceMembers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newChannelTranslationMembersStep(), append([]sql.OrderTerm{term}, terms...)...)
+		sqlgraph.OrderByNeighborTerms(s, newChannelServiceMembersStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
 func newLineStep() *sqlgraph.Step {
@@ -117,10 +117,10 @@ func newLineStep() *sqlgraph.Step {
 		sqlgraph.Edge(sqlgraph.O2M, true, LineTable, LineColumn),
 	)
 }
-func newChannelTranslationMembersStep() *sqlgraph.Step {
+func newChannelServiceMembersStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(ChannelTranslationMembersInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, true, ChannelTranslationMembersTable, ChannelTranslationMembersColumn),
+		sqlgraph.To(ChannelServiceMembersInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, true, ChannelServiceMembersTable, ChannelServiceMembersColumn),
 	)
 }

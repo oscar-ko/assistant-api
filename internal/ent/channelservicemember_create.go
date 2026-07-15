@@ -4,7 +4,8 @@ package ent
 
 import (
 	"assistant-api/internal/ent/channel"
-	"assistant-api/internal/ent/channeltranslationmember"
+	"assistant-api/internal/ent/channelservicemember"
+	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/user"
 	"context"
 	"errors"
@@ -16,21 +17,21 @@ import (
 	"github.com/google/uuid"
 )
 
-// ChannelTranslationMemberCreate is the builder for creating a ChannelTranslationMember entity.
-type ChannelTranslationMemberCreate struct {
+// ChannelServiceMemberCreate is the builder for creating a ChannelServiceMember entity.
+type ChannelServiceMemberCreate struct {
 	config
-	mutation *ChannelTranslationMemberMutation
+	mutation *ChannelServiceMemberMutation
 	hooks    []Hook
 }
 
 // SetCreatedAt sets the "created_at" field.
-func (_c *ChannelTranslationMemberCreate) SetCreatedAt(v time.Time) *ChannelTranslationMemberCreate {
+func (_c *ChannelServiceMemberCreate) SetCreatedAt(v time.Time) *ChannelServiceMemberCreate {
 	_c.mutation.SetCreatedAt(v)
 	return _c
 }
 
 // SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
-func (_c *ChannelTranslationMemberCreate) SetNillableCreatedAt(v *time.Time) *ChannelTranslationMemberCreate {
+func (_c *ChannelServiceMemberCreate) SetNillableCreatedAt(v *time.Time) *ChannelServiceMemberCreate {
 	if v != nil {
 		_c.SetCreatedAt(*v)
 	}
@@ -38,13 +39,13 @@ func (_c *ChannelTranslationMemberCreate) SetNillableCreatedAt(v *time.Time) *Ch
 }
 
 // SetUpdatedAt sets the "updated_at" field.
-func (_c *ChannelTranslationMemberCreate) SetUpdatedAt(v time.Time) *ChannelTranslationMemberCreate {
+func (_c *ChannelServiceMemberCreate) SetUpdatedAt(v time.Time) *ChannelServiceMemberCreate {
 	_c.mutation.SetUpdatedAt(v)
 	return _c
 }
 
 // SetNillableUpdatedAt sets the "updated_at" field if the given value is not nil.
-func (_c *ChannelTranslationMemberCreate) SetNillableUpdatedAt(v *time.Time) *ChannelTranslationMemberCreate {
+func (_c *ChannelServiceMemberCreate) SetNillableUpdatedAt(v *time.Time) *ChannelServiceMemberCreate {
 	if v != nil {
 		_c.SetUpdatedAt(*v)
 	}
@@ -52,25 +53,31 @@ func (_c *ChannelTranslationMemberCreate) SetNillableUpdatedAt(v *time.Time) *Ch
 }
 
 // SetChannelID sets the "channel_id" field.
-func (_c *ChannelTranslationMemberCreate) SetChannelID(v uuid.UUID) *ChannelTranslationMemberCreate {
+func (_c *ChannelServiceMemberCreate) SetChannelID(v uuid.UUID) *ChannelServiceMemberCreate {
 	_c.mutation.SetChannelID(v)
 	return _c
 }
 
 // SetUserID sets the "user_id" field.
-func (_c *ChannelTranslationMemberCreate) SetUserID(v uuid.UUID) *ChannelTranslationMemberCreate {
+func (_c *ChannelServiceMemberCreate) SetUserID(v uuid.UUID) *ChannelServiceMemberCreate {
 	_c.mutation.SetUserID(v)
 	return _c
 }
 
+// SetSkillID sets the "skill_id" field.
+func (_c *ChannelServiceMemberCreate) SetSkillID(v uuid.UUID) *ChannelServiceMemberCreate {
+	_c.mutation.SetSkillID(v)
+	return _c
+}
+
 // SetPlatformUserID sets the "platform_user_id" field.
-func (_c *ChannelTranslationMemberCreate) SetPlatformUserID(v string) *ChannelTranslationMemberCreate {
+func (_c *ChannelServiceMemberCreate) SetPlatformUserID(v string) *ChannelServiceMemberCreate {
 	_c.mutation.SetPlatformUserID(v)
 	return _c
 }
 
 // SetNillablePlatformUserID sets the "platform_user_id" field if the given value is not nil.
-func (_c *ChannelTranslationMemberCreate) SetNillablePlatformUserID(v *string) *ChannelTranslationMemberCreate {
+func (_c *ChannelServiceMemberCreate) SetNillablePlatformUserID(v *string) *ChannelServiceMemberCreate {
 	if v != nil {
 		_c.SetPlatformUserID(*v)
 	}
@@ -78,13 +85,13 @@ func (_c *ChannelTranslationMemberCreate) SetNillablePlatformUserID(v *string) *
 }
 
 // SetID sets the "id" field.
-func (_c *ChannelTranslationMemberCreate) SetID(v uuid.UUID) *ChannelTranslationMemberCreate {
+func (_c *ChannelServiceMemberCreate) SetID(v uuid.UUID) *ChannelServiceMemberCreate {
 	_c.mutation.SetID(v)
 	return _c
 }
 
 // SetNillableID sets the "id" field if the given value is not nil.
-func (_c *ChannelTranslationMemberCreate) SetNillableID(v *uuid.UUID) *ChannelTranslationMemberCreate {
+func (_c *ChannelServiceMemberCreate) SetNillableID(v *uuid.UUID) *ChannelServiceMemberCreate {
 	if v != nil {
 		_c.SetID(*v)
 	}
@@ -92,28 +99,33 @@ func (_c *ChannelTranslationMemberCreate) SetNillableID(v *uuid.UUID) *ChannelTr
 }
 
 // SetChannel sets the "channel" edge to the Channel entity.
-func (_c *ChannelTranslationMemberCreate) SetChannel(v *Channel) *ChannelTranslationMemberCreate {
+func (_c *ChannelServiceMemberCreate) SetChannel(v *Channel) *ChannelServiceMemberCreate {
 	return _c.SetChannelID(v.ID)
 }
 
 // SetUser sets the "user" edge to the User entity.
-func (_c *ChannelTranslationMemberCreate) SetUser(v *User) *ChannelTranslationMemberCreate {
+func (_c *ChannelServiceMemberCreate) SetUser(v *User) *ChannelServiceMemberCreate {
 	return _c.SetUserID(v.ID)
 }
 
-// Mutation returns the ChannelTranslationMemberMutation object of the builder.
-func (_c *ChannelTranslationMemberCreate) Mutation() *ChannelTranslationMemberMutation {
+// SetSkill sets the "skill" edge to the Skill entity.
+func (_c *ChannelServiceMemberCreate) SetSkill(v *Skill) *ChannelServiceMemberCreate {
+	return _c.SetSkillID(v.ID)
+}
+
+// Mutation returns the ChannelServiceMemberMutation object of the builder.
+func (_c *ChannelServiceMemberCreate) Mutation() *ChannelServiceMemberMutation {
 	return _c.mutation
 }
 
-// Save creates the ChannelTranslationMember in the database.
-func (_c *ChannelTranslationMemberCreate) Save(ctx context.Context) (*ChannelTranslationMember, error) {
+// Save creates the ChannelServiceMember in the database.
+func (_c *ChannelServiceMemberCreate) Save(ctx context.Context) (*ChannelServiceMember, error) {
 	_c.defaults()
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
-func (_c *ChannelTranslationMemberCreate) SaveX(ctx context.Context) *ChannelTranslationMember {
+func (_c *ChannelServiceMemberCreate) SaveX(ctx context.Context) *ChannelServiceMember {
 	v, err := _c.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -122,58 +134,64 @@ func (_c *ChannelTranslationMemberCreate) SaveX(ctx context.Context) *ChannelTra
 }
 
 // Exec executes the query.
-func (_c *ChannelTranslationMemberCreate) Exec(ctx context.Context) error {
+func (_c *ChannelServiceMemberCreate) Exec(ctx context.Context) error {
 	_, err := _c.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_c *ChannelTranslationMemberCreate) ExecX(ctx context.Context) {
+func (_c *ChannelServiceMemberCreate) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *ChannelTranslationMemberCreate) defaults() {
+func (_c *ChannelServiceMemberCreate) defaults() {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
-		v := channeltranslationmember.DefaultCreatedAt()
+		v := channelservicemember.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
-		v := channeltranslationmember.DefaultUpdatedAt()
+		v := channelservicemember.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
 	if _, ok := _c.mutation.ID(); !ok {
-		v := channeltranslationmember.DefaultID()
+		v := channelservicemember.DefaultID()
 		_c.mutation.SetID(v)
 	}
 }
 
 // check runs all checks and user-defined validators on the builder.
-func (_c *ChannelTranslationMemberCreate) check() error {
+func (_c *ChannelServiceMemberCreate) check() error {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
-		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "ChannelTranslationMember.created_at"`)}
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "ChannelServiceMember.created_at"`)}
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
-		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "ChannelTranslationMember.updated_at"`)}
+		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "ChannelServiceMember.updated_at"`)}
 	}
 	if _, ok := _c.mutation.ChannelID(); !ok {
-		return &ValidationError{Name: "channel_id", err: errors.New(`ent: missing required field "ChannelTranslationMember.channel_id"`)}
+		return &ValidationError{Name: "channel_id", err: errors.New(`ent: missing required field "ChannelServiceMember.channel_id"`)}
 	}
 	if _, ok := _c.mutation.UserID(); !ok {
-		return &ValidationError{Name: "user_id", err: errors.New(`ent: missing required field "ChannelTranslationMember.user_id"`)}
+		return &ValidationError{Name: "user_id", err: errors.New(`ent: missing required field "ChannelServiceMember.user_id"`)}
+	}
+	if _, ok := _c.mutation.SkillID(); !ok {
+		return &ValidationError{Name: "skill_id", err: errors.New(`ent: missing required field "ChannelServiceMember.skill_id"`)}
 	}
 	if len(_c.mutation.ChannelIDs()) == 0 {
-		return &ValidationError{Name: "channel", err: errors.New(`ent: missing required edge "ChannelTranslationMember.channel"`)}
+		return &ValidationError{Name: "channel", err: errors.New(`ent: missing required edge "ChannelServiceMember.channel"`)}
 	}
 	if len(_c.mutation.UserIDs()) == 0 {
-		return &ValidationError{Name: "user", err: errors.New(`ent: missing required edge "ChannelTranslationMember.user"`)}
+		return &ValidationError{Name: "user", err: errors.New(`ent: missing required edge "ChannelServiceMember.user"`)}
+	}
+	if len(_c.mutation.SkillIDs()) == 0 {
+		return &ValidationError{Name: "skill", err: errors.New(`ent: missing required edge "ChannelServiceMember.skill"`)}
 	}
 	return nil
 }
 
-func (_c *ChannelTranslationMemberCreate) sqlSave(ctx context.Context) (*ChannelTranslationMember, error) {
+func (_c *ChannelServiceMemberCreate) sqlSave(ctx context.Context) (*ChannelServiceMember, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
@@ -196,33 +214,33 @@ func (_c *ChannelTranslationMemberCreate) sqlSave(ctx context.Context) (*Channel
 	return _node, nil
 }
 
-func (_c *ChannelTranslationMemberCreate) createSpec() (*ChannelTranslationMember, *sqlgraph.CreateSpec) {
+func (_c *ChannelServiceMemberCreate) createSpec() (*ChannelServiceMember, *sqlgraph.CreateSpec) {
 	var (
-		_node = &ChannelTranslationMember{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(channeltranslationmember.Table, sqlgraph.NewFieldSpec(channeltranslationmember.FieldID, field.TypeUUID))
+		_node = &ChannelServiceMember{config: _c.config}
+		_spec = sqlgraph.NewCreateSpec(channelservicemember.Table, sqlgraph.NewFieldSpec(channelservicemember.FieldID, field.TypeUUID))
 	)
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
-		_spec.SetField(channeltranslationmember.FieldCreatedAt, field.TypeTime, value)
+		_spec.SetField(channelservicemember.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
 	}
 	if value, ok := _c.mutation.UpdatedAt(); ok {
-		_spec.SetField(channeltranslationmember.FieldUpdatedAt, field.TypeTime, value)
+		_spec.SetField(channelservicemember.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
 	}
 	if value, ok := _c.mutation.PlatformUserID(); ok {
-		_spec.SetField(channeltranslationmember.FieldPlatformUserID, field.TypeString, value)
+		_spec.SetField(channelservicemember.FieldPlatformUserID, field.TypeString, value)
 		_node.PlatformUserID = value
 	}
 	if nodes := _c.mutation.ChannelIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   channeltranslationmember.ChannelTable,
-			Columns: []string{channeltranslationmember.ChannelColumn},
+			Table:   channelservicemember.ChannelTable,
+			Columns: []string{channelservicemember.ChannelColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channel.FieldID, field.TypeUUID),
@@ -238,8 +256,8 @@ func (_c *ChannelTranslationMemberCreate) createSpec() (*ChannelTranslationMembe
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   channeltranslationmember.UserTable,
-			Columns: []string{channeltranslationmember.UserColumn},
+			Table:   channelservicemember.UserTable,
+			Columns: []string{channelservicemember.UserColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
@@ -251,30 +269,47 @@ func (_c *ChannelTranslationMemberCreate) createSpec() (*ChannelTranslationMembe
 		_node.UserID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
+	if nodes := _c.mutation.SkillIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   channelservicemember.SkillTable,
+			Columns: []string{channelservicemember.SkillColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(skill.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.SkillID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	return _node, _spec
 }
 
-// ChannelTranslationMemberCreateBulk is the builder for creating many ChannelTranslationMember entities in bulk.
-type ChannelTranslationMemberCreateBulk struct {
+// ChannelServiceMemberCreateBulk is the builder for creating many ChannelServiceMember entities in bulk.
+type ChannelServiceMemberCreateBulk struct {
 	config
 	err      error
-	builders []*ChannelTranslationMemberCreate
+	builders []*ChannelServiceMemberCreate
 }
 
-// Save creates the ChannelTranslationMember entities in the database.
-func (_c *ChannelTranslationMemberCreateBulk) Save(ctx context.Context) ([]*ChannelTranslationMember, error) {
+// Save creates the ChannelServiceMember entities in the database.
+func (_c *ChannelServiceMemberCreateBulk) Save(ctx context.Context) ([]*ChannelServiceMember, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
 	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
-	nodes := make([]*ChannelTranslationMember, len(_c.builders))
+	nodes := make([]*ChannelServiceMember, len(_c.builders))
 	mutators := make([]Mutator, len(_c.builders))
 	for i := range _c.builders {
 		func(i int, root context.Context) {
 			builder := _c.builders[i]
 			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*ChannelTranslationMemberMutation)
+				mutation, ok := m.(*ChannelServiceMemberMutation)
 				if !ok {
 					return nil, fmt.Errorf("unexpected mutation type %T", m)
 				}
@@ -317,7 +352,7 @@ func (_c *ChannelTranslationMemberCreateBulk) Save(ctx context.Context) ([]*Chan
 }
 
 // SaveX is like Save, but panics if an error occurs.
-func (_c *ChannelTranslationMemberCreateBulk) SaveX(ctx context.Context) []*ChannelTranslationMember {
+func (_c *ChannelServiceMemberCreateBulk) SaveX(ctx context.Context) []*ChannelServiceMember {
 	v, err := _c.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -326,13 +361,13 @@ func (_c *ChannelTranslationMemberCreateBulk) SaveX(ctx context.Context) []*Chan
 }
 
 // Exec executes the query.
-func (_c *ChannelTranslationMemberCreateBulk) Exec(ctx context.Context) error {
+func (_c *ChannelServiceMemberCreateBulk) Exec(ctx context.Context) error {
 	_, err := _c.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_c *ChannelTranslationMemberCreateBulk) ExecX(ctx context.Context) {
+func (_c *ChannelServiceMemberCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
 		panic(err)
 	}

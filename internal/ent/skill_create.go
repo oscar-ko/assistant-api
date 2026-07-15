@@ -4,6 +4,7 @@ package ent
 
 import (
 	"assistant-api/internal/ent/action"
+	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/skill"
 	"context"
 	"errors"
@@ -74,6 +75,21 @@ func (_c *SkillCreate) AddActions(v ...*Action) *SkillCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddActionIDs(ids...)
+}
+
+// AddChannelServiceMemberIDs adds the "channel_service_members" edge to the ChannelServiceMember entity by IDs.
+func (_c *SkillCreate) AddChannelServiceMemberIDs(ids ...uuid.UUID) *SkillCreate {
+	_c.mutation.AddChannelServiceMemberIDs(ids...)
+	return _c
+}
+
+// AddChannelServiceMembers adds the "channel_service_members" edges to the ChannelServiceMember entity.
+func (_c *SkillCreate) AddChannelServiceMembers(v ...*ChannelServiceMember) *SkillCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddChannelServiceMemberIDs(ids...)
 }
 
 // Mutation returns the SkillMutation object of the builder.
@@ -191,6 +207,22 @@ func (_c *SkillCreate) createSpec() (*Skill, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(action.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ChannelServiceMembersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   skill.ChannelServiceMembersTable,
+			Columns: []string{skill.ChannelServiceMembersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelservicemember.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

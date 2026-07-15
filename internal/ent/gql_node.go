@@ -7,7 +7,7 @@ import (
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
-	"assistant-api/internal/ent/channeltranslationmember"
+	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/user"
@@ -45,10 +45,10 @@ var channelmessageImplementors = []string{"ChannelMessage", "Node"}
 // IsNode implements the Node interface check for GQLGen.
 func (*ChannelMessage) IsNode() {}
 
-var channeltranslationmemberImplementors = []string{"ChannelTranslationMember", "Node"}
+var channelservicememberImplementors = []string{"ChannelServiceMember", "Node"}
 
 // IsNode implements the Node interface check for GQLGen.
-func (*ChannelTranslationMember) IsNode() {}
+func (*ChannelServiceMember) IsNode() {}
 
 var lineImplementors = []string{"Line", "Node"}
 
@@ -159,11 +159,11 @@ func (c *Client) noder(ctx context.Context, table string, id uuid.UUID) (Noder, 
 			}
 		}
 		return query.Only(ctx)
-	case channeltranslationmember.Table:
-		query := c.ChannelTranslationMember.Query().
-			Where(channeltranslationmember.ID(id))
+	case channelservicemember.Table:
+		query := c.ChannelServiceMember.Query().
+			Where(channelservicemember.ID(id))
 		if fc := graphql.GetFieldContext(ctx); fc != nil {
-			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, channeltranslationmemberImplementors...); err != nil {
+			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, channelservicememberImplementors...); err != nil {
 				return nil, err
 			}
 		}
@@ -332,10 +332,10 @@ func (c *Client) noders(ctx context.Context, table string, ids []uuid.UUID) ([]N
 				*noder = node
 			}
 		}
-	case channeltranslationmember.Table:
-		query := c.ChannelTranslationMember.Query().
-			Where(channeltranslationmember.IDIn(ids...))
-		query, err := query.CollectFields(ctx, channeltranslationmemberImplementors...)
+	case channelservicemember.Table:
+		query := c.ChannelServiceMember.Query().
+			Where(channelservicemember.IDIn(ids...))
+		query, err := query.CollectFields(ctx, channelservicememberImplementors...)
 		if err != nil {
 			return nil, err
 		}

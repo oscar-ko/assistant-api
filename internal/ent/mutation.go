@@ -7,7 +7,7 @@ import (
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
-	"assistant-api/internal/ent/channeltranslationmember"
+	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/skill"
@@ -33,14 +33,14 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeAction                   = "Action"
-	TypeActionRoute              = "ActionRoute"
-	TypeChannel                  = "Channel"
-	TypeChannelMessage           = "ChannelMessage"
-	TypeChannelTranslationMember = "ChannelTranslationMember"
-	TypeLine                     = "Line"
-	TypeSkill                    = "Skill"
-	TypeUser                     = "User"
+	TypeAction               = "Action"
+	TypeActionRoute          = "ActionRoute"
+	TypeChannel              = "Channel"
+	TypeChannelMessage       = "ChannelMessage"
+	TypeChannelServiceMember = "ChannelServiceMember"
+	TypeLine                 = "Line"
+	TypeSkill                = "Skill"
+	TypeUser                 = "User"
 )
 
 // ActionMutation represents an operation that mutates the Action nodes in the graph.
@@ -1398,28 +1398,28 @@ func (m *ActionRouteMutation) ResetEdge(name string) error {
 // ChannelMutation represents an operation that mutates the Channel nodes in the graph.
 type ChannelMutation struct {
 	config
-	op                         Op
-	typ                        string
-	id                         *uuid.UUID
-	created_at                 *time.Time
-	updated_at                 *time.Time
-	name                       *string
-	platform                   *channel.Platform
-	group_id                   *string
-	_type                      *channel.Type
-	is_active                  *bool
-	inactive_message_count     *int
-	addinactive_message_count  *int
-	clearedFields              map[string]struct{}
-	messages                   map[uuid.UUID]struct{}
-	removedmessages            map[uuid.UUID]struct{}
-	clearedmessages            bool
-	translation_members        map[uuid.UUID]struct{}
-	removedtranslation_members map[uuid.UUID]struct{}
-	clearedtranslation_members bool
-	done                       bool
-	oldValue                   func(context.Context) (*Channel, error)
-	predicates                 []predicate.Channel
+	op                        Op
+	typ                       string
+	id                        *uuid.UUID
+	created_at                *time.Time
+	updated_at                *time.Time
+	name                      *string
+	platform                  *channel.Platform
+	group_id                  *string
+	_type                     *channel.Type
+	is_active                 *bool
+	inactive_message_count    *int
+	addinactive_message_count *int
+	clearedFields             map[string]struct{}
+	messages                  map[uuid.UUID]struct{}
+	removedmessages           map[uuid.UUID]struct{}
+	clearedmessages           bool
+	service_members           map[uuid.UUID]struct{}
+	removedservice_members    map[uuid.UUID]struct{}
+	clearedservice_members    bool
+	done                      bool
+	oldValue                  func(context.Context) (*Channel, error)
+	predicates                []predicate.Channel
 }
 
 var _ ent.Mutation = (*ChannelMutation)(nil)
@@ -1888,58 +1888,58 @@ func (m *ChannelMutation) ResetMessages() {
 	m.removedmessages = nil
 }
 
-// AddTranslationMemberIDs adds the "translation_members" edge to the ChannelTranslationMember entity by ids.
-func (m *ChannelMutation) AddTranslationMemberIDs(ids ...uuid.UUID) {
-	if m.translation_members == nil {
-		m.translation_members = make(map[uuid.UUID]struct{})
+// AddServiceMemberIDs adds the "service_members" edge to the ChannelServiceMember entity by ids.
+func (m *ChannelMutation) AddServiceMemberIDs(ids ...uuid.UUID) {
+	if m.service_members == nil {
+		m.service_members = make(map[uuid.UUID]struct{})
 	}
 	for i := range ids {
-		m.translation_members[ids[i]] = struct{}{}
+		m.service_members[ids[i]] = struct{}{}
 	}
 }
 
-// ClearTranslationMembers clears the "translation_members" edge to the ChannelTranslationMember entity.
-func (m *ChannelMutation) ClearTranslationMembers() {
-	m.clearedtranslation_members = true
+// ClearServiceMembers clears the "service_members" edge to the ChannelServiceMember entity.
+func (m *ChannelMutation) ClearServiceMembers() {
+	m.clearedservice_members = true
 }
 
-// TranslationMembersCleared reports if the "translation_members" edge to the ChannelTranslationMember entity was cleared.
-func (m *ChannelMutation) TranslationMembersCleared() bool {
-	return m.clearedtranslation_members
+// ServiceMembersCleared reports if the "service_members" edge to the ChannelServiceMember entity was cleared.
+func (m *ChannelMutation) ServiceMembersCleared() bool {
+	return m.clearedservice_members
 }
 
-// RemoveTranslationMemberIDs removes the "translation_members" edge to the ChannelTranslationMember entity by IDs.
-func (m *ChannelMutation) RemoveTranslationMemberIDs(ids ...uuid.UUID) {
-	if m.removedtranslation_members == nil {
-		m.removedtranslation_members = make(map[uuid.UUID]struct{})
+// RemoveServiceMemberIDs removes the "service_members" edge to the ChannelServiceMember entity by IDs.
+func (m *ChannelMutation) RemoveServiceMemberIDs(ids ...uuid.UUID) {
+	if m.removedservice_members == nil {
+		m.removedservice_members = make(map[uuid.UUID]struct{})
 	}
 	for i := range ids {
-		delete(m.translation_members, ids[i])
-		m.removedtranslation_members[ids[i]] = struct{}{}
+		delete(m.service_members, ids[i])
+		m.removedservice_members[ids[i]] = struct{}{}
 	}
 }
 
-// RemovedTranslationMembers returns the removed IDs of the "translation_members" edge to the ChannelTranslationMember entity.
-func (m *ChannelMutation) RemovedTranslationMembersIDs() (ids []uuid.UUID) {
-	for id := range m.removedtranslation_members {
+// RemovedServiceMembers returns the removed IDs of the "service_members" edge to the ChannelServiceMember entity.
+func (m *ChannelMutation) RemovedServiceMembersIDs() (ids []uuid.UUID) {
+	for id := range m.removedservice_members {
 		ids = append(ids, id)
 	}
 	return
 }
 
-// TranslationMembersIDs returns the "translation_members" edge IDs in the mutation.
-func (m *ChannelMutation) TranslationMembersIDs() (ids []uuid.UUID) {
-	for id := range m.translation_members {
+// ServiceMembersIDs returns the "service_members" edge IDs in the mutation.
+func (m *ChannelMutation) ServiceMembersIDs() (ids []uuid.UUID) {
+	for id := range m.service_members {
 		ids = append(ids, id)
 	}
 	return
 }
 
-// ResetTranslationMembers resets all changes to the "translation_members" edge.
-func (m *ChannelMutation) ResetTranslationMembers() {
-	m.translation_members = nil
-	m.clearedtranslation_members = false
-	m.removedtranslation_members = nil
+// ResetServiceMembers resets all changes to the "service_members" edge.
+func (m *ChannelMutation) ResetServiceMembers() {
+	m.service_members = nil
+	m.clearedservice_members = false
+	m.removedservice_members = nil
 }
 
 // Where appends a list predicates to the ChannelMutation builder.
@@ -2213,8 +2213,8 @@ func (m *ChannelMutation) AddedEdges() []string {
 	if m.messages != nil {
 		edges = append(edges, channel.EdgeMessages)
 	}
-	if m.translation_members != nil {
-		edges = append(edges, channel.EdgeTranslationMembers)
+	if m.service_members != nil {
+		edges = append(edges, channel.EdgeServiceMembers)
 	}
 	return edges
 }
@@ -2229,9 +2229,9 @@ func (m *ChannelMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
-	case channel.EdgeTranslationMembers:
-		ids := make([]ent.Value, 0, len(m.translation_members))
-		for id := range m.translation_members {
+	case channel.EdgeServiceMembers:
+		ids := make([]ent.Value, 0, len(m.service_members))
+		for id := range m.service_members {
 			ids = append(ids, id)
 		}
 		return ids
@@ -2245,8 +2245,8 @@ func (m *ChannelMutation) RemovedEdges() []string {
 	if m.removedmessages != nil {
 		edges = append(edges, channel.EdgeMessages)
 	}
-	if m.removedtranslation_members != nil {
-		edges = append(edges, channel.EdgeTranslationMembers)
+	if m.removedservice_members != nil {
+		edges = append(edges, channel.EdgeServiceMembers)
 	}
 	return edges
 }
@@ -2261,9 +2261,9 @@ func (m *ChannelMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
-	case channel.EdgeTranslationMembers:
-		ids := make([]ent.Value, 0, len(m.removedtranslation_members))
-		for id := range m.removedtranslation_members {
+	case channel.EdgeServiceMembers:
+		ids := make([]ent.Value, 0, len(m.removedservice_members))
+		for id := range m.removedservice_members {
 			ids = append(ids, id)
 		}
 		return ids
@@ -2277,8 +2277,8 @@ func (m *ChannelMutation) ClearedEdges() []string {
 	if m.clearedmessages {
 		edges = append(edges, channel.EdgeMessages)
 	}
-	if m.clearedtranslation_members {
-		edges = append(edges, channel.EdgeTranslationMembers)
+	if m.clearedservice_members {
+		edges = append(edges, channel.EdgeServiceMembers)
 	}
 	return edges
 }
@@ -2289,8 +2289,8 @@ func (m *ChannelMutation) EdgeCleared(name string) bool {
 	switch name {
 	case channel.EdgeMessages:
 		return m.clearedmessages
-	case channel.EdgeTranslationMembers:
-		return m.clearedtranslation_members
+	case channel.EdgeServiceMembers:
+		return m.clearedservice_members
 	}
 	return false
 }
@@ -2310,8 +2310,8 @@ func (m *ChannelMutation) ResetEdge(name string) error {
 	case channel.EdgeMessages:
 		m.ResetMessages()
 		return nil
-	case channel.EdgeTranslationMembers:
-		m.ResetTranslationMembers()
+	case channel.EdgeServiceMembers:
+		m.ResetServiceMembers()
 		return nil
 	}
 	return fmt.Errorf("unknown Channel edge %s", name)
@@ -3509,8 +3509,8 @@ func (m *ChannelMessageMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown ChannelMessage edge %s", name)
 }
 
-// ChannelTranslationMemberMutation represents an operation that mutates the ChannelTranslationMember nodes in the graph.
-type ChannelTranslationMemberMutation struct {
+// ChannelServiceMemberMutation represents an operation that mutates the ChannelServiceMember nodes in the graph.
+type ChannelServiceMemberMutation struct {
 	config
 	op               Op
 	typ              string
@@ -3523,22 +3523,24 @@ type ChannelTranslationMemberMutation struct {
 	clearedchannel   bool
 	user             *uuid.UUID
 	cleareduser      bool
+	skill            *uuid.UUID
+	clearedskill     bool
 	done             bool
-	oldValue         func(context.Context) (*ChannelTranslationMember, error)
-	predicates       []predicate.ChannelTranslationMember
+	oldValue         func(context.Context) (*ChannelServiceMember, error)
+	predicates       []predicate.ChannelServiceMember
 }
 
-var _ ent.Mutation = (*ChannelTranslationMemberMutation)(nil)
+var _ ent.Mutation = (*ChannelServiceMemberMutation)(nil)
 
-// channeltranslationmemberOption allows management of the mutation configuration using functional options.
-type channeltranslationmemberOption func(*ChannelTranslationMemberMutation)
+// channelservicememberOption allows management of the mutation configuration using functional options.
+type channelservicememberOption func(*ChannelServiceMemberMutation)
 
-// newChannelTranslationMemberMutation creates new mutation for the ChannelTranslationMember entity.
-func newChannelTranslationMemberMutation(c config, op Op, opts ...channeltranslationmemberOption) *ChannelTranslationMemberMutation {
-	m := &ChannelTranslationMemberMutation{
+// newChannelServiceMemberMutation creates new mutation for the ChannelServiceMember entity.
+func newChannelServiceMemberMutation(c config, op Op, opts ...channelservicememberOption) *ChannelServiceMemberMutation {
+	m := &ChannelServiceMemberMutation{
 		config:        c,
 		op:            op,
-		typ:           TypeChannelTranslationMember,
+		typ:           TypeChannelServiceMember,
 		clearedFields: make(map[string]struct{}),
 	}
 	for _, opt := range opts {
@@ -3547,20 +3549,20 @@ func newChannelTranslationMemberMutation(c config, op Op, opts ...channeltransla
 	return m
 }
 
-// withChannelTranslationMemberID sets the ID field of the mutation.
-func withChannelTranslationMemberID(id uuid.UUID) channeltranslationmemberOption {
-	return func(m *ChannelTranslationMemberMutation) {
+// withChannelServiceMemberID sets the ID field of the mutation.
+func withChannelServiceMemberID(id uuid.UUID) channelservicememberOption {
+	return func(m *ChannelServiceMemberMutation) {
 		var (
 			err   error
 			once  sync.Once
-			value *ChannelTranslationMember
+			value *ChannelServiceMember
 		)
-		m.oldValue = func(ctx context.Context) (*ChannelTranslationMember, error) {
+		m.oldValue = func(ctx context.Context) (*ChannelServiceMember, error) {
 			once.Do(func() {
 				if m.done {
 					err = errors.New("querying old values post mutation is not allowed")
 				} else {
-					value, err = m.Client().ChannelTranslationMember.Get(ctx, id)
+					value, err = m.Client().ChannelServiceMember.Get(ctx, id)
 				}
 			})
 			return value, err
@@ -3569,10 +3571,10 @@ func withChannelTranslationMemberID(id uuid.UUID) channeltranslationmemberOption
 	}
 }
 
-// withChannelTranslationMember sets the old ChannelTranslationMember of the mutation.
-func withChannelTranslationMember(node *ChannelTranslationMember) channeltranslationmemberOption {
-	return func(m *ChannelTranslationMemberMutation) {
-		m.oldValue = func(context.Context) (*ChannelTranslationMember, error) {
+// withChannelServiceMember sets the old ChannelServiceMember of the mutation.
+func withChannelServiceMember(node *ChannelServiceMember) channelservicememberOption {
+	return func(m *ChannelServiceMemberMutation) {
+		m.oldValue = func(context.Context) (*ChannelServiceMember, error) {
 			return node, nil
 		}
 		m.id = &node.ID
@@ -3581,7 +3583,7 @@ func withChannelTranslationMember(node *ChannelTranslationMember) channeltransla
 
 // Client returns a new `ent.Client` from the mutation. If the mutation was
 // executed in a transaction (ent.Tx), a transactional client is returned.
-func (m ChannelTranslationMemberMutation) Client() *Client {
+func (m ChannelServiceMemberMutation) Client() *Client {
 	client := &Client{config: m.config}
 	client.init()
 	return client
@@ -3589,7 +3591,7 @@ func (m ChannelTranslationMemberMutation) Client() *Client {
 
 // Tx returns an `ent.Tx` for mutations that were executed in transactions;
 // it returns an error otherwise.
-func (m ChannelTranslationMemberMutation) Tx() (*Tx, error) {
+func (m ChannelServiceMemberMutation) Tx() (*Tx, error) {
 	if _, ok := m.driver.(*txDriver); !ok {
 		return nil, errors.New("ent: mutation is not running in a transaction")
 	}
@@ -3599,14 +3601,14 @@ func (m ChannelTranslationMemberMutation) Tx() (*Tx, error) {
 }
 
 // SetID sets the value of the id field. Note that this
-// operation is only accepted on creation of ChannelTranslationMember entities.
-func (m *ChannelTranslationMemberMutation) SetID(id uuid.UUID) {
+// operation is only accepted on creation of ChannelServiceMember entities.
+func (m *ChannelServiceMemberMutation) SetID(id uuid.UUID) {
 	m.id = &id
 }
 
 // ID returns the ID value in the mutation. Note that the ID is only available
 // if it was provided to the builder or after it was returned from the database.
-func (m *ChannelTranslationMemberMutation) ID() (id uuid.UUID, exists bool) {
+func (m *ChannelServiceMemberMutation) ID() (id uuid.UUID, exists bool) {
 	if m.id == nil {
 		return
 	}
@@ -3617,7 +3619,7 @@ func (m *ChannelTranslationMemberMutation) ID() (id uuid.UUID, exists bool) {
 // That means, if the mutation is applied within a transaction with an isolation level such
 // as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
 // or updated by the mutation.
-func (m *ChannelTranslationMemberMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+func (m *ChannelServiceMemberMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
 	switch {
 	case m.op.Is(OpUpdateOne | OpDeleteOne):
 		id, exists := m.ID()
@@ -3626,19 +3628,19 @@ func (m *ChannelTranslationMemberMutation) IDs(ctx context.Context) ([]uuid.UUID
 		}
 		fallthrough
 	case m.op.Is(OpUpdate | OpDelete):
-		return m.Client().ChannelTranslationMember.Query().Where(m.predicates...).IDs(ctx)
+		return m.Client().ChannelServiceMember.Query().Where(m.predicates...).IDs(ctx)
 	default:
 		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
 }
 
 // SetCreatedAt sets the "created_at" field.
-func (m *ChannelTranslationMemberMutation) SetCreatedAt(t time.Time) {
+func (m *ChannelServiceMemberMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
 }
 
 // CreatedAt returns the value of the "created_at" field in the mutation.
-func (m *ChannelTranslationMemberMutation) CreatedAt() (r time.Time, exists bool) {
+func (m *ChannelServiceMemberMutation) CreatedAt() (r time.Time, exists bool) {
 	v := m.created_at
 	if v == nil {
 		return
@@ -3646,10 +3648,10 @@ func (m *ChannelTranslationMemberMutation) CreatedAt() (r time.Time, exists bool
 	return *v, true
 }
 
-// OldCreatedAt returns the old "created_at" field's value of the ChannelTranslationMember entity.
-// If the ChannelTranslationMember object wasn't provided to the builder, the object is fetched from the database.
+// OldCreatedAt returns the old "created_at" field's value of the ChannelServiceMember entity.
+// If the ChannelServiceMember object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ChannelTranslationMemberMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+func (m *ChannelServiceMemberMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
 	}
@@ -3664,17 +3666,17 @@ func (m *ChannelTranslationMemberMutation) OldCreatedAt(ctx context.Context) (v 
 }
 
 // ResetCreatedAt resets all changes to the "created_at" field.
-func (m *ChannelTranslationMemberMutation) ResetCreatedAt() {
+func (m *ChannelServiceMemberMutation) ResetCreatedAt() {
 	m.created_at = nil
 }
 
 // SetUpdatedAt sets the "updated_at" field.
-func (m *ChannelTranslationMemberMutation) SetUpdatedAt(t time.Time) {
+func (m *ChannelServiceMemberMutation) SetUpdatedAt(t time.Time) {
 	m.updated_at = &t
 }
 
 // UpdatedAt returns the value of the "updated_at" field in the mutation.
-func (m *ChannelTranslationMemberMutation) UpdatedAt() (r time.Time, exists bool) {
+func (m *ChannelServiceMemberMutation) UpdatedAt() (r time.Time, exists bool) {
 	v := m.updated_at
 	if v == nil {
 		return
@@ -3682,10 +3684,10 @@ func (m *ChannelTranslationMemberMutation) UpdatedAt() (r time.Time, exists bool
 	return *v, true
 }
 
-// OldUpdatedAt returns the old "updated_at" field's value of the ChannelTranslationMember entity.
-// If the ChannelTranslationMember object wasn't provided to the builder, the object is fetched from the database.
+// OldUpdatedAt returns the old "updated_at" field's value of the ChannelServiceMember entity.
+// If the ChannelServiceMember object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ChannelTranslationMemberMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+func (m *ChannelServiceMemberMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
 	}
@@ -3700,17 +3702,17 @@ func (m *ChannelTranslationMemberMutation) OldUpdatedAt(ctx context.Context) (v 
 }
 
 // ResetUpdatedAt resets all changes to the "updated_at" field.
-func (m *ChannelTranslationMemberMutation) ResetUpdatedAt() {
+func (m *ChannelServiceMemberMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
 // SetChannelID sets the "channel_id" field.
-func (m *ChannelTranslationMemberMutation) SetChannelID(u uuid.UUID) {
+func (m *ChannelServiceMemberMutation) SetChannelID(u uuid.UUID) {
 	m.channel = &u
 }
 
 // ChannelID returns the value of the "channel_id" field in the mutation.
-func (m *ChannelTranslationMemberMutation) ChannelID() (r uuid.UUID, exists bool) {
+func (m *ChannelServiceMemberMutation) ChannelID() (r uuid.UUID, exists bool) {
 	v := m.channel
 	if v == nil {
 		return
@@ -3718,10 +3720,10 @@ func (m *ChannelTranslationMemberMutation) ChannelID() (r uuid.UUID, exists bool
 	return *v, true
 }
 
-// OldChannelID returns the old "channel_id" field's value of the ChannelTranslationMember entity.
-// If the ChannelTranslationMember object wasn't provided to the builder, the object is fetched from the database.
+// OldChannelID returns the old "channel_id" field's value of the ChannelServiceMember entity.
+// If the ChannelServiceMember object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ChannelTranslationMemberMutation) OldChannelID(ctx context.Context) (v uuid.UUID, err error) {
+func (m *ChannelServiceMemberMutation) OldChannelID(ctx context.Context) (v uuid.UUID, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldChannelID is only allowed on UpdateOne operations")
 	}
@@ -3736,17 +3738,17 @@ func (m *ChannelTranslationMemberMutation) OldChannelID(ctx context.Context) (v 
 }
 
 // ResetChannelID resets all changes to the "channel_id" field.
-func (m *ChannelTranslationMemberMutation) ResetChannelID() {
+func (m *ChannelServiceMemberMutation) ResetChannelID() {
 	m.channel = nil
 }
 
 // SetUserID sets the "user_id" field.
-func (m *ChannelTranslationMemberMutation) SetUserID(u uuid.UUID) {
+func (m *ChannelServiceMemberMutation) SetUserID(u uuid.UUID) {
 	m.user = &u
 }
 
 // UserID returns the value of the "user_id" field in the mutation.
-func (m *ChannelTranslationMemberMutation) UserID() (r uuid.UUID, exists bool) {
+func (m *ChannelServiceMemberMutation) UserID() (r uuid.UUID, exists bool) {
 	v := m.user
 	if v == nil {
 		return
@@ -3754,10 +3756,10 @@ func (m *ChannelTranslationMemberMutation) UserID() (r uuid.UUID, exists bool) {
 	return *v, true
 }
 
-// OldUserID returns the old "user_id" field's value of the ChannelTranslationMember entity.
-// If the ChannelTranslationMember object wasn't provided to the builder, the object is fetched from the database.
+// OldUserID returns the old "user_id" field's value of the ChannelServiceMember entity.
+// If the ChannelServiceMember object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ChannelTranslationMemberMutation) OldUserID(ctx context.Context) (v uuid.UUID, err error) {
+func (m *ChannelServiceMemberMutation) OldUserID(ctx context.Context) (v uuid.UUID, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
 	}
@@ -3772,17 +3774,53 @@ func (m *ChannelTranslationMemberMutation) OldUserID(ctx context.Context) (v uui
 }
 
 // ResetUserID resets all changes to the "user_id" field.
-func (m *ChannelTranslationMemberMutation) ResetUserID() {
+func (m *ChannelServiceMemberMutation) ResetUserID() {
 	m.user = nil
 }
 
+// SetSkillID sets the "skill_id" field.
+func (m *ChannelServiceMemberMutation) SetSkillID(u uuid.UUID) {
+	m.skill = &u
+}
+
+// SkillID returns the value of the "skill_id" field in the mutation.
+func (m *ChannelServiceMemberMutation) SkillID() (r uuid.UUID, exists bool) {
+	v := m.skill
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSkillID returns the old "skill_id" field's value of the ChannelServiceMember entity.
+// If the ChannelServiceMember object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelServiceMemberMutation) OldSkillID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSkillID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSkillID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSkillID: %w", err)
+	}
+	return oldValue.SkillID, nil
+}
+
+// ResetSkillID resets all changes to the "skill_id" field.
+func (m *ChannelServiceMemberMutation) ResetSkillID() {
+	m.skill = nil
+}
+
 // SetPlatformUserID sets the "platform_user_id" field.
-func (m *ChannelTranslationMemberMutation) SetPlatformUserID(s string) {
+func (m *ChannelServiceMemberMutation) SetPlatformUserID(s string) {
 	m.platform_user_id = &s
 }
 
 // PlatformUserID returns the value of the "platform_user_id" field in the mutation.
-func (m *ChannelTranslationMemberMutation) PlatformUserID() (r string, exists bool) {
+func (m *ChannelServiceMemberMutation) PlatformUserID() (r string, exists bool) {
 	v := m.platform_user_id
 	if v == nil {
 		return
@@ -3790,10 +3828,10 @@ func (m *ChannelTranslationMemberMutation) PlatformUserID() (r string, exists bo
 	return *v, true
 }
 
-// OldPlatformUserID returns the old "platform_user_id" field's value of the ChannelTranslationMember entity.
-// If the ChannelTranslationMember object wasn't provided to the builder, the object is fetched from the database.
+// OldPlatformUserID returns the old "platform_user_id" field's value of the ChannelServiceMember entity.
+// If the ChannelServiceMember object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ChannelTranslationMemberMutation) OldPlatformUserID(ctx context.Context) (v string, err error) {
+func (m *ChannelServiceMemberMutation) OldPlatformUserID(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldPlatformUserID is only allowed on UpdateOne operations")
 	}
@@ -3808,38 +3846,38 @@ func (m *ChannelTranslationMemberMutation) OldPlatformUserID(ctx context.Context
 }
 
 // ClearPlatformUserID clears the value of the "platform_user_id" field.
-func (m *ChannelTranslationMemberMutation) ClearPlatformUserID() {
+func (m *ChannelServiceMemberMutation) ClearPlatformUserID() {
 	m.platform_user_id = nil
-	m.clearedFields[channeltranslationmember.FieldPlatformUserID] = struct{}{}
+	m.clearedFields[channelservicemember.FieldPlatformUserID] = struct{}{}
 }
 
 // PlatformUserIDCleared returns if the "platform_user_id" field was cleared in this mutation.
-func (m *ChannelTranslationMemberMutation) PlatformUserIDCleared() bool {
-	_, ok := m.clearedFields[channeltranslationmember.FieldPlatformUserID]
+func (m *ChannelServiceMemberMutation) PlatformUserIDCleared() bool {
+	_, ok := m.clearedFields[channelservicemember.FieldPlatformUserID]
 	return ok
 }
 
 // ResetPlatformUserID resets all changes to the "platform_user_id" field.
-func (m *ChannelTranslationMemberMutation) ResetPlatformUserID() {
+func (m *ChannelServiceMemberMutation) ResetPlatformUserID() {
 	m.platform_user_id = nil
-	delete(m.clearedFields, channeltranslationmember.FieldPlatformUserID)
+	delete(m.clearedFields, channelservicemember.FieldPlatformUserID)
 }
 
 // ClearChannel clears the "channel" edge to the Channel entity.
-func (m *ChannelTranslationMemberMutation) ClearChannel() {
+func (m *ChannelServiceMemberMutation) ClearChannel() {
 	m.clearedchannel = true
-	m.clearedFields[channeltranslationmember.FieldChannelID] = struct{}{}
+	m.clearedFields[channelservicemember.FieldChannelID] = struct{}{}
 }
 
 // ChannelCleared reports if the "channel" edge to the Channel entity was cleared.
-func (m *ChannelTranslationMemberMutation) ChannelCleared() bool {
+func (m *ChannelServiceMemberMutation) ChannelCleared() bool {
 	return m.clearedchannel
 }
 
 // ChannelIDs returns the "channel" edge IDs in the mutation.
 // Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
 // ChannelID instead. It exists only for internal usage by the builders.
-func (m *ChannelTranslationMemberMutation) ChannelIDs() (ids []uuid.UUID) {
+func (m *ChannelServiceMemberMutation) ChannelIDs() (ids []uuid.UUID) {
 	if id := m.channel; id != nil {
 		ids = append(ids, *id)
 	}
@@ -3847,26 +3885,26 @@ func (m *ChannelTranslationMemberMutation) ChannelIDs() (ids []uuid.UUID) {
 }
 
 // ResetChannel resets all changes to the "channel" edge.
-func (m *ChannelTranslationMemberMutation) ResetChannel() {
+func (m *ChannelServiceMemberMutation) ResetChannel() {
 	m.channel = nil
 	m.clearedchannel = false
 }
 
 // ClearUser clears the "user" edge to the User entity.
-func (m *ChannelTranslationMemberMutation) ClearUser() {
+func (m *ChannelServiceMemberMutation) ClearUser() {
 	m.cleareduser = true
-	m.clearedFields[channeltranslationmember.FieldUserID] = struct{}{}
+	m.clearedFields[channelservicemember.FieldUserID] = struct{}{}
 }
 
 // UserCleared reports if the "user" edge to the User entity was cleared.
-func (m *ChannelTranslationMemberMutation) UserCleared() bool {
+func (m *ChannelServiceMemberMutation) UserCleared() bool {
 	return m.cleareduser
 }
 
 // UserIDs returns the "user" edge IDs in the mutation.
 // Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
 // UserID instead. It exists only for internal usage by the builders.
-func (m *ChannelTranslationMemberMutation) UserIDs() (ids []uuid.UUID) {
+func (m *ChannelServiceMemberMutation) UserIDs() (ids []uuid.UUID) {
 	if id := m.user; id != nil {
 		ids = append(ids, *id)
 	}
@@ -3874,20 +3912,47 @@ func (m *ChannelTranslationMemberMutation) UserIDs() (ids []uuid.UUID) {
 }
 
 // ResetUser resets all changes to the "user" edge.
-func (m *ChannelTranslationMemberMutation) ResetUser() {
+func (m *ChannelServiceMemberMutation) ResetUser() {
 	m.user = nil
 	m.cleareduser = false
 }
 
-// Where appends a list predicates to the ChannelTranslationMemberMutation builder.
-func (m *ChannelTranslationMemberMutation) Where(ps ...predicate.ChannelTranslationMember) {
+// ClearSkill clears the "skill" edge to the Skill entity.
+func (m *ChannelServiceMemberMutation) ClearSkill() {
+	m.clearedskill = true
+	m.clearedFields[channelservicemember.FieldSkillID] = struct{}{}
+}
+
+// SkillCleared reports if the "skill" edge to the Skill entity was cleared.
+func (m *ChannelServiceMemberMutation) SkillCleared() bool {
+	return m.clearedskill
+}
+
+// SkillIDs returns the "skill" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SkillID instead. It exists only for internal usage by the builders.
+func (m *ChannelServiceMemberMutation) SkillIDs() (ids []uuid.UUID) {
+	if id := m.skill; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSkill resets all changes to the "skill" edge.
+func (m *ChannelServiceMemberMutation) ResetSkill() {
+	m.skill = nil
+	m.clearedskill = false
+}
+
+// Where appends a list predicates to the ChannelServiceMemberMutation builder.
+func (m *ChannelServiceMemberMutation) Where(ps ...predicate.ChannelServiceMember) {
 	m.predicates = append(m.predicates, ps...)
 }
 
-// WhereP appends storage-level predicates to the ChannelTranslationMemberMutation builder. Using this method,
+// WhereP appends storage-level predicates to the ChannelServiceMemberMutation builder. Using this method,
 // users can use type-assertion to append predicates that do not depend on any generated package.
-func (m *ChannelTranslationMemberMutation) WhereP(ps ...func(*sql.Selector)) {
-	p := make([]predicate.ChannelTranslationMember, len(ps))
+func (m *ChannelServiceMemberMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ChannelServiceMember, len(ps))
 	for i := range ps {
 		p[i] = ps[i]
 	}
@@ -3895,39 +3960,42 @@ func (m *ChannelTranslationMemberMutation) WhereP(ps ...func(*sql.Selector)) {
 }
 
 // Op returns the operation name.
-func (m *ChannelTranslationMemberMutation) Op() Op {
+func (m *ChannelServiceMemberMutation) Op() Op {
 	return m.op
 }
 
 // SetOp allows setting the mutation operation.
-func (m *ChannelTranslationMemberMutation) SetOp(op Op) {
+func (m *ChannelServiceMemberMutation) SetOp(op Op) {
 	m.op = op
 }
 
-// Type returns the node type of this mutation (ChannelTranslationMember).
-func (m *ChannelTranslationMemberMutation) Type() string {
+// Type returns the node type of this mutation (ChannelServiceMember).
+func (m *ChannelServiceMemberMutation) Type() string {
 	return m.typ
 }
 
 // Fields returns all fields that were changed during this mutation. Note that in
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
-func (m *ChannelTranslationMemberMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+func (m *ChannelServiceMemberMutation) Fields() []string {
+	fields := make([]string, 0, 6)
 	if m.created_at != nil {
-		fields = append(fields, channeltranslationmember.FieldCreatedAt)
+		fields = append(fields, channelservicemember.FieldCreatedAt)
 	}
 	if m.updated_at != nil {
-		fields = append(fields, channeltranslationmember.FieldUpdatedAt)
+		fields = append(fields, channelservicemember.FieldUpdatedAt)
 	}
 	if m.channel != nil {
-		fields = append(fields, channeltranslationmember.FieldChannelID)
+		fields = append(fields, channelservicemember.FieldChannelID)
 	}
 	if m.user != nil {
-		fields = append(fields, channeltranslationmember.FieldUserID)
+		fields = append(fields, channelservicemember.FieldUserID)
+	}
+	if m.skill != nil {
+		fields = append(fields, channelservicemember.FieldSkillID)
 	}
 	if m.platform_user_id != nil {
-		fields = append(fields, channeltranslationmember.FieldPlatformUserID)
+		fields = append(fields, channelservicemember.FieldPlatformUserID)
 	}
 	return fields
 }
@@ -3935,17 +4003,19 @@ func (m *ChannelTranslationMemberMutation) Fields() []string {
 // Field returns the value of a field with the given name. The second boolean
 // return value indicates that this field was not set, or was not defined in the
 // schema.
-func (m *ChannelTranslationMemberMutation) Field(name string) (ent.Value, bool) {
+func (m *ChannelServiceMemberMutation) Field(name string) (ent.Value, bool) {
 	switch name {
-	case channeltranslationmember.FieldCreatedAt:
+	case channelservicemember.FieldCreatedAt:
 		return m.CreatedAt()
-	case channeltranslationmember.FieldUpdatedAt:
+	case channelservicemember.FieldUpdatedAt:
 		return m.UpdatedAt()
-	case channeltranslationmember.FieldChannelID:
+	case channelservicemember.FieldChannelID:
 		return m.ChannelID()
-	case channeltranslationmember.FieldUserID:
+	case channelservicemember.FieldUserID:
 		return m.UserID()
-	case channeltranslationmember.FieldPlatformUserID:
+	case channelservicemember.FieldSkillID:
+		return m.SkillID()
+	case channelservicemember.FieldPlatformUserID:
 		return m.PlatformUserID()
 	}
 	return nil, false
@@ -3954,56 +4024,65 @@ func (m *ChannelTranslationMemberMutation) Field(name string) (ent.Value, bool) 
 // OldField returns the old value of the field from the database. An error is
 // returned if the mutation operation is not UpdateOne, or the query to the
 // database failed.
-func (m *ChannelTranslationMemberMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+func (m *ChannelServiceMemberMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
-	case channeltranslationmember.FieldCreatedAt:
+	case channelservicemember.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
-	case channeltranslationmember.FieldUpdatedAt:
+	case channelservicemember.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
-	case channeltranslationmember.FieldChannelID:
+	case channelservicemember.FieldChannelID:
 		return m.OldChannelID(ctx)
-	case channeltranslationmember.FieldUserID:
+	case channelservicemember.FieldUserID:
 		return m.OldUserID(ctx)
-	case channeltranslationmember.FieldPlatformUserID:
+	case channelservicemember.FieldSkillID:
+		return m.OldSkillID(ctx)
+	case channelservicemember.FieldPlatformUserID:
 		return m.OldPlatformUserID(ctx)
 	}
-	return nil, fmt.Errorf("unknown ChannelTranslationMember field %s", name)
+	return nil, fmt.Errorf("unknown ChannelServiceMember field %s", name)
 }
 
 // SetField sets the value of a field with the given name. It returns an error if
 // the field is not defined in the schema, or if the type mismatched the field
 // type.
-func (m *ChannelTranslationMemberMutation) SetField(name string, value ent.Value) error {
+func (m *ChannelServiceMemberMutation) SetField(name string, value ent.Value) error {
 	switch name {
-	case channeltranslationmember.FieldCreatedAt:
+	case channelservicemember.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCreatedAt(v)
 		return nil
-	case channeltranslationmember.FieldUpdatedAt:
+	case channelservicemember.FieldUpdatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUpdatedAt(v)
 		return nil
-	case channeltranslationmember.FieldChannelID:
+	case channelservicemember.FieldChannelID:
 		v, ok := value.(uuid.UUID)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetChannelID(v)
 		return nil
-	case channeltranslationmember.FieldUserID:
+	case channelservicemember.FieldUserID:
 		v, ok := value.(uuid.UUID)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUserID(v)
 		return nil
-	case channeltranslationmember.FieldPlatformUserID:
+	case channelservicemember.FieldSkillID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSkillID(v)
+		return nil
+	case channelservicemember.FieldPlatformUserID:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
@@ -4011,104 +4090,114 @@ func (m *ChannelTranslationMemberMutation) SetField(name string, value ent.Value
 		m.SetPlatformUserID(v)
 		return nil
 	}
-	return fmt.Errorf("unknown ChannelTranslationMember field %s", name)
+	return fmt.Errorf("unknown ChannelServiceMember field %s", name)
 }
 
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
-func (m *ChannelTranslationMemberMutation) AddedFields() []string {
+func (m *ChannelServiceMemberMutation) AddedFields() []string {
 	return nil
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
-func (m *ChannelTranslationMemberMutation) AddedField(name string) (ent.Value, bool) {
+func (m *ChannelServiceMemberMutation) AddedField(name string) (ent.Value, bool) {
 	return nil, false
 }
 
 // AddField adds the value to the field with the given name. It returns an error if
 // the field is not defined in the schema, or if the type mismatched the field
 // type.
-func (m *ChannelTranslationMemberMutation) AddField(name string, value ent.Value) error {
+func (m *ChannelServiceMemberMutation) AddField(name string, value ent.Value) error {
 	switch name {
 	}
-	return fmt.Errorf("unknown ChannelTranslationMember numeric field %s", name)
+	return fmt.Errorf("unknown ChannelServiceMember numeric field %s", name)
 }
 
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
-func (m *ChannelTranslationMemberMutation) ClearedFields() []string {
+func (m *ChannelServiceMemberMutation) ClearedFields() []string {
 	var fields []string
-	if m.FieldCleared(channeltranslationmember.FieldPlatformUserID) {
-		fields = append(fields, channeltranslationmember.FieldPlatformUserID)
+	if m.FieldCleared(channelservicemember.FieldPlatformUserID) {
+		fields = append(fields, channelservicemember.FieldPlatformUserID)
 	}
 	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
 // cleared in this mutation.
-func (m *ChannelTranslationMemberMutation) FieldCleared(name string) bool {
+func (m *ChannelServiceMemberMutation) FieldCleared(name string) bool {
 	_, ok := m.clearedFields[name]
 	return ok
 }
 
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
-func (m *ChannelTranslationMemberMutation) ClearField(name string) error {
+func (m *ChannelServiceMemberMutation) ClearField(name string) error {
 	switch name {
-	case channeltranslationmember.FieldPlatformUserID:
+	case channelservicemember.FieldPlatformUserID:
 		m.ClearPlatformUserID()
 		return nil
 	}
-	return fmt.Errorf("unknown ChannelTranslationMember nullable field %s", name)
+	return fmt.Errorf("unknown ChannelServiceMember nullable field %s", name)
 }
 
 // ResetField resets all changes in the mutation for the field with the given name.
 // It returns an error if the field is not defined in the schema.
-func (m *ChannelTranslationMemberMutation) ResetField(name string) error {
+func (m *ChannelServiceMemberMutation) ResetField(name string) error {
 	switch name {
-	case channeltranslationmember.FieldCreatedAt:
+	case channelservicemember.FieldCreatedAt:
 		m.ResetCreatedAt()
 		return nil
-	case channeltranslationmember.FieldUpdatedAt:
+	case channelservicemember.FieldUpdatedAt:
 		m.ResetUpdatedAt()
 		return nil
-	case channeltranslationmember.FieldChannelID:
+	case channelservicemember.FieldChannelID:
 		m.ResetChannelID()
 		return nil
-	case channeltranslationmember.FieldUserID:
+	case channelservicemember.FieldUserID:
 		m.ResetUserID()
 		return nil
-	case channeltranslationmember.FieldPlatformUserID:
+	case channelservicemember.FieldSkillID:
+		m.ResetSkillID()
+		return nil
+	case channelservicemember.FieldPlatformUserID:
 		m.ResetPlatformUserID()
 		return nil
 	}
-	return fmt.Errorf("unknown ChannelTranslationMember field %s", name)
+	return fmt.Errorf("unknown ChannelServiceMember field %s", name)
 }
 
 // AddedEdges returns all edge names that were set/added in this mutation.
-func (m *ChannelTranslationMemberMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+func (m *ChannelServiceMemberMutation) AddedEdges() []string {
+	edges := make([]string, 0, 3)
 	if m.channel != nil {
-		edges = append(edges, channeltranslationmember.EdgeChannel)
+		edges = append(edges, channelservicemember.EdgeChannel)
 	}
 	if m.user != nil {
-		edges = append(edges, channeltranslationmember.EdgeUser)
+		edges = append(edges, channelservicemember.EdgeUser)
+	}
+	if m.skill != nil {
+		edges = append(edges, channelservicemember.EdgeSkill)
 	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
-func (m *ChannelTranslationMemberMutation) AddedIDs(name string) []ent.Value {
+func (m *ChannelServiceMemberMutation) AddedIDs(name string) []ent.Value {
 	switch name {
-	case channeltranslationmember.EdgeChannel:
+	case channelservicemember.EdgeChannel:
 		if id := m.channel; id != nil {
 			return []ent.Value{*id}
 		}
-	case channeltranslationmember.EdgeUser:
+	case channelservicemember.EdgeUser:
 		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	case channelservicemember.EdgeSkill:
+		if id := m.skill; id != nil {
 			return []ent.Value{*id}
 		}
 	}
@@ -4116,67 +4205,78 @@ func (m *ChannelTranslationMemberMutation) AddedIDs(name string) []ent.Value {
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
-func (m *ChannelTranslationMemberMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+func (m *ChannelServiceMemberMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 3)
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
-func (m *ChannelTranslationMemberMutation) RemovedIDs(name string) []ent.Value {
+func (m *ChannelServiceMemberMutation) RemovedIDs(name string) []ent.Value {
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
-func (m *ChannelTranslationMemberMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+func (m *ChannelServiceMemberMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 3)
 	if m.clearedchannel {
-		edges = append(edges, channeltranslationmember.EdgeChannel)
+		edges = append(edges, channelservicemember.EdgeChannel)
 	}
 	if m.cleareduser {
-		edges = append(edges, channeltranslationmember.EdgeUser)
+		edges = append(edges, channelservicemember.EdgeUser)
+	}
+	if m.clearedskill {
+		edges = append(edges, channelservicemember.EdgeSkill)
 	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
-func (m *ChannelTranslationMemberMutation) EdgeCleared(name string) bool {
+func (m *ChannelServiceMemberMutation) EdgeCleared(name string) bool {
 	switch name {
-	case channeltranslationmember.EdgeChannel:
+	case channelservicemember.EdgeChannel:
 		return m.clearedchannel
-	case channeltranslationmember.EdgeUser:
+	case channelservicemember.EdgeUser:
 		return m.cleareduser
+	case channelservicemember.EdgeSkill:
+		return m.clearedskill
 	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
-func (m *ChannelTranslationMemberMutation) ClearEdge(name string) error {
+func (m *ChannelServiceMemberMutation) ClearEdge(name string) error {
 	switch name {
-	case channeltranslationmember.EdgeChannel:
+	case channelservicemember.EdgeChannel:
 		m.ClearChannel()
 		return nil
-	case channeltranslationmember.EdgeUser:
+	case channelservicemember.EdgeUser:
 		m.ClearUser()
 		return nil
+	case channelservicemember.EdgeSkill:
+		m.ClearSkill()
+		return nil
 	}
-	return fmt.Errorf("unknown ChannelTranslationMember unique edge %s", name)
+	return fmt.Errorf("unknown ChannelServiceMember unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
-func (m *ChannelTranslationMemberMutation) ResetEdge(name string) error {
+func (m *ChannelServiceMemberMutation) ResetEdge(name string) error {
 	switch name {
-	case channeltranslationmember.EdgeChannel:
+	case channelservicemember.EdgeChannel:
 		m.ResetChannel()
 		return nil
-	case channeltranslationmember.EdgeUser:
+	case channelservicemember.EdgeUser:
 		m.ResetUser()
 		return nil
+	case channelservicemember.EdgeSkill:
+		m.ResetSkill()
+		return nil
 	}
-	return fmt.Errorf("unknown ChannelTranslationMember edge %s", name)
+	return fmt.Errorf("unknown ChannelServiceMember edge %s", name)
 }
 
 // LineMutation represents an operation that mutates the Line nodes in the graph.
@@ -4730,19 +4830,22 @@ func (m *LineMutation) ResetEdge(name string) error {
 // SkillMutation represents an operation that mutates the Skill nodes in the graph.
 type SkillMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *uuid.UUID
-	skill_code     *string
-	name           *string
-	description    *string
-	clearedFields  map[string]struct{}
-	actions        map[uuid.UUID]struct{}
-	removedactions map[uuid.UUID]struct{}
-	clearedactions bool
-	done           bool
-	oldValue       func(context.Context) (*Skill, error)
-	predicates     []predicate.Skill
+	op                             Op
+	typ                            string
+	id                             *uuid.UUID
+	skill_code                     *string
+	name                           *string
+	description                    *string
+	clearedFields                  map[string]struct{}
+	actions                        map[uuid.UUID]struct{}
+	removedactions                 map[uuid.UUID]struct{}
+	clearedactions                 bool
+	channel_service_members        map[uuid.UUID]struct{}
+	removedchannel_service_members map[uuid.UUID]struct{}
+	clearedchannel_service_members bool
+	done                           bool
+	oldValue                       func(context.Context) (*Skill, error)
+	predicates                     []predicate.Skill
 }
 
 var _ ent.Mutation = (*SkillMutation)(nil)
@@ -5024,6 +5127,60 @@ func (m *SkillMutation) ResetActions() {
 	m.removedactions = nil
 }
 
+// AddChannelServiceMemberIDs adds the "channel_service_members" edge to the ChannelServiceMember entity by ids.
+func (m *SkillMutation) AddChannelServiceMemberIDs(ids ...uuid.UUID) {
+	if m.channel_service_members == nil {
+		m.channel_service_members = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.channel_service_members[ids[i]] = struct{}{}
+	}
+}
+
+// ClearChannelServiceMembers clears the "channel_service_members" edge to the ChannelServiceMember entity.
+func (m *SkillMutation) ClearChannelServiceMembers() {
+	m.clearedchannel_service_members = true
+}
+
+// ChannelServiceMembersCleared reports if the "channel_service_members" edge to the ChannelServiceMember entity was cleared.
+func (m *SkillMutation) ChannelServiceMembersCleared() bool {
+	return m.clearedchannel_service_members
+}
+
+// RemoveChannelServiceMemberIDs removes the "channel_service_members" edge to the ChannelServiceMember entity by IDs.
+func (m *SkillMutation) RemoveChannelServiceMemberIDs(ids ...uuid.UUID) {
+	if m.removedchannel_service_members == nil {
+		m.removedchannel_service_members = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.channel_service_members, ids[i])
+		m.removedchannel_service_members[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedChannelServiceMembers returns the removed IDs of the "channel_service_members" edge to the ChannelServiceMember entity.
+func (m *SkillMutation) RemovedChannelServiceMembersIDs() (ids []uuid.UUID) {
+	for id := range m.removedchannel_service_members {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ChannelServiceMembersIDs returns the "channel_service_members" edge IDs in the mutation.
+func (m *SkillMutation) ChannelServiceMembersIDs() (ids []uuid.UUID) {
+	for id := range m.channel_service_members {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetChannelServiceMembers resets all changes to the "channel_service_members" edge.
+func (m *SkillMutation) ResetChannelServiceMembers() {
+	m.channel_service_members = nil
+	m.clearedchannel_service_members = false
+	m.removedchannel_service_members = nil
+}
+
 // Where appends a list predicates to the SkillMutation builder.
 func (m *SkillMutation) Where(ps ...predicate.Skill) {
 	m.predicates = append(m.predicates, ps...)
@@ -5200,9 +5357,12 @@ func (m *SkillMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *SkillMutation) AddedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.actions != nil {
 		edges = append(edges, skill.EdgeActions)
+	}
+	if m.channel_service_members != nil {
+		edges = append(edges, skill.EdgeChannelServiceMembers)
 	}
 	return edges
 }
@@ -5217,15 +5377,24 @@ func (m *SkillMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case skill.EdgeChannelServiceMembers:
+		ids := make([]ent.Value, 0, len(m.channel_service_members))
+		for id := range m.channel_service_members {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *SkillMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.removedactions != nil {
 		edges = append(edges, skill.EdgeActions)
+	}
+	if m.removedchannel_service_members != nil {
+		edges = append(edges, skill.EdgeChannelServiceMembers)
 	}
 	return edges
 }
@@ -5240,15 +5409,24 @@ func (m *SkillMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case skill.EdgeChannelServiceMembers:
+		ids := make([]ent.Value, 0, len(m.removedchannel_service_members))
+		for id := range m.removedchannel_service_members {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *SkillMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.clearedactions {
 		edges = append(edges, skill.EdgeActions)
+	}
+	if m.clearedchannel_service_members {
+		edges = append(edges, skill.EdgeChannelServiceMembers)
 	}
 	return edges
 }
@@ -5259,6 +5437,8 @@ func (m *SkillMutation) EdgeCleared(name string) bool {
 	switch name {
 	case skill.EdgeActions:
 		return m.clearedactions
+	case skill.EdgeChannelServiceMembers:
+		return m.clearedchannel_service_members
 	}
 	return false
 }
@@ -5278,6 +5458,9 @@ func (m *SkillMutation) ResetEdge(name string) error {
 	case skill.EdgeActions:
 		m.ResetActions()
 		return nil
+	case skill.EdgeChannelServiceMembers:
+		m.ResetChannelServiceMembers()
+		return nil
 	}
 	return fmt.Errorf("unknown Skill edge %s", name)
 }
@@ -5285,21 +5468,21 @@ func (m *SkillMutation) ResetEdge(name string) error {
 // UserMutation represents an operation that mutates the User nodes in the graph.
 type UserMutation struct {
 	config
-	op                                 Op
-	typ                                string
-	id                                 *uuid.UUID
-	name                               *string
-	email                              *string
-	clearedFields                      map[string]struct{}
-	line                               map[uuid.UUID]struct{}
-	removedline                        map[uuid.UUID]struct{}
-	clearedline                        bool
-	channel_translation_members        map[uuid.UUID]struct{}
-	removedchannel_translation_members map[uuid.UUID]struct{}
-	clearedchannel_translation_members bool
-	done                               bool
-	oldValue                           func(context.Context) (*User, error)
-	predicates                         []predicate.User
+	op                             Op
+	typ                            string
+	id                             *uuid.UUID
+	name                           *string
+	email                          *string
+	clearedFields                  map[string]struct{}
+	line                           map[uuid.UUID]struct{}
+	removedline                    map[uuid.UUID]struct{}
+	clearedline                    bool
+	channel_service_members        map[uuid.UUID]struct{}
+	removedchannel_service_members map[uuid.UUID]struct{}
+	clearedchannel_service_members bool
+	done                           bool
+	oldValue                       func(context.Context) (*User, error)
+	predicates                     []predicate.User
 }
 
 var _ ent.Mutation = (*UserMutation)(nil)
@@ -5532,58 +5715,58 @@ func (m *UserMutation) ResetLine() {
 	m.removedline = nil
 }
 
-// AddChannelTranslationMemberIDs adds the "channel_translation_members" edge to the ChannelTranslationMember entity by ids.
-func (m *UserMutation) AddChannelTranslationMemberIDs(ids ...uuid.UUID) {
-	if m.channel_translation_members == nil {
-		m.channel_translation_members = make(map[uuid.UUID]struct{})
+// AddChannelServiceMemberIDs adds the "channel_service_members" edge to the ChannelServiceMember entity by ids.
+func (m *UserMutation) AddChannelServiceMemberIDs(ids ...uuid.UUID) {
+	if m.channel_service_members == nil {
+		m.channel_service_members = make(map[uuid.UUID]struct{})
 	}
 	for i := range ids {
-		m.channel_translation_members[ids[i]] = struct{}{}
+		m.channel_service_members[ids[i]] = struct{}{}
 	}
 }
 
-// ClearChannelTranslationMembers clears the "channel_translation_members" edge to the ChannelTranslationMember entity.
-func (m *UserMutation) ClearChannelTranslationMembers() {
-	m.clearedchannel_translation_members = true
+// ClearChannelServiceMembers clears the "channel_service_members" edge to the ChannelServiceMember entity.
+func (m *UserMutation) ClearChannelServiceMembers() {
+	m.clearedchannel_service_members = true
 }
 
-// ChannelTranslationMembersCleared reports if the "channel_translation_members" edge to the ChannelTranslationMember entity was cleared.
-func (m *UserMutation) ChannelTranslationMembersCleared() bool {
-	return m.clearedchannel_translation_members
+// ChannelServiceMembersCleared reports if the "channel_service_members" edge to the ChannelServiceMember entity was cleared.
+func (m *UserMutation) ChannelServiceMembersCleared() bool {
+	return m.clearedchannel_service_members
 }
 
-// RemoveChannelTranslationMemberIDs removes the "channel_translation_members" edge to the ChannelTranslationMember entity by IDs.
-func (m *UserMutation) RemoveChannelTranslationMemberIDs(ids ...uuid.UUID) {
-	if m.removedchannel_translation_members == nil {
-		m.removedchannel_translation_members = make(map[uuid.UUID]struct{})
+// RemoveChannelServiceMemberIDs removes the "channel_service_members" edge to the ChannelServiceMember entity by IDs.
+func (m *UserMutation) RemoveChannelServiceMemberIDs(ids ...uuid.UUID) {
+	if m.removedchannel_service_members == nil {
+		m.removedchannel_service_members = make(map[uuid.UUID]struct{})
 	}
 	for i := range ids {
-		delete(m.channel_translation_members, ids[i])
-		m.removedchannel_translation_members[ids[i]] = struct{}{}
+		delete(m.channel_service_members, ids[i])
+		m.removedchannel_service_members[ids[i]] = struct{}{}
 	}
 }
 
-// RemovedChannelTranslationMembers returns the removed IDs of the "channel_translation_members" edge to the ChannelTranslationMember entity.
-func (m *UserMutation) RemovedChannelTranslationMembersIDs() (ids []uuid.UUID) {
-	for id := range m.removedchannel_translation_members {
+// RemovedChannelServiceMembers returns the removed IDs of the "channel_service_members" edge to the ChannelServiceMember entity.
+func (m *UserMutation) RemovedChannelServiceMembersIDs() (ids []uuid.UUID) {
+	for id := range m.removedchannel_service_members {
 		ids = append(ids, id)
 	}
 	return
 }
 
-// ChannelTranslationMembersIDs returns the "channel_translation_members" edge IDs in the mutation.
-func (m *UserMutation) ChannelTranslationMembersIDs() (ids []uuid.UUID) {
-	for id := range m.channel_translation_members {
+// ChannelServiceMembersIDs returns the "channel_service_members" edge IDs in the mutation.
+func (m *UserMutation) ChannelServiceMembersIDs() (ids []uuid.UUID) {
+	for id := range m.channel_service_members {
 		ids = append(ids, id)
 	}
 	return
 }
 
-// ResetChannelTranslationMembers resets all changes to the "channel_translation_members" edge.
-func (m *UserMutation) ResetChannelTranslationMembers() {
-	m.channel_translation_members = nil
-	m.clearedchannel_translation_members = false
-	m.removedchannel_translation_members = nil
+// ResetChannelServiceMembers resets all changes to the "channel_service_members" edge.
+func (m *UserMutation) ResetChannelServiceMembers() {
+	m.channel_service_members = nil
+	m.clearedchannel_service_members = false
+	m.removedchannel_service_members = nil
 }
 
 // Where appends a list predicates to the UserMutation builder.
@@ -5740,8 +5923,8 @@ func (m *UserMutation) AddedEdges() []string {
 	if m.line != nil {
 		edges = append(edges, user.EdgeLine)
 	}
-	if m.channel_translation_members != nil {
-		edges = append(edges, user.EdgeChannelTranslationMembers)
+	if m.channel_service_members != nil {
+		edges = append(edges, user.EdgeChannelServiceMembers)
 	}
 	return edges
 }
@@ -5756,9 +5939,9 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
-	case user.EdgeChannelTranslationMembers:
-		ids := make([]ent.Value, 0, len(m.channel_translation_members))
-		for id := range m.channel_translation_members {
+	case user.EdgeChannelServiceMembers:
+		ids := make([]ent.Value, 0, len(m.channel_service_members))
+		for id := range m.channel_service_members {
 			ids = append(ids, id)
 		}
 		return ids
@@ -5772,8 +5955,8 @@ func (m *UserMutation) RemovedEdges() []string {
 	if m.removedline != nil {
 		edges = append(edges, user.EdgeLine)
 	}
-	if m.removedchannel_translation_members != nil {
-		edges = append(edges, user.EdgeChannelTranslationMembers)
+	if m.removedchannel_service_members != nil {
+		edges = append(edges, user.EdgeChannelServiceMembers)
 	}
 	return edges
 }
@@ -5788,9 +5971,9 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
-	case user.EdgeChannelTranslationMembers:
-		ids := make([]ent.Value, 0, len(m.removedchannel_translation_members))
-		for id := range m.removedchannel_translation_members {
+	case user.EdgeChannelServiceMembers:
+		ids := make([]ent.Value, 0, len(m.removedchannel_service_members))
+		for id := range m.removedchannel_service_members {
 			ids = append(ids, id)
 		}
 		return ids
@@ -5804,8 +5987,8 @@ func (m *UserMutation) ClearedEdges() []string {
 	if m.clearedline {
 		edges = append(edges, user.EdgeLine)
 	}
-	if m.clearedchannel_translation_members {
-		edges = append(edges, user.EdgeChannelTranslationMembers)
+	if m.clearedchannel_service_members {
+		edges = append(edges, user.EdgeChannelServiceMembers)
 	}
 	return edges
 }
@@ -5816,8 +5999,8 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 	switch name {
 	case user.EdgeLine:
 		return m.clearedline
-	case user.EdgeChannelTranslationMembers:
-		return m.clearedchannel_translation_members
+	case user.EdgeChannelServiceMembers:
+		return m.clearedchannel_service_members
 	}
 	return false
 }
@@ -5837,8 +6020,8 @@ func (m *UserMutation) ResetEdge(name string) error {
 	case user.EdgeLine:
 		m.ResetLine()
 		return nil
-	case user.EdgeChannelTranslationMembers:
-		m.ResetChannelTranslationMembers()
+	case user.EdgeChannelServiceMembers:
+		m.ResetChannelServiceMembers()
 		return nil
 	}
 	return fmt.Errorf("unknown User edge %s", name)

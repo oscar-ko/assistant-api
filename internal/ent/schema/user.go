@@ -43,8 +43,8 @@ func (User) Edges() []ent.Edge {
 		edge.From("line", Line.Type).
 			Ref("user").
 			Comment("使用者綁定的 LINE 帳號清單（可多筆）"),
-		edge.From("channel_translation_members", ChannelTranslationMember.Type).
+		edge.From("channel_service_members", ChannelServiceMember.Type).
 			Ref("user").
-			Comment("使用者啟用翻譯的頻道成員設定"),
+			Comment("使用者啟用服務的頻道成員設定"),
 	}
 }
