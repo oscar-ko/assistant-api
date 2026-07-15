@@ -337,7 +337,7 @@ func (s *WebhookService) dispatchActionPostHandlers(message *unifiedmessage.Mess
 }
 
 // translationTargetLocalesFromDecision 從通用 action_params 擷取翻譯語系參數。
-// 兼容 target_locale（單值）與 target_locales（多值）兩種格式，
+// 契約固定使用 target_locales（字串陣列），
 // 輸出會經過清理與去重，避免同語系重覆寫入。
 func translationTargetLocalesFromDecision(decision *semanticdecision.ActionDecision) []string {
 	return actionpost.ExtractTranslationTargetLocales(decision)
@@ -416,6 +416,7 @@ func toActionCandidates(candidates []topkfilter.ScoredCandidate) []semanticdecis
 			Operation: item.Candidate.APIOperation,
 			SkillCode: item.Candidate.SkillCode,
 			RouteText: item.Candidate.RouteText,
+			Prompt:    item.Candidate.Prompt,
 			Score:     item.Score,
 		})
 	}

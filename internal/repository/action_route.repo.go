@@ -28,6 +28,7 @@ type ActionRouteVectorCandidate struct {
 	APIOperation string
 	SkillCode    string
 	RouteText    string
+	Prompt       string
 	Distance     float64
 }
 
@@ -125,11 +126,19 @@ func (r ActionRouteRepo) SearchTopByVectorAndLocale(ctx context.Context, locale 
 			APIOperation: route.Edges.Action.APIOperation,
 			SkillCode:    route.Edges.Action.Edges.Skill.SkillCode,
 			RouteText:    strings.TrimSpace(route.RouteText),
+			Prompt:       strings.TrimSpace(ptrToString(route.Edges.Action.CommandPurpose)),
 			Distance:     distance,
 		})
 	}
 
 	return candidates, nil
+}
+
+func ptrToString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func (r ActionRouteRepo) FindBestOperationByRouteText(ctx context.Context, locale string, message string, candidateOperations []string) (string, error) {

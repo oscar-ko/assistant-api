@@ -2,6 +2,7 @@ package actionpost
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 
 	"assistant-api/internal/integration/unifiedmessage"
@@ -278,20 +279,23 @@ func NewPersistTranslationCommandStateHandler(repo *repository.ChannelMessageRep
 
 // ExtractTranslationTargetLocales 從通用 action_params 擷取翻譯語系參數。
 //
-// 支援兩種契約：
-// - target_locale: 單值（字串）
-// - target_locales: 多值（字串陣列）
+// 契約固定使用 target_locales（字串陣列），
+// 單一語系也使用單元素陣列表示。
 //
 // 輸出會經過 dedupeLocales 做清理與去重。
 func ExtractTranslationTargetLocales(decision *semanticdecision.ActionDecision) []string {
-	if decision == nil {
+	if decision == nil || len(decision.ActionParams) == 0 {
 		return nil
 	}
-	locales := make([]string, 0)
-	if value, ok := decision.ParamString(semanticdecision.ActionParamTargetLocale); ok {
-		locales = append(locales, value)
+	raw, ok := decision.ActionParams[semanticdecision.ActionParamTargetLocales]
+	if !ok || len(raw) == 0 {
+		return nil
 	}
-	locales = append(locales, decision.ParamStringSlice(semanticdecision.ActionParamTargetLocales)...)
+	var locales []string
+	if err := json.Unmarshal(raw, &locales); err != nil {
+		// 契約要求 target_locales 必須是陣列；非陣列一律視為無效。
+		return nil
+	}
 	return dedupeLocales(locales)
 }
 

@@ -58,7 +58,7 @@ ai:
     # 不再使用舊的 intent_label 分類格式。
     semantic_decision:
         service_url: "http://127.0.0.1:9002"
-        service_timeout_seconds: 90
+        service_timeout_seconds: 120
         # 最終 action decision 若低於此信心值，視為「對話問題」而非可執行指令。
         # 0 代表關閉此門檻機制。
         # 例如 no_match 或低匹配語意時，會改走 question_answer。

@@ -39,56 +39,31 @@ func normalizeLocaleActionParams(decision *ActionDecision) error {
 		return nil
 	}
 
-	if raw, ok := decision.ActionParams[ActionParamTargetLocale]; ok && len(raw) > 0 {
-		var locale string
-		if err := json.Unmarshal(raw, &locale); err != nil {
-			return fmt.Errorf("action_params.%s must be string", ActionParamTargetLocale)
-		}
-		normalized, ok := normalizeLocaleTag(locale)
-		if !ok {
-			return fmt.Errorf("action_params.%s must be ISO 639-1 + ISO 3166-1 format (xx-YY), got %q", ActionParamTargetLocale, strings.TrimSpace(locale))
-		}
-		buf, err := json.Marshal(normalized)
-		if err != nil {
-			return fmt.Errorf("failed to normalize action_params.%s: %w", ActionParamTargetLocale, err)
-		}
-		decision.ActionParams[ActionParamTargetLocale] = buf
-	}
-
 	if raw, ok := decision.ActionParams[ActionParamTargetLocales]; ok && len(raw) > 0 {
 		var locales []string
-		if err := json.Unmarshal(raw, &locales); err == nil {
-			normalizedLocales := make([]string, 0, len(locales))
-			seen := make(map[string]struct{}, len(locales))
-			for _, locale := range locales {
-				normalized, valid := normalizeLocaleTag(locale)
-				if !valid {
-					return fmt.Errorf("action_params.%s must contain ISO 639-1 + ISO 3166-1 values (xx-YY), got %q", ActionParamTargetLocales, strings.TrimSpace(locale))
-				}
-				if _, exists := seen[normalized]; exists {
-					continue
-				}
-				seen[normalized] = struct{}{}
-				normalizedLocales = append(normalizedLocales, normalized)
+		if err := json.Unmarshal(raw, &locales); err != nil {
+			return fmt.Errorf("action_params.%s must be string array", ActionParamTargetLocales)
+		}
+		if len(locales) == 0 {
+			return fmt.Errorf("action_params.%s must contain at least one locale", ActionParamTargetLocales)
+		}
+		normalizedLocales := make([]string, 0, len(locales))
+		seen := make(map[string]struct{}, len(locales))
+		for _, locale := range locales {
+			normalized, valid := normalizeLocaleTag(locale)
+			if !valid {
+				return fmt.Errorf("action_params.%s must contain ISO 639-1 + ISO 3166-1 values (xx-YY), got %q", ActionParamTargetLocales, strings.TrimSpace(locale))
 			}
-			buf, err := json.Marshal(normalizedLocales)
-			if err != nil {
-				return fmt.Errorf("failed to normalize action_params.%s: %w", ActionParamTargetLocales, err)
+			if _, exists := seen[normalized]; exists {
+				continue
 			}
-			decision.ActionParams[ActionParamTargetLocales] = buf
-			return nil
+			seen[normalized] = struct{}{}
+			normalizedLocales = append(normalizedLocales, normalized)
 		}
-
-		// 相容單值字串格式，正規化後保留為字串。
-		var single string
-		if err := json.Unmarshal(raw, &single); err != nil {
-			return fmt.Errorf("action_params.%s must be string or string array", ActionParamTargetLocales)
+		if len(normalizedLocales) == 0 {
+			return fmt.Errorf("action_params.%s must contain at least one locale", ActionParamTargetLocales)
 		}
-		normalized, ok := normalizeLocaleTag(single)
-		if !ok {
-			return fmt.Errorf("action_params.%s must be ISO 639-1 + ISO 3166-1 format (xx-YY), got %q", ActionParamTargetLocales, strings.TrimSpace(single))
-		}
-		buf, err := json.Marshal(normalized)
+		buf, err := json.Marshal(normalizedLocales)
 		if err != nil {
 			return fmt.Errorf("failed to normalize action_params.%s: %w", ActionParamTargetLocales, err)
 		}

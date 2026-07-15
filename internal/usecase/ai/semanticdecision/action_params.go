@@ -1,8 +1,7 @@
 package semanticdecision
 
 const (
-	// ActionParamTargetLocale 是翻譯 action 的單值語系參數鍵名。
-	ActionParamTargetLocale = "target_locale"
-	// ActionParamTargetLocales 是翻譯 action 的多值語系參數鍵名。
+	// ActionParamTargetLocales 是翻譯 action 的語系參數鍵名。
+	// 契約統一為字串陣列，單一語系時使用單元素陣列。
 	ActionParamTargetLocales = "target_locales"
 )

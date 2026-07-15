@@ -311,9 +311,9 @@ func TestWebhookService_ProcessIncoming_ZeroConfidenceNoMatchRoutesToQuestionAns
 
 func TestTranslationTargetLocalesFromDecision(t *testing.T) {
 	// 這組測試覆蓋通用 action_params 在翻譯情境下的 locale 抽取策略：
-	// - target_locale + target_locales 併合
+	// - 僅使用 target_locales
 	// - 大小寫去重
-	// - 單值 fallback
+	// - 空輸入回 nil
 	tests := []struct {
 		name     string
 		decision *semanticdecision.ActionDecision
@@ -325,19 +325,18 @@ func TestTranslationTargetLocalesFromDecision(t *testing.T) {
 			want:     nil,
 		},
 		{
-			name: "merge target locale and locales",
+			name: "target_locales with dedupe",
 			decision: &semanticdecision.ActionDecision{ActionParams: map[string]json.RawMessage{
-				"target_locale":  rawJSON(" en-US "),
 				"target_locales": rawJSON([]string{"ja-JP", "en-us", "zh-TW"}),
 			}},
-			want: []string{"en-US", "ja-JP", "zh-TW"},
+			want: []string{"ja-JP", "en-us", "zh-TW"},
 		},
 		{
-			name: "single string target_locales",
+			name: "single string target_locales is ignored",
 			decision: &semanticdecision.ActionDecision{ActionParams: map[string]json.RawMessage{
 				"target_locales": rawJSON("fr-FR"),
 			}},
-			want: []string{"fr-FR"},
+			want: nil,
 		},
 	}
 

@@ -20,32 +20,32 @@ func TestActionDecisionParamString(t *testing.T) {
 		{
 			name:     "nil decision",
 			decision: nil,
-			key:      "target_locale",
+			key:      "target_locales",
 			want:     "",
 			ok:       false,
 		},
 		{
 			name:     "nil action params",
 			decision: &ActionDecision{},
-			key:      "target_locale",
+			key:      "target_locales",
 			want:     "",
 			ok:       false,
 		},
 		{
 			name: "string parameter",
 			decision: &ActionDecision{ActionParams: map[string]json.RawMessage{
-				"target_locale": mustRawJSON(t, "ja-JP"),
+				"target_locales": mustRawJSON(t, "ja-JP"),
 			}},
-			key:  "target_locale",
+			key:  "target_locales",
 			want: "ja-JP",
 			ok:   true,
 		},
 		{
 			name: "invalid type",
 			decision: &ActionDecision{ActionParams: map[string]json.RawMessage{
-				"target_locale": mustRawJSON(t, []string{"ja-JP"}),
+				"target_locales": mustRawJSON(t, []string{"ja-JP"}),
 			}},
-			key:  "target_locale",
+			key:  "target_locales",
 			want: "",
 			ok:   false,
 		},
@@ -81,7 +81,7 @@ func TestActionDecisionParamStringSlice(t *testing.T) {
 			want: []string{"en-US", "ja-JP"},
 		},
 		{
-			name: "single value fallback",
+			name: "single value fallback for generic helper",
 			decision: &ActionDecision{ActionParams: map[string]json.RawMessage{
 				"target_locales": mustRawJSON(t, " zh-TW "),
 			}},
@@ -125,16 +125,10 @@ func TestValidateActionDecisionRejectsCandidateMetadataKeys(t *testing.T) {
 
 func TestValidateActionDecisionNormalizesLocaleFormat(t *testing.T) {
 	decision := &ActionDecision{ActionParams: map[string]json.RawMessage{
-		ActionParamTargetLocale:  mustRawJSON(t, " en-us "),
 		ActionParamTargetLocales: mustRawJSON(t, []string{"ja-jp", "EN-us", "zh-tw"}),
 	}}
 	if err := validateActionDecision(decision); err != nil {
 		t.Fatalf("expected locale normalization to pass, got error: %v", err)
-	}
-
-	gotSingle, ok := decision.ParamString(ActionParamTargetLocale)
-	if !ok || gotSingle != "en-US" {
-		t.Fatalf("normalized target_locale mismatch: got=(%q,%v) want=(%q,true)", gotSingle, ok, "en-US")
 	}
 
 	gotMulti := decision.ParamStringSlice(ActionParamTargetLocales)
@@ -151,10 +145,19 @@ func TestValidateActionDecisionNormalizesLocaleFormat(t *testing.T) {
 
 func TestValidateActionDecisionRejectsInvalidLocaleFormat(t *testing.T) {
 	err := validateActionDecision(&ActionDecision{ActionParams: map[string]json.RawMessage{
-		ActionParamTargetLocale: mustRawJSON(t, "english-US"),
+		ActionParamTargetLocales: mustRawJSON(t, []string{"english-US"}),
 	}})
 	if err == nil {
 		t.Fatal("expected invalid locale format to be rejected")
+	}
+}
+
+func TestValidateActionDecisionRejectsNonArrayTargetLocales(t *testing.T) {
+	err := validateActionDecision(&ActionDecision{ActionParams: map[string]json.RawMessage{
+		ActionParamTargetLocales: mustRawJSON(t, "en-US"),
+	}})
+	if err == nil {
+		t.Fatal("expected target_locales string value to be rejected")
 	}
 }
 
