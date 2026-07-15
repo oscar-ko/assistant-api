@@ -114,6 +114,50 @@ func TestActionDecisionParamStringSlice(t *testing.T) {
 	}
 }
 
+func TestValidateActionDecisionRejectsCandidateMetadataKeys(t *testing.T) {
+	err := validateActionDecision(&ActionDecision{ActionParams: map[string]json.RawMessage{
+		"route_text": mustRawJSON(t, "開啟英文翻譯"),
+	}})
+	if err == nil {
+		t.Fatal("expected forbidden action_params key to be rejected")
+	}
+}
+
+func TestValidateActionDecisionNormalizesLocaleFormat(t *testing.T) {
+	decision := &ActionDecision{ActionParams: map[string]json.RawMessage{
+		ActionParamTargetLocale:  mustRawJSON(t, " en-us "),
+		ActionParamTargetLocales: mustRawJSON(t, []string{"ja-jp", "EN-us", "zh-tw"}),
+	}}
+	if err := validateActionDecision(decision); err != nil {
+		t.Fatalf("expected locale normalization to pass, got error: %v", err)
+	}
+
+	gotSingle, ok := decision.ParamString(ActionParamTargetLocale)
+	if !ok || gotSingle != "en-US" {
+		t.Fatalf("normalized target_locale mismatch: got=(%q,%v) want=(%q,true)", gotSingle, ok, "en-US")
+	}
+
+	gotMulti := decision.ParamStringSlice(ActionParamTargetLocales)
+	wantMulti := []string{"ja-JP", "en-US", "zh-TW"}
+	if len(gotMulti) != len(wantMulti) {
+		t.Fatalf("normalized target_locales length mismatch: got=%v want=%v", gotMulti, wantMulti)
+	}
+	for i := range gotMulti {
+		if gotMulti[i] != wantMulti[i] {
+			t.Fatalf("normalized target_locales mismatch at %d: got=%v want=%v", i, gotMulti, wantMulti)
+		}
+	}
+}
+
+func TestValidateActionDecisionRejectsInvalidLocaleFormat(t *testing.T) {
+	err := validateActionDecision(&ActionDecision{ActionParams: map[string]json.RawMessage{
+		ActionParamTargetLocale: mustRawJSON(t, "english-US"),
+	}})
+	if err == nil {
+		t.Fatal("expected invalid locale format to be rejected")
+	}
+}
+
 // mustRawJSON 是測試輔助：把任意 Go 值轉成 RawMessage，
 // 讓測試可精準模擬上游 action_params 原始 JSON 片段。
 func mustRawJSON(t *testing.T, value any) json.RawMessage {

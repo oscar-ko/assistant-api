@@ -82,7 +82,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Enable translation for a specific locale in the current channel.",
 					APIOperation:   "start_translation_locale",
 					RouteTexts:     []string{"開啟翻譯", "開始翻譯模式", "新增翻譯語系", "幫我開啟某語言翻譯", "請翻譯成指定語言"},
-					CommandPurpose: fmt.Sprintf("用途: 協助模型判斷此指令是啟用翻譯語系。必要參數: %s(目標語系)、channel_scope。缺參策略: 僅接受使用者明確指定 %s；若缺 %s，先提問請使用者提供，不可自行推測。", semanticdecision.ActionParamTargetLocale, semanticdecision.ActionParamTargetLocale, semanticdecision.ActionParamTargetLocale),
+					CommandPurpose: fmt.Sprintf("用途: 協助模型判斷此指令是啟用翻譯語系。必要參數: %s(單一目標語系，格式需為 xx-YY，如 en-US) 或 %s(多個目標語系，元素需為 xx-YY，如 [en-US,de-DE])、channel_scope。缺參策略: 僅接受使用者明確指定語系；若未明確提供任何語系，先提問請使用者補充，不可自行推測。", semanticdecision.ActionParamTargetLocale, semanticdecision.ActionParamTargetLocales),
 				},
 				{
 					ActionCode:     action.ActionCodeDisable,

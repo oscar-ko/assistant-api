@@ -78,12 +78,33 @@ func (d *Dispatcher) Dispatch(message *unifiedmessage.Message, senderUserID stri
 	if d == nil || decision == nil {
 		return
 	}
+	channelID := ""
+	messageID := ""
+	if message != nil {
+		channelID = strings.TrimSpace(message.ChannelID)
+		messageID = strings.TrimSpace(message.PlatformMessageID)
+	}
 	operation := strings.ToLower(strings.TrimSpace(decision.APIOperation))
 	handler, ok := d.handlers[operation]
 	if !ok || handler == nil {
+		zap.L().Debug("action post handler not registered",
+			zap.String("channel_id", channelID),
+			zap.String("message_id", messageID),
+			zap.String("api_operation", operation),
+		)
 		return
 	}
+	zap.L().Debug("action post handler dispatching",
+		zap.String("channel_id", channelID),
+		zap.String("message_id", messageID),
+		zap.String("api_operation", operation),
+	)
 	handler(message, senderUserID, decision, matchedSkillCode)
+	zap.L().Debug("action post handler executed",
+		zap.String("channel_id", channelID),
+		zap.String("message_id", messageID),
+		zap.String("api_operation", operation),
+	)
 }
 
 // NewPersistTranslationCommandStateHandler 建立翻譯啟用副作用的共用 handler。
@@ -122,16 +143,25 @@ func NewPersistTranslationCommandStateHandler(repo *repository.ChannelMessageRep
 			return
 		}
 
-		// ChannelID 在 unified model 內是字串，需先轉成 UUID 才能進入 repository 層。
-		channelUUID, err := uuid.Parse(strings.TrimSpace(message.ChannelID))
-		if err != nil || channelUUID == uuid.Nil {
-			zap.L().Error("translation command persistence failed: invalid channel id",
+		// unified message 的 ChannelID 是平台外部識別（例如 LINE group/user id），
+		// 不是資料庫 channel 主鍵；這裡必須先解析/查回內部 channel UUID。
+		channel, err := repo.GetOrCreateChannel(
+			context.Background(),
+			strings.TrimSpace(message.Platform),
+			strings.TrimSpace(message.ChannelID),
+			strings.TrimSpace(message.ChannelType),
+		)
+		if err != nil || channel == nil || channel.ID == uuid.Nil {
+			zap.L().Error("translation command persistence failed: resolve internal channel failed",
+				zap.String("platform", strings.TrimSpace(message.Platform)),
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("channel_type", strings.TrimSpace(message.ChannelType)),
 				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 				zap.Error(err),
 			)
 			return
 		}
+		channelUUID := channel.ID
 
 		// senderUserID 必須由 caller 提供；不再 fallback，避免來源不明。
 		senderUserID = strings.TrimSpace(senderUserID)

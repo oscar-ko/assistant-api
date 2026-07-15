@@ -25,20 +25,20 @@ type ActionCandidate struct {
 type ActionDecision struct {
 	// SchemaVersion 用來標示目前 action 決策回應的契約版本，
 	// 方便未來做灰度升級或多版本相容判斷。
-	SchemaVersion     string                     `json:"schema_version"`
+	SchemaVersion string `json:"schema_version"`
 	// APIOperation 是模型最終挑選的操作名稱，
 	// 呼叫端會以此值對應到實際執行 handler。
-	APIOperation      string                     `json:"api_operation"`
+	APIOperation string `json:"api_operation"`
 	// ActionParams 是動態參數容器：
 	// key 為參數名稱，value 保持 json.RawMessage，讓不同 action 可各自解析型別。
-	ActionParams      map[string]json.RawMessage `json:"action_params,omitempty"`
+	ActionParams map[string]json.RawMessage `json:"action_params,omitempty"`
 	// MissingParameters 保存本次決策判定「仍缺失」的必要參數名稱清單，
 	// 例如 target_locale、amount、billing_period 等。
-	MissingParameters []string                   `json:"missing_parameters,omitempty"`
+	MissingParameters []string `json:"missing_parameters,omitempty"`
 	// Confidence 表示模型對本次 action 決策的信心值（0~1）。
-	Confidence        float64                    `json:"confidence"`
+	Confidence float64 `json:"confidence"`
 	// Reason 保留模型端的簡短決策理由，用於 observability 與排查。
-	Reason            string                     `json:"reason"`
+	Reason string `json:"reason"`
 }
 
 // ParamString 讀取 action_params 裡的字串參數。
@@ -215,7 +215,7 @@ func BuildFinalActionPrompt(candidates []ActionCandidate) string {
 		if operation == "" {
 			continue
 		}
-		line := fmt.Sprintf("%d. operation=%s skill=%s route_text=%q",
+		line := fmt.Sprintf("%d. operation=%s skill=%s route_text=%s",
 			idx+1,
 			operation,
 			strings.TrimSpace(candidate.SkillCode),
@@ -242,10 +242,17 @@ schema_version, api_operation, action_params, missing_parameters, confidence, re
 規則：
 - api_operation 必須是上述候選其中一個 operation 的原始值，不可自行創造新值
 - action_params 為物件，僅填入本次 action 真正需要且可從訊息明確擷取的參數
+- 不可把候選清單中的 route_text、skill、score、operation 等描述欄位複製到 action_params
 - 缺少必要參數時，不可猜測，請把缺失參數名稱放入 missing_parameters
 - 若使用者訊息語意明顯對應某個候選，即使非分數最高的候選，也應選擇語意最貼合的那個
 - confidence 為 0 到 1 的數字，表示你對這個選擇的把握程度
 - reason 用一句話簡述為何選擇該 action，而非其他候選
+- reason 必須是純文字句子，不可包含雙引號、不可複製候選清單原文、不可輸出 JSON 片段
+- 若 api_operation=start_translation_locale，action_params 只能使用 target_locale 或 target_locales，不可使用 route_text
+- 翻譯語系參數格式必須使用 xx-YY（ISO 639-1 + ISO 3166-1），例如 en-US、de-DE、fr-FR、zh-TW、ja-JP
+- 若使用者以語言名稱表達（例如英文、德文、法文、中文、日文），你必須先轉成對應的 xx-YY 再輸出，不可輸出語言名稱本身
+- 若使用者明確提到多個翻譯語系，必須選擇 api_operation=start_translation_locale，且把所有明確語系放入 action_params.target_locales（字串陣列，元素必須是 xx-YY）
+- 若只提到單一翻譯語系，可使用 action_params.target_locale（值必須是 xx-YY）；若提到兩個以上語系，必須使用 action_params.target_locales，不可回報缺參數
 `)
 }
 
@@ -357,6 +364,9 @@ func decodeActionDecisionResponse(resp *http.Response) (*ActionDecision, error) 
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		// 這裡刻意不做容錯 fallback，若回傳 JSON 不符合契約就直接失敗，
 		// 避免把不完整/錯誤資料默默帶到後續 action 執行路徑。
+		return nil, err
+	}
+	if err := validateActionDecision(&decoded); err != nil {
 		return nil, err
 	}
 
