@@ -11,6 +11,7 @@ import (
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/skill"
+	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
 	"errors"
@@ -40,6 +41,7 @@ const (
 	TypeChannelServiceMember = "ChannelServiceMember"
 	TypeLine                 = "Line"
 	TypeSkill                = "Skill"
+	TypeTranslationLocale    = "TranslationLocale"
 	TypeUser                 = "User"
 )
 
@@ -1398,28 +1400,31 @@ func (m *ActionRouteMutation) ResetEdge(name string) error {
 // ChannelMutation represents an operation that mutates the Channel nodes in the graph.
 type ChannelMutation struct {
 	config
-	op                        Op
-	typ                       string
-	id                        *uuid.UUID
-	created_at                *time.Time
-	updated_at                *time.Time
-	name                      *string
-	platform                  *channel.Platform
-	group_id                  *string
-	_type                     *channel.Type
-	is_active                 *bool
-	inactive_message_count    *int
-	addinactive_message_count *int
-	clearedFields             map[string]struct{}
-	messages                  map[uuid.UUID]struct{}
-	removedmessages           map[uuid.UUID]struct{}
-	clearedmessages           bool
-	service_members           map[uuid.UUID]struct{}
-	removedservice_members    map[uuid.UUID]struct{}
-	clearedservice_members    bool
-	done                      bool
-	oldValue                  func(context.Context) (*Channel, error)
-	predicates                []predicate.Channel
+	op                         Op
+	typ                        string
+	id                         *uuid.UUID
+	created_at                 *time.Time
+	updated_at                 *time.Time
+	name                       *string
+	platform                   *channel.Platform
+	group_id                   *string
+	_type                      *channel.Type
+	is_active                  *bool
+	inactive_message_count     *int
+	addinactive_message_count  *int
+	clearedFields              map[string]struct{}
+	messages                   map[uuid.UUID]struct{}
+	removedmessages            map[uuid.UUID]struct{}
+	clearedmessages            bool
+	service_members            map[uuid.UUID]struct{}
+	removedservice_members     map[uuid.UUID]struct{}
+	clearedservice_members     bool
+	translation_locales        map[uuid.UUID]struct{}
+	removedtranslation_locales map[uuid.UUID]struct{}
+	clearedtranslation_locales bool
+	done                       bool
+	oldValue                   func(context.Context) (*Channel, error)
+	predicates                 []predicate.Channel
 }
 
 var _ ent.Mutation = (*ChannelMutation)(nil)
@@ -1942,6 +1947,60 @@ func (m *ChannelMutation) ResetServiceMembers() {
 	m.removedservice_members = nil
 }
 
+// AddTranslationLocaleIDs adds the "translation_locales" edge to the TranslationLocale entity by ids.
+func (m *ChannelMutation) AddTranslationLocaleIDs(ids ...uuid.UUID) {
+	if m.translation_locales == nil {
+		m.translation_locales = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.translation_locales[ids[i]] = struct{}{}
+	}
+}
+
+// ClearTranslationLocales clears the "translation_locales" edge to the TranslationLocale entity.
+func (m *ChannelMutation) ClearTranslationLocales() {
+	m.clearedtranslation_locales = true
+}
+
+// TranslationLocalesCleared reports if the "translation_locales" edge to the TranslationLocale entity was cleared.
+func (m *ChannelMutation) TranslationLocalesCleared() bool {
+	return m.clearedtranslation_locales
+}
+
+// RemoveTranslationLocaleIDs removes the "translation_locales" edge to the TranslationLocale entity by IDs.
+func (m *ChannelMutation) RemoveTranslationLocaleIDs(ids ...uuid.UUID) {
+	if m.removedtranslation_locales == nil {
+		m.removedtranslation_locales = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.translation_locales, ids[i])
+		m.removedtranslation_locales[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedTranslationLocales returns the removed IDs of the "translation_locales" edge to the TranslationLocale entity.
+func (m *ChannelMutation) RemovedTranslationLocalesIDs() (ids []uuid.UUID) {
+	for id := range m.removedtranslation_locales {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// TranslationLocalesIDs returns the "translation_locales" edge IDs in the mutation.
+func (m *ChannelMutation) TranslationLocalesIDs() (ids []uuid.UUID) {
+	for id := range m.translation_locales {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetTranslationLocales resets all changes to the "translation_locales" edge.
+func (m *ChannelMutation) ResetTranslationLocales() {
+	m.translation_locales = nil
+	m.clearedtranslation_locales = false
+	m.removedtranslation_locales = nil
+}
+
 // Where appends a list predicates to the ChannelMutation builder.
 func (m *ChannelMutation) Where(ps ...predicate.Channel) {
 	m.predicates = append(m.predicates, ps...)
@@ -2209,12 +2268,15 @@ func (m *ChannelMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ChannelMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.messages != nil {
 		edges = append(edges, channel.EdgeMessages)
 	}
 	if m.service_members != nil {
 		edges = append(edges, channel.EdgeServiceMembers)
+	}
+	if m.translation_locales != nil {
+		edges = append(edges, channel.EdgeTranslationLocales)
 	}
 	return edges
 }
@@ -2235,18 +2297,27 @@ func (m *ChannelMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case channel.EdgeTranslationLocales:
+		ids := make([]ent.Value, 0, len(m.translation_locales))
+		for id := range m.translation_locales {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ChannelMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.removedmessages != nil {
 		edges = append(edges, channel.EdgeMessages)
 	}
 	if m.removedservice_members != nil {
 		edges = append(edges, channel.EdgeServiceMembers)
+	}
+	if m.removedtranslation_locales != nil {
+		edges = append(edges, channel.EdgeTranslationLocales)
 	}
 	return edges
 }
@@ -2267,18 +2338,27 @@ func (m *ChannelMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case channel.EdgeTranslationLocales:
+		ids := make([]ent.Value, 0, len(m.removedtranslation_locales))
+		for id := range m.removedtranslation_locales {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ChannelMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.clearedmessages {
 		edges = append(edges, channel.EdgeMessages)
 	}
 	if m.clearedservice_members {
 		edges = append(edges, channel.EdgeServiceMembers)
+	}
+	if m.clearedtranslation_locales {
+		edges = append(edges, channel.EdgeTranslationLocales)
 	}
 	return edges
 }
@@ -2291,6 +2371,8 @@ func (m *ChannelMutation) EdgeCleared(name string) bool {
 		return m.clearedmessages
 	case channel.EdgeServiceMembers:
 		return m.clearedservice_members
+	case channel.EdgeTranslationLocales:
+		return m.clearedtranslation_locales
 	}
 	return false
 }
@@ -2312,6 +2394,9 @@ func (m *ChannelMutation) ResetEdge(name string) error {
 		return nil
 	case channel.EdgeServiceMembers:
 		m.ResetServiceMembers()
+		return nil
+	case channel.EdgeTranslationLocales:
+		m.ResetTranslationLocales()
 		return nil
 	}
 	return fmt.Errorf("unknown Channel edge %s", name)
@@ -4843,6 +4928,9 @@ type SkillMutation struct {
 	channel_service_members        map[uuid.UUID]struct{}
 	removedchannel_service_members map[uuid.UUID]struct{}
 	clearedchannel_service_members bool
+	translation_locales            map[uuid.UUID]struct{}
+	removedtranslation_locales     map[uuid.UUID]struct{}
+	clearedtranslation_locales     bool
 	done                           bool
 	oldValue                       func(context.Context) (*Skill, error)
 	predicates                     []predicate.Skill
@@ -5181,6 +5269,60 @@ func (m *SkillMutation) ResetChannelServiceMembers() {
 	m.removedchannel_service_members = nil
 }
 
+// AddTranslationLocaleIDs adds the "translation_locales" edge to the TranslationLocale entity by ids.
+func (m *SkillMutation) AddTranslationLocaleIDs(ids ...uuid.UUID) {
+	if m.translation_locales == nil {
+		m.translation_locales = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.translation_locales[ids[i]] = struct{}{}
+	}
+}
+
+// ClearTranslationLocales clears the "translation_locales" edge to the TranslationLocale entity.
+func (m *SkillMutation) ClearTranslationLocales() {
+	m.clearedtranslation_locales = true
+}
+
+// TranslationLocalesCleared reports if the "translation_locales" edge to the TranslationLocale entity was cleared.
+func (m *SkillMutation) TranslationLocalesCleared() bool {
+	return m.clearedtranslation_locales
+}
+
+// RemoveTranslationLocaleIDs removes the "translation_locales" edge to the TranslationLocale entity by IDs.
+func (m *SkillMutation) RemoveTranslationLocaleIDs(ids ...uuid.UUID) {
+	if m.removedtranslation_locales == nil {
+		m.removedtranslation_locales = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.translation_locales, ids[i])
+		m.removedtranslation_locales[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedTranslationLocales returns the removed IDs of the "translation_locales" edge to the TranslationLocale entity.
+func (m *SkillMutation) RemovedTranslationLocalesIDs() (ids []uuid.UUID) {
+	for id := range m.removedtranslation_locales {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// TranslationLocalesIDs returns the "translation_locales" edge IDs in the mutation.
+func (m *SkillMutation) TranslationLocalesIDs() (ids []uuid.UUID) {
+	for id := range m.translation_locales {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetTranslationLocales resets all changes to the "translation_locales" edge.
+func (m *SkillMutation) ResetTranslationLocales() {
+	m.translation_locales = nil
+	m.clearedtranslation_locales = false
+	m.removedtranslation_locales = nil
+}
+
 // Where appends a list predicates to the SkillMutation builder.
 func (m *SkillMutation) Where(ps ...predicate.Skill) {
 	m.predicates = append(m.predicates, ps...)
@@ -5357,12 +5499,15 @@ func (m *SkillMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *SkillMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.actions != nil {
 		edges = append(edges, skill.EdgeActions)
 	}
 	if m.channel_service_members != nil {
 		edges = append(edges, skill.EdgeChannelServiceMembers)
+	}
+	if m.translation_locales != nil {
+		edges = append(edges, skill.EdgeTranslationLocales)
 	}
 	return edges
 }
@@ -5383,18 +5528,27 @@ func (m *SkillMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case skill.EdgeTranslationLocales:
+		ids := make([]ent.Value, 0, len(m.translation_locales))
+		for id := range m.translation_locales {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *SkillMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.removedactions != nil {
 		edges = append(edges, skill.EdgeActions)
 	}
 	if m.removedchannel_service_members != nil {
 		edges = append(edges, skill.EdgeChannelServiceMembers)
+	}
+	if m.removedtranslation_locales != nil {
+		edges = append(edges, skill.EdgeTranslationLocales)
 	}
 	return edges
 }
@@ -5415,18 +5569,27 @@ func (m *SkillMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case skill.EdgeTranslationLocales:
+		ids := make([]ent.Value, 0, len(m.removedtranslation_locales))
+		for id := range m.removedtranslation_locales {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *SkillMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.clearedactions {
 		edges = append(edges, skill.EdgeActions)
 	}
 	if m.clearedchannel_service_members {
 		edges = append(edges, skill.EdgeChannelServiceMembers)
+	}
+	if m.clearedtranslation_locales {
+		edges = append(edges, skill.EdgeTranslationLocales)
 	}
 	return edges
 }
@@ -5439,6 +5602,8 @@ func (m *SkillMutation) EdgeCleared(name string) bool {
 		return m.clearedactions
 	case skill.EdgeChannelServiceMembers:
 		return m.clearedchannel_service_members
+	case skill.EdgeTranslationLocales:
+		return m.clearedtranslation_locales
 	}
 	return false
 }
@@ -5461,28 +5626,795 @@ func (m *SkillMutation) ResetEdge(name string) error {
 	case skill.EdgeChannelServiceMembers:
 		m.ResetChannelServiceMembers()
 		return nil
+	case skill.EdgeTranslationLocales:
+		m.ResetTranslationLocales()
+		return nil
 	}
 	return fmt.Errorf("unknown Skill edge %s", name)
+}
+
+// TranslationLocaleMutation represents an operation that mutates the TranslationLocale nodes in the graph.
+type TranslationLocaleMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *uuid.UUID
+	created_at     *time.Time
+	updated_at     *time.Time
+	target_locale  *string
+	clearedFields  map[string]struct{}
+	channel        *uuid.UUID
+	clearedchannel bool
+	skill          *uuid.UUID
+	clearedskill   bool
+	owner          *uuid.UUID
+	clearedowner   bool
+	done           bool
+	oldValue       func(context.Context) (*TranslationLocale, error)
+	predicates     []predicate.TranslationLocale
+}
+
+var _ ent.Mutation = (*TranslationLocaleMutation)(nil)
+
+// translationlocaleOption allows management of the mutation configuration using functional options.
+type translationlocaleOption func(*TranslationLocaleMutation)
+
+// newTranslationLocaleMutation creates new mutation for the TranslationLocale entity.
+func newTranslationLocaleMutation(c config, op Op, opts ...translationlocaleOption) *TranslationLocaleMutation {
+	m := &TranslationLocaleMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeTranslationLocale,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withTranslationLocaleID sets the ID field of the mutation.
+func withTranslationLocaleID(id uuid.UUID) translationlocaleOption {
+	return func(m *TranslationLocaleMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *TranslationLocale
+		)
+		m.oldValue = func(ctx context.Context) (*TranslationLocale, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().TranslationLocale.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withTranslationLocale sets the old TranslationLocale of the mutation.
+func withTranslationLocale(node *TranslationLocale) translationlocaleOption {
+	return func(m *TranslationLocaleMutation) {
+		m.oldValue = func(context.Context) (*TranslationLocale, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m TranslationLocaleMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m TranslationLocaleMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of TranslationLocale entities.
+func (m *TranslationLocaleMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *TranslationLocaleMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *TranslationLocaleMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().TranslationLocale.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *TranslationLocaleMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *TranslationLocaleMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the TranslationLocale entity.
+// If the TranslationLocale object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TranslationLocaleMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *TranslationLocaleMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *TranslationLocaleMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *TranslationLocaleMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the TranslationLocale entity.
+// If the TranslationLocale object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TranslationLocaleMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *TranslationLocaleMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetChannelID sets the "channel_id" field.
+func (m *TranslationLocaleMutation) SetChannelID(u uuid.UUID) {
+	m.channel = &u
+}
+
+// ChannelID returns the value of the "channel_id" field in the mutation.
+func (m *TranslationLocaleMutation) ChannelID() (r uuid.UUID, exists bool) {
+	v := m.channel
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannelID returns the old "channel_id" field's value of the TranslationLocale entity.
+// If the TranslationLocale object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TranslationLocaleMutation) OldChannelID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannelID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannelID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannelID: %w", err)
+	}
+	return oldValue.ChannelID, nil
+}
+
+// ResetChannelID resets all changes to the "channel_id" field.
+func (m *TranslationLocaleMutation) ResetChannelID() {
+	m.channel = nil
+}
+
+// SetSkillID sets the "skill_id" field.
+func (m *TranslationLocaleMutation) SetSkillID(u uuid.UUID) {
+	m.skill = &u
+}
+
+// SkillID returns the value of the "skill_id" field in the mutation.
+func (m *TranslationLocaleMutation) SkillID() (r uuid.UUID, exists bool) {
+	v := m.skill
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSkillID returns the old "skill_id" field's value of the TranslationLocale entity.
+// If the TranslationLocale object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TranslationLocaleMutation) OldSkillID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSkillID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSkillID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSkillID: %w", err)
+	}
+	return oldValue.SkillID, nil
+}
+
+// ResetSkillID resets all changes to the "skill_id" field.
+func (m *TranslationLocaleMutation) ResetSkillID() {
+	m.skill = nil
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (m *TranslationLocaleMutation) SetOwnerUserID(u uuid.UUID) {
+	m.owner = &u
+}
+
+// OwnerUserID returns the value of the "owner_user_id" field in the mutation.
+func (m *TranslationLocaleMutation) OwnerUserID() (r uuid.UUID, exists bool) {
+	v := m.owner
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOwnerUserID returns the old "owner_user_id" field's value of the TranslationLocale entity.
+// If the TranslationLocale object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TranslationLocaleMutation) OldOwnerUserID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOwnerUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOwnerUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOwnerUserID: %w", err)
+	}
+	return oldValue.OwnerUserID, nil
+}
+
+// ResetOwnerUserID resets all changes to the "owner_user_id" field.
+func (m *TranslationLocaleMutation) ResetOwnerUserID() {
+	m.owner = nil
+}
+
+// SetTargetLocale sets the "target_locale" field.
+func (m *TranslationLocaleMutation) SetTargetLocale(s string) {
+	m.target_locale = &s
+}
+
+// TargetLocale returns the value of the "target_locale" field in the mutation.
+func (m *TranslationLocaleMutation) TargetLocale() (r string, exists bool) {
+	v := m.target_locale
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTargetLocale returns the old "target_locale" field's value of the TranslationLocale entity.
+// If the TranslationLocale object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TranslationLocaleMutation) OldTargetLocale(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTargetLocale is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTargetLocale requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTargetLocale: %w", err)
+	}
+	return oldValue.TargetLocale, nil
+}
+
+// ResetTargetLocale resets all changes to the "target_locale" field.
+func (m *TranslationLocaleMutation) ResetTargetLocale() {
+	m.target_locale = nil
+}
+
+// ClearChannel clears the "channel" edge to the Channel entity.
+func (m *TranslationLocaleMutation) ClearChannel() {
+	m.clearedchannel = true
+	m.clearedFields[translationlocale.FieldChannelID] = struct{}{}
+}
+
+// ChannelCleared reports if the "channel" edge to the Channel entity was cleared.
+func (m *TranslationLocaleMutation) ChannelCleared() bool {
+	return m.clearedchannel
+}
+
+// ChannelIDs returns the "channel" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ChannelID instead. It exists only for internal usage by the builders.
+func (m *TranslationLocaleMutation) ChannelIDs() (ids []uuid.UUID) {
+	if id := m.channel; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetChannel resets all changes to the "channel" edge.
+func (m *TranslationLocaleMutation) ResetChannel() {
+	m.channel = nil
+	m.clearedchannel = false
+}
+
+// ClearSkill clears the "skill" edge to the Skill entity.
+func (m *TranslationLocaleMutation) ClearSkill() {
+	m.clearedskill = true
+	m.clearedFields[translationlocale.FieldSkillID] = struct{}{}
+}
+
+// SkillCleared reports if the "skill" edge to the Skill entity was cleared.
+func (m *TranslationLocaleMutation) SkillCleared() bool {
+	return m.clearedskill
+}
+
+// SkillIDs returns the "skill" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SkillID instead. It exists only for internal usage by the builders.
+func (m *TranslationLocaleMutation) SkillIDs() (ids []uuid.UUID) {
+	if id := m.skill; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSkill resets all changes to the "skill" edge.
+func (m *TranslationLocaleMutation) ResetSkill() {
+	m.skill = nil
+	m.clearedskill = false
+}
+
+// SetOwnerID sets the "owner" edge to the User entity by id.
+func (m *TranslationLocaleMutation) SetOwnerID(id uuid.UUID) {
+	m.owner = &id
+}
+
+// ClearOwner clears the "owner" edge to the User entity.
+func (m *TranslationLocaleMutation) ClearOwner() {
+	m.clearedowner = true
+	m.clearedFields[translationlocale.FieldOwnerUserID] = struct{}{}
+}
+
+// OwnerCleared reports if the "owner" edge to the User entity was cleared.
+func (m *TranslationLocaleMutation) OwnerCleared() bool {
+	return m.clearedowner
+}
+
+// OwnerID returns the "owner" edge ID in the mutation.
+func (m *TranslationLocaleMutation) OwnerID() (id uuid.UUID, exists bool) {
+	if m.owner != nil {
+		return *m.owner, true
+	}
+	return
+}
+
+// OwnerIDs returns the "owner" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// OwnerID instead. It exists only for internal usage by the builders.
+func (m *TranslationLocaleMutation) OwnerIDs() (ids []uuid.UUID) {
+	if id := m.owner; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetOwner resets all changes to the "owner" edge.
+func (m *TranslationLocaleMutation) ResetOwner() {
+	m.owner = nil
+	m.clearedowner = false
+}
+
+// Where appends a list predicates to the TranslationLocaleMutation builder.
+func (m *TranslationLocaleMutation) Where(ps ...predicate.TranslationLocale) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the TranslationLocaleMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *TranslationLocaleMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.TranslationLocale, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *TranslationLocaleMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *TranslationLocaleMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (TranslationLocale).
+func (m *TranslationLocaleMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *TranslationLocaleMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.created_at != nil {
+		fields = append(fields, translationlocale.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, translationlocale.FieldUpdatedAt)
+	}
+	if m.channel != nil {
+		fields = append(fields, translationlocale.FieldChannelID)
+	}
+	if m.skill != nil {
+		fields = append(fields, translationlocale.FieldSkillID)
+	}
+	if m.owner != nil {
+		fields = append(fields, translationlocale.FieldOwnerUserID)
+	}
+	if m.target_locale != nil {
+		fields = append(fields, translationlocale.FieldTargetLocale)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *TranslationLocaleMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case translationlocale.FieldCreatedAt:
+		return m.CreatedAt()
+	case translationlocale.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case translationlocale.FieldChannelID:
+		return m.ChannelID()
+	case translationlocale.FieldSkillID:
+		return m.SkillID()
+	case translationlocale.FieldOwnerUserID:
+		return m.OwnerUserID()
+	case translationlocale.FieldTargetLocale:
+		return m.TargetLocale()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *TranslationLocaleMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case translationlocale.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case translationlocale.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case translationlocale.FieldChannelID:
+		return m.OldChannelID(ctx)
+	case translationlocale.FieldSkillID:
+		return m.OldSkillID(ctx)
+	case translationlocale.FieldOwnerUserID:
+		return m.OldOwnerUserID(ctx)
+	case translationlocale.FieldTargetLocale:
+		return m.OldTargetLocale(ctx)
+	}
+	return nil, fmt.Errorf("unknown TranslationLocale field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *TranslationLocaleMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case translationlocale.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case translationlocale.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case translationlocale.FieldChannelID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannelID(v)
+		return nil
+	case translationlocale.FieldSkillID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSkillID(v)
+		return nil
+	case translationlocale.FieldOwnerUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOwnerUserID(v)
+		return nil
+	case translationlocale.FieldTargetLocale:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTargetLocale(v)
+		return nil
+	}
+	return fmt.Errorf("unknown TranslationLocale field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *TranslationLocaleMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *TranslationLocaleMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *TranslationLocaleMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown TranslationLocale numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *TranslationLocaleMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *TranslationLocaleMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *TranslationLocaleMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown TranslationLocale nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *TranslationLocaleMutation) ResetField(name string) error {
+	switch name {
+	case translationlocale.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case translationlocale.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case translationlocale.FieldChannelID:
+		m.ResetChannelID()
+		return nil
+	case translationlocale.FieldSkillID:
+		m.ResetSkillID()
+		return nil
+	case translationlocale.FieldOwnerUserID:
+		m.ResetOwnerUserID()
+		return nil
+	case translationlocale.FieldTargetLocale:
+		m.ResetTargetLocale()
+		return nil
+	}
+	return fmt.Errorf("unknown TranslationLocale field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *TranslationLocaleMutation) AddedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.channel != nil {
+		edges = append(edges, translationlocale.EdgeChannel)
+	}
+	if m.skill != nil {
+		edges = append(edges, translationlocale.EdgeSkill)
+	}
+	if m.owner != nil {
+		edges = append(edges, translationlocale.EdgeOwner)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *TranslationLocaleMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case translationlocale.EdgeChannel:
+		if id := m.channel; id != nil {
+			return []ent.Value{*id}
+		}
+	case translationlocale.EdgeSkill:
+		if id := m.skill; id != nil {
+			return []ent.Value{*id}
+		}
+	case translationlocale.EdgeOwner:
+		if id := m.owner; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *TranslationLocaleMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 3)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *TranslationLocaleMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *TranslationLocaleMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.clearedchannel {
+		edges = append(edges, translationlocale.EdgeChannel)
+	}
+	if m.clearedskill {
+		edges = append(edges, translationlocale.EdgeSkill)
+	}
+	if m.clearedowner {
+		edges = append(edges, translationlocale.EdgeOwner)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *TranslationLocaleMutation) EdgeCleared(name string) bool {
+	switch name {
+	case translationlocale.EdgeChannel:
+		return m.clearedchannel
+	case translationlocale.EdgeSkill:
+		return m.clearedskill
+	case translationlocale.EdgeOwner:
+		return m.clearedowner
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *TranslationLocaleMutation) ClearEdge(name string) error {
+	switch name {
+	case translationlocale.EdgeChannel:
+		m.ClearChannel()
+		return nil
+	case translationlocale.EdgeSkill:
+		m.ClearSkill()
+		return nil
+	case translationlocale.EdgeOwner:
+		m.ClearOwner()
+		return nil
+	}
+	return fmt.Errorf("unknown TranslationLocale unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *TranslationLocaleMutation) ResetEdge(name string) error {
+	switch name {
+	case translationlocale.EdgeChannel:
+		m.ResetChannel()
+		return nil
+	case translationlocale.EdgeSkill:
+		m.ResetSkill()
+		return nil
+	case translationlocale.EdgeOwner:
+		m.ResetOwner()
+		return nil
+	}
+	return fmt.Errorf("unknown TranslationLocale edge %s", name)
 }
 
 // UserMutation represents an operation that mutates the User nodes in the graph.
 type UserMutation struct {
 	config
-	op                             Op
-	typ                            string
-	id                             *uuid.UUID
-	name                           *string
-	email                          *string
-	clearedFields                  map[string]struct{}
-	line                           map[uuid.UUID]struct{}
-	removedline                    map[uuid.UUID]struct{}
-	clearedline                    bool
-	channel_service_members        map[uuid.UUID]struct{}
-	removedchannel_service_members map[uuid.UUID]struct{}
-	clearedchannel_service_members bool
-	done                           bool
-	oldValue                       func(context.Context) (*User, error)
-	predicates                     []predicate.User
+	op                               Op
+	typ                              string
+	id                               *uuid.UUID
+	name                             *string
+	email                            *string
+	clearedFields                    map[string]struct{}
+	line                             map[uuid.UUID]struct{}
+	removedline                      map[uuid.UUID]struct{}
+	clearedline                      bool
+	channel_service_members          map[uuid.UUID]struct{}
+	removedchannel_service_members   map[uuid.UUID]struct{}
+	clearedchannel_service_members   bool
+	owned_translation_locales        map[uuid.UUID]struct{}
+	removedowned_translation_locales map[uuid.UUID]struct{}
+	clearedowned_translation_locales bool
+	done                             bool
+	oldValue                         func(context.Context) (*User, error)
+	predicates                       []predicate.User
 }
 
 var _ ent.Mutation = (*UserMutation)(nil)
@@ -5769,6 +6701,60 @@ func (m *UserMutation) ResetChannelServiceMembers() {
 	m.removedchannel_service_members = nil
 }
 
+// AddOwnedTranslationLocaleIDs adds the "owned_translation_locales" edge to the TranslationLocale entity by ids.
+func (m *UserMutation) AddOwnedTranslationLocaleIDs(ids ...uuid.UUID) {
+	if m.owned_translation_locales == nil {
+		m.owned_translation_locales = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.owned_translation_locales[ids[i]] = struct{}{}
+	}
+}
+
+// ClearOwnedTranslationLocales clears the "owned_translation_locales" edge to the TranslationLocale entity.
+func (m *UserMutation) ClearOwnedTranslationLocales() {
+	m.clearedowned_translation_locales = true
+}
+
+// OwnedTranslationLocalesCleared reports if the "owned_translation_locales" edge to the TranslationLocale entity was cleared.
+func (m *UserMutation) OwnedTranslationLocalesCleared() bool {
+	return m.clearedowned_translation_locales
+}
+
+// RemoveOwnedTranslationLocaleIDs removes the "owned_translation_locales" edge to the TranslationLocale entity by IDs.
+func (m *UserMutation) RemoveOwnedTranslationLocaleIDs(ids ...uuid.UUID) {
+	if m.removedowned_translation_locales == nil {
+		m.removedowned_translation_locales = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.owned_translation_locales, ids[i])
+		m.removedowned_translation_locales[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedOwnedTranslationLocales returns the removed IDs of the "owned_translation_locales" edge to the TranslationLocale entity.
+func (m *UserMutation) RemovedOwnedTranslationLocalesIDs() (ids []uuid.UUID) {
+	for id := range m.removedowned_translation_locales {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// OwnedTranslationLocalesIDs returns the "owned_translation_locales" edge IDs in the mutation.
+func (m *UserMutation) OwnedTranslationLocalesIDs() (ids []uuid.UUID) {
+	for id := range m.owned_translation_locales {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetOwnedTranslationLocales resets all changes to the "owned_translation_locales" edge.
+func (m *UserMutation) ResetOwnedTranslationLocales() {
+	m.owned_translation_locales = nil
+	m.clearedowned_translation_locales = false
+	m.removedowned_translation_locales = nil
+}
+
 // Where appends a list predicates to the UserMutation builder.
 func (m *UserMutation) Where(ps ...predicate.User) {
 	m.predicates = append(m.predicates, ps...)
@@ -5919,12 +6905,15 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.line != nil {
 		edges = append(edges, user.EdgeLine)
 	}
 	if m.channel_service_members != nil {
 		edges = append(edges, user.EdgeChannelServiceMembers)
+	}
+	if m.owned_translation_locales != nil {
+		edges = append(edges, user.EdgeOwnedTranslationLocales)
 	}
 	return edges
 }
@@ -5945,18 +6934,27 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeOwnedTranslationLocales:
+		ids := make([]ent.Value, 0, len(m.owned_translation_locales))
+		for id := range m.owned_translation_locales {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.removedline != nil {
 		edges = append(edges, user.EdgeLine)
 	}
 	if m.removedchannel_service_members != nil {
 		edges = append(edges, user.EdgeChannelServiceMembers)
+	}
+	if m.removedowned_translation_locales != nil {
+		edges = append(edges, user.EdgeOwnedTranslationLocales)
 	}
 	return edges
 }
@@ -5977,18 +6975,27 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeOwnedTranslationLocales:
+		ids := make([]ent.Value, 0, len(m.removedowned_translation_locales))
+		for id := range m.removedowned_translation_locales {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.clearedline {
 		edges = append(edges, user.EdgeLine)
 	}
 	if m.clearedchannel_service_members {
 		edges = append(edges, user.EdgeChannelServiceMembers)
+	}
+	if m.clearedowned_translation_locales {
+		edges = append(edges, user.EdgeOwnedTranslationLocales)
 	}
 	return edges
 }
@@ -6001,6 +7008,8 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 		return m.clearedline
 	case user.EdgeChannelServiceMembers:
 		return m.clearedchannel_service_members
+	case user.EdgeOwnedTranslationLocales:
+		return m.clearedowned_translation_locales
 	}
 	return false
 }
@@ -6022,6 +7031,9 @@ func (m *UserMutation) ResetEdge(name string) error {
 		return nil
 	case user.EdgeChannelServiceMembers:
 		m.ResetChannelServiceMembers()
+		return nil
+	case user.EdgeOwnedTranslationLocales:
+		m.ResetOwnedTranslationLocales()
 		return nil
 	}
 	return fmt.Errorf("unknown User edge %s", name)

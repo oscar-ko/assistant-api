@@ -18,6 +18,7 @@ import (
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
+	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 
 	"entgo.io/ent"
@@ -46,6 +47,8 @@ type Client struct {
 	Line *LineClient
 	// Skill is the client for interacting with the Skill builders.
 	Skill *SkillClient
+	// TranslationLocale is the client for interacting with the TranslationLocale builders.
+	TranslationLocale *TranslationLocaleClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 }
@@ -66,6 +69,7 @@ func (c *Client) init() {
 	c.ChannelServiceMember = NewChannelServiceMemberClient(c.config)
 	c.Line = NewLineClient(c.config)
 	c.Skill = NewSkillClient(c.config)
+	c.TranslationLocale = NewTranslationLocaleClient(c.config)
 	c.User = NewUserClient(c.config)
 }
 
@@ -166,6 +170,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ChannelServiceMember: NewChannelServiceMemberClient(cfg),
 		Line:                 NewLineClient(cfg),
 		Skill:                NewSkillClient(cfg),
+		TranslationLocale:    NewTranslationLocaleClient(cfg),
 		User:                 NewUserClient(cfg),
 	}, nil
 }
@@ -193,6 +198,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ChannelServiceMember: NewChannelServiceMemberClient(cfg),
 		Line:                 NewLineClient(cfg),
 		Skill:                NewSkillClient(cfg),
+		TranslationLocale:    NewTranslationLocaleClient(cfg),
 		User:                 NewUserClient(cfg),
 	}, nil
 }
@@ -224,7 +230,7 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Action, c.ActionRoute, c.Channel, c.ChannelMessage, c.ChannelServiceMember,
-		c.Line, c.Skill, c.User,
+		c.Line, c.Skill, c.TranslationLocale, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -235,7 +241,7 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Action, c.ActionRoute, c.Channel, c.ChannelMessage, c.ChannelServiceMember,
-		c.Line, c.Skill, c.User,
+		c.Line, c.Skill, c.TranslationLocale, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -258,6 +264,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Line.mutate(ctx, m)
 	case *SkillMutation:
 		return c.Skill.mutate(ctx, m)
+	case *TranslationLocaleMutation:
+		return c.TranslationLocale.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
 	default:
@@ -712,6 +720,22 @@ func (c *ChannelClient) QueryServiceMembers(_m *Channel) *ChannelServiceMemberQu
 			sqlgraph.From(channel.Table, channel.FieldID, id),
 			sqlgraph.To(channelservicemember.Table, channelservicemember.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, true, channel.ServiceMembersTable, channel.ServiceMembersColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryTranslationLocales queries the translation_locales edge of a Channel.
+func (c *ChannelClient) QueryTranslationLocales(_m *Channel) *TranslationLocaleQuery {
+	query := (&TranslationLocaleClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(channel.Table, channel.FieldID, id),
+			sqlgraph.To(translationlocale.Table, translationlocale.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, channel.TranslationLocalesTable, channel.TranslationLocalesColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -1395,6 +1419,22 @@ func (c *SkillClient) QueryChannelServiceMembers(_m *Skill) *ChannelServiceMembe
 	return query
 }
 
+// QueryTranslationLocales queries the translation_locales edge of a Skill.
+func (c *SkillClient) QueryTranslationLocales(_m *Skill) *TranslationLocaleQuery {
+	query := (&TranslationLocaleClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(skill.Table, skill.FieldID, id),
+			sqlgraph.To(translationlocale.Table, translationlocale.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, skill.TranslationLocalesTable, skill.TranslationLocalesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *SkillClient) Hooks() []Hook {
 	return c.hooks.Skill
@@ -1417,6 +1457,187 @@ func (c *SkillClient) mutate(ctx context.Context, m *SkillMutation) (Value, erro
 		return (&SkillDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Skill mutation op: %q", m.Op())
+	}
+}
+
+// TranslationLocaleClient is a client for the TranslationLocale schema.
+type TranslationLocaleClient struct {
+	config
+}
+
+// NewTranslationLocaleClient returns a client for the TranslationLocale from the given config.
+func NewTranslationLocaleClient(c config) *TranslationLocaleClient {
+	return &TranslationLocaleClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `translationlocale.Hooks(f(g(h())))`.
+func (c *TranslationLocaleClient) Use(hooks ...Hook) {
+	c.hooks.TranslationLocale = append(c.hooks.TranslationLocale, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `translationlocale.Intercept(f(g(h())))`.
+func (c *TranslationLocaleClient) Intercept(interceptors ...Interceptor) {
+	c.inters.TranslationLocale = append(c.inters.TranslationLocale, interceptors...)
+}
+
+// Create returns a builder for creating a TranslationLocale entity.
+func (c *TranslationLocaleClient) Create() *TranslationLocaleCreate {
+	mutation := newTranslationLocaleMutation(c.config, OpCreate)
+	return &TranslationLocaleCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of TranslationLocale entities.
+func (c *TranslationLocaleClient) CreateBulk(builders ...*TranslationLocaleCreate) *TranslationLocaleCreateBulk {
+	return &TranslationLocaleCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *TranslationLocaleClient) MapCreateBulk(slice any, setFunc func(*TranslationLocaleCreate, int)) *TranslationLocaleCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &TranslationLocaleCreateBulk{err: fmt.Errorf("calling to TranslationLocaleClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*TranslationLocaleCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &TranslationLocaleCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for TranslationLocale.
+func (c *TranslationLocaleClient) Update() *TranslationLocaleUpdate {
+	mutation := newTranslationLocaleMutation(c.config, OpUpdate)
+	return &TranslationLocaleUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *TranslationLocaleClient) UpdateOne(_m *TranslationLocale) *TranslationLocaleUpdateOne {
+	mutation := newTranslationLocaleMutation(c.config, OpUpdateOne, withTranslationLocale(_m))
+	return &TranslationLocaleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *TranslationLocaleClient) UpdateOneID(id uuid.UUID) *TranslationLocaleUpdateOne {
+	mutation := newTranslationLocaleMutation(c.config, OpUpdateOne, withTranslationLocaleID(id))
+	return &TranslationLocaleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for TranslationLocale.
+func (c *TranslationLocaleClient) Delete() *TranslationLocaleDelete {
+	mutation := newTranslationLocaleMutation(c.config, OpDelete)
+	return &TranslationLocaleDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *TranslationLocaleClient) DeleteOne(_m *TranslationLocale) *TranslationLocaleDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *TranslationLocaleClient) DeleteOneID(id uuid.UUID) *TranslationLocaleDeleteOne {
+	builder := c.Delete().Where(translationlocale.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &TranslationLocaleDeleteOne{builder}
+}
+
+// Query returns a query builder for TranslationLocale.
+func (c *TranslationLocaleClient) Query() *TranslationLocaleQuery {
+	return &TranslationLocaleQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeTranslationLocale},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a TranslationLocale entity by its id.
+func (c *TranslationLocaleClient) Get(ctx context.Context, id uuid.UUID) (*TranslationLocale, error) {
+	return c.Query().Where(translationlocale.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *TranslationLocaleClient) GetX(ctx context.Context, id uuid.UUID) *TranslationLocale {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryChannel queries the channel edge of a TranslationLocale.
+func (c *TranslationLocaleClient) QueryChannel(_m *TranslationLocale) *ChannelQuery {
+	query := (&ChannelClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(translationlocale.Table, translationlocale.FieldID, id),
+			sqlgraph.To(channel.Table, channel.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, translationlocale.ChannelTable, translationlocale.ChannelColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySkill queries the skill edge of a TranslationLocale.
+func (c *TranslationLocaleClient) QuerySkill(_m *TranslationLocale) *SkillQuery {
+	query := (&SkillClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(translationlocale.Table, translationlocale.FieldID, id),
+			sqlgraph.To(skill.Table, skill.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, translationlocale.SkillTable, translationlocale.SkillColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryOwner queries the owner edge of a TranslationLocale.
+func (c *TranslationLocaleClient) QueryOwner(_m *TranslationLocale) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(translationlocale.Table, translationlocale.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, translationlocale.OwnerTable, translationlocale.OwnerColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *TranslationLocaleClient) Hooks() []Hook {
+	return c.hooks.TranslationLocale
+}
+
+// Interceptors returns the client interceptors.
+func (c *TranslationLocaleClient) Interceptors() []Interceptor {
+	return c.inters.TranslationLocale
+}
+
+func (c *TranslationLocaleClient) mutate(ctx context.Context, m *TranslationLocaleMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&TranslationLocaleCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&TranslationLocaleUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&TranslationLocaleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&TranslationLocaleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown TranslationLocale mutation op: %q", m.Op())
 	}
 }
 
@@ -1560,6 +1781,22 @@ func (c *UserClient) QueryChannelServiceMembers(_m *User) *ChannelServiceMemberQ
 	return query
 }
 
+// QueryOwnedTranslationLocales queries the owned_translation_locales edge of a User.
+func (c *UserClient) QueryOwnedTranslationLocales(_m *User) *TranslationLocaleQuery {
+	query := (&TranslationLocaleClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(translationlocale.Table, translationlocale.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, user.OwnedTranslationLocalesTable, user.OwnedTranslationLocalesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *UserClient) Hooks() []Hook {
 	return c.hooks.User
@@ -1589,10 +1826,10 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 type (
 	hooks struct {
 		Action, ActionRoute, Channel, ChannelMessage, ChannelServiceMember, Line, Skill,
-		User []ent.Hook
+		TranslationLocale, User []ent.Hook
 	}
 	inters struct {
 		Action, ActionRoute, Channel, ChannelMessage, ChannelServiceMember, Line, Skill,
-		User []ent.Interceptor
+		TranslationLocale, User []ent.Interceptor
 	}
 )

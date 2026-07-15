@@ -34,14 +34,17 @@ type UserEdges struct {
 	Line []*Line `json:"line,omitempty"`
 	// 使用者啟用服務的頻道成員設定
 	ChannelServiceMembers []*ChannelServiceMember `json:"channel_service_members,omitempty"`
+	// 使用者新增的翻譯目標語言設定
+	OwnedTranslationLocales []*TranslationLocale `json:"owned_translation_locales,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 	// totalCount holds the count of the edges above.
-	totalCount [2]map[string]int
+	totalCount [3]map[string]int
 
-	namedLine                  map[string][]*Line
-	namedChannelServiceMembers map[string][]*ChannelServiceMember
+	namedLine                    map[string][]*Line
+	namedChannelServiceMembers   map[string][]*ChannelServiceMember
+	namedOwnedTranslationLocales map[string][]*TranslationLocale
 }
 
 // LineOrErr returns the Line value or an error if the edge
@@ -60,6 +63,15 @@ func (e UserEdges) ChannelServiceMembersOrErr() ([]*ChannelServiceMember, error)
 		return e.ChannelServiceMembers, nil
 	}
 	return nil, &NotLoadedError{edge: "channel_service_members"}
+}
+
+// OwnedTranslationLocalesOrErr returns the OwnedTranslationLocales value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) OwnedTranslationLocalesOrErr() ([]*TranslationLocale, error) {
+	if e.loadedTypes[2] {
+		return e.OwnedTranslationLocales, nil
+	}
+	return nil, &NotLoadedError{edge: "owned_translation_locales"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -125,6 +137,11 @@ func (_m *User) QueryLine() *LineQuery {
 // QueryChannelServiceMembers queries the "channel_service_members" edge of the User entity.
 func (_m *User) QueryChannelServiceMembers() *ChannelServiceMemberQuery {
 	return NewUserClient(_m.config).QueryChannelServiceMembers(_m)
+}
+
+// QueryOwnedTranslationLocales queries the "owned_translation_locales" edge of the User entity.
+func (_m *User) QueryOwnedTranslationLocales() *TranslationLocaleQuery {
+	return NewUserClient(_m.config).QueryOwnedTranslationLocales(_m)
 }
 
 // Update returns a builder for updating this User.
@@ -204,6 +221,30 @@ func (_m *User) appendNamedChannelServiceMembers(name string, edges ...*ChannelS
 		_m.Edges.namedChannelServiceMembers[name] = []*ChannelServiceMember{}
 	} else {
 		_m.Edges.namedChannelServiceMembers[name] = append(_m.Edges.namedChannelServiceMembers[name], edges...)
+	}
+}
+
+// NamedOwnedTranslationLocales returns the OwnedTranslationLocales named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *User) NamedOwnedTranslationLocales(name string) ([]*TranslationLocale, error) {
+	if _m.Edges.namedOwnedTranslationLocales == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedOwnedTranslationLocales[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *User) appendNamedOwnedTranslationLocales(name string, edges ...*TranslationLocale) {
+	if _m.Edges.namedOwnedTranslationLocales == nil {
+		_m.Edges.namedOwnedTranslationLocales = make(map[string][]*TranslationLocale)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedOwnedTranslationLocales[name] = []*TranslationLocale{}
+	} else {
+		_m.Edges.namedOwnedTranslationLocales[name] = append(_m.Edges.namedOwnedTranslationLocales[name], edges...)
 	}
 }
 

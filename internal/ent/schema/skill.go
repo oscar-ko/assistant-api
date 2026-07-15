@@ -37,6 +37,7 @@ func (Skill) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("actions", Action.Type),
 		edge.From("channel_service_members", ChannelServiceMember.Type).Ref("skill"),
+		edge.From("translation_locales", TranslationLocale.Type).Ref("skill"),
 	}
 }
 

@@ -27,5 +27,8 @@ type Line func(*sql.Selector)
 // Skill is the predicate function for skill builders.
 type Skill func(*sql.Selector)
 
+// TranslationLocale is the predicate function for translationlocale builders.
+type TranslationLocale func(*sql.Selector)
+
 // User is the predicate function for user builders.
 type User func(*sql.Selector)

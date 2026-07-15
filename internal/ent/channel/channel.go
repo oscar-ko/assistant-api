@@ -38,6 +38,8 @@ const (
 	EdgeMessages = "messages"
 	// EdgeServiceMembers holds the string denoting the service_members edge name in mutations.
 	EdgeServiceMembers = "service_members"
+	// EdgeTranslationLocales holds the string denoting the translation_locales edge name in mutations.
+	EdgeTranslationLocales = "translation_locales"
 	// Table holds the table name of the channel in the database.
 	Table = "channels"
 	// MessagesTable is the table that holds the messages relation/edge.
@@ -54,6 +56,13 @@ const (
 	ServiceMembersInverseTable = "channel_service_members"
 	// ServiceMembersColumn is the table column denoting the service_members relation/edge.
 	ServiceMembersColumn = "channel_id"
+	// TranslationLocalesTable is the table that holds the translation_locales relation/edge.
+	TranslationLocalesTable = "translation_locales"
+	// TranslationLocalesInverseTable is the table name for the TranslationLocale entity.
+	// It exists in this package in order to avoid circular dependency with the "translationlocale" package.
+	TranslationLocalesInverseTable = "translation_locales"
+	// TranslationLocalesColumn is the table column denoting the translation_locales relation/edge.
+	TranslationLocalesColumn = "channel_id"
 )
 
 // Columns holds all SQL columns for channel fields.
@@ -227,6 +236,20 @@ func ByServiceMembers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newServiceMembersStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByTranslationLocalesCount orders the results by translation_locales count.
+func ByTranslationLocalesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newTranslationLocalesStep(), opts...)
+	}
+}
+
+// ByTranslationLocales orders the results by translation_locales terms.
+func ByTranslationLocales(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newTranslationLocalesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newMessagesStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -239,6 +262,13 @@ func newServiceMembersStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ServiceMembersInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, true, ServiceMembersTable, ServiceMembersColumn),
+	)
+}
+func newTranslationLocalesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(TranslationLocalesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, true, TranslationLocalesTable, TranslationLocalesColumn),
 	)
 }
 

@@ -7,6 +7,7 @@ import (
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/skill"
+	"assistant-api/internal/ent/translationlocale"
 	"context"
 	"database/sql/driver"
 	"fmt"
@@ -28,10 +29,12 @@ type SkillQuery struct {
 	predicates                     []predicate.Skill
 	withActions                    *ActionQuery
 	withChannelServiceMembers      *ChannelServiceMemberQuery
+	withTranslationLocales         *TranslationLocaleQuery
 	modifiers                      []func(*sql.Selector)
 	loadTotal                      []func(context.Context, []*Skill) error
 	withNamedActions               map[string]*ActionQuery
 	withNamedChannelServiceMembers map[string]*ChannelServiceMemberQuery
+	withNamedTranslationLocales    map[string]*TranslationLocaleQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -105,6 +108,28 @@ func (_q *SkillQuery) QueryChannelServiceMembers() *ChannelServiceMemberQuery {
 			sqlgraph.From(skill.Table, skill.FieldID, selector),
 			sqlgraph.To(channelservicemember.Table, channelservicemember.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, true, skill.ChannelServiceMembersTable, skill.ChannelServiceMembersColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryTranslationLocales chains the current query on the "translation_locales" edge.
+func (_q *SkillQuery) QueryTranslationLocales() *TranslationLocaleQuery {
+	query := (&TranslationLocaleClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(skill.Table, skill.FieldID, selector),
+			sqlgraph.To(translationlocale.Table, translationlocale.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, skill.TranslationLocalesTable, skill.TranslationLocalesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -306,6 +331,7 @@ func (_q *SkillQuery) Clone() *SkillQuery {
 		predicates:                append([]predicate.Skill{}, _q.predicates...),
 		withActions:               _q.withActions.Clone(),
 		withChannelServiceMembers: _q.withChannelServiceMembers.Clone(),
+		withTranslationLocales:    _q.withTranslationLocales.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -331,6 +357,17 @@ func (_q *SkillQuery) WithChannelServiceMembers(opts ...func(*ChannelServiceMemb
 		opt(query)
 	}
 	_q.withChannelServiceMembers = query
+	return _q
+}
+
+// WithTranslationLocales tells the query-builder to eager-load the nodes that are connected to
+// the "translation_locales" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *SkillQuery) WithTranslationLocales(opts ...func(*TranslationLocaleQuery)) *SkillQuery {
+	query := (&TranslationLocaleClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withTranslationLocales = query
 	return _q
 }
 
@@ -412,9 +449,10 @@ func (_q *SkillQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Skill,
 	var (
 		nodes       = []*Skill{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [3]bool{
 			_q.withActions != nil,
 			_q.withChannelServiceMembers != nil,
+			_q.withTranslationLocales != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -454,6 +492,15 @@ func (_q *SkillQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Skill,
 			return nil, err
 		}
 	}
+	if query := _q.withTranslationLocales; query != nil {
+		if err := _q.loadTranslationLocales(ctx, query, nodes,
+			func(n *Skill) { n.Edges.TranslationLocales = []*TranslationLocale{} },
+			func(n *Skill, e *TranslationLocale) {
+				n.Edges.TranslationLocales = append(n.Edges.TranslationLocales, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
 	for name, query := range _q.withNamedActions {
 		if err := _q.loadActions(ctx, query, nodes,
 			func(n *Skill) { n.appendNamedActions(name) },
@@ -465,6 +512,13 @@ func (_q *SkillQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Skill,
 		if err := _q.loadChannelServiceMembers(ctx, query, nodes,
 			func(n *Skill) { n.appendNamedChannelServiceMembers(name) },
 			func(n *Skill, e *ChannelServiceMember) { n.appendNamedChannelServiceMembers(name, e) }); err != nil {
+			return nil, err
+		}
+	}
+	for name, query := range _q.withNamedTranslationLocales {
+		if err := _q.loadTranslationLocales(ctx, query, nodes,
+			func(n *Skill) { n.appendNamedTranslationLocales(name) },
+			func(n *Skill, e *TranslationLocale) { n.appendNamedTranslationLocales(name, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -521,6 +575,36 @@ func (_q *SkillQuery) loadChannelServiceMembers(ctx context.Context, query *Chan
 	}
 	query.Where(predicate.ChannelServiceMember(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(skill.ChannelServiceMembersColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.SkillID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "skill_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *SkillQuery) loadTranslationLocales(ctx context.Context, query *TranslationLocaleQuery, nodes []*Skill, init func(*Skill), assign func(*Skill, *TranslationLocale)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Skill)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(translationlocale.FieldSkillID)
+	}
+	query.Where(predicate.TranslationLocale(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(skill.TranslationLocalesColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {
@@ -646,6 +730,20 @@ func (_q *SkillQuery) WithNamedChannelServiceMembers(name string, opts ...func(*
 		_q.withNamedChannelServiceMembers = make(map[string]*ChannelServiceMemberQuery)
 	}
 	_q.withNamedChannelServiceMembers[name] = query
+	return _q
+}
+
+// WithNamedTranslationLocales tells the query-builder to eager-load the nodes that are connected to the "translation_locales"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (_q *SkillQuery) WithNamedTranslationLocales(name string, opts ...func(*TranslationLocaleQuery)) *SkillQuery {
+	query := (&TranslationLocaleClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if _q.withNamedTranslationLocales == nil {
+		_q.withNamedTranslationLocales = make(map[string]*TranslationLocaleQuery)
+	}
+	_q.withNamedTranslationLocales[name] = query
 	return _q
 }
 

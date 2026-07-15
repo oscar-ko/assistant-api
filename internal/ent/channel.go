@@ -47,14 +47,17 @@ type ChannelEdges struct {
 	Messages []*ChannelMessage `json:"messages,omitempty"`
 	// 此頻道啟用服務的成員
 	ServiceMembers []*ChannelServiceMember `json:"service_members,omitempty"`
+	// 此頻道翻譯目標語言設定
+	TranslationLocales []*TranslationLocale `json:"translation_locales,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 	// totalCount holds the count of the edges above.
-	totalCount [2]map[string]int
+	totalCount [3]map[string]int
 
-	namedMessages       map[string][]*ChannelMessage
-	namedServiceMembers map[string][]*ChannelServiceMember
+	namedMessages           map[string][]*ChannelMessage
+	namedServiceMembers     map[string][]*ChannelServiceMember
+	namedTranslationLocales map[string][]*TranslationLocale
 }
 
 // MessagesOrErr returns the Messages value or an error if the edge
@@ -73,6 +76,15 @@ func (e ChannelEdges) ServiceMembersOrErr() ([]*ChannelServiceMember, error) {
 		return e.ServiceMembers, nil
 	}
 	return nil, &NotLoadedError{edge: "service_members"}
+}
+
+// TranslationLocalesOrErr returns the TranslationLocales value or an error if the edge
+// was not loaded in eager-loading.
+func (e ChannelEdges) TranslationLocalesOrErr() ([]*TranslationLocale, error) {
+	if e.loadedTypes[2] {
+		return e.TranslationLocales, nil
+	}
+	return nil, &NotLoadedError{edge: "translation_locales"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -182,6 +194,11 @@ func (_m *Channel) QueryServiceMembers() *ChannelServiceMemberQuery {
 	return NewChannelClient(_m.config).QueryServiceMembers(_m)
 }
 
+// QueryTranslationLocales queries the "translation_locales" edge of the Channel entity.
+func (_m *Channel) QueryTranslationLocales() *TranslationLocaleQuery {
+	return NewChannelClient(_m.config).QueryTranslationLocales(_m)
+}
+
 // Update returns a builder for updating this Channel.
 // Note that you need to call Channel.Unwrap() before calling this method if this Channel
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -277,6 +294,30 @@ func (_m *Channel) appendNamedServiceMembers(name string, edges ...*ChannelServi
 		_m.Edges.namedServiceMembers[name] = []*ChannelServiceMember{}
 	} else {
 		_m.Edges.namedServiceMembers[name] = append(_m.Edges.namedServiceMembers[name], edges...)
+	}
+}
+
+// NamedTranslationLocales returns the TranslationLocales named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *Channel) NamedTranslationLocales(name string) ([]*TranslationLocale, error) {
+	if _m.Edges.namedTranslationLocales == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedTranslationLocales[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *Channel) appendNamedTranslationLocales(name string, edges ...*TranslationLocale) {
+	if _m.Edges.namedTranslationLocales == nil {
+		_m.Edges.namedTranslationLocales = make(map[string][]*TranslationLocale)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedTranslationLocales[name] = []*TranslationLocale{}
+	} else {
+		_m.Edges.namedTranslationLocales[name] = append(_m.Edges.namedTranslationLocales[name], edges...)
 	}
 }
 

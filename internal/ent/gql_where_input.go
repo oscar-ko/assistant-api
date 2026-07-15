@@ -11,6 +11,7 @@ import (
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/skill"
+	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"errors"
 	"fmt"
@@ -870,6 +871,10 @@ type ChannelWhereInput struct {
 	// "service_members" edge predicates.
 	HasServiceMembers     *bool                             `json:"hasServiceMembers,omitempty"`
 	HasServiceMembersWith []*ChannelServiceMemberWhereInput `json:"hasServiceMembersWith,omitempty"`
+
+	// "translation_locales" edge predicates.
+	HasTranslationLocales     *bool                          `json:"hasTranslationLocales,omitempty"`
+	HasTranslationLocalesWith []*TranslationLocaleWhereInput `json:"hasTranslationLocalesWith,omitempty"`
 }
 
 // AddPredicates adds custom predicates to the where input to be used during the filtering phase.
@@ -1183,6 +1188,24 @@ func (i *ChannelWhereInput) P() (predicate.Channel, error) {
 			with = append(with, p)
 		}
 		predicates = append(predicates, channel.HasServiceMembersWith(with...))
+	}
+	if i.HasTranslationLocales != nil {
+		p := channel.HasTranslationLocales()
+		if !*i.HasTranslationLocales {
+			p = channel.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasTranslationLocalesWith) > 0 {
+		with := make([]predicate.TranslationLocale, 0, len(i.HasTranslationLocalesWith))
+		for _, w := range i.HasTranslationLocalesWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasTranslationLocalesWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, channel.HasTranslationLocalesWith(with...))
 	}
 	switch len(predicates) {
 	case 0:
@@ -2655,6 +2678,10 @@ type SkillWhereInput struct {
 	// "channel_service_members" edge predicates.
 	HasChannelServiceMembers     *bool                             `json:"hasChannelServiceMembers,omitempty"`
 	HasChannelServiceMembersWith []*ChannelServiceMemberWhereInput `json:"hasChannelServiceMembersWith,omitempty"`
+
+	// "translation_locales" edge predicates.
+	HasTranslationLocales     *bool                          `json:"hasTranslationLocales,omitempty"`
+	HasTranslationLocalesWith []*TranslationLocaleWhereInput `json:"hasTranslationLocalesWith,omitempty"`
 }
 
 // AddPredicates adds custom predicates to the where input to be used during the filtering phase.
@@ -2912,6 +2939,24 @@ func (i *SkillWhereInput) P() (predicate.Skill, error) {
 		}
 		predicates = append(predicates, skill.HasChannelServiceMembersWith(with...))
 	}
+	if i.HasTranslationLocales != nil {
+		p := skill.HasTranslationLocales()
+		if !*i.HasTranslationLocales {
+			p = skill.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasTranslationLocalesWith) > 0 {
+		with := make([]predicate.TranslationLocale, 0, len(i.HasTranslationLocalesWith))
+		for _, w := range i.HasTranslationLocalesWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasTranslationLocalesWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, skill.HasTranslationLocalesWith(with...))
+	}
 	switch len(predicates) {
 	case 0:
 		return nil, ErrEmptySkillWhereInput
@@ -2919,6 +2964,372 @@ func (i *SkillWhereInput) P() (predicate.Skill, error) {
 		return predicates[0], nil
 	default:
 		return skill.And(predicates...), nil
+	}
+}
+
+// TranslationLocaleWhereInput represents a where input for filtering TranslationLocale queries.
+type TranslationLocaleWhereInput struct {
+	Predicates []predicate.TranslationLocale  `json:"-"`
+	Not        *TranslationLocaleWhereInput   `json:"not,omitempty"`
+	Or         []*TranslationLocaleWhereInput `json:"or,omitempty"`
+	And        []*TranslationLocaleWhereInput `json:"and,omitempty"`
+
+	// "id" field predicates.
+	ID      *uuid.UUID  `json:"id,omitempty"`
+	IDNEQ   *uuid.UUID  `json:"idNEQ,omitempty"`
+	IDIn    []uuid.UUID `json:"idIn,omitempty"`
+	IDNotIn []uuid.UUID `json:"idNotIn,omitempty"`
+	IDGT    *uuid.UUID  `json:"idGT,omitempty"`
+	IDGTE   *uuid.UUID  `json:"idGTE,omitempty"`
+	IDLT    *uuid.UUID  `json:"idLT,omitempty"`
+	IDLTE   *uuid.UUID  `json:"idLTE,omitempty"`
+
+	// "created_at" field predicates.
+	CreatedAt      *time.Time  `json:"createdAt,omitempty"`
+	CreatedAtNEQ   *time.Time  `json:"createdAtNEQ,omitempty"`
+	CreatedAtIn    []time.Time `json:"createdAtIn,omitempty"`
+	CreatedAtNotIn []time.Time `json:"createdAtNotIn,omitempty"`
+	CreatedAtGT    *time.Time  `json:"createdAtGT,omitempty"`
+	CreatedAtGTE   *time.Time  `json:"createdAtGTE,omitempty"`
+	CreatedAtLT    *time.Time  `json:"createdAtLT,omitempty"`
+	CreatedAtLTE   *time.Time  `json:"createdAtLTE,omitempty"`
+
+	// "updated_at" field predicates.
+	UpdatedAt      *time.Time  `json:"updatedAt,omitempty"`
+	UpdatedAtNEQ   *time.Time  `json:"updatedAtNEQ,omitempty"`
+	UpdatedAtIn    []time.Time `json:"updatedAtIn,omitempty"`
+	UpdatedAtNotIn []time.Time `json:"updatedAtNotIn,omitempty"`
+	UpdatedAtGT    *time.Time  `json:"updatedAtGT,omitempty"`
+	UpdatedAtGTE   *time.Time  `json:"updatedAtGTE,omitempty"`
+	UpdatedAtLT    *time.Time  `json:"updatedAtLT,omitempty"`
+	UpdatedAtLTE   *time.Time  `json:"updatedAtLTE,omitempty"`
+
+	// "channel_id" field predicates.
+	ChannelID      *uuid.UUID  `json:"channelID,omitempty"`
+	ChannelIDNEQ   *uuid.UUID  `json:"channelIDNEQ,omitempty"`
+	ChannelIDIn    []uuid.UUID `json:"channelIDIn,omitempty"`
+	ChannelIDNotIn []uuid.UUID `json:"channelIDNotIn,omitempty"`
+
+	// "skill_id" field predicates.
+	SkillID      *uuid.UUID  `json:"skillID,omitempty"`
+	SkillIDNEQ   *uuid.UUID  `json:"skillIDNEQ,omitempty"`
+	SkillIDIn    []uuid.UUID `json:"skillIDIn,omitempty"`
+	SkillIDNotIn []uuid.UUID `json:"skillIDNotIn,omitempty"`
+
+	// "owner_user_id" field predicates.
+	OwnerUserID      *uuid.UUID  `json:"ownerUserID,omitempty"`
+	OwnerUserIDNEQ   *uuid.UUID  `json:"ownerUserIDNEQ,omitempty"`
+	OwnerUserIDIn    []uuid.UUID `json:"ownerUserIDIn,omitempty"`
+	OwnerUserIDNotIn []uuid.UUID `json:"ownerUserIDNotIn,omitempty"`
+
+	// "target_locale" field predicates.
+	TargetLocale             *string  `json:"targetLocale,omitempty"`
+	TargetLocaleNEQ          *string  `json:"targetLocaleNEQ,omitempty"`
+	TargetLocaleIn           []string `json:"targetLocaleIn,omitempty"`
+	TargetLocaleNotIn        []string `json:"targetLocaleNotIn,omitempty"`
+	TargetLocaleGT           *string  `json:"targetLocaleGT,omitempty"`
+	TargetLocaleGTE          *string  `json:"targetLocaleGTE,omitempty"`
+	TargetLocaleLT           *string  `json:"targetLocaleLT,omitempty"`
+	TargetLocaleLTE          *string  `json:"targetLocaleLTE,omitempty"`
+	TargetLocaleContains     *string  `json:"targetLocaleContains,omitempty"`
+	TargetLocaleHasPrefix    *string  `json:"targetLocaleHasPrefix,omitempty"`
+	TargetLocaleHasSuffix    *string  `json:"targetLocaleHasSuffix,omitempty"`
+	TargetLocaleEqualFold    *string  `json:"targetLocaleEqualFold,omitempty"`
+	TargetLocaleContainsFold *string  `json:"targetLocaleContainsFold,omitempty"`
+
+	// "channel" edge predicates.
+	HasChannel     *bool                `json:"hasChannel,omitempty"`
+	HasChannelWith []*ChannelWhereInput `json:"hasChannelWith,omitempty"`
+
+	// "skill" edge predicates.
+	HasSkill     *bool              `json:"hasSkill,omitempty"`
+	HasSkillWith []*SkillWhereInput `json:"hasSkillWith,omitempty"`
+
+	// "owner" edge predicates.
+	HasOwner     *bool             `json:"hasOwner,omitempty"`
+	HasOwnerWith []*UserWhereInput `json:"hasOwnerWith,omitempty"`
+}
+
+// AddPredicates adds custom predicates to the where input to be used during the filtering phase.
+func (i *TranslationLocaleWhereInput) AddPredicates(predicates ...predicate.TranslationLocale) {
+	i.Predicates = append(i.Predicates, predicates...)
+}
+
+// Filter applies the TranslationLocaleWhereInput filter on the TranslationLocaleQuery builder.
+func (i *TranslationLocaleWhereInput) Filter(q *TranslationLocaleQuery) (*TranslationLocaleQuery, error) {
+	if i == nil {
+		return q, nil
+	}
+	p, err := i.P()
+	if err != nil {
+		if err == ErrEmptyTranslationLocaleWhereInput {
+			return q, nil
+		}
+		return nil, err
+	}
+	return q.Where(p), nil
+}
+
+// ErrEmptyTranslationLocaleWhereInput is returned in case the TranslationLocaleWhereInput is empty.
+var ErrEmptyTranslationLocaleWhereInput = errors.New("ent: empty predicate TranslationLocaleWhereInput")
+
+// P returns a predicate for filtering translationlocales.
+// An error is returned if the input is empty or invalid.
+func (i *TranslationLocaleWhereInput) P() (predicate.TranslationLocale, error) {
+	var predicates []predicate.TranslationLocale
+	if i.Not != nil {
+		p, err := i.Not.P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'not'", err)
+		}
+		predicates = append(predicates, translationlocale.Not(p))
+	}
+	switch n := len(i.Or); {
+	case n == 1:
+		p, err := i.Or[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'or'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		or := make([]predicate.TranslationLocale, 0, n)
+		for _, w := range i.Or {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'or'", err)
+			}
+			or = append(or, p)
+		}
+		predicates = append(predicates, translationlocale.Or(or...))
+	}
+	switch n := len(i.And); {
+	case n == 1:
+		p, err := i.And[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'and'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		and := make([]predicate.TranslationLocale, 0, n)
+		for _, w := range i.And {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'and'", err)
+			}
+			and = append(and, p)
+		}
+		predicates = append(predicates, translationlocale.And(and...))
+	}
+	predicates = append(predicates, i.Predicates...)
+	if i.ID != nil {
+		predicates = append(predicates, translationlocale.IDEQ(*i.ID))
+	}
+	if i.IDNEQ != nil {
+		predicates = append(predicates, translationlocale.IDNEQ(*i.IDNEQ))
+	}
+	if len(i.IDIn) > 0 {
+		predicates = append(predicates, translationlocale.IDIn(i.IDIn...))
+	}
+	if len(i.IDNotIn) > 0 {
+		predicates = append(predicates, translationlocale.IDNotIn(i.IDNotIn...))
+	}
+	if i.IDGT != nil {
+		predicates = append(predicates, translationlocale.IDGT(*i.IDGT))
+	}
+	if i.IDGTE != nil {
+		predicates = append(predicates, translationlocale.IDGTE(*i.IDGTE))
+	}
+	if i.IDLT != nil {
+		predicates = append(predicates, translationlocale.IDLT(*i.IDLT))
+	}
+	if i.IDLTE != nil {
+		predicates = append(predicates, translationlocale.IDLTE(*i.IDLTE))
+	}
+	if i.CreatedAt != nil {
+		predicates = append(predicates, translationlocale.CreatedAtEQ(*i.CreatedAt))
+	}
+	if i.CreatedAtNEQ != nil {
+		predicates = append(predicates, translationlocale.CreatedAtNEQ(*i.CreatedAtNEQ))
+	}
+	if len(i.CreatedAtIn) > 0 {
+		predicates = append(predicates, translationlocale.CreatedAtIn(i.CreatedAtIn...))
+	}
+	if len(i.CreatedAtNotIn) > 0 {
+		predicates = append(predicates, translationlocale.CreatedAtNotIn(i.CreatedAtNotIn...))
+	}
+	if i.CreatedAtGT != nil {
+		predicates = append(predicates, translationlocale.CreatedAtGT(*i.CreatedAtGT))
+	}
+	if i.CreatedAtGTE != nil {
+		predicates = append(predicates, translationlocale.CreatedAtGTE(*i.CreatedAtGTE))
+	}
+	if i.CreatedAtLT != nil {
+		predicates = append(predicates, translationlocale.CreatedAtLT(*i.CreatedAtLT))
+	}
+	if i.CreatedAtLTE != nil {
+		predicates = append(predicates, translationlocale.CreatedAtLTE(*i.CreatedAtLTE))
+	}
+	if i.UpdatedAt != nil {
+		predicates = append(predicates, translationlocale.UpdatedAtEQ(*i.UpdatedAt))
+	}
+	if i.UpdatedAtNEQ != nil {
+		predicates = append(predicates, translationlocale.UpdatedAtNEQ(*i.UpdatedAtNEQ))
+	}
+	if len(i.UpdatedAtIn) > 0 {
+		predicates = append(predicates, translationlocale.UpdatedAtIn(i.UpdatedAtIn...))
+	}
+	if len(i.UpdatedAtNotIn) > 0 {
+		predicates = append(predicates, translationlocale.UpdatedAtNotIn(i.UpdatedAtNotIn...))
+	}
+	if i.UpdatedAtGT != nil {
+		predicates = append(predicates, translationlocale.UpdatedAtGT(*i.UpdatedAtGT))
+	}
+	if i.UpdatedAtGTE != nil {
+		predicates = append(predicates, translationlocale.UpdatedAtGTE(*i.UpdatedAtGTE))
+	}
+	if i.UpdatedAtLT != nil {
+		predicates = append(predicates, translationlocale.UpdatedAtLT(*i.UpdatedAtLT))
+	}
+	if i.UpdatedAtLTE != nil {
+		predicates = append(predicates, translationlocale.UpdatedAtLTE(*i.UpdatedAtLTE))
+	}
+	if i.ChannelID != nil {
+		predicates = append(predicates, translationlocale.ChannelIDEQ(*i.ChannelID))
+	}
+	if i.ChannelIDNEQ != nil {
+		predicates = append(predicates, translationlocale.ChannelIDNEQ(*i.ChannelIDNEQ))
+	}
+	if len(i.ChannelIDIn) > 0 {
+		predicates = append(predicates, translationlocale.ChannelIDIn(i.ChannelIDIn...))
+	}
+	if len(i.ChannelIDNotIn) > 0 {
+		predicates = append(predicates, translationlocale.ChannelIDNotIn(i.ChannelIDNotIn...))
+	}
+	if i.SkillID != nil {
+		predicates = append(predicates, translationlocale.SkillIDEQ(*i.SkillID))
+	}
+	if i.SkillIDNEQ != nil {
+		predicates = append(predicates, translationlocale.SkillIDNEQ(*i.SkillIDNEQ))
+	}
+	if len(i.SkillIDIn) > 0 {
+		predicates = append(predicates, translationlocale.SkillIDIn(i.SkillIDIn...))
+	}
+	if len(i.SkillIDNotIn) > 0 {
+		predicates = append(predicates, translationlocale.SkillIDNotIn(i.SkillIDNotIn...))
+	}
+	if i.OwnerUserID != nil {
+		predicates = append(predicates, translationlocale.OwnerUserIDEQ(*i.OwnerUserID))
+	}
+	if i.OwnerUserIDNEQ != nil {
+		predicates = append(predicates, translationlocale.OwnerUserIDNEQ(*i.OwnerUserIDNEQ))
+	}
+	if len(i.OwnerUserIDIn) > 0 {
+		predicates = append(predicates, translationlocale.OwnerUserIDIn(i.OwnerUserIDIn...))
+	}
+	if len(i.OwnerUserIDNotIn) > 0 {
+		predicates = append(predicates, translationlocale.OwnerUserIDNotIn(i.OwnerUserIDNotIn...))
+	}
+	if i.TargetLocale != nil {
+		predicates = append(predicates, translationlocale.TargetLocaleEQ(*i.TargetLocale))
+	}
+	if i.TargetLocaleNEQ != nil {
+		predicates = append(predicates, translationlocale.TargetLocaleNEQ(*i.TargetLocaleNEQ))
+	}
+	if len(i.TargetLocaleIn) > 0 {
+		predicates = append(predicates, translationlocale.TargetLocaleIn(i.TargetLocaleIn...))
+	}
+	if len(i.TargetLocaleNotIn) > 0 {
+		predicates = append(predicates, translationlocale.TargetLocaleNotIn(i.TargetLocaleNotIn...))
+	}
+	if i.TargetLocaleGT != nil {
+		predicates = append(predicates, translationlocale.TargetLocaleGT(*i.TargetLocaleGT))
+	}
+	if i.TargetLocaleGTE != nil {
+		predicates = append(predicates, translationlocale.TargetLocaleGTE(*i.TargetLocaleGTE))
+	}
+	if i.TargetLocaleLT != nil {
+		predicates = append(predicates, translationlocale.TargetLocaleLT(*i.TargetLocaleLT))
+	}
+	if i.TargetLocaleLTE != nil {
+		predicates = append(predicates, translationlocale.TargetLocaleLTE(*i.TargetLocaleLTE))
+	}
+	if i.TargetLocaleContains != nil {
+		predicates = append(predicates, translationlocale.TargetLocaleContains(*i.TargetLocaleContains))
+	}
+	if i.TargetLocaleHasPrefix != nil {
+		predicates = append(predicates, translationlocale.TargetLocaleHasPrefix(*i.TargetLocaleHasPrefix))
+	}
+	if i.TargetLocaleHasSuffix != nil {
+		predicates = append(predicates, translationlocale.TargetLocaleHasSuffix(*i.TargetLocaleHasSuffix))
+	}
+	if i.TargetLocaleEqualFold != nil {
+		predicates = append(predicates, translationlocale.TargetLocaleEqualFold(*i.TargetLocaleEqualFold))
+	}
+	if i.TargetLocaleContainsFold != nil {
+		predicates = append(predicates, translationlocale.TargetLocaleContainsFold(*i.TargetLocaleContainsFold))
+	}
+
+	if i.HasChannel != nil {
+		p := translationlocale.HasChannel()
+		if !*i.HasChannel {
+			p = translationlocale.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasChannelWith) > 0 {
+		with := make([]predicate.Channel, 0, len(i.HasChannelWith))
+		for _, w := range i.HasChannelWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasChannelWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, translationlocale.HasChannelWith(with...))
+	}
+	if i.HasSkill != nil {
+		p := translationlocale.HasSkill()
+		if !*i.HasSkill {
+			p = translationlocale.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasSkillWith) > 0 {
+		with := make([]predicate.Skill, 0, len(i.HasSkillWith))
+		for _, w := range i.HasSkillWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasSkillWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, translationlocale.HasSkillWith(with...))
+	}
+	if i.HasOwner != nil {
+		p := translationlocale.HasOwner()
+		if !*i.HasOwner {
+			p = translationlocale.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasOwnerWith) > 0 {
+		with := make([]predicate.User, 0, len(i.HasOwnerWith))
+		for _, w := range i.HasOwnerWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasOwnerWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, translationlocale.HasOwnerWith(with...))
+	}
+	switch len(predicates) {
+	case 0:
+		return nil, ErrEmptyTranslationLocaleWhereInput
+	case 1:
+		return predicates[0], nil
+	default:
+		return translationlocale.And(predicates...), nil
 	}
 }
 
@@ -2976,6 +3387,10 @@ type UserWhereInput struct {
 	// "channel_service_members" edge predicates.
 	HasChannelServiceMembers     *bool                             `json:"hasChannelServiceMembers,omitempty"`
 	HasChannelServiceMembersWith []*ChannelServiceMemberWhereInput `json:"hasChannelServiceMembersWith,omitempty"`
+
+	// "owned_translation_locales" edge predicates.
+	HasOwnedTranslationLocales     *bool                          `json:"hasOwnedTranslationLocales,omitempty"`
+	HasOwnedTranslationLocalesWith []*TranslationLocaleWhereInput `json:"hasOwnedTranslationLocalesWith,omitempty"`
 }
 
 // AddPredicates adds custom predicates to the where input to be used during the filtering phase.
@@ -3187,6 +3602,24 @@ func (i *UserWhereInput) P() (predicate.User, error) {
 			with = append(with, p)
 		}
 		predicates = append(predicates, user.HasChannelServiceMembersWith(with...))
+	}
+	if i.HasOwnedTranslationLocales != nil {
+		p := user.HasOwnedTranslationLocales()
+		if !*i.HasOwnedTranslationLocales {
+			p = user.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasOwnedTranslationLocalesWith) > 0 {
+		with := make([]predicate.TranslationLocale, 0, len(i.HasOwnedTranslationLocalesWith))
+		for _, w := range i.HasOwnedTranslationLocalesWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasOwnedTranslationLocalesWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, user.HasOwnedTranslationLocalesWith(with...))
 	}
 	switch len(predicates) {
 	case 0:

@@ -6,6 +6,7 @@ import (
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
+	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
 	"errors"
@@ -88,6 +89,21 @@ func (_u *UserUpdate) AddChannelServiceMembers(v ...*ChannelServiceMember) *User
 	return _u.AddChannelServiceMemberIDs(ids...)
 }
 
+// AddOwnedTranslationLocaleIDs adds the "owned_translation_locales" edge to the TranslationLocale entity by IDs.
+func (_u *UserUpdate) AddOwnedTranslationLocaleIDs(ids ...uuid.UUID) *UserUpdate {
+	_u.mutation.AddOwnedTranslationLocaleIDs(ids...)
+	return _u
+}
+
+// AddOwnedTranslationLocales adds the "owned_translation_locales" edges to the TranslationLocale entity.
+func (_u *UserUpdate) AddOwnedTranslationLocales(v ...*TranslationLocale) *UserUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddOwnedTranslationLocaleIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdate) Mutation() *UserMutation {
 	return _u.mutation
@@ -133,6 +149,27 @@ func (_u *UserUpdate) RemoveChannelServiceMembers(v ...*ChannelServiceMember) *U
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveChannelServiceMemberIDs(ids...)
+}
+
+// ClearOwnedTranslationLocales clears all "owned_translation_locales" edges to the TranslationLocale entity.
+func (_u *UserUpdate) ClearOwnedTranslationLocales() *UserUpdate {
+	_u.mutation.ClearOwnedTranslationLocales()
+	return _u
+}
+
+// RemoveOwnedTranslationLocaleIDs removes the "owned_translation_locales" edge to TranslationLocale entities by IDs.
+func (_u *UserUpdate) RemoveOwnedTranslationLocaleIDs(ids ...uuid.UUID) *UserUpdate {
+	_u.mutation.RemoveOwnedTranslationLocaleIDs(ids...)
+	return _u
+}
+
+// RemoveOwnedTranslationLocales removes "owned_translation_locales" edges to TranslationLocale entities.
+func (_u *UserUpdate) RemoveOwnedTranslationLocales(v ...*TranslationLocale) *UserUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveOwnedTranslationLocaleIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -285,6 +322,51 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.OwnedTranslationLocalesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.OwnedTranslationLocalesTable,
+			Columns: []string{user.OwnedTranslationLocalesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(translationlocale.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedOwnedTranslationLocalesIDs(); len(nodes) > 0 && !_u.mutation.OwnedTranslationLocalesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.OwnedTranslationLocalesTable,
+			Columns: []string{user.OwnedTranslationLocalesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(translationlocale.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.OwnedTranslationLocalesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.OwnedTranslationLocalesTable,
+			Columns: []string{user.OwnedTranslationLocalesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(translationlocale.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{user.Label}
@@ -363,6 +445,21 @@ func (_u *UserUpdateOne) AddChannelServiceMembers(v ...*ChannelServiceMember) *U
 	return _u.AddChannelServiceMemberIDs(ids...)
 }
 
+// AddOwnedTranslationLocaleIDs adds the "owned_translation_locales" edge to the TranslationLocale entity by IDs.
+func (_u *UserUpdateOne) AddOwnedTranslationLocaleIDs(ids ...uuid.UUID) *UserUpdateOne {
+	_u.mutation.AddOwnedTranslationLocaleIDs(ids...)
+	return _u
+}
+
+// AddOwnedTranslationLocales adds the "owned_translation_locales" edges to the TranslationLocale entity.
+func (_u *UserUpdateOne) AddOwnedTranslationLocales(v ...*TranslationLocale) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddOwnedTranslationLocaleIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdateOne) Mutation() *UserMutation {
 	return _u.mutation
@@ -408,6 +505,27 @@ func (_u *UserUpdateOne) RemoveChannelServiceMembers(v ...*ChannelServiceMember)
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveChannelServiceMemberIDs(ids...)
+}
+
+// ClearOwnedTranslationLocales clears all "owned_translation_locales" edges to the TranslationLocale entity.
+func (_u *UserUpdateOne) ClearOwnedTranslationLocales() *UserUpdateOne {
+	_u.mutation.ClearOwnedTranslationLocales()
+	return _u
+}
+
+// RemoveOwnedTranslationLocaleIDs removes the "owned_translation_locales" edge to TranslationLocale entities by IDs.
+func (_u *UserUpdateOne) RemoveOwnedTranslationLocaleIDs(ids ...uuid.UUID) *UserUpdateOne {
+	_u.mutation.RemoveOwnedTranslationLocaleIDs(ids...)
+	return _u
+}
+
+// RemoveOwnedTranslationLocales removes "owned_translation_locales" edges to TranslationLocale entities.
+func (_u *UserUpdateOne) RemoveOwnedTranslationLocales(v ...*TranslationLocale) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveOwnedTranslationLocaleIDs(ids...)
 }
 
 // Where appends a list predicates to the UserUpdate builder.
@@ -583,6 +701,51 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelservicemember.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.OwnedTranslationLocalesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.OwnedTranslationLocalesTable,
+			Columns: []string{user.OwnedTranslationLocalesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(translationlocale.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedOwnedTranslationLocalesIDs(); len(nodes) > 0 && !_u.mutation.OwnedTranslationLocalesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.OwnedTranslationLocalesTable,
+			Columns: []string{user.OwnedTranslationLocalesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(translationlocale.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.OwnedTranslationLocalesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.OwnedTranslationLocalesTable,
+			Columns: []string{user.OwnedTranslationLocalesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(translationlocale.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

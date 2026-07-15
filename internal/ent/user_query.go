@@ -6,6 +6,7 @@ import (
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
+	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
 	"database/sql/driver"
@@ -22,16 +23,18 @@ import (
 // UserQuery is the builder for querying User entities.
 type UserQuery struct {
 	config
-	ctx                            *QueryContext
-	order                          []user.OrderOption
-	inters                         []Interceptor
-	predicates                     []predicate.User
-	withLine                       *LineQuery
-	withChannelServiceMembers      *ChannelServiceMemberQuery
-	modifiers                      []func(*sql.Selector)
-	loadTotal                      []func(context.Context, []*User) error
-	withNamedLine                  map[string]*LineQuery
-	withNamedChannelServiceMembers map[string]*ChannelServiceMemberQuery
+	ctx                              *QueryContext
+	order                            []user.OrderOption
+	inters                           []Interceptor
+	predicates                       []predicate.User
+	withLine                         *LineQuery
+	withChannelServiceMembers        *ChannelServiceMemberQuery
+	withOwnedTranslationLocales      *TranslationLocaleQuery
+	modifiers                        []func(*sql.Selector)
+	loadTotal                        []func(context.Context, []*User) error
+	withNamedLine                    map[string]*LineQuery
+	withNamedChannelServiceMembers   map[string]*ChannelServiceMemberQuery
+	withNamedOwnedTranslationLocales map[string]*TranslationLocaleQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -105,6 +108,28 @@ func (_q *UserQuery) QueryChannelServiceMembers() *ChannelServiceMemberQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(channelservicemember.Table, channelservicemember.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, true, user.ChannelServiceMembersTable, user.ChannelServiceMembersColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryOwnedTranslationLocales chains the current query on the "owned_translation_locales" edge.
+func (_q *UserQuery) QueryOwnedTranslationLocales() *TranslationLocaleQuery {
+	query := (&TranslationLocaleClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(translationlocale.Table, translationlocale.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, user.OwnedTranslationLocalesTable, user.OwnedTranslationLocalesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -299,13 +324,14 @@ func (_q *UserQuery) Clone() *UserQuery {
 		return nil
 	}
 	return &UserQuery{
-		config:                    _q.config,
-		ctx:                       _q.ctx.Clone(),
-		order:                     append([]user.OrderOption{}, _q.order...),
-		inters:                    append([]Interceptor{}, _q.inters...),
-		predicates:                append([]predicate.User{}, _q.predicates...),
-		withLine:                  _q.withLine.Clone(),
-		withChannelServiceMembers: _q.withChannelServiceMembers.Clone(),
+		config:                      _q.config,
+		ctx:                         _q.ctx.Clone(),
+		order:                       append([]user.OrderOption{}, _q.order...),
+		inters:                      append([]Interceptor{}, _q.inters...),
+		predicates:                  append([]predicate.User{}, _q.predicates...),
+		withLine:                    _q.withLine.Clone(),
+		withChannelServiceMembers:   _q.withChannelServiceMembers.Clone(),
+		withOwnedTranslationLocales: _q.withOwnedTranslationLocales.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -331,6 +357,17 @@ func (_q *UserQuery) WithChannelServiceMembers(opts ...func(*ChannelServiceMembe
 		opt(query)
 	}
 	_q.withChannelServiceMembers = query
+	return _q
+}
+
+// WithOwnedTranslationLocales tells the query-builder to eager-load the nodes that are connected to
+// the "owned_translation_locales" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithOwnedTranslationLocales(opts ...func(*TranslationLocaleQuery)) *UserQuery {
+	query := (&TranslationLocaleClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withOwnedTranslationLocales = query
 	return _q
 }
 
@@ -412,9 +449,10 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [3]bool{
 			_q.withLine != nil,
 			_q.withChannelServiceMembers != nil,
+			_q.withOwnedTranslationLocales != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -454,6 +492,15 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 			return nil, err
 		}
 	}
+	if query := _q.withOwnedTranslationLocales; query != nil {
+		if err := _q.loadOwnedTranslationLocales(ctx, query, nodes,
+			func(n *User) { n.Edges.OwnedTranslationLocales = []*TranslationLocale{} },
+			func(n *User, e *TranslationLocale) {
+				n.Edges.OwnedTranslationLocales = append(n.Edges.OwnedTranslationLocales, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
 	for name, query := range _q.withNamedLine {
 		if err := _q.loadLine(ctx, query, nodes,
 			func(n *User) { n.appendNamedLine(name) },
@@ -465,6 +512,13 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := _q.loadChannelServiceMembers(ctx, query, nodes,
 			func(n *User) { n.appendNamedChannelServiceMembers(name) },
 			func(n *User, e *ChannelServiceMember) { n.appendNamedChannelServiceMembers(name, e) }); err != nil {
+			return nil, err
+		}
+	}
+	for name, query := range _q.withNamedOwnedTranslationLocales {
+		if err := _q.loadOwnedTranslationLocales(ctx, query, nodes,
+			func(n *User) { n.appendNamedOwnedTranslationLocales(name) },
+			func(n *User, e *TranslationLocale) { n.appendNamedOwnedTranslationLocales(name, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -532,6 +586,36 @@ func (_q *UserQuery) loadChannelServiceMembers(ctx context.Context, query *Chann
 		node, ok := nodeids[fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadOwnedTranslationLocales(ctx context.Context, query *TranslationLocaleQuery, nodes []*User, init func(*User), assign func(*User, *TranslationLocale)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(translationlocale.FieldOwnerUserID)
+	}
+	query.Where(predicate.TranslationLocale(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.OwnedTranslationLocalesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.OwnerUserID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "owner_user_id" returned %v for node %v`, fk, n.ID)
 		}
 		assign(node, n)
 	}
@@ -647,6 +731,20 @@ func (_q *UserQuery) WithNamedChannelServiceMembers(name string, opts ...func(*C
 		_q.withNamedChannelServiceMembers = make(map[string]*ChannelServiceMemberQuery)
 	}
 	_q.withNamedChannelServiceMembers[name] = query
+	return _q
+}
+
+// WithNamedOwnedTranslationLocales tells the query-builder to eager-load the nodes that are connected to the "owned_translation_locales"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithNamedOwnedTranslationLocales(name string, opts ...func(*TranslationLocaleQuery)) *UserQuery {
+	query := (&TranslationLocaleClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if _q.withNamedOwnedTranslationLocales == nil {
+		_q.withNamedOwnedTranslationLocales = make(map[string]*TranslationLocaleQuery)
+	}
+	_q.withNamedOwnedTranslationLocales[name] = query
 	return _q
 }
 

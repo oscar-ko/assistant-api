@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"assistant-api/internal/ent"
@@ -10,6 +11,7 @@ import (
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
+	"assistant-api/internal/ent/translationlocale"
 
 	"github.com/google/uuid"
 )
@@ -282,4 +284,86 @@ func (r *ChannelMessageRepo) AddServiceMemberToChannel(ctx context.Context, chan
 		return fmt.Errorf("failed to add service member to channel: %w", err)
 	}
 	return nil
+}
+
+// AddTranslationLocaleToChannel records a translation target locale with owner under a channel and skill.
+// The operation is idempotent and ignored if (channel_id, target_locale) already exists.
+func (r *ChannelMessageRepo) AddTranslationLocaleToChannel(ctx context.Context, channelID uuid.UUID, skillID uuid.UUID, ownerUserID uuid.UUID, targetLocale string) error {
+	if channelID == uuid.Nil {
+		return fmt.Errorf("channel id is required")
+	}
+	if skillID == uuid.Nil {
+		return fmt.Errorf("skill id is required")
+	}
+	if ownerUserID == uuid.Nil {
+		return fmt.Errorf("owner user id is required")
+	}
+	targetLocale = strings.TrimSpace(targetLocale)
+	if targetLocale == "" {
+		return fmt.Errorf("target locale is required")
+	}
+
+	exists, err := r.db.TranslationLocale.Query().
+		Where(
+			translationlocale.ChannelIDEQ(channelID),
+			translationlocale.TargetLocaleEQ(targetLocale),
+		).
+		Exist(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to query translation locale: %w", err)
+	}
+	if exists {
+		return nil
+	}
+
+	if _, err := r.db.TranslationLocale.Create().
+		SetChannelID(channelID).
+		SetSkillID(skillID).
+		SetOwnerUserID(ownerUserID).
+		SetTargetLocale(targetLocale).
+		Save(ctx); err != nil {
+		return fmt.Errorf("failed to add translation locale: %w", err)
+	}
+
+	return nil
+}
+
+// ListChannelSkillTargetLocales returns configured translation target locales by channel and skill.
+func (r *ChannelMessageRepo) ListChannelSkillTargetLocales(ctx context.Context, channelID uuid.UUID, skillID uuid.UUID) ([]string, error) {
+	if channelID == uuid.Nil {
+		return nil, fmt.Errorf("channel id is required")
+	}
+	if skillID == uuid.Nil {
+		return nil, fmt.Errorf("skill id is required")
+	}
+
+	rows, err := r.db.TranslationLocale.Query().
+		Where(
+			translationlocale.ChannelIDEQ(channelID),
+			translationlocale.SkillIDEQ(skillID),
+		).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query translation locales: %w", err)
+	}
+
+	seen := make(map[string]struct{}, len(rows))
+	locales := make([]string, 0, len(rows))
+	for _, row := range rows {
+		if row == nil {
+			continue
+		}
+		locale := strings.TrimSpace(row.TargetLocale)
+		if locale == "" {
+			continue
+		}
+		if _, ok := seen[locale]; ok {
+			continue
+		}
+		seen[locale] = struct{}{}
+		locales = append(locales, locale)
+	}
+
+	sort.Strings(locales)
+	return locales, nil
 }

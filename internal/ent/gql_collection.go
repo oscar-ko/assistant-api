@@ -10,6 +10,7 @@ import (
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
+	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
 
@@ -279,6 +280,19 @@ func (_q *ChannelQuery) collectField(ctx context.Context, oneNode bool, opCtx *g
 				return err
 			}
 			_q.WithNamedServiceMembers(alias, func(wq *ChannelServiceMemberQuery) {
+				*wq = *query
+			})
+
+		case "translationLocales":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&TranslationLocaleClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, translationlocaleImplementors)...); err != nil {
+				return err
+			}
+			_q.WithNamedTranslationLocales(alias, func(wq *TranslationLocaleQuery) {
 				*wq = *query
 			})
 		case "createdAt":
@@ -794,6 +808,19 @@ func (_q *SkillQuery) collectField(ctx context.Context, oneNode bool, opCtx *gra
 			_q.WithNamedChannelServiceMembers(alias, func(wq *ChannelServiceMemberQuery) {
 				*wq = *query
 			})
+
+		case "translationLocales":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&TranslationLocaleClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, translationlocaleImplementors)...); err != nil {
+				return err
+			}
+			_q.WithNamedTranslationLocales(alias, func(wq *TranslationLocaleQuery) {
+				*wq = *query
+			})
 		case "skillCode":
 			if _, ok := fieldSeen[skill.FieldSkillCode]; !ok {
 				selectedFields = append(selectedFields, skill.FieldSkillCode)
@@ -851,6 +878,143 @@ func newSkillPaginateArgs(rv map[string]any) *skillPaginateArgs {
 }
 
 // CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
+func (_q *TranslationLocaleQuery) CollectFields(ctx context.Context, satisfies ...string) (*TranslationLocaleQuery, error) {
+	fc := graphql.GetFieldContext(ctx)
+	if fc == nil {
+		return _q, nil
+	}
+	if err := _q.collectField(ctx, false, graphql.GetOperationContext(ctx), fc.Field, nil, satisfies...); err != nil {
+		return nil, err
+	}
+	return _q, nil
+}
+
+func (_q *TranslationLocaleQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
+	path = append([]string(nil), path...)
+	var (
+		unknownSeen    bool
+		fieldSeen      = make(map[string]struct{}, len(translationlocale.Columns))
+		selectedFields = []string{translationlocale.FieldID}
+	)
+	for _, field := range graphql.CollectFields(opCtx, collected.Selections, satisfies) {
+		switch field.Name {
+
+		case "channel":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&ChannelClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, channelImplementors)...); err != nil {
+				return err
+			}
+			_q.withChannel = query
+			if _, ok := fieldSeen[translationlocale.FieldChannelID]; !ok {
+				selectedFields = append(selectedFields, translationlocale.FieldChannelID)
+				fieldSeen[translationlocale.FieldChannelID] = struct{}{}
+			}
+
+		case "skill":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&SkillClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, skillImplementors)...); err != nil {
+				return err
+			}
+			_q.withSkill = query
+			if _, ok := fieldSeen[translationlocale.FieldSkillID]; !ok {
+				selectedFields = append(selectedFields, translationlocale.FieldSkillID)
+				fieldSeen[translationlocale.FieldSkillID] = struct{}{}
+			}
+
+		case "owner":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&UserClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, userImplementors)...); err != nil {
+				return err
+			}
+			_q.withOwner = query
+			if _, ok := fieldSeen[translationlocale.FieldOwnerUserID]; !ok {
+				selectedFields = append(selectedFields, translationlocale.FieldOwnerUserID)
+				fieldSeen[translationlocale.FieldOwnerUserID] = struct{}{}
+			}
+		case "createdAt":
+			if _, ok := fieldSeen[translationlocale.FieldCreatedAt]; !ok {
+				selectedFields = append(selectedFields, translationlocale.FieldCreatedAt)
+				fieldSeen[translationlocale.FieldCreatedAt] = struct{}{}
+			}
+		case "updatedAt":
+			if _, ok := fieldSeen[translationlocale.FieldUpdatedAt]; !ok {
+				selectedFields = append(selectedFields, translationlocale.FieldUpdatedAt)
+				fieldSeen[translationlocale.FieldUpdatedAt] = struct{}{}
+			}
+		case "channelID":
+			if _, ok := fieldSeen[translationlocale.FieldChannelID]; !ok {
+				selectedFields = append(selectedFields, translationlocale.FieldChannelID)
+				fieldSeen[translationlocale.FieldChannelID] = struct{}{}
+			}
+		case "skillID":
+			if _, ok := fieldSeen[translationlocale.FieldSkillID]; !ok {
+				selectedFields = append(selectedFields, translationlocale.FieldSkillID)
+				fieldSeen[translationlocale.FieldSkillID] = struct{}{}
+			}
+		case "ownerUserID":
+			if _, ok := fieldSeen[translationlocale.FieldOwnerUserID]; !ok {
+				selectedFields = append(selectedFields, translationlocale.FieldOwnerUserID)
+				fieldSeen[translationlocale.FieldOwnerUserID] = struct{}{}
+			}
+		case "targetLocale":
+			if _, ok := fieldSeen[translationlocale.FieldTargetLocale]; !ok {
+				selectedFields = append(selectedFields, translationlocale.FieldTargetLocale)
+				fieldSeen[translationlocale.FieldTargetLocale] = struct{}{}
+			}
+		case "id":
+		case "__typename":
+		default:
+			unknownSeen = true
+		}
+	}
+	if !unknownSeen {
+		_q.Select(selectedFields...)
+	}
+	return nil
+}
+
+type translationlocalePaginateArgs struct {
+	first, last   *int
+	after, before *Cursor
+	opts          []TranslationLocalePaginateOption
+}
+
+func newTranslationLocalePaginateArgs(rv map[string]any) *translationlocalePaginateArgs {
+	args := &translationlocalePaginateArgs{}
+	if rv == nil {
+		return args
+	}
+	if v := rv[firstField]; v != nil {
+		args.first = v.(*int)
+	}
+	if v := rv[lastField]; v != nil {
+		args.last = v.(*int)
+	}
+	if v := rv[afterField]; v != nil {
+		args.after = v.(*Cursor)
+	}
+	if v := rv[beforeField]; v != nil {
+		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[whereField].(*TranslationLocaleWhereInput); ok {
+		args.opts = append(args.opts, WithTranslationLocaleFilter(v.Filter))
+	}
+	return args
+}
+
+// CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
 func (_q *UserQuery) CollectFields(ctx context.Context, satisfies ...string) (*UserQuery, error) {
 	fc := graphql.GetFieldContext(ctx)
 	if fc == nil {
@@ -895,6 +1059,19 @@ func (_q *UserQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 				return err
 			}
 			_q.WithNamedChannelServiceMembers(alias, func(wq *ChannelServiceMemberQuery) {
+				*wq = *query
+			})
+
+		case "ownedTranslationLocales":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&TranslationLocaleClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, translationlocaleImplementors)...); err != nil {
+				return err
+			}
+			_q.WithNamedOwnedTranslationLocales(alias, func(wq *TranslationLocaleQuery) {
 				*wq = *query
 			})
 		case "name":

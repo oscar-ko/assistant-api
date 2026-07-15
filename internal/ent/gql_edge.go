@@ -60,6 +60,18 @@ func (_m *Channel) ServiceMembers(ctx context.Context) (result []*ChannelService
 	return result, err
 }
 
+func (_m *Channel) TranslationLocales(ctx context.Context) (result []*TranslationLocale, err error) {
+	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
+		result, err = _m.NamedTranslationLocales(graphql.GetFieldContext(ctx).Field.Alias)
+	} else {
+		result, err = _m.Edges.TranslationLocalesOrErr()
+	}
+	if IsNotLoaded(err) {
+		result, err = _m.QueryTranslationLocales().All(ctx)
+	}
+	return result, err
+}
+
 func (_m *ChannelMessage) Channel(ctx context.Context) (*Channel, error) {
 	result, err := _m.Edges.ChannelOrErr()
 	if IsNotLoaded(err) {
@@ -144,6 +156,42 @@ func (_m *Skill) ChannelServiceMembers(ctx context.Context) (result []*ChannelSe
 	return result, err
 }
 
+func (_m *Skill) TranslationLocales(ctx context.Context) (result []*TranslationLocale, err error) {
+	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
+		result, err = _m.NamedTranslationLocales(graphql.GetFieldContext(ctx).Field.Alias)
+	} else {
+		result, err = _m.Edges.TranslationLocalesOrErr()
+	}
+	if IsNotLoaded(err) {
+		result, err = _m.QueryTranslationLocales().All(ctx)
+	}
+	return result, err
+}
+
+func (_m *TranslationLocale) Channel(ctx context.Context) (*Channel, error) {
+	result, err := _m.Edges.ChannelOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryChannel().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *TranslationLocale) Skill(ctx context.Context) (*Skill, error) {
+	result, err := _m.Edges.SkillOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QuerySkill().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *TranslationLocale) Owner(ctx context.Context) (*User, error) {
+	result, err := _m.Edges.OwnerOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryOwner().Only(ctx)
+	}
+	return result, err
+}
+
 func (_m *User) Line(ctx context.Context) (result []*Line, err error) {
 	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
 		result, err = _m.NamedLine(graphql.GetFieldContext(ctx).Field.Alias)
@@ -164,6 +212,18 @@ func (_m *User) ChannelServiceMembers(ctx context.Context) (result []*ChannelSer
 	}
 	if IsNotLoaded(err) {
 		result, err = _m.QueryChannelServiceMembers().All(ctx)
+	}
+	return result, err
+}
+
+func (_m *User) OwnedTranslationLocales(ctx context.Context) (result []*TranslationLocale, err error) {
+	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
+		result, err = _m.NamedOwnedTranslationLocales(graphql.GetFieldContext(ctx).Field.Alias)
+	} else {
+		result, err = _m.Edges.OwnedTranslationLocalesOrErr()
+	}
+	if IsNotLoaded(err) {
+		result, err = _m.QueryOwnedTranslationLocales().All(ctx)
 	}
 	return result, err
 }

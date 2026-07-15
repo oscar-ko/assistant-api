@@ -10,6 +10,7 @@ import (
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
+	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
 	"fmt"
@@ -59,6 +60,11 @@ var skillImplementors = []string{"Skill", "Node"}
 
 // IsNode implements the Node interface check for GQLGen.
 func (*Skill) IsNode() {}
+
+var translationlocaleImplementors = []string{"TranslationLocale", "Node"}
+
+// IsNode implements the Node interface check for GQLGen.
+func (*TranslationLocale) IsNode() {}
 
 var userImplementors = []string{"User", "Node"}
 
@@ -182,6 +188,15 @@ func (c *Client) noder(ctx context.Context, table string, id uuid.UUID) (Noder, 
 			Where(skill.ID(id))
 		if fc := graphql.GetFieldContext(ctx); fc != nil {
 			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, skillImplementors...); err != nil {
+				return nil, err
+			}
+		}
+		return query.Only(ctx)
+	case translationlocale.Table:
+		query := c.TranslationLocale.Query().
+			Where(translationlocale.ID(id))
+		if fc := graphql.GetFieldContext(ctx); fc != nil {
+			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, translationlocaleImplementors...); err != nil {
 				return nil, err
 			}
 		}
@@ -368,6 +383,22 @@ func (c *Client) noders(ctx context.Context, table string, ids []uuid.UUID) ([]N
 		query := c.Skill.Query().
 			Where(skill.IDIn(ids...))
 		query, err := query.CollectFields(ctx, skillImplementors...)
+		if err != nil {
+			return nil, err
+		}
+		nodes, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, node := range nodes {
+			for _, noder := range idmap[node.ID] {
+				*noder = node
+			}
+		}
+	case translationlocale.Table:
+		query := c.TranslationLocale.Query().
+			Where(translationlocale.IDIn(ids...))
+		query, err := query.CollectFields(ctx, translationlocaleImplementors...)
 		if err != nil {
 			return nil, err
 		}

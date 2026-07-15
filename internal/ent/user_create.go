@@ -5,6 +5,7 @@ package ent
 import (
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
+	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
 	"errors"
@@ -76,6 +77,21 @@ func (_c *UserCreate) AddChannelServiceMembers(v ...*ChannelServiceMember) *User
 		ids[i] = v[i].ID
 	}
 	return _c.AddChannelServiceMemberIDs(ids...)
+}
+
+// AddOwnedTranslationLocaleIDs adds the "owned_translation_locales" edge to the TranslationLocale entity by IDs.
+func (_c *UserCreate) AddOwnedTranslationLocaleIDs(ids ...uuid.UUID) *UserCreate {
+	_c.mutation.AddOwnedTranslationLocaleIDs(ids...)
+	return _c
+}
+
+// AddOwnedTranslationLocales adds the "owned_translation_locales" edges to the TranslationLocale entity.
+func (_c *UserCreate) AddOwnedTranslationLocales(v ...*TranslationLocale) *UserCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddOwnedTranslationLocaleIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -205,6 +221,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelservicemember.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.OwnedTranslationLocalesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.OwnedTranslationLocalesTable,
+			Columns: []string{user.OwnedTranslationLocalesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(translationlocale.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

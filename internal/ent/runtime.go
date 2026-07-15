@@ -11,6 +11,7 @@ import (
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/schema"
 	"assistant-api/internal/ent/skill"
+	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"time"
 
@@ -172,6 +173,31 @@ func init() {
 	skillDescID := skillMixinFields0[0].Descriptor()
 	// skill.DefaultID holds the default value on creation for the id field.
 	skill.DefaultID = skillDescID.Default.(func() uuid.UUID)
+	translationlocaleMixin := schema.TranslationLocale{}.Mixin()
+	translationlocaleMixinFields0 := translationlocaleMixin[0].Fields()
+	_ = translationlocaleMixinFields0
+	translationlocaleMixinFields1 := translationlocaleMixin[1].Fields()
+	_ = translationlocaleMixinFields1
+	translationlocaleFields := schema.TranslationLocale{}.Fields()
+	_ = translationlocaleFields
+	// translationlocaleDescCreatedAt is the schema descriptor for created_at field.
+	translationlocaleDescCreatedAt := translationlocaleMixinFields1[0].Descriptor()
+	// translationlocale.DefaultCreatedAt holds the default value on creation for the created_at field.
+	translationlocale.DefaultCreatedAt = translationlocaleDescCreatedAt.Default.(func() time.Time)
+	// translationlocaleDescUpdatedAt is the schema descriptor for updated_at field.
+	translationlocaleDescUpdatedAt := translationlocaleMixinFields1[1].Descriptor()
+	// translationlocale.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	translationlocale.DefaultUpdatedAt = translationlocaleDescUpdatedAt.Default.(func() time.Time)
+	// translationlocale.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	translationlocale.UpdateDefaultUpdatedAt = translationlocaleDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// translationlocaleDescTargetLocale is the schema descriptor for target_locale field.
+	translationlocaleDescTargetLocale := translationlocaleFields[3].Descriptor()
+	// translationlocale.TargetLocaleValidator is a validator for the "target_locale" field. It is called by the builders before save.
+	translationlocale.TargetLocaleValidator = translationlocaleDescTargetLocale.Validators[0].(func(string) error)
+	// translationlocaleDescID is the schema descriptor for id field.
+	translationlocaleDescID := translationlocaleMixinFields0[0].Descriptor()
+	// translationlocale.DefaultID holds the default value on creation for the id field.
+	translationlocale.DefaultID = translationlocaleDescID.Default.(func() uuid.UUID)
 	userMixin := schema.User{}.Mixin()
 	userMixinFields0 := userMixin[0].Fields()
 	_ = userMixinFields0

@@ -21,6 +21,8 @@ const (
 	EdgeLine = "line"
 	// EdgeChannelServiceMembers holds the string denoting the channel_service_members edge name in mutations.
 	EdgeChannelServiceMembers = "channel_service_members"
+	// EdgeOwnedTranslationLocales holds the string denoting the owned_translation_locales edge name in mutations.
+	EdgeOwnedTranslationLocales = "owned_translation_locales"
 	// Table holds the table name of the user in the database.
 	Table = "users"
 	// LineTable is the table that holds the line relation/edge.
@@ -37,6 +39,13 @@ const (
 	ChannelServiceMembersInverseTable = "channel_service_members"
 	// ChannelServiceMembersColumn is the table column denoting the channel_service_members relation/edge.
 	ChannelServiceMembersColumn = "user_id"
+	// OwnedTranslationLocalesTable is the table that holds the owned_translation_locales relation/edge.
+	OwnedTranslationLocalesTable = "translation_locales"
+	// OwnedTranslationLocalesInverseTable is the table name for the TranslationLocale entity.
+	// It exists in this package in order to avoid circular dependency with the "translationlocale" package.
+	OwnedTranslationLocalesInverseTable = "translation_locales"
+	// OwnedTranslationLocalesColumn is the table column denoting the owned_translation_locales relation/edge.
+	OwnedTranslationLocalesColumn = "owner_user_id"
 )
 
 // Columns holds all SQL columns for user fields.
@@ -110,6 +119,20 @@ func ByChannelServiceMembers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOp
 		sqlgraph.OrderByNeighborTerms(s, newChannelServiceMembersStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByOwnedTranslationLocalesCount orders the results by owned_translation_locales count.
+func ByOwnedTranslationLocalesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newOwnedTranslationLocalesStep(), opts...)
+	}
+}
+
+// ByOwnedTranslationLocales orders the results by owned_translation_locales terms.
+func ByOwnedTranslationLocales(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newOwnedTranslationLocalesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newLineStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -122,5 +145,12 @@ func newChannelServiceMembersStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ChannelServiceMembersInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, true, ChannelServiceMembersTable, ChannelServiceMembersColumn),
+	)
+}
+func newOwnedTranslationLocalesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(OwnedTranslationLocalesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, true, OwnedTranslationLocalesTable, OwnedTranslationLocalesColumn),
 	)
 }

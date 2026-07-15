@@ -7,6 +7,7 @@ import (
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/skill"
+	"assistant-api/internal/ent/translationlocale"
 	"context"
 	"errors"
 	"fmt"
@@ -108,6 +109,21 @@ func (_u *SkillUpdate) AddChannelServiceMembers(v ...*ChannelServiceMember) *Ski
 	return _u.AddChannelServiceMemberIDs(ids...)
 }
 
+// AddTranslationLocaleIDs adds the "translation_locales" edge to the TranslationLocale entity by IDs.
+func (_u *SkillUpdate) AddTranslationLocaleIDs(ids ...uuid.UUID) *SkillUpdate {
+	_u.mutation.AddTranslationLocaleIDs(ids...)
+	return _u
+}
+
+// AddTranslationLocales adds the "translation_locales" edges to the TranslationLocale entity.
+func (_u *SkillUpdate) AddTranslationLocales(v ...*TranslationLocale) *SkillUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTranslationLocaleIDs(ids...)
+}
+
 // Mutation returns the SkillMutation object of the builder.
 func (_u *SkillUpdate) Mutation() *SkillMutation {
 	return _u.mutation
@@ -153,6 +169,27 @@ func (_u *SkillUpdate) RemoveChannelServiceMembers(v ...*ChannelServiceMember) *
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveChannelServiceMemberIDs(ids...)
+}
+
+// ClearTranslationLocales clears all "translation_locales" edges to the TranslationLocale entity.
+func (_u *SkillUpdate) ClearTranslationLocales() *SkillUpdate {
+	_u.mutation.ClearTranslationLocales()
+	return _u
+}
+
+// RemoveTranslationLocaleIDs removes the "translation_locales" edge to TranslationLocale entities by IDs.
+func (_u *SkillUpdate) RemoveTranslationLocaleIDs(ids ...uuid.UUID) *SkillUpdate {
+	_u.mutation.RemoveTranslationLocaleIDs(ids...)
+	return _u
+}
+
+// RemoveTranslationLocales removes "translation_locales" edges to TranslationLocale entities.
+func (_u *SkillUpdate) RemoveTranslationLocales(v ...*TranslationLocale) *SkillUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTranslationLocaleIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -311,6 +348,51 @@ func (_u *SkillUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.TranslationLocalesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   skill.TranslationLocalesTable,
+			Columns: []string{skill.TranslationLocalesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(translationlocale.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTranslationLocalesIDs(); len(nodes) > 0 && !_u.mutation.TranslationLocalesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   skill.TranslationLocalesTable,
+			Columns: []string{skill.TranslationLocalesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(translationlocale.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TranslationLocalesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   skill.TranslationLocalesTable,
+			Columns: []string{skill.TranslationLocalesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(translationlocale.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{skill.Label}
@@ -409,6 +491,21 @@ func (_u *SkillUpdateOne) AddChannelServiceMembers(v ...*ChannelServiceMember) *
 	return _u.AddChannelServiceMemberIDs(ids...)
 }
 
+// AddTranslationLocaleIDs adds the "translation_locales" edge to the TranslationLocale entity by IDs.
+func (_u *SkillUpdateOne) AddTranslationLocaleIDs(ids ...uuid.UUID) *SkillUpdateOne {
+	_u.mutation.AddTranslationLocaleIDs(ids...)
+	return _u
+}
+
+// AddTranslationLocales adds the "translation_locales" edges to the TranslationLocale entity.
+func (_u *SkillUpdateOne) AddTranslationLocales(v ...*TranslationLocale) *SkillUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTranslationLocaleIDs(ids...)
+}
+
 // Mutation returns the SkillMutation object of the builder.
 func (_u *SkillUpdateOne) Mutation() *SkillMutation {
 	return _u.mutation
@@ -454,6 +551,27 @@ func (_u *SkillUpdateOne) RemoveChannelServiceMembers(v ...*ChannelServiceMember
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveChannelServiceMemberIDs(ids...)
+}
+
+// ClearTranslationLocales clears all "translation_locales" edges to the TranslationLocale entity.
+func (_u *SkillUpdateOne) ClearTranslationLocales() *SkillUpdateOne {
+	_u.mutation.ClearTranslationLocales()
+	return _u
+}
+
+// RemoveTranslationLocaleIDs removes the "translation_locales" edge to TranslationLocale entities by IDs.
+func (_u *SkillUpdateOne) RemoveTranslationLocaleIDs(ids ...uuid.UUID) *SkillUpdateOne {
+	_u.mutation.RemoveTranslationLocaleIDs(ids...)
+	return _u
+}
+
+// RemoveTranslationLocales removes "translation_locales" edges to TranslationLocale entities.
+func (_u *SkillUpdateOne) RemoveTranslationLocales(v ...*TranslationLocale) *SkillUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTranslationLocaleIDs(ids...)
 }
 
 // Where appends a list predicates to the SkillUpdate builder.
@@ -635,6 +753,51 @@ func (_u *SkillUpdateOne) sqlSave(ctx context.Context) (_node *Skill, err error)
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelservicemember.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.TranslationLocalesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   skill.TranslationLocalesTable,
+			Columns: []string{skill.TranslationLocalesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(translationlocale.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTranslationLocalesIDs(); len(nodes) > 0 && !_u.mutation.TranslationLocalesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   skill.TranslationLocalesTable,
+			Columns: []string{skill.TranslationLocalesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(translationlocale.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TranslationLocalesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   skill.TranslationLocalesTable,
+			Columns: []string{skill.TranslationLocalesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(translationlocale.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

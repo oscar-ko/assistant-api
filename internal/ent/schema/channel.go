@@ -39,6 +39,7 @@ func (Channel) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("messages", ChannelMessage.Type).Comment("此頻道底下的訊息列表"),
 		edge.From("service_members", ChannelServiceMember.Type).Ref("channel").Comment("此頻道啟用服務的成員"),
+		edge.From("translation_locales", TranslationLocale.Type).Ref("channel").Comment("此頻道翻譯目標語言設定"),
 	}
 }
 

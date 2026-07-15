@@ -241,6 +241,29 @@ func HasChannelServiceMembersWith(preds ...predicate.ChannelServiceMember) predi
 	})
 }
 
+// HasOwnedTranslationLocales applies the HasEdge predicate on the "owned_translation_locales" edge.
+func HasOwnedTranslationLocales() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, OwnedTranslationLocalesTable, OwnedTranslationLocalesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasOwnedTranslationLocalesWith applies the HasEdge predicate on the "owned_translation_locales" edge with a given conditions (other predicates).
+func HasOwnedTranslationLocalesWith(preds ...predicate.TranslationLocale) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newOwnedTranslationLocalesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.User) predicate.User {
 	return predicate.User(sql.AndPredicates(predicates...))

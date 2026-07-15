@@ -260,6 +260,69 @@ var (
 			},
 		},
 	}
+	// TranslationLocalesColumns holds the columns for the "translation_locales" table.
+	TranslationLocalesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "target_locale", Type: field.TypeString},
+		{Name: "channel_id", Type: field.TypeUUID},
+		{Name: "skill_id", Type: field.TypeUUID},
+		{Name: "owner_user_id", Type: field.TypeUUID},
+	}
+	// TranslationLocalesTable holds the schema information for the "translation_locales" table.
+	TranslationLocalesTable = &schema.Table{
+		Name:       "translation_locales",
+		Columns:    TranslationLocalesColumns,
+		PrimaryKey: []*schema.Column{TranslationLocalesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "translation_locales_channels_channel",
+				Columns:    []*schema.Column{TranslationLocalesColumns[4]},
+				RefColumns: []*schema.Column{ChannelsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "translation_locales_skills_skill",
+				Columns:    []*schema.Column{TranslationLocalesColumns[5]},
+				RefColumns: []*schema.Column{SkillsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "translation_locales_users_owner",
+				Columns:    []*schema.Column{TranslationLocalesColumns[6]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "translationlocale_channel_id_target_locale",
+				Unique:  true,
+				Columns: []*schema.Column{TranslationLocalesColumns[4], TranslationLocalesColumns[3]},
+			},
+			{
+				Name:    "translationlocale_channel_id_skill_id",
+				Unique:  false,
+				Columns: []*schema.Column{TranslationLocalesColumns[4], TranslationLocalesColumns[5]},
+			},
+			{
+				Name:    "translationlocale_skill_id_target_locale",
+				Unique:  false,
+				Columns: []*schema.Column{TranslationLocalesColumns[5], TranslationLocalesColumns[3]},
+			},
+			{
+				Name:    "translationlocale_owner_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{TranslationLocalesColumns[6]},
+			},
+			{
+				Name:    "translationlocale_target_locale",
+				Unique:  false,
+				Columns: []*schema.Column{TranslationLocalesColumns[3]},
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -281,6 +344,7 @@ var (
 		ChannelServiceMembersTable,
 		LinesTable,
 		SkillsTable,
+		TranslationLocalesTable,
 		UsersTable,
 	}
 )
@@ -294,4 +358,7 @@ func init() {
 	ChannelServiceMembersTable.ForeignKeys[1].RefTable = UsersTable
 	ChannelServiceMembersTable.ForeignKeys[2].RefTable = SkillsTable
 	LinesTable.ForeignKeys[0].RefTable = UsersTable
+	TranslationLocalesTable.ForeignKeys[0].RefTable = ChannelsTable
+	TranslationLocalesTable.ForeignKeys[1].RefTable = SkillsTable
+	TranslationLocalesTable.ForeignKeys[2].RefTable = UsersTable
 }

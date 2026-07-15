@@ -36,14 +36,17 @@ type SkillEdges struct {
 	Actions []*Action `json:"actions,omitempty"`
 	// ChannelServiceMembers holds the value of the channel_service_members edge.
 	ChannelServiceMembers []*ChannelServiceMember `json:"channel_service_members,omitempty"`
+	// TranslationLocales holds the value of the translation_locales edge.
+	TranslationLocales []*TranslationLocale `json:"translation_locales,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 	// totalCount holds the count of the edges above.
-	totalCount [2]map[string]int
+	totalCount [3]map[string]int
 
 	namedActions               map[string][]*Action
 	namedChannelServiceMembers map[string][]*ChannelServiceMember
+	namedTranslationLocales    map[string][]*TranslationLocale
 }
 
 // ActionsOrErr returns the Actions value or an error if the edge
@@ -62,6 +65,15 @@ func (e SkillEdges) ChannelServiceMembersOrErr() ([]*ChannelServiceMember, error
 		return e.ChannelServiceMembers, nil
 	}
 	return nil, &NotLoadedError{edge: "channel_service_members"}
+}
+
+// TranslationLocalesOrErr returns the TranslationLocales value or an error if the edge
+// was not loaded in eager-loading.
+func (e SkillEdges) TranslationLocalesOrErr() ([]*TranslationLocale, error) {
+	if e.loadedTypes[2] {
+		return e.TranslationLocales, nil
+	}
+	return nil, &NotLoadedError{edge: "translation_locales"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -134,6 +146,11 @@ func (_m *Skill) QueryActions() *ActionQuery {
 // QueryChannelServiceMembers queries the "channel_service_members" edge of the Skill entity.
 func (_m *Skill) QueryChannelServiceMembers() *ChannelServiceMemberQuery {
 	return NewSkillClient(_m.config).QueryChannelServiceMembers(_m)
+}
+
+// QueryTranslationLocales queries the "translation_locales" edge of the Skill entity.
+func (_m *Skill) QueryTranslationLocales() *TranslationLocaleQuery {
+	return NewSkillClient(_m.config).QueryTranslationLocales(_m)
 }
 
 // Update returns a builder for updating this Skill.
@@ -218,6 +235,30 @@ func (_m *Skill) appendNamedChannelServiceMembers(name string, edges ...*Channel
 		_m.Edges.namedChannelServiceMembers[name] = []*ChannelServiceMember{}
 	} else {
 		_m.Edges.namedChannelServiceMembers[name] = append(_m.Edges.namedChannelServiceMembers[name], edges...)
+	}
+}
+
+// NamedTranslationLocales returns the TranslationLocales named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *Skill) NamedTranslationLocales(name string) ([]*TranslationLocale, error) {
+	if _m.Edges.namedTranslationLocales == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedTranslationLocales[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *Skill) appendNamedTranslationLocales(name string, edges ...*TranslationLocale) {
+	if _m.Edges.namedTranslationLocales == nil {
+		_m.Edges.namedTranslationLocales = make(map[string][]*TranslationLocale)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedTranslationLocales[name] = []*TranslationLocale{}
+	} else {
+		_m.Edges.namedTranslationLocales[name] = append(_m.Edges.namedTranslationLocales[name], edges...)
 	}
 }
 

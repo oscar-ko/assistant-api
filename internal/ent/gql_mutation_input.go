@@ -8,10 +8,11 @@ import (
 
 // CreateUserInput represents a mutation input for creating users.
 type CreateUserInput struct {
-	Name                    string
-	Email                   string
-	LineIDs                 []uuid.UUID
-	ChannelServiceMemberIDs []uuid.UUID
+	Name                      string
+	Email                     string
+	LineIDs                   []uuid.UUID
+	ChannelServiceMemberIDs   []uuid.UUID
+	OwnedTranslationLocaleIDs []uuid.UUID
 }
 
 // Mutate applies the CreateUserInput on the UserMutation builder.
@@ -24,6 +25,9 @@ func (i *CreateUserInput) Mutate(m *UserMutation) {
 	if v := i.ChannelServiceMemberIDs; len(v) > 0 {
 		m.AddChannelServiceMemberIDs(v...)
 	}
+	if v := i.OwnedTranslationLocaleIDs; len(v) > 0 {
+		m.AddOwnedTranslationLocaleIDs(v...)
+	}
 }
 
 // SetInput applies the change-set in the CreateUserInput on the UserCreate builder.
@@ -34,14 +38,17 @@ func (c *UserCreate) SetInput(i CreateUserInput) *UserCreate {
 
 // UpdateUserInput represents a mutation input for updating users.
 type UpdateUserInput struct {
-	Name                          *string
-	Email                         *string
-	ClearLine                     bool
-	AddLineIDs                    []uuid.UUID
-	RemoveLineIDs                 []uuid.UUID
-	ClearChannelServiceMembers    bool
-	AddChannelServiceMemberIDs    []uuid.UUID
-	RemoveChannelServiceMemberIDs []uuid.UUID
+	Name                            *string
+	Email                           *string
+	ClearLine                       bool
+	AddLineIDs                      []uuid.UUID
+	RemoveLineIDs                   []uuid.UUID
+	ClearChannelServiceMembers      bool
+	AddChannelServiceMemberIDs      []uuid.UUID
+	RemoveChannelServiceMemberIDs   []uuid.UUID
+	ClearOwnedTranslationLocales    bool
+	AddOwnedTranslationLocaleIDs    []uuid.UUID
+	RemoveOwnedTranslationLocaleIDs []uuid.UUID
 }
 
 // Mutate applies the UpdateUserInput on the UserMutation builder.
@@ -69,6 +76,15 @@ func (i *UpdateUserInput) Mutate(m *UserMutation) {
 	}
 	if v := i.RemoveChannelServiceMemberIDs; len(v) > 0 {
 		m.RemoveChannelServiceMemberIDs(v...)
+	}
+	if i.ClearOwnedTranslationLocales {
+		m.ClearOwnedTranslationLocales()
+	}
+	if v := i.AddOwnedTranslationLocaleIDs; len(v) > 0 {
+		m.AddOwnedTranslationLocaleIDs(v...)
+	}
+	if v := i.RemoveOwnedTranslationLocaleIDs; len(v) > 0 {
+		m.RemoveOwnedTranslationLocaleIDs(v...)
 	}
 }
 

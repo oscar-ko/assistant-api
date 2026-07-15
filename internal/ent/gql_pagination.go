@@ -10,6 +10,7 @@ import (
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
+	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
 	"errors"
@@ -1844,6 +1845,255 @@ func (_m *Skill) ToEdge(order *SkillOrder) *SkillEdge {
 		order = DefaultSkillOrder
 	}
 	return &SkillEdge{
+		Node:   _m,
+		Cursor: order.Field.toCursor(_m),
+	}
+}
+
+// TranslationLocaleEdge is the edge representation of TranslationLocale.
+type TranslationLocaleEdge struct {
+	Node   *TranslationLocale `json:"node"`
+	Cursor Cursor             `json:"cursor"`
+}
+
+// TranslationLocaleConnection is the connection containing edges to TranslationLocale.
+type TranslationLocaleConnection struct {
+	Edges      []*TranslationLocaleEdge `json:"edges"`
+	PageInfo   PageInfo                 `json:"pageInfo"`
+	TotalCount int                      `json:"totalCount"`
+}
+
+func (c *TranslationLocaleConnection) build(nodes []*TranslationLocale, pager *translationlocalePager, after *Cursor, first *int, before *Cursor, last *int) {
+	c.PageInfo.HasNextPage = before != nil
+	c.PageInfo.HasPreviousPage = after != nil
+	if first != nil && *first+1 == len(nodes) {
+		c.PageInfo.HasNextPage = true
+		nodes = nodes[:len(nodes)-1]
+	} else if last != nil && *last+1 == len(nodes) {
+		c.PageInfo.HasPreviousPage = true
+		nodes = nodes[:len(nodes)-1]
+	}
+	var nodeAt func(int) *TranslationLocale
+	if last != nil {
+		n := len(nodes) - 1
+		nodeAt = func(i int) *TranslationLocale {
+			return nodes[n-i]
+		}
+	} else {
+		nodeAt = func(i int) *TranslationLocale {
+			return nodes[i]
+		}
+	}
+	c.Edges = make([]*TranslationLocaleEdge, len(nodes))
+	for i := range nodes {
+		node := nodeAt(i)
+		c.Edges[i] = &TranslationLocaleEdge{
+			Node:   node,
+			Cursor: pager.toCursor(node),
+		}
+	}
+	if l := len(c.Edges); l > 0 {
+		c.PageInfo.StartCursor = &c.Edges[0].Cursor
+		c.PageInfo.EndCursor = &c.Edges[l-1].Cursor
+	}
+	if c.TotalCount == 0 {
+		c.TotalCount = len(nodes)
+	}
+}
+
+// TranslationLocalePaginateOption enables pagination customization.
+type TranslationLocalePaginateOption func(*translationlocalePager) error
+
+// WithTranslationLocaleOrder configures pagination ordering.
+func WithTranslationLocaleOrder(order *TranslationLocaleOrder) TranslationLocalePaginateOption {
+	if order == nil {
+		order = DefaultTranslationLocaleOrder
+	}
+	o := *order
+	return func(pager *translationlocalePager) error {
+		if err := o.Direction.Validate(); err != nil {
+			return err
+		}
+		if o.Field == nil {
+			o.Field = DefaultTranslationLocaleOrder.Field
+		}
+		pager.order = &o
+		return nil
+	}
+}
+
+// WithTranslationLocaleFilter configures pagination filter.
+func WithTranslationLocaleFilter(filter func(*TranslationLocaleQuery) (*TranslationLocaleQuery, error)) TranslationLocalePaginateOption {
+	return func(pager *translationlocalePager) error {
+		if filter == nil {
+			return errors.New("TranslationLocaleQuery filter cannot be nil")
+		}
+		pager.filter = filter
+		return nil
+	}
+}
+
+type translationlocalePager struct {
+	reverse bool
+	order   *TranslationLocaleOrder
+	filter  func(*TranslationLocaleQuery) (*TranslationLocaleQuery, error)
+}
+
+func newTranslationLocalePager(opts []TranslationLocalePaginateOption, reverse bool) (*translationlocalePager, error) {
+	pager := &translationlocalePager{reverse: reverse}
+	for _, opt := range opts {
+		if err := opt(pager); err != nil {
+			return nil, err
+		}
+	}
+	if pager.order == nil {
+		pager.order = DefaultTranslationLocaleOrder
+	}
+	return pager, nil
+}
+
+func (p *translationlocalePager) applyFilter(query *TranslationLocaleQuery) (*TranslationLocaleQuery, error) {
+	if p.filter != nil {
+		return p.filter(query)
+	}
+	return query, nil
+}
+
+func (p *translationlocalePager) toCursor(_m *TranslationLocale) Cursor {
+	return p.order.Field.toCursor(_m)
+}
+
+func (p *translationlocalePager) applyCursors(query *TranslationLocaleQuery, after, before *Cursor) (*TranslationLocaleQuery, error) {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	for _, predicate := range entgql.CursorsPredicate(after, before, DefaultTranslationLocaleOrder.Field.column, p.order.Field.column, direction) {
+		query = query.Where(predicate)
+	}
+	return query, nil
+}
+
+func (p *translationlocalePager) applyOrder(query *TranslationLocaleQuery) *TranslationLocaleQuery {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	query = query.Order(p.order.Field.toTerm(direction.OrderTermOption()))
+	if p.order.Field != DefaultTranslationLocaleOrder.Field {
+		query = query.Order(DefaultTranslationLocaleOrder.Field.toTerm(direction.OrderTermOption()))
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return query
+}
+
+func (p *translationlocalePager) orderExpr(query *TranslationLocaleQuery) sql.Querier {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return sql.ExprFunc(func(b *sql.Builder) {
+		b.Ident(p.order.Field.column).Pad().WriteString(string(direction))
+		if p.order.Field != DefaultTranslationLocaleOrder.Field {
+			b.Comma().Ident(DefaultTranslationLocaleOrder.Field.column).Pad().WriteString(string(direction))
+		}
+	})
+}
+
+// Paginate executes the query and returns a relay based cursor connection to TranslationLocale.
+func (_m *TranslationLocaleQuery) Paginate(
+	ctx context.Context, after *Cursor, first *int,
+	before *Cursor, last *int, opts ...TranslationLocalePaginateOption,
+) (*TranslationLocaleConnection, error) {
+	if err := validateFirstLast(first, last); err != nil {
+		return nil, err
+	}
+	pager, err := newTranslationLocalePager(opts, last != nil)
+	if err != nil {
+		return nil, err
+	}
+	if _m, err = pager.applyFilter(_m); err != nil {
+		return nil, err
+	}
+	conn := &TranslationLocaleConnection{Edges: []*TranslationLocaleEdge{}}
+	ignoredEdges := !hasCollectedField(ctx, edgesField)
+	if hasCollectedField(ctx, totalCountField) || hasCollectedField(ctx, pageInfoField) {
+		hasPagination := after != nil || first != nil || before != nil || last != nil
+		if hasPagination || ignoredEdges {
+			c := _m.Clone()
+			c.ctx.Fields = nil
+			if conn.TotalCount, err = c.Count(ctx); err != nil {
+				return nil, err
+			}
+			conn.PageInfo.HasNextPage = first != nil && conn.TotalCount > 0
+			conn.PageInfo.HasPreviousPage = last != nil && conn.TotalCount > 0
+		}
+	}
+	if ignoredEdges || (first != nil && *first == 0) || (last != nil && *last == 0) {
+		return conn, nil
+	}
+	if _m, err = pager.applyCursors(_m, after, before); err != nil {
+		return nil, err
+	}
+	limit := paginateLimit(first, last)
+	if limit != 0 {
+		_m.Limit(limit)
+	}
+	if field := collectedField(ctx, edgesField, nodeField); field != nil {
+		if err := _m.collectField(ctx, limit == 1, graphql.GetOperationContext(ctx), *field, []string{edgesField, nodeField}); err != nil {
+			return nil, err
+		}
+	}
+	_m = pager.applyOrder(_m)
+	nodes, err := _m.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	conn.build(nodes, pager, after, first, before, last)
+	return conn, nil
+}
+
+// TranslationLocaleOrderField defines the ordering field of TranslationLocale.
+type TranslationLocaleOrderField struct {
+	// Value extracts the ordering value from the given TranslationLocale.
+	Value    func(*TranslationLocale) (ent.Value, error)
+	column   string // field or computed.
+	toTerm   func(...sql.OrderTermOption) translationlocale.OrderOption
+	toCursor func(*TranslationLocale) Cursor
+}
+
+// TranslationLocaleOrder defines the ordering of TranslationLocale.
+type TranslationLocaleOrder struct {
+	Direction OrderDirection               `json:"direction"`
+	Field     *TranslationLocaleOrderField `json:"field"`
+}
+
+// DefaultTranslationLocaleOrder is the default ordering of TranslationLocale.
+var DefaultTranslationLocaleOrder = &TranslationLocaleOrder{
+	Direction: entgql.OrderDirectionAsc,
+	Field: &TranslationLocaleOrderField{
+		Value: func(_m *TranslationLocale) (ent.Value, error) {
+			return _m.ID, nil
+		},
+		column: translationlocale.FieldID,
+		toTerm: translationlocale.ByID,
+		toCursor: func(_m *TranslationLocale) Cursor {
+			return Cursor{ID: _m.ID}
+		},
+	},
+}
+
+// ToEdge converts TranslationLocale into TranslationLocaleEdge.
+func (_m *TranslationLocale) ToEdge(order *TranslationLocaleOrder) *TranslationLocaleEdge {
+	if order == nil {
+		order = DefaultTranslationLocaleOrder
+	}
+	return &TranslationLocaleEdge{
 		Node:   _m,
 		Cursor: order.Field.toCursor(_m),
 	}

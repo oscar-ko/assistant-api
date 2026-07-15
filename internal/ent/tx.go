@@ -26,6 +26,8 @@ type Tx struct {
 	Line *LineClient
 	// Skill is the client for interacting with the Skill builders.
 	Skill *SkillClient
+	// TranslationLocale is the client for interacting with the TranslationLocale builders.
+	TranslationLocale *TranslationLocaleClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 
@@ -166,6 +168,7 @@ func (tx *Tx) init() {
 	tx.ChannelServiceMember = NewChannelServiceMemberClient(tx.config)
 	tx.Line = NewLineClient(tx.config)
 	tx.Skill = NewSkillClient(tx.config)
+	tx.TranslationLocale = NewTranslationLocaleClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 }
 
