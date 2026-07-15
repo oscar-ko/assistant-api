@@ -1,12 +1,25 @@
 package line
 
 import (
+	"context"
 	"testing"
+
+	"assistant-api/internal/integration/unifiedmessage"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 )
+
+type stubTopKFilter struct {
+	called bool
+}
+
+func (s *stubTopKFilter) FilterMessage(ctx context.Context, message *unifiedmessage.Message) {
+	_ = ctx
+	_ = message
+	s.called = true
+}
 
 func TestResolveSender(t *testing.T) {
 	tests := []struct {
@@ -48,13 +61,48 @@ func TestWebhookService_ProcessIncoming_TextMessage(t *testing.T) {
 	zap.ReplaceGlobals(zap.New(core))
 	defer zap.ReplaceGlobals(oldLogger)
 
-	body := []byte(`{"events":[{"type":"message","source":{"userId":"U123"},"message":{"type":"text","text":"hello"}}]}`)
-	(&WebhookService{}).ProcessIncoming(body, "sig")
+	body := []byte(`{"events":[{"type":"message","source":{"type":"group","groupId":"G123","userId":"U123"},"message":{"type":"text","text":"hello"}}]}`)
+	filterStub := &stubTopKFilter{}
+	(&WebhookService{topKFilterService: filterStub}).ProcessIncoming(body, "sig")
 
+	if filterStub.called {
+		t.Fatalf("expected non-command message to skip rerank")
+	}
 	if observed.FilterMessage("line message received").Len() == 0 {
 		t.Fatalf("expected incoming log")
 	}
-	if observed.FilterMessage("webhook classified").Len() > 0 {
-		t.Fatalf("expected no custom ai result log")
+}
+
+func TestWebhookService_ProcessIncoming_NonMessageEventStillLogsReceived(t *testing.T) {
+	core, observed := observer.New(zapcore.DebugLevel)
+	oldLogger := zap.L()
+	zap.ReplaceGlobals(zap.New(core))
+	defer zap.ReplaceGlobals(oldLogger)
+
+	body := []byte(`{"events":[{"type":"follow","source":{"type":"user","userId":"U123"}}]}`)
+	(&WebhookService{}).ProcessIncoming(body, "sig")
+
+	if observed.FilterMessage("line message received").Len() == 0 {
+		t.Fatalf("expected raw received log for non-message event")
+	}
+	if observed.FilterMessage("line message unified conversion skipped").Len() != 0 {
+		t.Fatalf("expected non-message event to skip unified conversion logging because it is handled by type gate")
+	}
+}
+
+func TestWebhookService_ProcessIncoming_CommandMessage(t *testing.T) {
+	core, observed := observer.New(zapcore.DebugLevel)
+	oldLogger := zap.L()
+	zap.ReplaceGlobals(zap.New(core))
+	defer zap.ReplaceGlobals(oldLogger)
+	body := []byte(`{"events":[{"type":"message","source":{"type":"private","userId":"U123"},"message":{"type":"text","text":"help"}}]}`)
+	filterStub := &stubTopKFilter{}
+	(&WebhookService{topKFilterService: filterStub}).ProcessIncoming(body, "sig")
+
+	if !filterStub.called {
+		t.Fatalf("expected command message to run rerank")
+	}
+	if observed.FilterMessage("line message received").Len() == 0 {
+		t.Fatalf("expected incoming log")
 	}
 }

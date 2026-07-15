@@ -7,14 +7,14 @@ import (
 )
 
 // adaptLineEventToUnified 將 LINE webhook 事件轉成統一訊息格式。
-func adaptLineEventToUnified(event webhookEvent) (*unifiedmessage.Message, bool) {
+func adaptLineEventToUnified(event webhookEvent) (*unifiedmessage.Message, bool, string) {
 	if strings.TrimSpace(event.Type) != "message" {
-		return nil, false
+		return nil, false, "event type is not message"
 	}
 
 	channelID, channelType := resolveChannelIdentity(event.Source)
 	if channelID == "" {
-		return nil, false
+		return nil, false, "unable to resolve channel identity"
 	}
 
 	mentions := make([]unifiedmessage.Mention, 0)
@@ -48,5 +48,5 @@ func adaptLineEventToUnified(event webhookEvent) (*unifiedmessage.Message, bool)
 		msg.SenderID = "unknown"
 	}
 
-	return msg, true
+	return msg, true, ""
 }

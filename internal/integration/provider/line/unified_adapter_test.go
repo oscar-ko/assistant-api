@@ -22,9 +22,12 @@ func TestAdaptLineEventToUnified_MessageEvent(t *testing.T) {
 		Timestamp: 123456,
 	}
 
-	msg, ok := adaptLineEventToUnified(event)
+	msg, ok, reason := adaptLineEventToUnified(event)
 	if !ok || msg == nil {
 		t.Fatalf("expected unified message")
+	}
+	if reason != "" {
+		t.Fatalf("expected empty skip reason, got %q", reason)
 	}
 	if msg.Platform != "line" {
 		t.Fatalf("unexpected platform: %q", msg.Platform)
@@ -42,8 +45,11 @@ func TestAdaptLineEventToUnified_MessageEvent(t *testing.T) {
 
 func TestAdaptLineEventToUnified_NonMessage(t *testing.T) {
 	event := webhookEvent{Type: "follow"}
-	msg, ok := adaptLineEventToUnified(event)
+	msg, ok, reason := adaptLineEventToUnified(event)
 	if ok || msg != nil {
 		t.Fatalf("expected non-message event to be ignored")
+	}
+	if reason == "" {
+		t.Fatalf("expected skip reason")
 	}
 }

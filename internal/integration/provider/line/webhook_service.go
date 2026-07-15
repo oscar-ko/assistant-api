@@ -153,45 +153,72 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 
 	// 第二段：逐筆掃描事件陣列，只處理 message 事件。
 	for _, event := range req.Events {
+		// 先把收到的原始事件資訊印出來，避免後續轉換或 command gate 把訊息吃掉。
+		zap.L().Info("line message received",
+			zap.String("event_type", strings.TrimSpace(event.Type)),
+			zap.String("source_type", strings.TrimSpace(event.Source.Type)),
+			zap.String("source_user_id", strings.TrimSpace(event.Source.UserID)),
+			zap.String("source_group_id", strings.TrimSpace(event.Source.GroupID)),
+			zap.String("source_room_id", strings.TrimSpace(event.Source.RoomID)),
+			zap.String("message_id", strings.TrimSpace(event.Message.ID)),
+			zap.String("text", strings.TrimSpace(event.Message.Text)),
+		)
+
 		// 非 message 事件直接略過；只有文字/圖片等訊息才需要進一步處理。
-		if message, ok := adaptLineEventToUnified(event); ok {
-			// 先把原始訊息資訊印出來，方便在 console 直接看到來了什麼內容。
-			zap.L().Info("line message received",
+		if strings.TrimSpace(event.Type) != "message" {
+			continue
+		}
+
+		message, ok, reason := adaptLineEventToUnified(event)
+		if !ok {
+			zap.L().Debug("line message unified conversion skipped",
+				zap.String("event_type", strings.TrimSpace(event.Type)),
+				zap.String("source_type", strings.TrimSpace(event.Source.Type)),
+				zap.String("source_user_id", strings.TrimSpace(event.Source.UserID)),
+				zap.String("source_group_id", strings.TrimSpace(event.Source.GroupID)),
+				zap.String("source_room_id", strings.TrimSpace(event.Source.RoomID)),
+				zap.String("message_id", strings.TrimSpace(event.Message.ID)),
+				zap.String("reason", reason),
+			)
+			continue
+		}
+
+		// 先落庫，確保訊息資料優先可用，不受後續 AI 延遲影響。
+		savedMessage := s.persistUnifiedMessage(message)
+		decision := &commanddecision.Decision{IsMentionedBot: message.MentionsUser(config.Line.BotUserID)}
+		if strings.EqualFold(strings.TrimSpace(message.ChannelType), "private") {
+			decision.IsPrivateChannel = true
+		}
+		decision.IsEffectiveMentionedBot = decision.IsMentionedBot
+		if s.decisionService != nil {
+			decision = s.decisionService.DecideMessage(context.Background(), message, savedMessage, config.Line.BotUserID)
+			if decision != nil && strings.EqualFold(strings.TrimSpace(message.ChannelType), "private") {
+				decision.IsPrivateChannel = true
+			}
+		}
+
+		if !decision.IsCommand() {
+			continue
+		}
+
+		if decision.CommandChainError != nil {
+			zap.L().Debug("command chain check skipped",
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-				zap.String("text", strings.TrimSpace(message.Text)),
+				zap.Error(decision.CommandChainError),
 			)
+		} else if decision.IsOnCommandChain {
+			zap.L().Info("command chain message",
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.Bool("mentioned_bot", decision.IsMentionedBot),
+				zap.Bool("effective_mentioned_bot", decision.IsEffectiveMentionedBot),
+				zap.String("reply_to_msg_id", strings.TrimSpace(message.ReplyToMsgID)),
+			)
+		}
 
-			// 收到訊息後先印 log，再執行 top-k；避免 top-k 延遲影響第一時間觀測。
-			if s.topKFilterService != nil {
-				s.topKFilterService.FilterMessage(context.Background(), message)
-			}
-
-			// 先落庫，確保訊息資料優先可用，不受後續 AI 延遲影響。
-			savedMessage := s.persistUnifiedMessage(message)
-			decision := &commanddecision.Decision{IsMentionedBot: message.MentionsUser(config.Line.BotUserID)}
-			decision.IsEffectiveMentionedBot = decision.IsMentionedBot
-			if s.decisionService != nil {
-				decision = s.decisionService.DecideMessage(context.Background(), message, savedMessage, config.Line.BotUserID)
-			}
-
-			if decision.CommandChainError != nil {
-				zap.L().Debug("command chain check skipped",
-					zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-					zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-					zap.Error(decision.CommandChainError),
-				)
-			} else if decision.IsOnCommandChain {
-				zap.L().Info("command chain message",
-					zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-					zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-					zap.Bool("mentioned_bot", decision.IsMentionedBot),
-					zap.Bool("effective_mentioned_bot", decision.IsEffectiveMentionedBot),
-					zap.String("reply_to_msg_id", strings.TrimSpace(message.ReplyToMsgID)),
-				)
-			}
-
-			// command decision 現在只做規則判斷，不再做 AI classification。
+		if s.topKFilterService != nil {
+			s.topKFilterService.FilterMessage(context.Background(), message)
 		}
 	}
 
