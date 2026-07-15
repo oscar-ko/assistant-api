@@ -47,11 +47,12 @@ type Service interface {
 // 它只負責流程控制，不直接實作 retrieval 或 rerank 細節：
 // - retriever: 第一階段候選召回（vector retrieval）
 // - reranker: 第二階段候選重排（cross-encoder rerank）
-// locale/topK 則用於輸出可觀測資訊。
+// locale/retrievalTopK/rerankTopK 則用於輸出可觀測資訊。
 type service struct {
-	pipeline CandidatePipeline
-	locale   string
-	topK     int
+	pipeline      CandidatePipeline
+	locale        string
+	retrievalTopK int
+	rerankTopK    int
 }
 
 // NewService 組裝 top-k 篩選服務。
@@ -60,15 +61,17 @@ type service struct {
 // - locale 未指定時回退到 zh-TW，對齊目前 action_route seed。
 // - topK 非正數時回退到預設 5，避免呼叫端忘記設定造成空查詢或過大查詢。
 func NewService(searcher Searcher, embedder embedding.Service, locale string, topK int) Service {
-	return NewServiceWithReranker(searcher, embedder, nil, locale, topK)
+	return NewServiceWithReranker(searcher, embedder, nil, locale, topK, topK)
 }
 
 // NewServiceWithReranker 組裝具備 cross-encoder 重排能力的 top-k 篩選服務。
-func NewServiceWithReranker(searcher Searcher, embedder embedding.Service, rerankerSvc reranker.Service, locale string, topK int) Service {
+// retrievalTopK 控制第一階段向量召回可取回的候選數量（通常設得較大，確保正確候選不會被漏掉）；
+// rerankTopK 控制第二階段 cross-encoder 精排後最終保留的候選數量（通常設得較小，作為送進下一步決策的窄範圍）。
+func NewServiceWithReranker(searcher Searcher, embedder embedding.Service, rerankerSvc reranker.Service, locale string, retrievalTopK int, rerankTopK int) Service {
 	// 組裝第一階段召回器（top-k retrieval）。
-	retriever := NewTopKRetriever(searcher, embedder, locale, topK)
-	// 組裝第二階段重排器（cross-encoder rerank）。
-	reorder := NewCandidateReranker(rerankerSvc, topK)
+	retriever := NewTopKRetriever(searcher, embedder, locale, retrievalTopK)
+	// 組裝第二階段重排器（cross-encoder rerank），narrow 到 rerankTopK 筆。
+	reorder := NewCandidateReranker(rerankerSvc, rerankTopK)
 	// 將兩階段串成可觀測的候選處理管線。
 	pipeline := NewCandidatePipelineWithStages(retriever, reorder)
 	if pipeline == nil {
@@ -77,10 +80,13 @@ func NewServiceWithReranker(searcher Searcher, embedder embedding.Service, reran
 	if strings.TrimSpace(locale) == "" {
 		locale = defaultLocale
 	}
-	if topK <= 0 {
-		topK = defaultTopK
+	if retrievalTopK <= 0 {
+		retrievalTopK = defaultTopK
 	}
-	return &service{pipeline: pipeline, locale: locale, topK: topK}
+	if rerankTopK <= 0 {
+		rerankTopK = defaultTopK
+	}
+	return &service{pipeline: pipeline, locale: locale, retrievalTopK: retrievalTopK, rerankTopK: rerankTopK}
 }
 
 // FilterMessage 會在訊息一進來時先做正式的 top-k 候選篩選。
@@ -138,7 +144,7 @@ func (s *service) FilterMessage(ctx context.Context, message *unifiedmessage.Mes
 		zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 		zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 		zap.String("locale", s.locale),
-		zap.Int("top_k", s.topK),
+		zap.Int("retrieval_top_k", s.retrievalTopK),
 		zap.String("text", text),
 		zap.Strings("candidates", retrievedLogs),
 	)
@@ -178,7 +184,7 @@ func (s *service) FilterMessage(ctx context.Context, message *unifiedmessage.Mes
 		zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 		zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 		zap.String("locale", s.locale),
-		zap.Int("top_k", s.topK),
+		zap.Int("rerank_top_k", s.rerankTopK),
 		zap.Bool("rerank_applied", rerankApplied),
 		zap.String("text", text),
 		zap.Strings("candidates", vectorLogs),

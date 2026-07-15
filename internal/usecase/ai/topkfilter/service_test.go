@@ -116,8 +116,8 @@ func TestFilterMessageLogsTopKCandidates(t *testing.T) {
 	if len(retrieved) != 1 {
 		t.Fatalf("expected one top-k retrieved log, got %d", len(retrieved))
 	}
-	if got := entries[0].ContextMap()["top_k"]; got != int64(3) {
-		t.Fatalf("logged top_k = %v, want 3", got)
+	if got := entries[0].ContextMap()["rerank_top_k"]; got != int64(3) {
+		t.Fatalf("logged rerank_top_k = %v, want 3", got)
 	}
 }
 
@@ -131,7 +131,7 @@ func TestFilterMessageUsesRerankerWhenAvailable(t *testing.T) {
 
 	searcher := &stubSearcher{}
 	rerankerStub := &stubReranker{}
-	svc := NewServiceWithReranker(searcher, stubEmbedder{}, rerankerStub, "zh-TW", 2)
+	svc := NewServiceWithReranker(searcher, stubEmbedder{}, rerankerStub, "zh-TW", 5, 2)
 	svc.FilterMessage(context.Background(), &unifiedmessage.Message{
 		ChannelID:         "C123",
 		PlatformMessageID: "M456",

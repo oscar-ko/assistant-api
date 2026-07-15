@@ -54,7 +54,7 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 			config.AI.Reranker.AliveSuccessTTLMS,
 			config.AI.Reranker.AliveFailureCooldownMS,
 		)
-		filterService = topkfilter.NewServiceWithReranker(actionRouteRepo, embeddingClient, rerankerClient, "zh-TW", config.AI.Reranker.TopK)
+		filterService = topkfilter.NewServiceWithReranker(actionRouteRepo, embeddingClient, rerankerClient, "zh-TW", config.AI.Embedding.RetrievalTopK, config.AI.Reranker.TopK)
 	}
 
 	// OAuth 相關端點。

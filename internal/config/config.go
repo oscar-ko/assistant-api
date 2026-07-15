@@ -207,8 +207,9 @@ func MustLoad() {
 		viper.SetDefault("ai.embedding.alive_probe_timeout_ms", 1500)
 		viper.SetDefault("ai.embedding.alive_success_ttl_ms", 10000)
 		viper.SetDefault("ai.embedding.alive_failure_cooldown_ms", 3000)
-		// 第一階段向量召回預設取回 5 筆候選。
-		viper.SetDefault("ai.embedding.retrieval_top_k", 5)
+		// 第一階段向量召回預設取回 20 筆候選，確保正確候選不會被漏掉，
+		// 再交給 reranker 精排縮減到最終筆數。
+		viper.SetDefault("ai.embedding.retrieval_top_k", 20)
 		// cross-encoder reranker 的預設本機端點（第二階段重排）。
 		// 這些預設值可讓本機在未特別覆寫時，直接對接 9001 服務。
 		viper.SetDefault("ai.reranker.enabled", true)
