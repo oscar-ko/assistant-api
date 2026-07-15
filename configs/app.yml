@@ -23,7 +23,7 @@ ai:
         path: "/embed"
         # 第一階段向量召回（top-k）最多取回幾筆候選。
         # 這一步要取得够多，確保正確候選不會在這階段就被漏掉，再交給 reranker 精排縮減。
-        retrieval_top_k: 20
+        retrieval_top_k: 10
         # embedding 探活策略（毫秒）：
         # - alive_probe_interval_ms: 背景主動探活週期
         # - alive_probe_timeout_ms: 單次探活最長等待

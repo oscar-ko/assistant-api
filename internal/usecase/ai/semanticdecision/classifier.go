@@ -7,18 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 )
-
-// Classification 表示單次訊息語意決策結果。
-type Classification struct {
-	SchemaVersion string  `json:"schema_version"`
-	IntentLabel   string  `json:"intent_label"`
-	Confidence    float64 `json:"confidence"`
-	Reason        string  `json:"reason"`
-}
 
 // ActionCandidate 為 reranker 精排後、提供給最終決策模型參考的候選描述。
 // 只保留文字判斷所需的最小資訊，避免把 topkfilter/ranking 內部型別直接洩漏到這一層。
@@ -29,9 +20,8 @@ type ActionCandidate struct {
 	Score     *float64
 }
 
-// ActionDecision 表示語意決策模型针對候選 action 選出的最終結果。
-// 與 Classification 不同：這裡選出的是 api_operation（對應 action 的實際執行操作），
-// 不是 command/message 的 intent_label，所以用独立型別避免權用權意。
+// ActionDecision 表示語意決策模型針對候選 action 選出的最終結果。
+// 回傳的是 api_operation（對應 action 的實際執行操作）。
 type ActionDecision struct {
 	SchemaVersion string  `json:"schema_version"`
 	APIOperation  string  `json:"api_operation"`
@@ -41,9 +31,8 @@ type ActionDecision struct {
 
 // Classifier 定義通用語意決策能力。
 type Classifier interface {
-	Classify(ctx context.Context, prompt string, text string) (*Classification, error)
-	// ClassifyAction 與 Classify 使用同一套 prompt+text 請求模式，
-	// 但回應 payload 解析成 ActionDecision（api_operation 而非 intent_label）。
+	// ClassifyAction 把 prompt+text 送進 actionDecisionPath，
+	// 回應 payload 解析成 ActionDecision（api_operation）。
 	ClassifyAction(ctx context.Context, prompt string, text string) (*ActionDecision, error)
 }
 
@@ -57,7 +46,9 @@ type classificationRequest struct {
 	Text   string `json:"text"`
 }
 
-const classificationPath = "/predict/semantic_decision"
+// actionDecisionPath 是獨立於 command/message 分類的端點，
+// 服務端會接受 api_operation 欄位。
+const actionDecisionPath = "/predict/action_decision"
 
 // NewClassifier 建立通用語意決策 client。
 func NewClassifier(baseURL string, timeoutSeconds int) Classifier {
@@ -71,33 +62,12 @@ func NewClassifier(baseURL string, timeoutSeconds int) Classifier {
 	}
 }
 
-// DefaultPrompt 回傳由 Go 端注入的通用分類提示詞。
-// mentionedBot 會寫入 prompt，讓模型先套用「有 mention bot 就視為 command」的優先規則。
-func DefaultPrompt(mentionedBot bool) string {
-	return strings.TrimSpace(`
-你是跨通訊軟體的訊息分類器。
-請只根據輸入訊息與系統規則判斷它是否是「指令」或「一般訊息」。
-
-第一個規則：如果 mentioned_bot=true，intent_label 一律視為 command。
-
-輸出格式必須是 JSON，欄位固定如下：
-schema_version, intent_label, confidence, reason
-
-規則：
-- mentioned_bot=` + strconv.FormatBool(mentionedBot) + `
-- intent_label 只能是 command 或 message
-- command 表示使用者希望系統執行動作、查詢、建立、更新、刪除、設定或觸發流程
-- message 表示一般聊天、閒聊、回覆、通知、描述或不需要執行動作的內容
-- confidence 為 0 到 1 的數字
-- reason 用一句話簡述判斷依據
-`)
-}
-
 // BuildFinalActionPrompt 依 reranker 精排後的候選清單組出最終決策提示詞。
 // 每筆候選都以文字描述呈現（operation/skill/route_text/score），
-// 交由模型依語意判斷唯一一個最終 action，並沿用既有 schema
-// (schema_version, intent_label, confidence, reason)，其中 intent_label
-// 即為模型選出的 action operation。
+// 交由模型依語意判斷唯一一個最終 action，並要求輸出
+// (schema_version, api_operation, confidence, reason)，其中 api_operation
+// 即為模型選出的 action operation。這個 prompt 只會送到 actionDecisionPath，
+// 不會混用 command/message 分類用的 intent_label schema。
 func BuildFinalActionPrompt(candidates []ActionCandidate) string {
 	var lines []string
 	for idx, candidate := range candidates {
@@ -137,36 +107,14 @@ schema_version, api_operation, confidence, reason
 `)
 }
 
-func (c *classifierClient) Classify(ctx context.Context, prompt string, text string) (*Classification, error) {
-	if c == nil {
-		return nil, fmt.Errorf("semantic decision classifier is not initialized")
-	}
-	if c.baseURL == "" {
-		return nil, fmt.Errorf("semantic decision classifier url is empty")
-	}
-
-	req, err := c.buildRequest(ctx, prompt, text)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	return decodeClassificationResponse(resp)
-}
-
-func (c *classifierClient) buildRequest(ctx context.Context, prompt string, text string) (*http.Request, error) {
+func (c *classifierClient) buildRequest(ctx context.Context, path string, prompt string, text string) (*http.Request, error) {
 	payload := classificationRequest{Prompt: strings.TrimSpace(prompt), Text: strings.TrimSpace(text)}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+classificationPath, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -174,33 +122,21 @@ func (c *classifierClient) buildRequest(ctx context.Context, prompt string, text
 	return req, nil
 }
 
-func decodeClassificationResponse(resp *http.Response) (*Classification, error) {
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("semantic decision classifier returned status %d", resp.StatusCode)
+// readErrorBodyPreview 在非 2xx 回應時讀出一小段 body，方便直接在 Go 端 log 看到
+// 服務端具體拒絕原因（例如 "ollama output contains unknown keys"），
+// 不需要另外去查 Python 服務的 log。
+func readErrorBodyPreview(resp *http.Response) string {
+	if resp == nil || resp.Body == nil {
+		return ""
 	}
-
-	data, err := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 2048))
 	if err != nil {
-		return nil, err
+		return ""
 	}
-
-	var decoded Classification
-	if err := json.Unmarshal(data, &decoded); err != nil {
-		return nil, err
-	}
-
-	return normalizeClassification(&decoded), nil
+	return strings.TrimSpace(string(data))
 }
 
-func normalizeClassification(decoded *Classification) *Classification {
-	if decoded.IntentLabel == "" {
-		decoded.IntentLabel = "message"
-	}
-	return decoded
-}
-
-// ClassifyAction 與 Classify 使用同樣的 prompt+text 請求流程，
-// 但把回應解析成 ActionDecision（api_operation 而非 intent_label）。
+// ClassifyAction 把 prompt+text 送進 actionDecisionPath，回應解析成 ActionDecision（api_operation）。
 func (c *classifierClient) ClassifyAction(ctx context.Context, prompt string, text string) (*ActionDecision, error) {
 	if c == nil {
 		return nil, fmt.Errorf("semantic decision classifier is not initialized")
@@ -209,7 +145,7 @@ func (c *classifierClient) ClassifyAction(ctx context.Context, prompt string, te
 		return nil, fmt.Errorf("semantic decision classifier url is empty")
 	}
 
-	req, err := c.buildRequest(ctx, prompt, text)
+	req, err := c.buildRequest(ctx, actionDecisionPath, prompt, text)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +161,7 @@ func (c *classifierClient) ClassifyAction(ctx context.Context, prompt string, te
 
 func decodeActionDecisionResponse(resp *http.Response) (*ActionDecision, error) {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("semantic decision classifier returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("action decision classifier returned status %d: %s", resp.StatusCode, readErrorBodyPreview(resp))
 	}
 
 	data, err := io.ReadAll(resp.Body)

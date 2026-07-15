@@ -33,13 +33,6 @@ type stubSemanticDecision struct {
 	candidates []semanticdecision.ActionCandidate
 }
 
-func (s *stubSemanticDecision) ClassifyMessage(ctx context.Context, message *unifiedmessage.Message, mentionedBot bool) (*semanticdecision.Classification, error) {
-	_ = ctx
-	_ = message
-	_ = mentionedBot
-	return nil, nil
-}
-
 func (s *stubSemanticDecision) DecideFinalAction(ctx context.Context, text string, candidates []semanticdecision.ActionCandidate) (*semanticdecision.ActionDecision, error) {
 	_ = ctx
 	_ = text
@@ -156,7 +149,47 @@ func TestWebhookService_ProcessIncoming_FinalActionDecision(t *testing.T) {
 	if len(decisionStub.candidates) != 1 || decisionStub.candidates[0].Operation != "start_translation_locale" {
 		t.Fatalf("expected converted action candidates, got %+v", decisionStub.candidates)
 	}
-	if observed.FilterMessage("line message final action decided").Len() == 0 {
+	entries := observed.FilterMessage("line message final action decided").All()
+	if len(entries) == 0 {
 		t.Fatalf("expected final action decision log")
+	}
+	logContext := entries[0].ContextMap()
+	if logContext["skill_code"] != "channel.translation" {
+		t.Fatalf("expected matched skill_code, got %v", logContext["skill_code"])
+	}
+	if logContext["valid_selection"] != true {
+		t.Fatalf("expected valid_selection=true, got %v", logContext["valid_selection"])
+	}
+	if observed.FilterMessage("line message final action not in candidates").Len() != 0 {
+		t.Fatalf("expected no hallucination warning when operation matches a candidate")
+	}
+}
+
+func TestWebhookService_ProcessIncoming_FinalActionNotInCandidates(t *testing.T) {
+	core, observed := observer.New(zapcore.DebugLevel)
+	oldLogger := zap.L()
+	zap.ReplaceGlobals(zap.New(core))
+	defer zap.ReplaceGlobals(oldLogger)
+
+	body := []byte(`{"events":[{"type":"message","source":{"type":"private","userId":"U123"},"message":{"type":"text","text":"\u6211\u8981\u7ffb\u8b6f"}}]}`)
+	filterStub := &stubTopKFilter{
+		candidates: []topkfilter.ScoredCandidate{
+			{Candidate: repository.ActionRouteVectorCandidate{APIOperation: "start_translation_locale", SkillCode: "channel.translation", RouteText: "\u958b\u555f\u7ffb\u8b6f"}},
+		},
+	}
+	// 模擬模型回傳一個不在候選清單裡的 api_operation，驗證會被捕捉並告警。
+	decisionStub := &stubSemanticDecision{decision: &semanticdecision.ActionDecision{APIOperation: "unknown_operation", Confidence: 0.5, Reason: "stub reason"}}
+
+	(&WebhookService{topKFilterService: filterStub, semanticService: decisionStub}).ProcessIncoming(body, "sig")
+
+	if observed.FilterMessage("line message final action not in candidates").Len() == 0 {
+		t.Fatalf("expected hallucination warning when operation is not among candidates")
+	}
+	entries := observed.FilterMessage("line message final action decided").All()
+	if len(entries) == 0 {
+		t.Fatalf("expected final action decision log")
+	}
+	if entries[0].ContextMap()["valid_selection"] != false {
+		t.Fatalf("expected valid_selection=false, got %v", entries[0].ContextMap()["valid_selection"])
 	}
 }

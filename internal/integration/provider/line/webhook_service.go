@@ -250,11 +250,35 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 			continue
 		}
 
+		// 把模型選出的 api_operation 對應回候選清單，確認它真的落在候選範圍內，
+		// 同時取得對應的 skill_code/route_text，讓最終結果一眼就能看出對應到哪個 action。
+		matchedSkillCode := ""
+		matchedRouteText := ""
+		validSelection := false
+		for _, candidate := range actionCandidates {
+			if candidate.Operation == finalDecision.APIOperation {
+				matchedSkillCode = candidate.SkillCode
+				matchedRouteText = candidate.RouteText
+				validSelection = true
+				break
+			}
+		}
+		if !validSelection {
+			zap.L().Warn("line message final action not in candidates",
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.String("api_operation", finalDecision.APIOperation),
+			)
+		}
+
 		zap.L().Info("line message final action decided",
 			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 			zap.String("text", strings.TrimSpace(message.Text)),
 			zap.String("api_operation", finalDecision.APIOperation),
+			zap.String("skill_code", matchedSkillCode),
+			zap.String("matched_route_text", matchedRouteText),
+			zap.Bool("valid_selection", validSelection),
 			zap.Float64("confidence", finalDecision.Confidence),
 			zap.String("reason", finalDecision.Reason),
 		)
