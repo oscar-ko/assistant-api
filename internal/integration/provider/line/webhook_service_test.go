@@ -49,6 +49,33 @@ type stubSemanticDecision struct {
 	clarifyingQuestionErr error
 }
 
+type stubPushMessageService struct {
+	pushTextCalled         bool
+	pushMentionCalled      bool
+	chatID                 string
+	lineUserID             string
+	text                   string
+	sentPlatformMessageID  string
+	err                    error
+}
+
+func (s *stubPushMessageService) PushText(ctx context.Context, lineUserID string, text string) error {
+	_ = ctx
+	s.pushTextCalled = true
+	s.lineUserID = lineUserID
+	s.text = text
+	return s.err
+}
+
+func (s *stubPushMessageService) PushMentionTextToChat(ctx context.Context, chatID string, lineUserID string, text string) (string, error) {
+	_ = ctx
+	s.pushMentionCalled = true
+	s.chatID = chatID
+	s.lineUserID = lineUserID
+	s.text = text
+	return s.sentPlatformMessageID, s.err
+}
+
 func (s *stubSemanticDecision) DecideFinalAction(ctx context.Context, text string, candidates []semanticdecision.ActionCandidate) (*semanticdecision.ActionDecision, error) {
 	_ = ctx
 	_ = text
@@ -254,8 +281,9 @@ func TestWebhookService_ProcessIncoming_LowConfidenceTreatedAsChat(t *testing.T)
 		decision:           &semanticdecision.ActionDecision{NextStep: semanticdecision.NextStepAskClarifyingQuestion, APIOperation: "start_translation_locale", Confidence: 0.42, Reason: "stub reason"},
 		clarifyingQuestion: &semanticdecision.QuestionAnswer{SchemaVersion: "v1", Answer: "請問你要翻譯成哪個語系？", Confidence: 0.35},
 	}
+	pushStub := &stubPushMessageService{sentPlatformMessageID: "sent-123"}
 
-	(&WebhookService{topKFilterService: filterStub, semanticService: decisionStub}).ProcessIncoming(body, "sig")
+	(&WebhookService{topKFilterService: filterStub, semanticService: decisionStub, followUpSender: pushStub}).ProcessIncoming(body, "sig")
 
 	// 低 action confidence 應走問答分支，而不是產生最終 action。
 	if !decisionStub.clarifyCalled {
@@ -266,6 +294,18 @@ func TestWebhookService_ProcessIncoming_LowConfidenceTreatedAsChat(t *testing.T)
 	}
 	if decisionStub.answerCalled {
 		t.Fatalf("expected generic AnswerQuestion not to be called on low action confidence")
+	}
+	if !pushStub.pushMentionCalled {
+		t.Fatalf("expected clarifying question to be pushed to the same chat")
+	}
+	if pushStub.chatID != "U123" {
+		t.Fatalf("expected chatID=U123, got %q", pushStub.chatID)
+	}
+	if pushStub.lineUserID != "U123" {
+		t.Fatalf("expected lineUserID=U123, got %q", pushStub.lineUserID)
+	}
+	if pushStub.text != "請問你要翻譯成哪個語系？" {
+		t.Fatalf("expected clarifying question text to be pushed, got %q", pushStub.text)
 	}
 	answerEntries := observed.FilterMessage("line message semantic question answered").All()
 	if len(answerEntries) == 0 {

@@ -37,6 +37,7 @@ type WebhookService struct {
 	persistenceService   messagepersist.Service
 	topKFilterService    topkfilter.Service
 	actionPostDispatcher *actionpost.Dispatcher
+	followUpSender       PushMessageService
 }
 
 // WebhookServiceOptions 提供 webhook service 的擴充設定。
@@ -46,6 +47,7 @@ type WebhookServiceOptions struct {
 	MemberNameTTL    time.Duration
 	SemanticDecision semanticdecision.Service
 	TopKFilter       topkfilter.Service
+	FollowUpSender   PushMessageService
 }
 
 // NewWebhookService 建立預設 webhook service
@@ -82,6 +84,7 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 		persistenceService:   persistSvc,
 		topKFilterService:    options.TopKFilter,
 		actionPostDispatcher: actionpost.NewDefaultDispatcher(repo),
+		followUpSender:       options.FollowUpSender,
 	}
 }
 
@@ -283,10 +286,10 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 		confidenceThreshold := config.AI.SemanticDecision.CommandConfidenceThreshold
 		switch nextStep {
 		case semanticdecision.NextStepAskClarifyingQuestion:
-			s.routeMessageToQuestionAnswer(message, finalDecision.Confidence, confidenceThreshold, "ask_clarifying_question", finalDecision.Reason)
+					s.routeMessageToQuestionAnswer(message, savedMessage, strings.TrimSpace(event.Source.UserID), finalDecision.Confidence, confidenceThreshold, "ask_clarifying_question", finalDecision.Reason)
 			continue
 		case semanticdecision.NextStepAnswerQuestion:
-			s.routeMessageToQuestionAnswer(message, finalDecision.Confidence, confidenceThreshold, "answer_question", finalDecision.Reason)
+					s.routeMessageToQuestionAnswer(message, savedMessage, strings.TrimSpace(event.Source.UserID), finalDecision.Confidence, confidenceThreshold, "answer_question", finalDecision.Reason)
 			continue
 		case semanticdecision.NextStepExecuteAction:
 			// 繼續走 action 流程。
@@ -301,7 +304,7 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 
 		// execute_action 仍保留低信心保護，避免模型誤報可執行動作。
 		if confidenceThreshold > 0 && finalDecision.Confidence < confidenceThreshold {
-			s.routeMessageToQuestionAnswer(message, finalDecision.Confidence, confidenceThreshold, "low_action_confidence", finalDecision.Reason)
+			s.routeMessageToQuestionAnswer(message, savedMessage, strings.TrimSpace(event.Source.UserID), finalDecision.Confidence, confidenceThreshold, "low_action_confidence", finalDecision.Reason)
 			continue
 		}
 
@@ -366,7 +369,7 @@ func translationTargetLocalesFromDecision(decision *semanticdecision.ActionDecis
 	return actionpost.ExtractTranslationTargetLocales(decision)
 }
 
-func (s *WebhookService) routeMessageToQuestionAnswer(message *unifiedmessage.Message, actionConfidence float64, actionThreshold float64, cause string, decisionReason string) {
+func (s *WebhookService) routeMessageToQuestionAnswer(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, lineUserID string, actionConfidence float64, actionThreshold float64, cause string, decisionReason string) {
 	if s == nil || s.semanticService == nil || message == nil {
 		return
 	}
@@ -436,6 +439,60 @@ func (s *WebhookService) routeMessageToQuestionAnswer(message *unifiedmessage.Me
 			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 			zap.Float64("answer_confidence", qa.Confidence),
 			zap.Float64("answer_threshold", questionThreshold),
+		)
+	}
+
+	if qaMode == "clarifying_question" {
+		s.sendClarifyingQuestion(message, savedMessage, lineUserID, strings.TrimSpace(qa.Answer))
+	}
+}
+
+func (s *WebhookService) sendClarifyingQuestion(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, lineUserID string, question string) {
+	if s == nil || s.followUpSender == nil || message == nil {
+		return
+	}
+	question = strings.TrimSpace(question)
+	if question == "" {
+		return
+	}
+
+	sentPlatformMessageID, err := s.followUpSender.PushMentionTextToChat(context.Background(), strings.TrimSpace(message.ChannelID), strings.TrimSpace(lineUserID), question)
+	if err != nil {
+		zap.L().Warn("line clarifying question push failed",
+			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			zap.String("line_user_id", strings.TrimSpace(lineUserID)),
+			zap.Error(err),
+		)
+		return
+	}
+
+	zap.L().Info("line clarifying question pushed",
+		zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+		zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+		zap.String("line_user_id", strings.TrimSpace(lineUserID)),
+		zap.String("sent_platform_message_id", sentPlatformMessageID),
+	)
+
+	if s.repo == nil || savedMessage == nil {
+		return
+	}
+	if _, err := s.repo.SaveSentMessage(
+		context.Background(),
+		savedMessage.ChannelID,
+		strings.TrimSpace(config.Line.BotUserID),
+		"",
+		sentPlatformMessageID,
+		question,
+		"text",
+		time.Now().UnixMilli(),
+		savedMessage.ID,
+	); err != nil {
+		zap.L().Warn("persist clarifying question failed",
+			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			zap.String("sent_platform_message_id", sentPlatformMessageID),
+			zap.Error(err),
 		)
 	}
 }

@@ -62,13 +62,14 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 		config.AI.SemanticDecision.ServiceURL,
 		config.AI.SemanticDecision.ServiceTimeoutSeconds,
 	))
+	followUpSender, _ := NewPushMessageService()
 
 	// OAuth 相關端點。
 	r.GET("/line/bind", bindPage)
 	r.GET("/line/oauth/start", oauthStart)
 	r.GET("/line/oauth/callback", oauthCallback(lineRepo))
 	// Webhook 採 handler -> service 分層，便於後續替換 queue/worker 實作。
-	r.POST("/line/webhook", webhookHandler(NewWebhookServiceWithOptions(channelMessageRepo, WebhookServiceOptions{SemanticDecision: semanticDecisionService, TopKFilter: filterService})))
+	r.POST("/line/webhook", webhookHandler(NewWebhookServiceWithOptions(channelMessageRepo, WebhookServiceOptions{SemanticDecision: semanticDecisionService, TopKFilter: filterService, FollowUpSender: followUpSender})))
 }
 
 // bindPage 回傳 LINE 綁定頁面。
