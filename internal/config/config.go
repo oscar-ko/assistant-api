@@ -41,41 +41,57 @@ type DatabaseConfig struct {
 	AutoSchemaCreate bool `mapstructure:"auto_schema_create" yaml:"auto_schema_create"`
 }
 
+// AIConfig 集中管理 AI 相關子系統設定，依用途拆成三個子區塊：
+// - SemanticDecision：語義決策（意圖/任務判斷）
+// - Embedding：第一階段候選召回（recall）
+// - Reranker：第二階段候選精排（precision）
 type AIConfig struct {
-	// SemanticDecision*：語義決策服務（意圖/決策）端點設定。
-	SemanticDecisionServiceURL            string `mapstructure:"semantic_decision_service_url" yaml:"semantic_decision_service_url"`
-	SemanticDecisionServiceTimeoutSeconds int    `mapstructure:"semantic_decision_service_timeout_seconds" yaml:"semantic_decision_service_timeout_seconds"`
-	// Embedding*：第一階段候選召回使用的向量化服務設定。
-	EmbeddingURL            string `mapstructure:"embedding_url" yaml:"embedding_url"`
-	EmbeddingTimeoutSeconds int    `mapstructure:"embedding_timeout_seconds" yaml:"embedding_timeout_seconds"`
-	EmbeddingMaxAttempts    int    `mapstructure:"embedding_max_attempts" yaml:"embedding_max_attempts"`
-	EmbeddingRetryBackoffMS int    `mapstructure:"embedding_retry_backoff_ms" yaml:"embedding_retry_backoff_ms"`
-	EmbeddingPath           string `mapstructure:"embedding_path" yaml:"embedding_path"`
+	SemanticDecision SemanticDecisionConfig `mapstructure:"semantic_decision" yaml:"semantic_decision"`
+	Embedding        EmbeddingConfig        `mapstructure:"embedding" yaml:"embedding"`
+	Reranker         RerankerConfig         `mapstructure:"reranker" yaml:"reranker"`
+}
+
+// SemanticDecisionConfig 為語義決策服務（意圖/決策）端點設定。
+type SemanticDecisionConfig struct {
+	ServiceURL            string `mapstructure:"service_url" yaml:"service_url"`
+	ServiceTimeoutSeconds int    `mapstructure:"service_timeout_seconds" yaml:"service_timeout_seconds"`
+}
+
+// EmbeddingConfig 為第一階段候選召回使用的向量化服務設定。
+type EmbeddingConfig struct {
+	URL            string `mapstructure:"url" yaml:"url"`
+	TimeoutSeconds int    `mapstructure:"timeout_seconds" yaml:"timeout_seconds"`
+	MaxAttempts    int    `mapstructure:"max_attempts" yaml:"max_attempts"`
+	RetryBackoffMS int    `mapstructure:"retry_backoff_ms" yaml:"retry_backoff_ms"`
+	Path           string `mapstructure:"path" yaml:"path"`
 	// RetrievalTopK 控制第一階段向量召回（top-k）最多取回幾筆候選。
 	RetrievalTopK int `mapstructure:"retrieval_top_k" yaml:"retrieval_top_k"`
-	// EmbeddingAlive*：探活快取與失敗冷卻策略，避免每次訊息都探活。
-	EmbeddingAliveProbeIntervalMS   int `mapstructure:"embedding_alive_probe_interval_ms" yaml:"embedding_alive_probe_interval_ms"`
-	EmbeddingAliveProbeTimeoutMS    int `mapstructure:"embedding_alive_probe_timeout_ms" yaml:"embedding_alive_probe_timeout_ms"`
-	EmbeddingAliveSuccessTTLMS      int `mapstructure:"embedding_alive_success_ttl_ms" yaml:"embedding_alive_success_ttl_ms"`
-	EmbeddingAliveFailureCooldownMS int `mapstructure:"embedding_alive_failure_cooldown_ms" yaml:"embedding_alive_failure_cooldown_ms"`
-	// Reranker* 參數控制第二階段 cross-encoder 候選精排服務。
-	// 第一階段召回仍由 embedding + pgvector 負責，兩者分工如下：
-	// - Embedding*: 召回候選（recall）
-	// - Reranker*: 精排候選（precision）
-	// - RerankerEnabled: 可切換是否啟用第二階段
-	RerankerEnabled        bool   `mapstructure:"reranker_enabled" yaml:"reranker_enabled"`
-	RerankerURL            string `mapstructure:"reranker_url" yaml:"reranker_url"`
-	RerankerTimeoutSeconds int    `mapstructure:"reranker_timeout_seconds" yaml:"reranker_timeout_seconds"`
-	RerankerMaxAttempts    int    `mapstructure:"reranker_max_attempts" yaml:"reranker_max_attempts"`
-	RerankerRetryBackoffMS int    `mapstructure:"reranker_retry_backoff_ms" yaml:"reranker_retry_backoff_ms"`
-	RerankerPath           string `mapstructure:"reranker_path" yaml:"reranker_path"`
-	// RerankerTopK 控制第二階段 cross-encoder 精排最多回傳幾筆候選。
-	RerankerTopK int `mapstructure:"reranker_top_k" yaml:"reranker_top_k"`
-	// RerankerAlive*：探活快取與失敗冷卻策略，避免每次訊息都探活。
-	RerankerAliveProbeIntervalMS   int `mapstructure:"reranker_alive_probe_interval_ms" yaml:"reranker_alive_probe_interval_ms"`
-	RerankerAliveProbeTimeoutMS    int `mapstructure:"reranker_alive_probe_timeout_ms" yaml:"reranker_alive_probe_timeout_ms"`
-	RerankerAliveSuccessTTLMS      int `mapstructure:"reranker_alive_success_ttl_ms" yaml:"reranker_alive_success_ttl_ms"`
-	RerankerAliveFailureCooldownMS int `mapstructure:"reranker_alive_failure_cooldown_ms" yaml:"reranker_alive_failure_cooldown_ms"`
+	// Alive*：探活快取與失敗冷卻策略，避免每次訊息都探活。
+	AliveProbeIntervalMS   int `mapstructure:"alive_probe_interval_ms" yaml:"alive_probe_interval_ms"`
+	AliveProbeTimeoutMS    int `mapstructure:"alive_probe_timeout_ms" yaml:"alive_probe_timeout_ms"`
+	AliveSuccessTTLMS      int `mapstructure:"alive_success_ttl_ms" yaml:"alive_success_ttl_ms"`
+	AliveFailureCooldownMS int `mapstructure:"alive_failure_cooldown_ms" yaml:"alive_failure_cooldown_ms"`
+}
+
+// RerankerConfig 參數控制第二階段 cross-encoder 候選精排服務。
+// 第一階段召回仍由 Embedding + pgvector 負責，兩者分工如下：
+// - Embedding: 召回候選（recall）
+// - Reranker: 精排候選（precision）
+// - Enabled: 可切換是否啟用第二階段
+type RerankerConfig struct {
+	Enabled        bool   `mapstructure:"enabled" yaml:"enabled"`
+	URL            string `mapstructure:"url" yaml:"url"`
+	TimeoutSeconds int    `mapstructure:"timeout_seconds" yaml:"timeout_seconds"`
+	MaxAttempts    int    `mapstructure:"max_attempts" yaml:"max_attempts"`
+	RetryBackoffMS int    `mapstructure:"retry_backoff_ms" yaml:"retry_backoff_ms"`
+	Path           string `mapstructure:"path" yaml:"path"`
+	// TopK 控制第二階段 cross-encoder 精排最多回傳幾筆候選。
+	TopK int `mapstructure:"top_k" yaml:"top_k"`
+	// Alive*：探活快取與失敗冷卻策略，避免每次訊息都探活。
+	AliveProbeIntervalMS   int `mapstructure:"alive_probe_interval_ms" yaml:"alive_probe_interval_ms"`
+	AliveProbeTimeoutMS    int `mapstructure:"alive_probe_timeout_ms" yaml:"alive_probe_timeout_ms"`
+	AliveSuccessTTLMS      int `mapstructure:"alive_success_ttl_ms" yaml:"alive_success_ttl_ms"`
+	AliveFailureCooldownMS int `mapstructure:"alive_failure_cooldown_ms" yaml:"alive_failure_cooldown_ms"`
 }
 
 // LineConfig 為 LINE OAuth 綁定所需參數。
@@ -180,33 +196,33 @@ func MustLoad() {
 		viper.SetDefault("postgresql.user_name", "")
 		viper.SetDefault("postgresql.password", "")
 		viper.SetDefault("postgresql.parameters", "sslmode=disable")
-		viper.SetDefault("ai.semantic_decision_service_url", "http://127.0.0.1:9002")
-		viper.SetDefault("ai.semantic_decision_service_timeout_seconds", 90)
-		viper.SetDefault("ai.embedding_url", "http://127.0.0.1:9000")
-		viper.SetDefault("ai.embedding_timeout_seconds", 60)
-		viper.SetDefault("ai.embedding_max_attempts", 4)
-		viper.SetDefault("ai.embedding_retry_backoff_ms", 500)
-		viper.SetDefault("ai.embedding_path", "/embed")
-		viper.SetDefault("ai.embedding_alive_probe_interval_ms", 2000)
-		viper.SetDefault("ai.embedding_alive_probe_timeout_ms", 1500)
-		viper.SetDefault("ai.embedding_alive_success_ttl_ms", 10000)
-		viper.SetDefault("ai.embedding_alive_failure_cooldown_ms", 3000)
+		viper.SetDefault("ai.semantic_decision.service_url", "http://127.0.0.1:9002")
+		viper.SetDefault("ai.semantic_decision.service_timeout_seconds", 90)
+		viper.SetDefault("ai.embedding.url", "http://127.0.0.1:9000")
+		viper.SetDefault("ai.embedding.timeout_seconds", 60)
+		viper.SetDefault("ai.embedding.max_attempts", 4)
+		viper.SetDefault("ai.embedding.retry_backoff_ms", 500)
+		viper.SetDefault("ai.embedding.path", "/embed")
+		viper.SetDefault("ai.embedding.alive_probe_interval_ms", 2000)
+		viper.SetDefault("ai.embedding.alive_probe_timeout_ms", 1500)
+		viper.SetDefault("ai.embedding.alive_success_ttl_ms", 10000)
+		viper.SetDefault("ai.embedding.alive_failure_cooldown_ms", 3000)
 		// 第一階段向量召回預設取回 5 筆候選。
-		viper.SetDefault("ai.retrieval_top_k", 5)
+		viper.SetDefault("ai.embedding.retrieval_top_k", 5)
 		// cross-encoder reranker 的預設本機端點（第二階段重排）。
 		// 這些預設值可讓本機在未特別覆寫時，直接對接 9001 服務。
-		viper.SetDefault("ai.reranker_enabled", true)
-		viper.SetDefault("ai.reranker_url", "http://127.0.0.1:9001")
-		viper.SetDefault("ai.reranker_timeout_seconds", 60)
-		viper.SetDefault("ai.reranker_max_attempts", 3)
-		viper.SetDefault("ai.reranker_retry_backoff_ms", 300)
-		viper.SetDefault("ai.reranker_path", "/rerank")
+		viper.SetDefault("ai.reranker.enabled", true)
+		viper.SetDefault("ai.reranker.url", "http://127.0.0.1:9001")
+		viper.SetDefault("ai.reranker.timeout_seconds", 60)
+		viper.SetDefault("ai.reranker.max_attempts", 3)
+		viper.SetDefault("ai.reranker.retry_backoff_ms", 300)
+		viper.SetDefault("ai.reranker.path", "/rerank")
 		// 第二階段精排預設回傳 5 筆候選，維持與召回筆數一致。
-		viper.SetDefault("ai.reranker_top_k", 5)
-		viper.SetDefault("ai.reranker_alive_probe_interval_ms", 2000)
-		viper.SetDefault("ai.reranker_alive_probe_timeout_ms", 1500)
-		viper.SetDefault("ai.reranker_alive_success_ttl_ms", 10000)
-		viper.SetDefault("ai.reranker_alive_failure_cooldown_ms", 3000)
+		viper.SetDefault("ai.reranker.top_k", 5)
+		viper.SetDefault("ai.reranker.alive_probe_interval_ms", 2000)
+		viper.SetDefault("ai.reranker.alive_probe_timeout_ms", 1500)
+		viper.SetDefault("ai.reranker.alive_success_ttl_ms", 10000)
+		viper.SetDefault("ai.reranker.alive_failure_cooldown_ms", 3000)
 		viper.SetDefault("line.channel_token", "")
 		viper.SetDefault("line.channel_secret", "")
 		viper.SetDefault("line.channel_id", "")

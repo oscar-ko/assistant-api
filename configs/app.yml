@@ -14,42 +14,46 @@ server:
 
 # AI 相關設定：包含語義決策、召回 embedding 與 reranker 精排。
 ai:
-    # 語義決策服務（意圖/任務判斷）端點。
-    semantic_decision_service_url: "http://127.0.0.1:9002"
-    semantic_decision_service_timeout_seconds: 90
     # 第一階段：embedding 向量服務（用於 top-k 候選召回）。
-    embedding_url: "http://127.0.0.1:9000"
-    embedding_timeout_seconds: 60
-    embedding_max_attempts: 4
-    embedding_retry_backoff_ms: 500
-    embedding_path: "/embed"
-    # embedding 探活策略（毫秒）：
-    # - probe_interval: 背景主動探活週期
-    # - probe_timeout: 單次探活最長等待
-    # - success_ttl: 成功後快取多久不再探活
-    # - failure_cooldown: 失敗後多久內直接快回錯
-    embedding_alive_probe_interval_ms: 2000
-    embedding_alive_probe_timeout_ms: 1500
-    embedding_alive_success_ttl_ms: 10000
-    embedding_alive_failure_cooldown_ms: 3000
-    # 第一階段向量召回（top-k）最多取回幾筆候選。
-    retrieval_top_k: 5
+    embedding:
+        url: "http://127.0.0.1:9000"
+        timeout_seconds: 60
+        max_attempts: 4
+        retry_backoff_ms: 500
+        path: "/embed"
+        # 第一階段向量召回（top-k）最多取回幾筆候選。
+        retrieval_top_k: 5
+        # embedding 探活策略（毫秒）：
+        # - alive_probe_interval_ms: 背景主動探活週期
+        # - alive_probe_timeout_ms: 單次探活最長等待
+        # - alive_success_ttl_ms: 成功後快取多久不再探活
+        # - alive_failure_cooldown_ms: 失敗後多久內直接快回錯
+        alive_probe_interval_ms: 2000
+        alive_probe_timeout_ms: 1500
+        alive_success_ttl_ms: 10000
+        alive_failure_cooldown_ms: 3000
     # cross-encoder reranker (第二階段精排)
     # 用法：先由 embedding/pgvector 召回候選，再用 reranker 重排候選順序。
     # 調整方向：品質優先可拉高 timeout/attempts，延遲優先則反向調整。
-    reranker_enabled: true
-    reranker_url: "http://127.0.0.1:9001"
-    reranker_timeout_seconds: 60
-    reranker_max_attempts: 3
-    reranker_retry_backoff_ms: 300
-    reranker_path: "/rerank"
-    # 第二階段精排最多回傳幾筆候選，維持與召回筆數一致。
-    reranker_top_k: 5
-    # reranker 探活策略（毫秒），用途同 embedding。
-    reranker_alive_probe_interval_ms: 2000
-    reranker_alive_probe_timeout_ms: 1500
-    reranker_alive_success_ttl_ms: 10000
-    reranker_alive_failure_cooldown_ms: 3000
+    reranker:
+        enabled: true
+        url: "http://127.0.0.1:9001"
+        timeout_seconds: 60
+        max_attempts: 3
+        retry_backoff_ms: 300
+        path: "/rerank"
+        # 第二階段精排最多回傳幾筆候選，維持與召回筆數一致。
+        top_k: 5
+        # reranker 探活策略（毫秒），用途同 embedding。
+        alive_probe_interval_ms: 2000
+        alive_probe_timeout_ms: 1500
+        alive_success_ttl_ms: 10000
+        alive_failure_cooldown_ms: 3000
+
+    # 語義決策服務（意圖/任務判斷）端點 (第三階段)
+    semantic_decision:
+        service_url: "http://127.0.0.1:9002"
+        service_timeout_seconds: 90
 
 # 資料庫 schema 自動建立開關（開發環境常設為 true）。
 database:

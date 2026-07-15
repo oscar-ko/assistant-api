@@ -28,33 +28,33 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 	actionRouteRepo := repository.NewActionRouteRepo(client)
 	// embedding client 是第一階段召回必備依賴。
 	embeddingClient := embedding.NewClient(
-		config.AI.EmbeddingURL,
-		config.AI.EmbeddingTimeoutSeconds,
-		config.AI.EmbeddingPath,
-		config.AI.EmbeddingMaxAttempts,
-		config.AI.EmbeddingRetryBackoffMS,
-		config.AI.EmbeddingAliveProbeIntervalMS,
-		config.AI.EmbeddingAliveProbeTimeoutMS,
-		config.AI.EmbeddingAliveSuccessTTLMS,
-		config.AI.EmbeddingAliveFailureCooldownMS,
+		config.AI.Embedding.URL,
+		config.AI.Embedding.TimeoutSeconds,
+		config.AI.Embedding.Path,
+		config.AI.Embedding.MaxAttempts,
+		config.AI.Embedding.RetryBackoffMS,
+		config.AI.Embedding.AliveProbeIntervalMS,
+		config.AI.Embedding.AliveProbeTimeoutMS,
+		config.AI.Embedding.AliveSuccessTTLMS,
+		config.AI.Embedding.AliveFailureCooldownMS,
 	)
-	filterService := topkfilter.NewService(actionRouteRepo, embeddingClient, "zh-TW", config.AI.RetrievalTopK)
-	if config.AI.RerankerEnabled {
+	filterService := topkfilter.NewService(actionRouteRepo, embeddingClient, "zh-TW", config.AI.Embedding.RetrievalTopK)
+	if config.AI.Reranker.Enabled {
 		// 第二階段 cross-encoder 精排 client，僅對 retrieval 候選做重排。
 		// 流程是先 retrieval(top-k) 再 rerank，不會讓 reranker 直接查全量路由，
 		// 以控制延遲與成本，同時提升最終排序精準度。
 		rerankerClient := reranker.NewClient(
-			config.AI.RerankerURL,
-			config.AI.RerankerTimeoutSeconds,
-			config.AI.RerankerPath,
-			config.AI.RerankerMaxAttempts,
-			config.AI.RerankerRetryBackoffMS,
-			config.AI.RerankerAliveProbeIntervalMS,
-			config.AI.RerankerAliveProbeTimeoutMS,
-			config.AI.RerankerAliveSuccessTTLMS,
-			config.AI.RerankerAliveFailureCooldownMS,
+			config.AI.Reranker.URL,
+			config.AI.Reranker.TimeoutSeconds,
+			config.AI.Reranker.Path,
+			config.AI.Reranker.MaxAttempts,
+			config.AI.Reranker.RetryBackoffMS,
+			config.AI.Reranker.AliveProbeIntervalMS,
+			config.AI.Reranker.AliveProbeTimeoutMS,
+			config.AI.Reranker.AliveSuccessTTLMS,
+			config.AI.Reranker.AliveFailureCooldownMS,
 		)
-		filterService = topkfilter.NewServiceWithReranker(actionRouteRepo, embeddingClient, rerankerClient, "zh-TW", config.AI.RerankerTopK)
+		filterService = topkfilter.NewServiceWithReranker(actionRouteRepo, embeddingClient, rerankerClient, "zh-TW", config.AI.Reranker.TopK)
 	}
 
 	// OAuth 相關端點。

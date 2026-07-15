@@ -326,19 +326,19 @@ func backfillActionRouteEmbeddings(ctx context.Context, client *ent.Client) erro
 // buildEmbeddingClientForSeed 依設定建立 embedding client。
 // 若未提供 embedding_url，回傳 nil 表示目前環境不啟用向量回填。
 func buildEmbeddingClientForSeed() embedding.Service {
-	if strings.TrimSpace(config.AI.EmbeddingURL) == "" {
+	if strings.TrimSpace(config.AI.Embedding.URL) == "" {
 		return nil
 	}
 	return embedding.NewClient(
-		config.AI.EmbeddingURL,
-		config.AI.EmbeddingTimeoutSeconds,
-		config.AI.EmbeddingPath,
-		config.AI.EmbeddingMaxAttempts,
-		config.AI.EmbeddingRetryBackoffMS,
-		config.AI.EmbeddingAliveProbeIntervalMS,
-		config.AI.EmbeddingAliveProbeTimeoutMS,
-		config.AI.EmbeddingAliveSuccessTTLMS,
-		config.AI.EmbeddingAliveFailureCooldownMS,
+		config.AI.Embedding.URL,
+		config.AI.Embedding.TimeoutSeconds,
+		config.AI.Embedding.Path,
+		config.AI.Embedding.MaxAttempts,
+		config.AI.Embedding.RetryBackoffMS,
+		config.AI.Embedding.AliveProbeIntervalMS,
+		config.AI.Embedding.AliveProbeTimeoutMS,
+		config.AI.Embedding.AliveSuccessTTLMS,
+		config.AI.Embedding.AliveFailureCooldownMS,
 	)
 }
 
