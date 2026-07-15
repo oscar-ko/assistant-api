@@ -58,7 +58,7 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 		filterService = topkfilter.NewServiceWithReranker(actionRouteRepo, embeddingClient, rerankerClient, "zh-TW", config.AI.Embedding.RetrievalTopK, config.AI.Reranker.TopK)
 	}
 	// 第三階段：語意決策服務，把 rerank 後的候選交給模型選出最終唯一一個 action。
-	semanticDecisionService := semanticdecision.NewService(semanticdecision.NewClassifier(
+	semanticDecisionService := semanticdecision.NewService(semanticdecision.NewClient(
 		config.AI.SemanticDecision.ServiceURL,
 		config.AI.SemanticDecision.ServiceTimeoutSeconds,
 	))

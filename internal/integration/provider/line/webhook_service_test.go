@@ -85,6 +85,8 @@ func TestWebhookService_ProcessIncoming_TextMessage(t *testing.T) {
 	filterStub := &stubTopKFilter{}
 	(&WebhookService{topKFilterService: filterStub}).ProcessIncoming(body, "sig")
 
+	// 「group + 一般文字」在目前規則下不是 command，應直接被 command gate 擋掉，
+	// 因此不應進入 rerank/top-k pipeline。
 	if filterStub.called {
 		t.Fatalf("expected non-command message to skip rerank")
 	}
@@ -119,6 +121,7 @@ func TestWebhookService_ProcessIncoming_CommandMessage(t *testing.T) {
 	filterStub := &stubTopKFilter{}
 	(&WebhookService{topKFilterService: filterStub}).ProcessIncoming(body, "sig")
 
+	// private channel 會被視為 command 模式，應觸發 rerank 階段。
 	if !filterStub.called {
 		t.Fatalf("expected command message to run rerank")
 	}
@@ -153,6 +156,7 @@ func TestWebhookService_ProcessIncoming_FinalActionDecision(t *testing.T) {
 	if len(entries) == 0 {
 		t.Fatalf("expected final action decision log")
 	}
+	// 驗證 log 內的候選映射資訊完整，確保日後追查可直接看到 operation 對到哪個 skill/route。
 	logContext := entries[0].ContextMap()
 	if logContext["skill_code"] != "channel.translation" {
 		t.Fatalf("expected matched skill_code, got %v", logContext["skill_code"])

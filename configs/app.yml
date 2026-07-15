@@ -52,7 +52,10 @@ ai:
         alive_success_ttl_ms: 10000
         alive_failure_cooldown_ms: 3000
 
-    # 語義決策服務（意圖/任務判斷）端點 (第三階段)
+    # 語義決策服務（第三階段）
+    # 職責：接收「原始訊息 + rerank 後候選」並產生單一最終 api_operation。
+    # 注意：這裡的 API 契約是 action decision（api_operation），
+    # 不再使用舊的 intent_label 分類格式。
     semantic_decision:
         service_url: "http://127.0.0.1:9002"
         service_timeout_seconds: 90

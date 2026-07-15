@@ -144,7 +144,7 @@ type webhookMentionee struct {
 // 它會先解析原始 payload，再對每則 message 事件做三件事：
 // 1. 先把訊息本體印到 console，方便除錯與觀察。
 // 2. 先將訊息寫入資料庫，確保訊息可即時查詢與追蹤。
-// 3. 最後再交給 AI classifier 做延伸判讀，避免阻塞落庫。
+// 3. 最後再交給 AI client 做延伸判讀，避免阻塞落庫。
 func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 	var req webhookRequest
 	// 第一段：先將 webhook body 轉成結構化資料。
@@ -207,6 +207,8 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 		}
 
 		if !decision.IsCommand() {
+			// 嚴格 command gate：非 command 訊息到此結束。
+			// 目的是把 AI 成本集中在可執行意圖，避免一般閒聊流量進入 rerank/semantic 決策。
 			continue
 		}
 
@@ -227,12 +229,15 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 		}
 
 		if s.topKFilterService == nil {
+			// 未注入 top-k/rerank 服務時，保留可觀測與落庫，但不做 AI 決策。
 			continue
 		}
 
 		// 第三階段：把 reranker 精排後的候選交給語意決策模型，選出最終唯一一個 action。
 		candidates := s.topKFilterService.FilterMessage(context.Background(), message)
 		if len(candidates) == 0 || s.semanticService == nil {
+			// 若沒有可用候選，或未注入 final semantic 服務，
+			// 就停在 rerank 結果，不強行產生最終 action。
 			continue
 		}
 
@@ -247,6 +252,8 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 			continue
 		}
 		if finalDecision == nil {
+			// 模型端允許回 nil（例如策略性略過），呼叫端視為本次不下最終 action。
+			// 這裡保持靜默跳過，避免把「未決策」誤記錄成錯誤。
 			continue
 		}
 
@@ -264,6 +271,8 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 			}
 		}
 		if !validSelection {
+			// 若模型選出不在候選清單內的 operation，代表可能發生 hallucination 或 prompt 偏移；
+			// 保留告警，但仍輸出 final log 供後續排查與離線評估。
 			zap.L().Warn("line message final action not in candidates",
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
@@ -297,6 +306,7 @@ func (s *WebhookService) persistUnifiedMessage(message *unifiedmessage.Message) 
 func toActionCandidates(candidates []topkfilter.ScoredCandidate) []semanticdecision.ActionCandidate {
 	out := make([]semanticdecision.ActionCandidate, 0, len(candidates))
 	for _, item := range candidates {
+		// 只抽出最終語意判斷需要的欄位，避免把底層資料結構耦合到 semanticdecision。
 		out = append(out, semanticdecision.ActionCandidate{
 			Operation: item.Candidate.APIOperation,
 			SkillCode: item.Candidate.SkillCode,

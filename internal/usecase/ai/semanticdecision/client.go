@@ -29,14 +29,14 @@ type ActionDecision struct {
 	Reason        string  `json:"reason"`
 }
 
-// Classifier 定義通用語意決策能力。
-type Classifier interface {
+// Client 定義通用語意決策能力。
+type Client interface {
 	// ClassifyAction 把 prompt+text 送進 actionDecisionPath，
 	// 回應 payload 解析成 ActionDecision（api_operation）。
 	ClassifyAction(ctx context.Context, prompt string, text string) (*ActionDecision, error)
 }
 
-type classifierClient struct {
+type decisionClient struct {
 	baseURL string
 	client  *http.Client
 }
@@ -50,13 +50,13 @@ type classificationRequest struct {
 // 服務端會接受 api_operation 欄位。
 const actionDecisionPath = "/predict/action_decision"
 
-// NewClassifier 建立通用語意決策 client。
-func NewClassifier(baseURL string, timeoutSeconds int) Classifier {
+// NewClient 建立通用語意決策 client。
+func NewClient(baseURL string, timeoutSeconds int) Client {
 	trimmed := strings.TrimSpace(baseURL)
 	if trimmed == "" {
 		return nil
 	}
-	return &classifierClient{
+	return &decisionClient{
 		baseURL: strings.TrimRight(trimmed, "/"),
 		client:  &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second},
 	}
@@ -107,7 +107,9 @@ schema_version, api_operation, confidence, reason
 `)
 }
 
-func (c *classifierClient) buildRequest(ctx context.Context, path string, prompt string, text string) (*http.Request, error) {
+func (c *decisionClient) buildRequest(ctx context.Context, path string, prompt string, text string) (*http.Request, error) {
+	// 這裡只傳兩個欄位：prompt + text。
+	// 目的是讓 9002 只做「語意到 action 的最後選擇」，不承擔上游 rerank 結構細節。
 	payload := classificationRequest{Prompt: strings.TrimSpace(prompt), Text: strings.TrimSpace(text)}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -137,12 +139,12 @@ func readErrorBodyPreview(resp *http.Response) string {
 }
 
 // ClassifyAction 把 prompt+text 送進 actionDecisionPath，回應解析成 ActionDecision（api_operation）。
-func (c *classifierClient) ClassifyAction(ctx context.Context, prompt string, text string) (*ActionDecision, error) {
+func (c *decisionClient) ClassifyAction(ctx context.Context, prompt string, text string) (*ActionDecision, error) {
 	if c == nil {
-		return nil, fmt.Errorf("semantic decision classifier is not initialized")
+		return nil, fmt.Errorf("semantic decision client is not initialized")
 	}
 	if c.baseURL == "" {
-		return nil, fmt.Errorf("semantic decision classifier url is empty")
+		return nil, fmt.Errorf("semantic decision client url is empty")
 	}
 
 	req, err := c.buildRequest(ctx, actionDecisionPath, prompt, text)
@@ -161,7 +163,9 @@ func (c *classifierClient) ClassifyAction(ctx context.Context, prompt string, te
 
 func decodeActionDecisionResponse(resp *http.Response) (*ActionDecision, error) {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("action decision classifier returned status %d: %s", resp.StatusCode, readErrorBodyPreview(resp))
+		// 非 2xx 直接附上 body 摘要，方便第一時間定位是 schema 錯誤、欄位不符、
+		// 還是模型輸出格式失敗，不需要再額外打開 Python 服務 log 才能看出原因。
+		return nil, fmt.Errorf("action decision client returned status %d: %s", resp.StatusCode, readErrorBodyPreview(resp))
 	}
 
 	data, err := io.ReadAll(resp.Body)
@@ -171,6 +175,8 @@ func decodeActionDecisionResponse(resp *http.Response) (*ActionDecision, error) 
 
 	var decoded ActionDecision
 	if err := json.Unmarshal(data, &decoded); err != nil {
+		// 這裡刻意不做容錯 fallback，若回傳 JSON 不符合契約就直接失敗，
+		// 避免把不完整/錯誤資料默默帶到後續 action 執行路徑。
 		return nil, err
 	}
 
