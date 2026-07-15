@@ -32,6 +32,8 @@ ai:
     embedding_alive_probe_timeout_ms: 1500
     embedding_alive_success_ttl_ms: 10000
     embedding_alive_failure_cooldown_ms: 3000
+    # 第一階段向量召回（top-k）最多取回幾筆候選。
+    retrieval_top_k: 5
     # cross-encoder reranker (第二階段精排)
     # 用法：先由 embedding/pgvector 召回候選，再用 reranker 重排候選順序。
     # 調整方向：品質優先可拉高 timeout/attempts，延遲優先則反向調整。
@@ -41,6 +43,8 @@ ai:
     reranker_max_attempts: 3
     reranker_retry_backoff_ms: 300
     reranker_path: "/rerank"
+    # 第二階段精排最多回傳幾筆候選，維持與召回筆數一致。
+    reranker_top_k: 5
     # reranker 探活策略（毫秒），用途同 embedding。
     reranker_alive_probe_interval_ms: 2000
     reranker_alive_probe_timeout_ms: 1500

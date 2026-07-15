@@ -51,6 +51,8 @@ type AIConfig struct {
 	EmbeddingMaxAttempts    int    `mapstructure:"embedding_max_attempts" yaml:"embedding_max_attempts"`
 	EmbeddingRetryBackoffMS int    `mapstructure:"embedding_retry_backoff_ms" yaml:"embedding_retry_backoff_ms"`
 	EmbeddingPath           string `mapstructure:"embedding_path" yaml:"embedding_path"`
+	// RetrievalTopK 控制第一階段向量召回（top-k）最多取回幾筆候選。
+	RetrievalTopK int `mapstructure:"retrieval_top_k" yaml:"retrieval_top_k"`
 	// EmbeddingAlive*：探活快取與失敗冷卻策略，避免每次訊息都探活。
 	EmbeddingAliveProbeIntervalMS   int `mapstructure:"embedding_alive_probe_interval_ms" yaml:"embedding_alive_probe_interval_ms"`
 	EmbeddingAliveProbeTimeoutMS    int `mapstructure:"embedding_alive_probe_timeout_ms" yaml:"embedding_alive_probe_timeout_ms"`
@@ -67,6 +69,8 @@ type AIConfig struct {
 	RerankerMaxAttempts    int    `mapstructure:"reranker_max_attempts" yaml:"reranker_max_attempts"`
 	RerankerRetryBackoffMS int    `mapstructure:"reranker_retry_backoff_ms" yaml:"reranker_retry_backoff_ms"`
 	RerankerPath           string `mapstructure:"reranker_path" yaml:"reranker_path"`
+	// RerankerTopK 控制第二階段 cross-encoder 精排最多回傳幾筆候選。
+	RerankerTopK int `mapstructure:"reranker_top_k" yaml:"reranker_top_k"`
 	// RerankerAlive*：探活快取與失敗冷卻策略，避免每次訊息都探活。
 	RerankerAliveProbeIntervalMS   int `mapstructure:"reranker_alive_probe_interval_ms" yaml:"reranker_alive_probe_interval_ms"`
 	RerankerAliveProbeTimeoutMS    int `mapstructure:"reranker_alive_probe_timeout_ms" yaml:"reranker_alive_probe_timeout_ms"`
@@ -187,6 +191,8 @@ func MustLoad() {
 		viper.SetDefault("ai.embedding_alive_probe_timeout_ms", 1500)
 		viper.SetDefault("ai.embedding_alive_success_ttl_ms", 10000)
 		viper.SetDefault("ai.embedding_alive_failure_cooldown_ms", 3000)
+		// 第一階段向量召回預設取回 5 筆候選。
+		viper.SetDefault("ai.retrieval_top_k", 5)
 		// cross-encoder reranker 的預設本機端點（第二階段重排）。
 		// 這些預設值可讓本機在未特別覆寫時，直接對接 9001 服務。
 		viper.SetDefault("ai.reranker_enabled", true)
@@ -195,6 +201,8 @@ func MustLoad() {
 		viper.SetDefault("ai.reranker_max_attempts", 3)
 		viper.SetDefault("ai.reranker_retry_backoff_ms", 300)
 		viper.SetDefault("ai.reranker_path", "/rerank")
+		// 第二階段精排預設回傳 5 筆候選，維持與召回筆數一致。
+		viper.SetDefault("ai.reranker_top_k", 5)
 		viper.SetDefault("ai.reranker_alive_probe_interval_ms", 2000)
 		viper.SetDefault("ai.reranker_alive_probe_timeout_ms", 1500)
 		viper.SetDefault("ai.reranker_alive_success_ttl_ms", 10000)

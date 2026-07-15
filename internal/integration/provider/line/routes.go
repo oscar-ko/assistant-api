@@ -38,7 +38,7 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 		config.AI.EmbeddingAliveSuccessTTLMS,
 		config.AI.EmbeddingAliveFailureCooldownMS,
 	)
-	filterService := topkfilter.NewService(actionRouteRepo, embeddingClient, "zh-TW", 5)
+	filterService := topkfilter.NewService(actionRouteRepo, embeddingClient, "zh-TW", config.AI.RetrievalTopK)
 	if config.AI.RerankerEnabled {
 		// 第二階段 cross-encoder 精排 client，僅對 retrieval 候選做重排。
 		// 流程是先 retrieval(top-k) 再 rerank，不會讓 reranker 直接查全量路由，
@@ -54,7 +54,7 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 			config.AI.RerankerAliveSuccessTTLMS,
 			config.AI.RerankerAliveFailureCooldownMS,
 		)
-		filterService = topkfilter.NewServiceWithReranker(actionRouteRepo, embeddingClient, rerankerClient, "zh-TW", 5)
+		filterService = topkfilter.NewServiceWithReranker(actionRouteRepo, embeddingClient, rerankerClient, "zh-TW", config.AI.RerankerTopK)
 	}
 
 	// OAuth 相關端點。
