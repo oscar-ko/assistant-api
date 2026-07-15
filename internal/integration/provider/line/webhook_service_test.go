@@ -36,13 +36,17 @@ func (s *stubTopKFilter) FilterMessage(ctx context.Context, message *unifiedmess
 }
 
 type stubSemanticDecision struct {
-	called       bool
-	decision     *semanticdecision.ActionDecision
-	err          error
-	candidates   []semanticdecision.ActionCandidate
-	answerCalled bool
-	answer       *semanticdecision.QuestionAnswer
-	answerErr    error
+	called              bool
+	decision            *semanticdecision.ActionDecision
+	err                 error
+	candidates          []semanticdecision.ActionCandidate
+	answerCalled        bool
+	answer              *semanticdecision.QuestionAnswer
+	answerErr           error
+	clarifyCalled       bool
+	clarifyReason       string
+	clarifyingQuestion  *semanticdecision.QuestionAnswer
+	clarifyingQuestionErr error
 }
 
 func (s *stubSemanticDecision) DecideFinalAction(ctx context.Context, text string, candidates []semanticdecision.ActionCandidate) (*semanticdecision.ActionDecision, error) {
@@ -58,6 +62,14 @@ func (s *stubSemanticDecision) AnswerQuestion(ctx context.Context, text string) 
 	_ = text
 	s.answerCalled = true
 	return s.answer, s.answerErr
+}
+
+func (s *stubSemanticDecision) AskClarifyingQuestion(ctx context.Context, text string, reason string) (*semanticdecision.QuestionAnswer, error) {
+	_ = ctx
+	_ = text
+	s.clarifyCalled = true
+	s.clarifyReason = reason
+	return s.clarifyingQuestion, s.clarifyingQuestionErr
 }
 
 func TestResolveSender(t *testing.T) {
@@ -161,7 +173,7 @@ func TestWebhookService_ProcessIncoming_FinalActionDecision(t *testing.T) {
 			{Candidate: repository.ActionRouteVectorCandidate{APIOperation: "start_translation_locale", SkillCode: "channel.translation", RouteText: "\u958b\u555f\u7ffb\u8b6f"}},
 		},
 	}
-	decisionStub := &stubSemanticDecision{decision: &semanticdecision.ActionDecision{APIOperation: "start_translation_locale", Confidence: 0.92, Reason: "stub reason"}}
+	decisionStub := &stubSemanticDecision{decision: &semanticdecision.ActionDecision{NextStep: semanticdecision.NextStepExecuteAction, APIOperation: "start_translation_locale", Confidence: 0.92, Reason: "stub reason"}}
 
 	(&WebhookService{topKFilterService: filterStub, semanticService: decisionStub}).ProcessIncoming(body, "sig")
 
@@ -201,7 +213,7 @@ func TestWebhookService_ProcessIncoming_FinalActionNotInCandidates(t *testing.T)
 		},
 	}
 	// 模擬模型回傳一個不在候選清單裡的 api_operation，驗證會被捕捉並告警。
-	decisionStub := &stubSemanticDecision{decision: &semanticdecision.ActionDecision{APIOperation: "unknown_operation", Confidence: 0.5, Reason: "stub reason"}}
+	decisionStub := &stubSemanticDecision{decision: &semanticdecision.ActionDecision{NextStep: semanticdecision.NextStepExecuteAction, APIOperation: "unknown_operation", Confidence: 0.5, Reason: "stub reason"}}
 
 	(&WebhookService{topKFilterService: filterStub, semanticService: decisionStub}).ProcessIncoming(body, "sig")
 
@@ -239,19 +251,28 @@ func TestWebhookService_ProcessIncoming_LowConfidenceTreatedAsChat(t *testing.T)
 		},
 	}
 	decisionStub := &stubSemanticDecision{
-		decision: &semanticdecision.ActionDecision{APIOperation: "start_translation_locale", Confidence: 0.42, Reason: "stub reason"},
-		answer:   &semanticdecision.QuestionAnswer{SchemaVersion: "v1", Answer: "這是一個問題的回覆", Confidence: 0.35},
+		decision:           &semanticdecision.ActionDecision{NextStep: semanticdecision.NextStepAskClarifyingQuestion, APIOperation: "start_translation_locale", Confidence: 0.42, Reason: "stub reason"},
+		clarifyingQuestion: &semanticdecision.QuestionAnswer{SchemaVersion: "v1", Answer: "請問你要翻譯成哪個語系？", Confidence: 0.35},
 	}
 
 	(&WebhookService{topKFilterService: filterStub, semanticService: decisionStub}).ProcessIncoming(body, "sig")
 
 	// 低 action confidence 應走問答分支，而不是產生最終 action。
-	if !decisionStub.answerCalled {
-		t.Fatalf("expected AnswerQuestion to be called on low action confidence")
+	if !decisionStub.clarifyCalled {
+		t.Fatalf("expected AskClarifyingQuestion to be called on low action confidence")
+	}
+	if decisionStub.clarifyReason != "stub reason" {
+		t.Fatalf("expected clarifying question to receive decision reason, got %q", decisionStub.clarifyReason)
+	}
+	if decisionStub.answerCalled {
+		t.Fatalf("expected generic AnswerQuestion not to be called on low action confidence")
 	}
 	answerEntries := observed.FilterMessage("line message semantic question answered").All()
 	if len(answerEntries) == 0 {
 		t.Fatalf("expected semantic question answered log")
+	}
+	if answerEntries[0].ContextMap()["mode"] != "clarifying_question" {
+		t.Fatalf("expected mode=clarifying_question, got %v", answerEntries[0].ContextMap()["mode"])
 	}
 	if answerEntries[0].ContextMap()["recommend_cloud_llm"] != true {
 		t.Fatalf("expected recommend_cloud_llm=true, got %v", answerEntries[0].ContextMap()["recommend_cloud_llm"])
@@ -287,25 +308,71 @@ func TestWebhookService_ProcessIncoming_ZeroConfidenceNoMatchRoutesToQuestionAns
 		},
 	}
 	decisionStub := &stubSemanticDecision{
-		decision: &semanticdecision.ActionDecision{APIOperation: "", Confidence: 0.0, Reason: "no candidate matched"},
-		answer:   &semanticdecision.QuestionAnswer{SchemaVersion: "v1", Answer: "你可以看《星際效應》。", Confidence: 0.88},
+		decision:           &semanticdecision.ActionDecision{NextStep: semanticdecision.NextStepAskClarifyingQuestion, APIOperation: "", Confidence: 0.0, Reason: "no candidate matched"},
+		clarifyingQuestion: &semanticdecision.QuestionAnswer{SchemaVersion: "v1", Answer: "你想要我幫你做哪一類型的事情？", Confidence: 0.88},
 	}
 
 	(&WebhookService{topKFilterService: filterStub, semanticService: decisionStub}).ProcessIncoming(body, "sig")
 
 	// no_match 被視為正常語意結果，必須改走問答分支。
-	if !decisionStub.answerCalled {
-		t.Fatalf("expected AnswerQuestion to be called when action decision confidence is 0")
+	if !decisionStub.clarifyCalled {
+		t.Fatalf("expected AskClarifyingQuestion to be called when action decision confidence is 0")
+	}
+	if decisionStub.answerCalled {
+		t.Fatalf("expected generic AnswerQuestion not to be called when action decision confidence is 0")
 	}
 	entries := observed.FilterMessage("line message semantic question answered").All()
 	if len(entries) == 0 {
 		t.Fatalf("expected semantic question answered log")
 	}
-	if entries[0].ContextMap()["cause"] != "low_action_confidence" {
-		t.Fatalf("expected cause=low_action_confidence, got %v", entries[0].ContextMap()["cause"])
+	if entries[0].ContextMap()["cause"] != "ask_clarifying_question" {
+		t.Fatalf("expected cause=ask_clarifying_question, got %v", entries[0].ContextMap()["cause"])
+	}
+	if entries[0].ContextMap()["mode"] != "clarifying_question" {
+		t.Fatalf("expected mode=clarifying_question, got %v", entries[0].ContextMap()["mode"])
 	}
 	if observed.FilterMessage("line message final action decided").Len() != 0 {
 		t.Fatalf("expected no final action log when action decision is zero-confidence no-match")
+	}
+}
+
+func TestWebhookService_ProcessIncoming_AnswerQuestionNextStepUsesGenericQA(t *testing.T) {
+	core, observed := observer.New(zapcore.DebugLevel)
+	oldLogger := zap.L()
+	zap.ReplaceGlobals(zap.New(core))
+	defer zap.ReplaceGlobals(oldLogger)
+
+	body := []byte(`{"events":[{"type":"message","source":{"type":"private","userId":"U123"},"message":{"type":"text","text":"推薦一部電影"}}]}`)
+	filterStub := &stubTopKFilter{
+		candidates: []topkfilter.ScoredCandidate{
+			{Candidate: repository.ActionRouteVectorCandidate{APIOperation: "start_translation_locale", SkillCode: "channel.translation", RouteText: "開啟翻譯"}},
+		},
+	}
+	decisionStub := &stubSemanticDecision{
+		decision: &semanticdecision.ActionDecision{NextStep: semanticdecision.NextStepAnswerQuestion, APIOperation: "", Confidence: 0.88, Reason: "user is asking a general question"},
+		answer:   &semanticdecision.QuestionAnswer{SchemaVersion: "v1", Answer: "你可以看《星際效應》。", Confidence: 0.88},
+	}
+
+	(&WebhookService{topKFilterService: filterStub, semanticService: decisionStub}).ProcessIncoming(body, "sig")
+
+	if !decisionStub.answerCalled {
+		t.Fatalf("expected generic AnswerQuestion to be called when next_step=answer_question")
+	}
+	if decisionStub.clarifyCalled {
+		t.Fatalf("expected AskClarifyingQuestion not to be called when next_step=answer_question")
+	}
+	entries := observed.FilterMessage("line message semantic question answered").All()
+	if len(entries) == 0 {
+		t.Fatalf("expected semantic question answered log")
+	}
+	if entries[0].ContextMap()["mode"] != "question_answer" {
+		t.Fatalf("expected mode=question_answer, got %v", entries[0].ContextMap()["mode"])
+	}
+	if entries[0].ContextMap()["cause"] != "answer_question" {
+		t.Fatalf("expected cause=answer_question, got %v", entries[0].ContextMap()["cause"])
+	}
+	if observed.FilterMessage("line message final action decided").Len() != 0 {
+		t.Fatalf("expected no final action log when next_step=answer_question")
 	}
 }
 

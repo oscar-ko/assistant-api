@@ -12,6 +12,8 @@ type Service interface {
 	DecideFinalAction(ctx context.Context, text string, candidates []ActionCandidate) (*ActionDecision, error)
 	// AnswerQuestion 把訊息當作一般問題，回傳答案與信心度。
 	AnswerQuestion(ctx context.Context, text string) (*QuestionAnswer, error)
+	// AskClarifyingQuestion 在 action 決策信心不足時，依原訊息與決策理由生成追問問題。
+	AskClarifyingQuestion(ctx context.Context, text string, reason string) (*QuestionAnswer, error)
 }
 
 type service struct {
@@ -56,4 +58,17 @@ func (s *service) AnswerQuestion(ctx context.Context, text string) (*QuestionAns
 	}
 
 	return s.client.AnswerQuestion(ctx, BuildQuestionAnswerPrompt(), trimmedText)
+}
+
+// AskClarifyingQuestion 在無法安全執行 action 時，要求模型提出一個最小必要追問。
+func (s *service) AskClarifyingQuestion(ctx context.Context, text string, reason string) (*QuestionAnswer, error) {
+	if s == nil || s.client == nil {
+		return nil, nil
+	}
+	trimmedText := strings.TrimSpace(text)
+	if trimmedText == "" {
+		return nil, nil
+	}
+
+	return s.client.AnswerQuestion(ctx, BuildClarifyingQuestionPrompt(reason), trimmedText)
 }

@@ -17,7 +17,45 @@ var forbiddenActionParamKeys = map[string]struct{}{
 
 // validateActionDecision 驗證 action_params 契約，並在可接受情況下做格式正規化。
 func validateActionDecision(decision *ActionDecision) error {
-	if decision == nil || len(decision.ActionParams) == 0 {
+	if decision == nil {
+		return nil
+	}
+	nextStep := strings.TrimSpace(decision.NextStep)
+	switch nextStep {
+	case NextStepExecuteAction, NextStepAskClarifyingQuestion, NextStepAnswerQuestion:
+		// valid
+	case "":
+		return fmt.Errorf("action decision next_step is required")
+	default:
+		return fmt.Errorf("action decision next_step %q is invalid", nextStep)
+	}
+
+	decision.NextStep = nextStep
+	decision.APIOperation = strings.TrimSpace(decision.APIOperation)
+	decision.Reason = strings.TrimSpace(decision.Reason)
+
+	if nextStep == NextStepExecuteAction && decision.APIOperation == "" {
+		return fmt.Errorf("action decision api_operation is required when next_step=execute_action")
+	}
+	if len(decision.MissingParameters) > 0 && nextStep != NextStepAskClarifyingQuestion {
+		return fmt.Errorf("action decision next_step must be ask_clarifying_question when missing_parameters is not empty")
+	}
+	if nextStep == NextStepExecuteAction && len(decision.MissingParameters) > 0 {
+		return fmt.Errorf("action decision missing_parameters must be empty when next_step=execute_action")
+	}
+	if nextStep == NextStepAnswerQuestion {
+		if decision.APIOperation != "" {
+			return fmt.Errorf("action decision api_operation must be empty when next_step=answer_question")
+		}
+		if len(decision.ActionParams) != 0 {
+			return fmt.Errorf("action decision action_params must be empty when next_step=answer_question")
+		}
+		if len(decision.MissingParameters) != 0 {
+			return fmt.Errorf("action decision missing_parameters must be empty when next_step=answer_question")
+		}
+	}
+
+	if len(decision.ActionParams) == 0 {
 		return nil
 	}
 	for key := range decision.ActionParams {

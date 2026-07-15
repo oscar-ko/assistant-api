@@ -41,3 +41,16 @@ func TestBuildFinalActionPromptIncludesActionPromptGuidance(t *testing.T) {
 		t.Fatalf("expected stop_translation_all guidance in prompt, got: %s", prompt)
 	}
 }
+
+func TestBuildClarifyingQuestionPromptIncludesDecisionReason(t *testing.T) {
+	prompt := BuildClarifyingQuestionPrompt("缺少 target_locales，無法安全執行翻譯")
+	if !strings.Contains(prompt, "缺少 target_locales，無法安全執行翻譯") {
+		t.Fatalf("expected decision reason to be injected into clarifying prompt, got: %s", prompt)
+	}
+	if !strings.Contains(prompt, "提出一個最能消除歧義的追問問題") {
+		t.Fatalf("expected clarifying question guidance in prompt, got: %s", prompt)
+	}
+	if !strings.Contains(prompt, "只能問一個最小必要問題") {
+		t.Fatalf("expected minimal follow-up constraint in prompt, got: %s", prompt)
+	}
+}

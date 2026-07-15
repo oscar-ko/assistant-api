@@ -268,18 +268,40 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 			zap.String("text", strings.TrimSpace(message.Text)),
+			zap.String("next_step", strings.TrimSpace(finalDecision.NextStep)),
 			zap.String("api_operation", finalDecision.APIOperation),
 			zap.Float64("confidence", finalDecision.Confidence),
 			zap.String("reason", strings.TrimSpace(finalDecision.Reason)),
 		)
 
-		// 低信心門檻：若 final semantic decision 信心值不足，
-		// 判定為「使用者在問 LLM」而非可執行指令，直接停止 action 路徑。
+		// next_step 是結構化流程控制欄位：
+		// - execute_action: 繼續 action 路徑
+		// - ask_clarifying_question: 生成追問
+		// - answer_question: 生成一般問答回覆
+		// 只有 execute_action 允許繼續往下走到 final action decided log。
+		nextStep := strings.TrimSpace(finalDecision.NextStep)
 		confidenceThreshold := config.AI.SemanticDecision.CommandConfidenceThreshold
+		switch nextStep {
+		case semanticdecision.NextStepAskClarifyingQuestion:
+			s.routeMessageToQuestionAnswer(message, finalDecision.Confidence, confidenceThreshold, "ask_clarifying_question", finalDecision.Reason)
+			continue
+		case semanticdecision.NextStepAnswerQuestion:
+			s.routeMessageToQuestionAnswer(message, finalDecision.Confidence, confidenceThreshold, "answer_question", finalDecision.Reason)
+			continue
+		case semanticdecision.NextStepExecuteAction:
+			// 繼續走 action 流程。
+		default:
+			zap.L().Warn("line message semantic decision next_step invalid",
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.String("next_step", nextStep),
+			)
+			continue
+		}
+
+		// execute_action 仍保留低信心保護，避免模型誤報可執行動作。
 		if confidenceThreshold > 0 && finalDecision.Confidence < confidenceThreshold {
-			// 雖然挑到了某個 action，但信心值不足時仍改走問答，
-			// 避免低把握度 action 造成誤觸發。
-			s.routeMessageToQuestionAnswer(message, finalDecision.Confidence, confidenceThreshold, "low_action_confidence")
+			s.routeMessageToQuestionAnswer(message, finalDecision.Confidence, confidenceThreshold, "low_action_confidence", finalDecision.Reason)
 			continue
 		}
 
@@ -310,6 +332,7 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 			zap.String("text", strings.TrimSpace(message.Text)),
+			zap.String("next_step", strings.TrimSpace(finalDecision.NextStep)),
 			zap.String("api_operation", finalDecision.APIOperation),
 			zap.String("skill_code", matchedSkillCode),
 			zap.String("matched_route_text", matchedRouteText),
@@ -343,19 +366,32 @@ func translationTargetLocalesFromDecision(decision *semanticdecision.ActionDecis
 	return actionpost.ExtractTranslationTargetLocales(decision)
 }
 
-func (s *WebhookService) routeMessageToQuestionAnswer(message *unifiedmessage.Message, actionConfidence float64, actionThreshold float64, cause string) {
+func (s *WebhookService) routeMessageToQuestionAnswer(message *unifiedmessage.Message, actionConfidence float64, actionThreshold float64, cause string, decisionReason string) {
 	if s == nil || s.semanticService == nil || message == nil {
 		return
 	}
 
-	// 進入此函式代表已判定「不應直接執行 action」，
-	// 改由問答模型生成自然語言回覆與 answer confidence。
-	qa, qaErr := s.semanticService.AnswerQuestion(context.Background(), message.Text)
+	// 進入此函式代表已判定「不應直接執行 action」。
+	// 若是 low_action_confidence，優先請模型依原訊息與決策理由提出追問；
+	// 其餘情況才走一般問答模式。
+	var (
+		qa      *semanticdecision.QuestionAnswer
+		qaErr   error
+		qaMode  = "question_answer"
+	)
+	if strings.EqualFold(strings.TrimSpace(cause), "low_action_confidence") || strings.EqualFold(strings.TrimSpace(cause), "ask_clarifying_question") {
+		qaMode = "clarifying_question"
+		qa, qaErr = s.semanticService.AskClarifyingQuestion(context.Background(), message.Text, decisionReason)
+	} else {
+		qa, qaErr = s.semanticService.AnswerQuestion(context.Background(), message.Text)
+	}
 	if qaErr != nil {
 		zap.L().Warn("line message semantic question answer failed",
 			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 			zap.String("cause", cause),
+			zap.String("decision_reason", strings.TrimSpace(decisionReason)),
+			zap.String("mode", qaMode),
 			zap.Float64("action_confidence", actionConfidence),
 			zap.Float64("action_threshold", actionThreshold),
 			zap.Error(qaErr),
@@ -368,6 +404,8 @@ func (s *WebhookService) routeMessageToQuestionAnswer(message *unifiedmessage.Me
 			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 			zap.String("cause", cause),
+			zap.String("decision_reason", strings.TrimSpace(decisionReason)),
+			zap.String("mode", qaMode),
 			zap.Float64("action_confidence", actionConfidence),
 			zap.Float64("action_threshold", actionThreshold),
 		)
@@ -383,6 +421,8 @@ func (s *WebhookService) routeMessageToQuestionAnswer(message *unifiedmessage.Me
 		zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 		zap.String("text", strings.TrimSpace(message.Text)),
 		zap.String("cause", cause),
+		zap.String("decision_reason", strings.TrimSpace(decisionReason)),
+		zap.String("mode", qaMode),
 		zap.Float64("action_confidence", actionConfidence),
 		zap.Float64("action_threshold", actionThreshold),
 		zap.String("answer", strings.TrimSpace(qa.Answer)),

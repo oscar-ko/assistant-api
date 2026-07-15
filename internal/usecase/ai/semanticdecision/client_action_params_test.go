@@ -115,7 +115,7 @@ func TestActionDecisionParamStringSlice(t *testing.T) {
 }
 
 func TestValidateActionDecisionRejectsCandidateMetadataKeys(t *testing.T) {
-	err := validateActionDecision(&ActionDecision{ActionParams: map[string]json.RawMessage{
+	err := validateActionDecision(&ActionDecision{NextStep: NextStepExecuteAction, ActionParams: map[string]json.RawMessage{
 		"route_text": mustRawJSON(t, "開啟英文翻譯"),
 	}})
 	if err == nil {
@@ -124,9 +124,12 @@ func TestValidateActionDecisionRejectsCandidateMetadataKeys(t *testing.T) {
 }
 
 func TestValidateActionDecisionNormalizesLocaleFormat(t *testing.T) {
-	decision := &ActionDecision{ActionParams: map[string]json.RawMessage{
+	decision := &ActionDecision{NextStep: NextStepExecuteAction, ActionParams: map[string]json.RawMessage{
+		// execute_action 需同時帶有效 api_operation。
+	}, APIOperation: "start_translation_locale"}
+	decision.ActionParams = map[string]json.RawMessage{
 		ActionParamTargetLocales: mustRawJSON(t, []string{"ja-jp", "EN-us", "zh-tw"}),
-	}}
+	}
 	if err := validateActionDecision(decision); err != nil {
 		t.Fatalf("expected locale normalization to pass, got error: %v", err)
 	}
@@ -144,7 +147,7 @@ func TestValidateActionDecisionNormalizesLocaleFormat(t *testing.T) {
 }
 
 func TestValidateActionDecisionRejectsInvalidLocaleFormat(t *testing.T) {
-	err := validateActionDecision(&ActionDecision{ActionParams: map[string]json.RawMessage{
+	err := validateActionDecision(&ActionDecision{NextStep: NextStepExecuteAction, APIOperation: "start_translation_locale", ActionParams: map[string]json.RawMessage{
 		ActionParamTargetLocales: mustRawJSON(t, []string{"english-US"}),
 	}})
 	if err == nil {
@@ -153,11 +156,40 @@ func TestValidateActionDecisionRejectsInvalidLocaleFormat(t *testing.T) {
 }
 
 func TestValidateActionDecisionRejectsNonArrayTargetLocales(t *testing.T) {
-	err := validateActionDecision(&ActionDecision{ActionParams: map[string]json.RawMessage{
+	err := validateActionDecision(&ActionDecision{NextStep: NextStepExecuteAction, APIOperation: "start_translation_locale", ActionParams: map[string]json.RawMessage{
 		ActionParamTargetLocales: mustRawJSON(t, "en-US"),
 	}})
 	if err == nil {
 		t.Fatal("expected target_locales string value to be rejected")
+	}
+}
+
+func TestValidateActionDecisionRequiresNextStep(t *testing.T) {
+	err := validateActionDecision(&ActionDecision{})
+	if err == nil {
+		t.Fatal("expected next_step to be required")
+	}
+}
+
+func TestValidateActionDecisionRejectsAnswerQuestionWithActionPayload(t *testing.T) {
+	err := validateActionDecision(&ActionDecision{
+		NextStep:     NextStepAnswerQuestion,
+		APIOperation: "start_translation_locale",
+		ActionParams: map[string]json.RawMessage{"x": mustRawJSON(t, "y")},
+	})
+	if err == nil {
+		t.Fatal("expected answer_question payload with action data to be rejected")
+	}
+}
+
+func TestValidateActionDecisionRejectsExecuteActionWithMissingParameters(t *testing.T) {
+	err := validateActionDecision(&ActionDecision{
+		NextStep:          NextStepExecuteAction,
+		APIOperation:      "start_translation_locale",
+		MissingParameters: []string{"target_locales"},
+	})
+	if err == nil {
+		t.Fatal("expected execute_action with missing_parameters to be rejected")
 	}
 }
 

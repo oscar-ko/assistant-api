@@ -27,6 +27,8 @@ type ActionDecision struct {
 	// SchemaVersion 用來標示目前 action 決策回應的契約版本，
 	// 方便未來做灰度升級或多版本相容判斷。
 	SchemaVersion string `json:"schema_version"`
+	// NextStep 是結構化流程控制欄位，用來明確告知上游下一步應執行 action、追問或一般問答。
+	NextStep string `json:"next_step"`
 	// APIOperation 是模型最終挑選的操作名稱，
 	// 呼叫端會以此值對應到實際執行 handler。
 	APIOperation string `json:"api_operation"`
@@ -41,6 +43,12 @@ type ActionDecision struct {
 	// Reason 保留模型端的簡短決策理由，用於 observability 與排查。
 	Reason string `json:"reason"`
 }
+
+const (
+	NextStepExecuteAction        = "execute_action"
+	NextStepAskClarifyingQuestion = "ask_clarifying_question"
+	NextStepAnswerQuestion       = "answer_question"
+)
 
 // ParamString 讀取 action_params 裡的字串參數。
 func (d *ActionDecision) ParamString(key string) (string, bool) {
@@ -206,7 +214,7 @@ func NewClient(baseURL string, timeoutSeconds int) Client {
 // BuildFinalActionPrompt 依 reranker 精排後的候選清單組出最終決策提示詞。
 // 每筆候選都以文字描述呈現（operation/skill/route_text/score），
 // 交由模型依語意判斷唯一一個最終 action，並要求輸出
-// (schema_version, api_operation, action_params, missing_parameters, confidence, reason)，其中 api_operation
+// (schema_version, next_step, api_operation, action_params, missing_parameters, confidence, reason)，其中 api_operation
 // 即為模型選出的 action operation。這個 prompt 只會送到 actionDecisionPath，
 // 不會混用 command/message 分類用的 intent_label schema。
 func BuildFinalActionPrompt(candidates []ActionCandidate) string {
@@ -259,17 +267,26 @@ func BuildFinalActionPrompt(candidates []ActionCandidate) string {
 請只根據使用者訊息與上述候選，選出「唯一一個」最終應執行的 action。
 
 輸出格式必須是 JSON，欄位固定如下：
-schema_version, api_operation, action_params, missing_parameters, confidence, reason
+schema_version, next_step, api_operation, action_params, missing_parameters, confidence, reason
 
 規則：
 - 先完成兩階段決策：
 	1) 先從候選清單選出唯一 api_operation
 	2) 再只套用該 api_operation 對應的 operation 專屬動態規則來填 action_params
 - 不可套用未被選中 operation 的動態規則
+- next_step 只能是 execute_action、ask_clarifying_question、answer_question 三者之一
+- 若已能安全決定候選 action 且必要參數足夠，next_step 必須是 execute_action
+- 若最合理的是某個候選 action，但仍缺必要參數或存在關鍵歧義，next_step 必須是 ask_clarifying_question
+- 若使用者其實是在一般問答、說明、閒聊，而不是要執行候選 action，next_step 必須是 answer_question
+- confidence 表示你對「下一步判斷」的把握程度，不等於已可直接執行 action
 - api_operation 必須是上述候選其中一個 operation 的原始值，不可自行創造新值
+- 若 next_step=execute_action，api_operation 必須是非空字串，且 action_params 只能填該 action 真正需要的參數
+- 若 next_step=ask_clarifying_question，api_operation 應盡量填入目前最可能的候選 operation；若完全無法判定，可留空字串
+- 若 next_step=answer_question，api_operation 必須為空字串，action_params 必須為空物件
 - action_params 為物件，僅填入本次 action 真正需要且可從訊息明確擷取的參數
 - 不可把候選清單中的 route_text、skill、score、operation 等描述欄位複製到 action_params
 - 缺少必要參數時，不可猜測，請把缺失參數名稱放入 missing_parameters
+- 若 missing_parameters 非空，next_step 必須是 ask_clarifying_question，不可是 execute_action
 - 若使用者訊息語意明顯對應某個候選，即使非分數最高的候選，也應選擇語意最貼合的那個
 - confidence 為 0 到 1 的數字，表示你對這個選擇的把握程度
 - reason 用一句話簡述為何選擇該 action，而非其他候選
@@ -290,6 +307,37 @@ schema_version, answer, confidence
 - answer: 直接可讀的最終回答（繁體中文）
 - confidence: 0 到 1 的數字，代表此回答是否足夠可靠
 - 若問題涉及即時資訊、查詢網路、資料不足或高風險推論，請大幅降低 confidence
+- 不可輸出額外欄位
+`)
+}
+
+// BuildClarifyingQuestionPrompt 產生追問模式提示詞。
+// 當 action 決策信心不足時，要求模型根據原訊息與決策理由，
+// 提出一個最小必要的澄清問題，而不是直接回答或執行動作。
+func BuildClarifyingQuestionPrompt(reason string) string {
+	trimmedReason := strings.TrimSpace(reason)
+	if trimmedReason == "" {
+		trimmedReason = "目前資訊不足，無法安全決定唯一 action。"
+	}
+
+	return strings.TrimSpace(`
+你是通訊助理的追問問題產生器。
+目前系統無法安全執行 action，需要先向使用者追問一個最小必要問題。
+
+目前無法直接執行的原因：
+` + trimmedReason + `
+
+請根據使用者原始訊息與上述原因，提出一個最能消除歧義的追問問題。
+
+輸出格式必須是 JSON，欄位固定如下：
+schema_version, answer, confidence
+
+規則：
+- answer 必須是一句直接對使用者提問的繁體中文追問句
+- 只能問一個最小必要問題，不可同時追問多件事
+- 不可直接回答問題、不可執行動作、不可假設缺失參數
+- 若原因已指出缺少的必要資訊，應優先針對該資訊追問
+- confidence 為 0 到 1 的數字，代表這個追問是否足以澄清下一步
 - 不可輸出額外欄位
 `)
 }
