@@ -8,8 +8,8 @@
   "todo-tree.regex.regexCaseSensitive": false,
   "todo-tree.highlights.enabled": true,
   "todo-tree.highlights.defaultHighlight": {
-    "type": "whole-line",
-    "background": "#FFF3BF",
+    "type": "capture-groups:3",
+    "background": "#FFF3BF40",
     "foreground": "#1F2937"
   },
   "todo-tree.tree.showCountsInTree": true,
@@ -18,23 +18,23 @@
   "todo-tree.highlights.customHighlight": {
     "TODO": {
       "icon": "check",
-      "type": "tag",
+      "type": "capture-groups:3",
       "foreground": "#0B0F1A",
-      "background": "#F59E0B",
+      "background": "#F59E0B33",
       "gutterIcon": true
     },
     "FIXME": {
       "icon": "flame",
-      "type": "tag",
+      "type": "capture-groups:3",
       "foreground": "#FFFFFF",
-      "background": "#DC2626",
+      "background": "#DC262633",
       "gutterIcon": true
     },
     "NOTE": {
       "icon": "note",
-      "type": "tag",
+      "type": "capture-groups:3",
       "foreground": "#082F49",
-      "background": "#7DD3FC",
+      "background": "#7DD3FC33",
       "gutterIcon": true
     }
   }
