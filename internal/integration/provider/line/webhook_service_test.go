@@ -2,6 +2,7 @@ package line
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"assistant-api/internal/config"
@@ -14,6 +15,13 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 )
+
+// rawJSON 是測試輔助函式：
+// 用來快速建立 action_params 所需的 RawMessage，避免每個 case 重覆 marshal 樣板。
+func rawJSON(value any) json.RawMessage {
+	data, _ := json.Marshal(value)
+	return data
+}
 
 type stubTopKFilter struct {
 	called     bool
@@ -298,5 +306,53 @@ func TestWebhookService_ProcessIncoming_ZeroConfidenceNoMatchRoutesToQuestionAns
 	}
 	if observed.FilterMessage("line message final action decided").Len() != 0 {
 		t.Fatalf("expected no final action log when action decision is zero-confidence no-match")
+	}
+}
+
+func TestTranslationTargetLocalesFromDecision(t *testing.T) {
+	// 這組測試覆蓋通用 action_params 在翻譯情境下的 locale 抽取策略：
+	// - target_locale + target_locales 併合
+	// - 大小寫去重
+	// - 單值 fallback
+	tests := []struct {
+		name     string
+		decision *semanticdecision.ActionDecision
+		want     []string
+	}{
+		{
+			name:     "nil decision",
+			decision: nil,
+			want:     nil,
+		},
+		{
+			name: "merge target locale and locales",
+			decision: &semanticdecision.ActionDecision{ActionParams: map[string]json.RawMessage{
+				"target_locale":  rawJSON(" en-US "),
+				"target_locales": rawJSON([]string{"ja-JP", "en-us", "zh-TW"}),
+			}},
+			want: []string{"en-US", "ja-JP", "zh-TW"},
+		},
+		{
+			name: "single string target_locales",
+			decision: &semanticdecision.ActionDecision{ActionParams: map[string]json.RawMessage{
+				"target_locales": rawJSON("fr-FR"),
+			}},
+			want: []string{"fr-FR"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// 逐項比對以確保去重後仍維持可預期順序（保留第一個出現值）。
+			got := translationTargetLocalesFromDecision(tt.decision)
+			if len(got) != len(tt.want) {
+				t.Fatalf("locale length mismatch: got=%v want=%v", got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("locale mismatch at %d: got=%v want=%v", i, got, tt.want)
+				}
+			}
+		})
 	}
 }

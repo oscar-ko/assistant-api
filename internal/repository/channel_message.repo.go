@@ -11,7 +11,9 @@ import (
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
+	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/translationlocale"
+	"assistant-api/internal/ent/user"
 
 	"github.com/google/uuid"
 )
@@ -48,6 +50,68 @@ func (r *ChannelMessageRepo) ResolveLineDisplayNameByLineUserID(ctx context.Cont
 		return "", nil
 	}
 	return strings.TrimSpace(*item.DisplayName), nil
+}
+
+// ResolveUserIDByLineUserID resolves internal user UUID from LINE user id binding.
+func (r *ChannelMessageRepo) ResolveUserIDByLineUserID(ctx context.Context, lineUserID string) (uuid.UUID, error) {
+	if r == nil || r.db == nil {
+		return uuid.Nil, fmt.Errorf("channel repository not initialized")
+	}
+	// line_user_id 先做 trim，避免因輸入含空白造成查詢 miss。
+	lineUserID = strings.TrimSpace(lineUserID)
+	if lineUserID == "" {
+		// 空值視為「無法解析」，由呼叫端決定是否降級或略過。
+		return uuid.Nil, nil
+	}
+
+	// 透過 user.HasLineWith(...) 反查綁定關係，
+	// 可確保回傳的是系統內部 user 主鍵，而非平台外部識別。
+	boundUser, err := r.db.User.Query().
+		Where(user.HasLineWith(line.LineUserIDEQ(lineUserID))).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			// 尚未綁定時不回錯誤，維持流程可控（由上層決定是否提示綁定）。
+			return uuid.Nil, nil
+		}
+		return uuid.Nil, fmt.Errorf("query user by line user id failed: %w", err)
+	}
+	if boundUser == nil {
+		// 防禦式保護：理論上 Only 不會回 nil，但仍保留安全分支。
+		return uuid.Nil, nil
+	}
+	return boundUser.ID, nil
+}
+
+// ResolveSkillIDByCode resolves skill UUID from skill_code.
+func (r *ChannelMessageRepo) ResolveSkillIDByCode(ctx context.Context, skillCode string) (uuid.UUID, error) {
+	if r == nil || r.db == nil {
+		return uuid.Nil, fmt.Errorf("channel repository not initialized")
+	}
+	// skill_code 先正規化，避免上游帶空白導致查詢不到。
+	skillCode = strings.TrimSpace(skillCode)
+	if skillCode == "" {
+		// 空 skill_code 不當作系統錯誤，交由上層決定 fallback。
+		return uuid.Nil, nil
+	}
+
+	// skill_code 為業務語意上的穩定鍵，
+	// 先解析到 skill.id 才能供 relation table（member/locale）使用。
+	skillItem, err := r.db.Skill.Query().
+		Where(skill.SkillCodeEQ(skillCode)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			// 查無技能時回 uuid.Nil，讓上層可記錄告警並略過 side-effect。
+			return uuid.Nil, nil
+		}
+		return uuid.Nil, fmt.Errorf("query skill by code failed: %w", err)
+	}
+	if skillItem == nil {
+		// 防禦式分支：避免意外 nil 導致後續 panic。
+		return uuid.Nil, nil
+	}
+	return skillItem.ID, nil
 }
 
 // GetOrCreateChannel finds existing channel by platform/group_id or creates one.

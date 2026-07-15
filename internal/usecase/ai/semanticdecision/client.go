@@ -23,10 +23,109 @@ type ActionCandidate struct {
 // ActionDecision 表示語意決策模型針對候選 action 選出的最終結果。
 // 回傳的是 api_operation（對應 action 的實際執行操作）。
 type ActionDecision struct {
-	SchemaVersion string  `json:"schema_version"`
-	APIOperation  string  `json:"api_operation"`
-	Confidence    float64 `json:"confidence"`
-	Reason        string  `json:"reason"`
+	// SchemaVersion 用來標示目前 action 決策回應的契約版本，
+	// 方便未來做灰度升級或多版本相容判斷。
+	SchemaVersion     string                     `json:"schema_version"`
+	// APIOperation 是模型最終挑選的操作名稱，
+	// 呼叫端會以此值對應到實際執行 handler。
+	APIOperation      string                     `json:"api_operation"`
+	// ActionParams 是動態參數容器：
+	// key 為參數名稱，value 保持 json.RawMessage，讓不同 action 可各自解析型別。
+	ActionParams      map[string]json.RawMessage `json:"action_params,omitempty"`
+	// MissingParameters 保存本次決策判定「仍缺失」的必要參數名稱清單，
+	// 例如 target_locale、amount、billing_period 等。
+	MissingParameters []string                   `json:"missing_parameters,omitempty"`
+	// Confidence 表示模型對本次 action 決策的信心值（0~1）。
+	Confidence        float64                    `json:"confidence"`
+	// Reason 保留模型端的簡短決策理由，用於 observability 與排查。
+	Reason            string                     `json:"reason"`
+}
+
+// ParamString 讀取 action_params 裡的字串參數。
+func (d *ActionDecision) ParamString(key string) (string, bool) {
+	// 防禦式判斷：若決策或參數集合不存在，直接回傳 not found。
+	if d == nil || len(d.ActionParams) == 0 {
+		return "", false
+	}
+	// key 先做 trim，避免上游/呼叫端夾帶空白造成查詢 miss。
+	raw, ok := d.ActionParams[strings.TrimSpace(key)]
+	if !ok || len(raw) == 0 {
+		return "", false
+	}
+
+	var value string
+	// 僅接受 JSON string 型別；若是 number/object/array 視為型別不符。
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return "", false
+	}
+	// 空白字串不算有效參數，統一回 not found，避免下游誤觸發。
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", false
+	}
+	return value, true
+}
+
+// ParamStringSlice 讀取 action_params 裡的字串陣列參數，
+// 同時容忍上游把單值以 string 回傳。
+func (d *ActionDecision) ParamStringSlice(key string) []string {
+	// 與 ParamString 相同，先做空值保護，確保呼叫端可安全重複使用。
+	if d == nil || len(d.ActionParams) == 0 {
+		return nil
+	}
+	raw, ok := d.ActionParams[strings.TrimSpace(key)]
+	if !ok || len(raw) == 0 {
+		return nil
+	}
+
+	var values []string
+	var multi []string
+	// 第一優先：嘗試解析為陣列，對應標準多值參數格式。
+	if err := json.Unmarshal(raw, &multi); err == nil {
+		for _, value := range multi {
+			if trimmed := strings.TrimSpace(value); trimmed != "" {
+				values = append(values, trimmed)
+			}
+		}
+		// 輸出前做不分大小寫去重，避免同語系重覆寫入（如 en-US / en-us）。
+		return dedupeFold(values)
+	}
+
+	var single string
+	// 相容格式：若上游把單值塞到同一個 key，仍能正常轉為單元素陣列。
+	if err := json.Unmarshal(raw, &single); err == nil {
+		if trimmed := strings.TrimSpace(single); trimmed != "" {
+			values = append(values, trimmed)
+		}
+	}
+
+	return dedupeFold(values)
+}
+
+// dedupeFold 以大小寫不敏感方式去重，並保留第一個出現的原始大小寫。
+// 這可以兼顧資料一致性（避免重覆）與可讀性（保留輸入格式）。
+func dedupeFold(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		key := strings.ToLower(trimmed)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, trimmed)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // QuestionAnswer 表示語意服務把訊息當成問答問題時的回覆結果。
@@ -106,7 +205,7 @@ func NewClient(baseURL string, timeoutSeconds int) Client {
 // BuildFinalActionPrompt 依 reranker 精排後的候選清單組出最終決策提示詞。
 // 每筆候選都以文字描述呈現（operation/skill/route_text/score），
 // 交由模型依語意判斷唯一一個最終 action，並要求輸出
-// (schema_version, api_operation, confidence, reason)，其中 api_operation
+// (schema_version, api_operation, action_params, missing_parameters, confidence, reason)，其中 api_operation
 // 即為模型選出的 action operation。這個 prompt 只會送到 actionDecisionPath，
 // 不會混用 command/message 分類用的 intent_label schema。
 func BuildFinalActionPrompt(candidates []ActionCandidate) string {
@@ -138,10 +237,12 @@ func BuildFinalActionPrompt(candidates []ActionCandidate) string {
 請只根據使用者訊息與上述候選，選出「唯一一個」最終應執行的 action。
 
 輸出格式必須是 JSON，欄位固定如下：
-schema_version, api_operation, confidence, reason
+schema_version, api_operation, action_params, missing_parameters, confidence, reason
 
 規則：
 - api_operation 必須是上述候選其中一個 operation 的原始值，不可自行創造新值
+- action_params 為物件，僅填入本次 action 真正需要且可從訊息明確擷取的參數
+- 缺少必要參數時，不可猜測，請把缺失參數名稱放入 missing_parameters
 - 若使用者訊息語意明顯對應某個候選，即使非分數最高的候選，也應選擇語意最貼合的那個
 - confidence 為 0 到 1 的數字，表示你對這個選擇的把握程度
 - reason 用一句話簡述為何選擇該 action，而非其他候選
