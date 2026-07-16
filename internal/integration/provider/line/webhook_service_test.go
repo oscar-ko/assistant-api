@@ -54,18 +54,20 @@ type stubPushMessageService struct {
 	chatID                string
 	lineUserID            string
 	replyToken            string
+	quoteToken            string
 	text                  string
 	sentPlatformMessageID string
 	err                   error
 }
 
-func (s *stubPushMessageService) SendTextToChat(ctx context.Context, chatID string, lineUserID string, text string, replyToken string) (string, error) {
+func (s *stubPushMessageService) SendTextToChat(ctx context.Context, chatID string, lineUserID string, text string, replyToken string, quoteToken string) (string, error) {
 	_ = ctx
 	s.sendCalled = true
 	s.chatID = chatID
 	s.lineUserID = lineUserID
 	s.text = text
 	s.replyToken = replyToken
+	s.quoteToken = quoteToken
 	return s.sentPlatformMessageID, s.err
 }
 

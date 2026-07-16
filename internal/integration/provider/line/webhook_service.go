@@ -130,6 +130,8 @@ type webhookMessage struct {
 	Text string `json:"text"`
 	// QuotedMessageID 為被引用訊息的 ID。
 	QuotedMessageID string `json:"quotedMessageId"`
+	// QuoteToken 為可引用此訊息的 token。
+	QuoteToken string `json:"quoteToken"`
 	// Mention 為 LINE mention 資訊。
 	Mention *webhookMessageMention `json:"mention,omitempty"`
 }
@@ -346,14 +348,22 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 			zap.String("reason", finalDecision.Reason),
 		)
 
-		s.dispatchActionPostHandlers(message, savedMessage, strings.TrimSpace(event.Source.UserID), strings.TrimSpace(event.ReplyToken), finalDecision, matchedSkillCode)
+		s.dispatchActionPostHandlers(
+			message,
+			savedMessage,
+			strings.TrimSpace(event.Source.UserID),
+			strings.TrimSpace(event.ReplyToken),
+			strings.TrimSpace(event.Message.QuoteToken),
+			finalDecision,
+			matchedSkillCode,
+		)
 	}
 
 }
 
 // dispatchActionPostHandlers 依最終決策的 api_operation 分派對應後處理。
 // 這層刻意放在主流程之外，讓新 action 只需註冊 handler，不需改 ProcessIncoming 主幹。
-func (s *WebhookService) dispatchActionPostHandlers(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, lineUserID string, replyToken string, decision *llminteraction.ActionDecision, matchedSkillCode string) {
+func (s *WebhookService) dispatchActionPostHandlers(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, lineUserID string, replyToken string, quoteToken string, decision *llminteraction.ActionDecision, matchedSkillCode string) {
 	if s == nil || decision == nil {
 		return
 	}
@@ -367,7 +377,7 @@ func (s *WebhookService) dispatchActionPostHandlers(message *unifiedmessage.Mess
 	if !succeeded {
 		return
 	}
-	s.sendActionSuccessNotice(message, savedMessage, lineUserID, replyToken)
+	s.sendActionSuccessNotice(message, savedMessage, lineUserID, replyToken, quoteToken)
 }
 
 // sendActionSuccessNotice 在 action 成功後通知使用者。
@@ -375,13 +385,14 @@ func (s *WebhookService) dispatchActionPostHandlers(message *unifiedmessage.Mess
 // 1) 若有 replyToken，先嘗試 Reply API，確保訊息掛在同一則指令下。
 // 2) Reply 失敗或無 token 時 fallback 到 Push API，避免成功訊息遺失。
 // 3) 無論 reply/push，都會將送出的 bot 訊息落庫並關聯到原指令訊息。
-func (s *WebhookService) sendActionSuccessNotice(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, lineUserID string, replyToken string) {
+func (s *WebhookService) sendActionSuccessNotice(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, lineUserID string, replyToken string, quoteToken string) {
 	if s == nil || s.followUpSender == nil || message == nil {
 		return
 	}
 
 	lineUserID = strings.TrimSpace(lineUserID)
 	replyToken = strings.TrimSpace(replyToken)
+	quoteToken = strings.TrimSpace(quoteToken)
 	if lineUserID == "" {
 		return
 	}
@@ -399,6 +410,7 @@ func (s *WebhookService) sendActionSuccessNotice(message *unifiedmessage.Message
 			lineUserID,
 			text,
 			replyToken,
+			quoteToken,
 		)
 		if err != nil {
 			zap.L().Warn("line action success notification reply failed, fallback to push",
@@ -421,6 +433,7 @@ func (s *WebhookService) sendActionSuccessNotice(message *unifiedmessage.Message
 			lineUserID,
 			text,
 			"",
+			quoteToken,
 		)
 		if err != nil {
 			zap.L().Warn("line action success notification push failed",
@@ -569,6 +582,7 @@ func (s *WebhookService) sendClarifyingQuestion(message *unifiedmessage.Message,
 		strings.TrimSpace(message.ChannelID),
 		strings.TrimSpace(lineUserID),
 		question,
+		"",
 		"",
 	)
 	if err != nil {

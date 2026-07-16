@@ -21,9 +21,10 @@ type PushMessageService interface {
 	// - lineUserID: 可空；私聊通常等於 chatID，群組時可指定要 mention 的 user。
 	// - text: 必填，空字串會直接略過不送。
 	// - replyToken: 可空；有值時會優先用 reply 回覆「當次觸發訊息」。
+	// - quoteToken: 可空；有值時會在訊息上附加引用，呈現 quote 某則訊息的 UI。
 	// 回傳值：
 	// - sentMessageID: LINE 回傳的第一筆 sent message id（若 API 未回傳則為空）。
-	SendTextToChat(ctx context.Context, chatID string, lineUserID string, text string, replyToken string) (string, error)
+	SendTextToChat(ctx context.Context, chatID string, lineUserID string, text string, replyToken string, quoteToken string) (string, error)
 }
 
 type pushMessageService struct {
@@ -49,7 +50,7 @@ func NewPushMessageService() (PushMessageService, error) {
 // 設計目的：
 // - 用單一入口統一外部呼叫方式，避免呼叫端分散判斷 push/reply。
 // - 由 service 內部集中處理輸入正規化、訊息型別組裝與 API 選擇。
-func (s *pushMessageService) SendTextToChat(ctx context.Context, chatID string, lineUserID string, text string, replyToken string) (string, error) {
+func (s *pushMessageService) SendTextToChat(ctx context.Context, chatID string, lineUserID string, text string, replyToken string, quoteToken string) (string, error) {
 	if s == nil || s.client == nil {
 		return "", fmt.Errorf("line client not initialized")
 	}
@@ -57,6 +58,7 @@ func (s *pushMessageService) SendTextToChat(ctx context.Context, chatID string, 
 	lineUserID = strings.TrimSpace(lineUserID)
 	text = strings.TrimSpace(text)
 	replyToken = strings.TrimSpace(replyToken)
+	quoteToken = strings.TrimSpace(quoteToken)
 	if chatID == "" {
 		return "", fmt.Errorf("line chat id is empty")
 	}
@@ -69,7 +71,7 @@ func (s *pushMessageService) SendTextToChat(ctx context.Context, chatID string, 
 	if replyToken != "" {
 		req := &messaging_api.ReplyMessageRequest{
 			ReplyToken: replyToken,
-			Messages:   mentionTextMessages(chatID, lineUserID, text),
+			Messages:   mentionTextMessages(chatID, lineUserID, text, quoteToken),
 		}
 
 		_, model, err := s.client.WithContext(ctx).ReplyMessageWithHttpInfo(req)
@@ -83,23 +85,24 @@ func (s *pushMessageService) SendTextToChat(ctx context.Context, chatID string, 
 	}
 
 	// 無 replyToken 時退回 Push API，可用於追問、補發通知等非即時回覆場景。
-	return s.pushMessages(ctx, chatID, mentionTextMessages(chatID, lineUserID, text))
+	return s.pushMessages(ctx, chatID, mentionTextMessages(chatID, lineUserID, text, quoteToken))
 }
 
 // mentionTextMessages 依對話型態回傳最終要送給 LINE 的訊息 payload。
 // - 私聊：純文字
 // - 群組/聊天室：TextMessageV2 + mention substitution
-func mentionTextMessages(chatID string, lineUserID string, text string) []messaging_api.MessageInterface {
+func mentionTextMessages(chatID string, lineUserID string, text string, quoteToken string) []messaging_api.MessageInterface {
 	// private chat 不需要 mention；群組/聊天室則使用 TextMessageV2 mention 使用者。
 	if lineUserID == "" || strings.EqualFold(chatID, lineUserID) {
 		return []messaging_api.MessageInterface{
-			&messaging_api.TextMessage{Text: text},
+			&messaging_api.TextMessage{Text: text, QuoteToken: quoteToken},
 		}
 	}
 
 	return []messaging_api.MessageInterface{
 		&messaging_api.TextMessageV2{
-			Text: "{user} " + text,
+			Text:       "{user} " + text,
+			QuoteToken: quoteToken,
 			Substitution: map[string]messaging_api.SubstitutionObjectInterface{
 				"user": &messaging_api.MentionSubstitutionObject{
 					SubstitutionObject: messaging_api.SubstitutionObject{Type: "mention"},
