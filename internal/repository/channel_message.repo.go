@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"assistant-api/internal/ent"
+	"assistant-api/internal/ent/action"
+	"assistant-api/internal/ent/actionsuccessmessage"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/channelservicemember"
@@ -368,6 +370,49 @@ func (r *ChannelMessageRepo) LinkRelatedMessageByReply(ctx context.Context, mess
 		return nil, fmt.Errorf("link related message failed: %w", err)
 	}
 	return updated, nil
+}
+
+// LinkSuccessfulMessageToAction records relation between successful command message and action.
+func (r *ChannelMessageRepo) LinkSuccessfulMessageToAction(ctx context.Context, apiOperation string, messageID uuid.UUID) error {
+	if r == nil || r.db == nil {
+		return fmt.Errorf("channel repository not initialized")
+	}
+	operation := strings.TrimSpace(apiOperation)
+	if operation == "" {
+		return fmt.Errorf("api operation is required")
+	}
+	if messageID == uuid.Nil {
+		return fmt.Errorf("message id is required")
+	}
+
+	actionItem, err := r.db.Action.Query().Where(action.APIOperationEQ(operation)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return fmt.Errorf("action not found by api operation: %s", operation)
+		}
+		return fmt.Errorf("query action by api operation failed: %w", err)
+	}
+
+	exists, err := r.db.ActionSuccessMessage.Query().
+		Where(
+			actionsuccessmessage.ActionIDEQ(actionItem.ID),
+			actionsuccessmessage.ChannelMessageIDEQ(messageID),
+		).
+		Exist(ctx)
+	if err != nil {
+		return fmt.Errorf("query action-success relation failed: %w", err)
+	}
+	if exists {
+		return nil
+	}
+
+	if _, err := r.db.ActionSuccessMessage.Create().
+		SetActionID(actionItem.ID).
+		SetChannelMessageID(messageID).
+		Save(ctx); err != nil {
+		return fmt.Errorf("create action-success relation failed: %w", err)
+	}
+	return nil
 }
 
 // AddServiceMemberToChannel adds a user into channel_service_members.

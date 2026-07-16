@@ -98,6 +98,8 @@ type webhookRequest struct {
 type webhookEvent struct {
 	// Type 事件類型，例如 message、follow、unfollow 等。
 	Type string `json:"type"`
+	// ReplyToken 為可用於回覆該事件訊息的 token。
+	ReplyToken string `json:"replyToken"`
 	// Source 訊息來源（個人、群組、聊天室）資訊。
 	Source webhookEventSource `json:"source"`
 	// Message 僅在 message 事件時有意義；其他事件可能為零值。
@@ -344,14 +346,14 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 			zap.String("reason", finalDecision.Reason),
 		)
 
-		s.dispatchActionPostHandlers(message, strings.TrimSpace(event.Source.UserID), finalDecision, matchedSkillCode)
+		s.dispatchActionPostHandlers(message, savedMessage, strings.TrimSpace(event.Source.UserID), strings.TrimSpace(event.ReplyToken), finalDecision, matchedSkillCode)
 	}
 
 }
 
 // dispatchActionPostHandlers 依最終決策的 api_operation 分派對應後處理。
 // 這層刻意放在主流程之外，讓新 action 只需註冊 handler，不需改 ProcessIncoming 主幹。
-func (s *WebhookService) dispatchActionPostHandlers(message *unifiedmessage.Message, lineUserID string, decision *llminteraction.ActionDecision, matchedSkillCode string) {
+func (s *WebhookService) dispatchActionPostHandlers(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, lineUserID string, replyToken string, decision *llminteraction.ActionDecision, matchedSkillCode string) {
 	if s == nil || decision == nil {
 		return
 	}
@@ -359,7 +361,111 @@ func (s *WebhookService) dispatchActionPostHandlers(message *unifiedmessage.Mess
 		// 保底 lazy init，確保測試直接組 struct 時仍可共用同一份 dispatcher。
 		s.actionPostDispatcher = actionpost.NewDefaultDispatcher(s.repo)
 	}
-	s.actionPostDispatcher.Dispatch(message, lineUserID, decision, matchedSkillCode)
+	succeeded := s.actionPostDispatcher.Dispatch(message, lineUserID, decision, matchedSkillCode)
+	// 只有 action post handler 明確回報成功，才發送「執行成功」通知。
+	// 這可避免在 side-effect 部分失敗時誤導使用者。
+	if !succeeded {
+		return
+	}
+	s.sendActionSuccessNotice(message, savedMessage, lineUserID, replyToken)
+}
+
+// sendActionSuccessNotice 在 action 成功後通知使用者。
+// 流程策略：
+// 1) 若有 replyToken，先嘗試 Reply API，確保訊息掛在同一則指令下。
+// 2) Reply 失敗或無 token 時 fallback 到 Push API，避免成功訊息遺失。
+// 3) 無論 reply/push，都會將送出的 bot 訊息落庫並關聯到原指令訊息。
+func (s *WebhookService) sendActionSuccessNotice(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, lineUserID string, replyToken string) {
+	if s == nil || s.followUpSender == nil || message == nil {
+		return
+	}
+
+	lineUserID = strings.TrimSpace(lineUserID)
+	replyToken = strings.TrimSpace(replyToken)
+	if lineUserID == "" {
+		return
+	}
+	//TODO: 未來抽出成多國語系
+	text := "指令已執行成功"
+
+	chatID := strings.TrimSpace(message.ChannelID)
+	sentPlatformMessageID := ""
+	usedReply := false
+	// Reply token 具時效且一次性，成功時可保證是「回覆該次使用者指令」。
+	if replyToken != "" {
+		replySentID, err := s.followUpSender.SendTextToChat(
+			context.Background(),
+			chatID,
+			lineUserID,
+			text,
+			replyToken,
+		)
+		if err != nil {
+			zap.L().Warn("line action success notification reply failed, fallback to push",
+				zap.String("channel_id", chatID),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.String("line_user_id", lineUserID),
+				zap.Error(err),
+			)
+		} else {
+			sentPlatformMessageID = replySentID
+			usedReply = true
+		}
+	}
+
+	if sentPlatformMessageID == "" {
+		// Reply 不可用時改用 push，確保成功通知至少送達。
+		pushSentID, err := s.followUpSender.SendTextToChat(
+			context.Background(),
+			chatID,
+			lineUserID,
+			text,
+			"",
+		)
+		if err != nil {
+			zap.L().Warn("line action success notification push failed",
+				zap.String("channel_id", chatID),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.String("line_user_id", lineUserID),
+				zap.Error(err),
+			)
+			return
+		}
+		sentPlatformMessageID = pushSentID
+	}
+
+	zap.L().Info("line action success notification sent",
+		zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+		zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+		zap.String("line_user_id", lineUserID),
+		zap.Bool("used_reply", usedReply),
+		zap.String("sent_platform_message_id", sentPlatformMessageID),
+	)
+
+	if s.repo == nil || savedMessage == nil {
+		return
+	}
+	// 將成功通知寫入 channel_message，並把 related_message_id 指回觸發指令。
+	// 這讓前端/後端都能沿對話鍊追溯「哪個成功通知對應哪個指令」。
+	if _, err := s.repo.SaveSentMessage(
+		context.Background(),
+		savedMessage.ChannelID,
+		strings.TrimSpace(config.Line.BotUserID),
+		"",
+		sentPlatformMessageID,
+		text,
+		"text",
+		time.Now().UnixMilli(),
+		savedMessage.ID,
+	); err != nil {
+		zap.L().Warn("persist action success notification failed",
+			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			zap.String("line_user_id", lineUserID),
+			zap.String("sent_platform_message_id", sentPlatformMessageID),
+			zap.Error(err),
+		)
+	}
 }
 
 // translationTargetLocalesFromDecision 從通用 action_params 擷取翻譯語系參數。
@@ -456,7 +562,15 @@ func (s *WebhookService) sendClarifyingQuestion(message *unifiedmessage.Message,
 		return
 	}
 
-	sentPlatformMessageID, err := s.followUpSender.PushMentionTextToChat(context.Background(), strings.TrimSpace(message.ChannelID), strings.TrimSpace(lineUserID), question)
+	// 追問不需要綁定到當次 webhook reply token，
+	// 採 push 以支援延遲生成或後續補發場景。
+	sentPlatformMessageID, err := s.followUpSender.SendTextToChat(
+		context.Background(),
+		strings.TrimSpace(message.ChannelID),
+		strings.TrimSpace(lineUserID),
+		question,
+		"",
+	)
 	if err != nil {
 		zap.L().Warn("line clarifying question push failed",
 			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),

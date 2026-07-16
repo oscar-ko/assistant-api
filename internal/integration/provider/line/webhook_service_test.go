@@ -50,29 +50,22 @@ type stubLLMInteraction struct {
 }
 
 type stubPushMessageService struct {
-	pushTextCalled        bool
-	pushMentionCalled     bool
+	sendCalled            bool
 	chatID                string
 	lineUserID            string
+	replyToken            string
 	text                  string
 	sentPlatformMessageID string
 	err                   error
 }
 
-func (s *stubPushMessageService) PushText(ctx context.Context, lineUserID string, text string) error {
+func (s *stubPushMessageService) SendTextToChat(ctx context.Context, chatID string, lineUserID string, text string, replyToken string) (string, error) {
 	_ = ctx
-	s.pushTextCalled = true
-	s.lineUserID = lineUserID
-	s.text = text
-	return s.err
-}
-
-func (s *stubPushMessageService) PushMentionTextToChat(ctx context.Context, chatID string, lineUserID string, text string) (string, error) {
-	_ = ctx
-	s.pushMentionCalled = true
+	s.sendCalled = true
 	s.chatID = chatID
 	s.lineUserID = lineUserID
 	s.text = text
+	s.replyToken = replyToken
 	return s.sentPlatformMessageID, s.err
 }
 
@@ -295,7 +288,7 @@ func TestWebhookService_ProcessIncoming_LowConfidenceTreatedAsChat(t *testing.T)
 	if decisionStub.answerCalled {
 		t.Fatalf("expected generic AnswerQuestion not to be called on low action confidence")
 	}
-	if !pushStub.pushMentionCalled {
+	if !pushStub.sendCalled {
 		t.Fatalf("expected clarifying question to be pushed to the same chat")
 	}
 	if pushStub.chatID != "U123" {

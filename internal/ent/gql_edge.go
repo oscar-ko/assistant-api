@@ -36,6 +36,22 @@ func (_m *ActionRoute) Action(ctx context.Context) (*Action, error) {
 	return result, err
 }
 
+func (_m *ActionSuccessMessage) Action(ctx context.Context) (*Action, error) {
+	result, err := _m.Edges.ActionOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryAction().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *ActionSuccessMessage) ChannelMessage(ctx context.Context) (*ChannelMessage, error) {
+	result, err := _m.Edges.ChannelMessageOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryChannelMessage().Only(ctx)
+	}
+	return result, err
+}
+
 func (_m *Channel) Messages(ctx context.Context) (result []*ChannelMessage, err error) {
 	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
 		result, err = _m.NamedMessages(graphql.GetFieldContext(ctx).Field.Alias)

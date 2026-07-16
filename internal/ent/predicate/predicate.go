@@ -12,6 +12,9 @@ type Action func(*sql.Selector)
 // ActionRoute is the predicate function for actionroute builders.
 type ActionRoute func(*sql.Selector)
 
+// ActionSuccessMessage is the predicate function for actionsuccessmessage builders.
+type ActionSuccessMessage func(*sql.Selector)
+
 // Channel is the predicate function for channel builders.
 type Channel func(*sql.Selector)
 

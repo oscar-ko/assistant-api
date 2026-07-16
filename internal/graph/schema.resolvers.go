@@ -37,7 +37,7 @@ func (r *mutationResolver) SendLineText(ctx context.Context, input model.SendLin
 		return nil, fmt.Errorf("lineUserID and text are required")
 	}
 
-	if err := r.LinePushService.PushText(ctx, lineUserID, text); err != nil {
+	if _, err := r.LinePushService.SendTextToChat(ctx, lineUserID, "", text, ""); err != nil {
 		return nil, err
 	}
 

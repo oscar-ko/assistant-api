@@ -5,6 +5,7 @@ package ent
 import (
 	"assistant-api/internal/ent/action"
 	"assistant-api/internal/ent/actionroute"
+	"assistant-api/internal/ent/actionsuccessmessage"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/channelservicemember"
@@ -35,6 +36,11 @@ var actionrouteImplementors = []string{"ActionRoute", "Node"}
 
 // IsNode implements the Node interface check for GQLGen.
 func (*ActionRoute) IsNode() {}
+
+var actionsuccessmessageImplementors = []string{"ActionSuccessMessage", "Node"}
+
+// IsNode implements the Node interface check for GQLGen.
+func (*ActionSuccessMessage) IsNode() {}
 
 var channelImplementors = []string{"Channel", "Node"}
 
@@ -143,6 +149,15 @@ func (c *Client) noder(ctx context.Context, table string, id uuid.UUID) (Noder, 
 			Where(actionroute.ID(id))
 		if fc := graphql.GetFieldContext(ctx); fc != nil {
 			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, actionrouteImplementors...); err != nil {
+				return nil, err
+			}
+		}
+		return query.Only(ctx)
+	case actionsuccessmessage.Table:
+		query := c.ActionSuccessMessage.Query().
+			Where(actionsuccessmessage.ID(id))
+		if fc := graphql.GetFieldContext(ctx); fc != nil {
+			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, actionsuccessmessageImplementors...); err != nil {
 				return nil, err
 			}
 		}
@@ -303,6 +318,22 @@ func (c *Client) noders(ctx context.Context, table string, ids []uuid.UUID) ([]N
 		query := c.ActionRoute.Query().
 			Where(actionroute.IDIn(ids...))
 		query, err := query.CollectFields(ctx, actionrouteImplementors...)
+		if err != nil {
+			return nil, err
+		}
+		nodes, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, node := range nodes {
+			for _, noder := range idmap[node.ID] {
+				*noder = node
+			}
+		}
+	case actionsuccessmessage.Table:
+		query := c.ActionSuccessMessage.Query().
+			Where(actionsuccessmessage.IDIn(ids...))
+		query, err := query.CollectFields(ctx, actionsuccessmessageImplementors...)
 		if err != nil {
 			return nil, err
 		}

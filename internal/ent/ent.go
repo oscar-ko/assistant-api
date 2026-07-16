@@ -5,6 +5,7 @@ package ent
 import (
 	"assistant-api/internal/ent/action"
 	"assistant-api/internal/ent/actionroute"
+	"assistant-api/internal/ent/actionsuccessmessage"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/channelservicemember"
@@ -83,6 +84,7 @@ func checkColumn(t, c string) error {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			action.Table:               action.ValidColumn,
 			actionroute.Table:          actionroute.ValidColumn,
+			actionsuccessmessage.Table: actionsuccessmessage.ValidColumn,
 			channel.Table:              channel.ValidColumn,
 			channelmessage.Table:       channelmessage.ValidColumn,
 			channelservicemember.Table: channelservicemember.ValidColumn,

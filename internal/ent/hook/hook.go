@@ -32,6 +32,18 @@ func (f ActionRouteFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ActionRouteMutation", m)
 }
 
+// The ActionSuccessMessageFunc type is an adapter to allow the use of ordinary
+// function as ActionSuccessMessage mutator.
+type ActionSuccessMessageFunc func(context.Context, *ent.ActionSuccessMessageMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ActionSuccessMessageFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ActionSuccessMessageMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ActionSuccessMessageMutation", m)
+}
+
 // The ChannelFunc type is an adapter to allow the use of ordinary
 // function as Channel mutator.
 type ChannelFunc func(context.Context, *ent.ChannelMutation) (ent.Value, error)

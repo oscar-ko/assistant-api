@@ -82,7 +82,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Enable translation for a specific locale in the current channel.",
 					APIOperation:   "start_translation_locale",
 					RouteTexts:     []string{"開啟翻譯", "開始翻譯模式", "新增翻譯語系", "幫我開啟某語言翻譯", "請翻譯成指定語言"},
-					CommandPurpose: fmt.Sprintf("用途: 協助模型判斷此指令是啟用翻譯語系。必要參數: %s(字串陣列，元素格式需為 xx-YY，如 [en-US] 或 [en-US,de-DE])、channel_scope。缺參策略: 僅接受使用者明確指定語系，不可自行預設語系。規則: 未取得使用者明確語系前不得填入 action_params.target_locales。規則: 翻譯語系參數格式必須使用 zh-TW 這種 Locale 表示法（不可使用 zh_TW）。規則:若 api_operation=start_translation_locale，action_params 只能使用 target_locales，不可使用 route_text。規則: 若使用者明確提到翻譯語系一個或多個，必須選擇 api_operation=start_translation_locale，並將所有明確語系放入 action_params.target_locales（字串陣列，元素必須是 xx-YY）。", aillminteraction.ActionParamTargetLocales),
+					CommandPurpose: fmt.Sprintf("用途: 啟用翻譯語系。規則: 使用者只要提供語言名稱（例如英文、德文）即可，系統自行將語言名稱正規化為 %s（例如 英文->en-US、德文->de-DE），並以字串陣列輸出。若語言不明確才提問。", aillminteraction.ActionParamTargetLocales),
 				},
 				{
 					ActionCode:     action.ActionCodeDisable,
@@ -90,7 +90,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Disable translation service globally in the current channel.",
 					APIOperation:   "stop_translation_all",
 					RouteTexts:     []string{"關閉翻譯服務", "停止所有翻譯", "不要翻譯了", "把翻譯功能全部關掉"},
-					CommandPurpose: "用途: 協助模型判斷此指令是關閉整體翻譯服務。必要參數: channel_scope。缺參策略: 若作用範圍不清楚，先提問確認是否僅目前頻道。規則: 翻譯語系參數格式必須使用 zh-TW 這種 Locale 表示法。規則:若 api_operation=start_translation_locale，action_params 只能使用 target_locales，不可使用 route_text。規則: 若使用者明確提到翻譯語系一個或多個，必須選擇 api_operation=start_translation_locale，並將所有明確語系放入 action_params.target_locales（字串陣列，元素必須是 xx-YY）。",
+					CommandPurpose: "用途: 關閉整體翻譯服務。規則: 直接判定為 stop_translation_all，不需語系參數。",
 				},
 				{
 					ActionCode:     action.ActionCodeConfigure,
@@ -98,7 +98,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Disable translation for a specific locale in the current channel.",
 					APIOperation:   "stop_translation_locale",
 					RouteTexts:     []string{"關閉某語言翻譯", "停止指定語言翻譯", "移除翻譯語系", "把某個語言的翻譯關掉", "不要某語言翻譯"},
-					CommandPurpose: fmt.Sprintf("用途: 協助模型判斷此指令是停用指定翻譯語系。必要參數: %s(字串陣列，元素格式需為 xx-YY，單一語系也用單元素陣列)、channel_scope。缺參策略: 若缺 %s，必須先提問取得語系後再執行，不可推測。規則: 嚴禁預設任何翻譯語系（包含 zh-TW）；未取得使用者明確語系前不得填入 action_params.target_locales。規則: 翻譯語系參數格式必須使用 zh-TW 這種 Locale 表示法（不可使用 zh_TW）。", aillminteraction.ActionParamTargetLocales, aillminteraction.ActionParamTargetLocales),
+					CommandPurpose: fmt.Sprintf("用途: 停用指定翻譯語系。規則: 使用者只要提供語言名稱（例如英文、德文）即可，系統自行自行將語言名稱轉為 %s 後輸出；不要要求使用者輸入 locale 格式。若未提到任何語言才提問。", aillminteraction.ActionParamTargetLocales),
 				},
 			},
 		},

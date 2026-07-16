@@ -16,6 +16,8 @@ type Tx struct {
 	Action *ActionClient
 	// ActionRoute is the client for interacting with the ActionRoute builders.
 	ActionRoute *ActionRouteClient
+	// ActionSuccessMessage is the client for interacting with the ActionSuccessMessage builders.
+	ActionSuccessMessage *ActionSuccessMessageClient
 	// Channel is the client for interacting with the Channel builders.
 	Channel *ChannelClient
 	// ChannelMessage is the client for interacting with the ChannelMessage builders.
@@ -163,6 +165,7 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.Action = NewActionClient(tx.config)
 	tx.ActionRoute = NewActionRouteClient(tx.config)
+	tx.ActionSuccessMessage = NewActionSuccessMessageClient(tx.config)
 	tx.Channel = NewChannelClient(tx.config)
 	tx.ChannelMessage = NewChannelMessageClient(tx.config)
 	tx.ChannelServiceMember = NewChannelServiceMemberClient(tx.config)
