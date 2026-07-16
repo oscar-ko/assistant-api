@@ -69,6 +69,9 @@ type LLMInteractionConfig struct {
 	// QuestionConfidenceThreshold 決定問答回覆信心值低於多少時，
 	// 應改由其他 cloud LLM 回答會更合適。0 代表關閉此門檻判斷。
 	QuestionConfidenceThreshold float64 `mapstructure:"question_confidence_threshold" yaml:"question_confidence_threshold"`
+	// DecisionJSONRetryCount 決定 action decision 遇到 JSON 格式錯誤時最多重送幾次。
+	// 0 代表不重送（只送第一次）。
+	DecisionJSONRetryCount int `mapstructure:"decision_json_retry_count" yaml:"decision_json_retry_count"`
 }
 
 // LLMEndpointConfig 為統一 interaction 端點設定。
@@ -248,6 +251,8 @@ func MustLoad() {
 		// 第二層門檻：question-answer confidence 低於此值時，
 		// 標記建議改送 cloud LLM（例如時事/高難推理問題）。
 		viper.SetDefault("ai.llm_interaction.question_confidence_threshold", 0.6)
+		// action decision JSON 格式錯誤重送次數。
+		viper.SetDefault("ai.llm_interaction.decision_json_retry_count", 2)
 		viper.SetDefault("ai.embedding.url", "http://127.0.0.1:9000")
 		viper.SetDefault("ai.embedding.timeout_seconds", 60)
 		viper.SetDefault("ai.embedding.max_attempts", 4)

@@ -17,6 +17,7 @@ import (
 	"assistant-api/internal/usecase/inbound/commanddecision"
 	"assistant-api/internal/usecase/inbound/conversationflow"
 	"assistant-api/internal/usecase/inbound/messagepersist"
+	"assistant-api/internal/usecase/inbound/qarouting"
 
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
 	"go.uber.org/zap"
@@ -86,6 +87,7 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 		SuccessText:                 "指令已執行成功",
 		CommandConfidenceThreshold:  config.AI.LLMInteraction.CommandConfidenceThreshold,
 		QuestionConfidenceThreshold: config.AI.LLMInteraction.QuestionConfidenceThreshold,
+		DecisionJSONRetryCount:      config.AI.LLMInteraction.DecisionJSONRetryCount,
 		Repo:                        repo,
 		TopKFilter:                  options.TopKFilter,
 		LLM:                         options.LLMInteraction,
@@ -295,6 +297,7 @@ func (s *WebhookService) ensureCommandFlow() {
 		SuccessText:                 "指令已執行成功",
 		CommandConfidenceThreshold:  config.AI.LLMInteraction.CommandConfidenceThreshold,
 		QuestionConfidenceThreshold: config.AI.LLMInteraction.QuestionConfidenceThreshold,
+		DecisionJSONRetryCount:      config.AI.LLMInteraction.DecisionJSONRetryCount,
 		Repo:                        s.repo,
 		TopKFilter:                  s.topKFilterService,
 		LLM:                         s.llmInteractionService,
@@ -436,14 +439,14 @@ func (s *WebhookService) routeMessageToQuestionAnswer(message *unifiedmessage.Me
 	}
 
 	// 進入此函式代表已判定「不應直接執行 action」。
-	// 若是 low_action_confidence，優先請模型依原訊息與決策理由提出追問；
-	// 其餘情況才走一般問答模式。
+	// 只有在真的需要補參數時才走追問；
+	// 對一般問題（即使 decision 給了 ask_clarifying_question 但無缺參數）改走一般問答，避免追問迴圈。
 	var (
 		qa     *llminteraction.QuestionAnswer
 		qaErr  error
 		qaMode = "question_answer"
 	)
-	if strings.EqualFold(strings.TrimSpace(cause), "low_action_confidence") || strings.EqualFold(strings.TrimSpace(cause), "ask_clarifying_question") {
+	if qarouting.ShouldUseClarifyingQuestionMode(cause, missingParameters) {
 		qaMode = "clarifying_question"
 		// 若已能從 missing parameters 推導出可用模板，優先用固定文案。
 		// 這可避免模型在「明確缺參數」時產生不穩定追問。

@@ -20,6 +20,7 @@ type FactoryOptions struct {
 
 	CommandConfidenceThreshold  float64
 	QuestionConfidenceThreshold float64
+	DecisionJSONRetryCount      int
 
 	Repo       *repository.ChannelMessageRepo
 	TopKFilter topkfilter.Service
@@ -40,6 +41,7 @@ func BuildDependencies(options FactoryOptions) Dependencies {
 		SuccessText:                 strings.TrimSpace(options.SuccessText),
 		CommandConfidenceThreshold:  options.CommandConfidenceThreshold,
 		QuestionConfidenceThreshold: options.QuestionConfidenceThreshold,
+		DecisionJSONRetryCount:      options.DecisionJSONRetryCount,
 		Repo:                        options.Repo,
 		TopKFilter:                  options.TopKFilter,
 		LLM:                         options.LLM,

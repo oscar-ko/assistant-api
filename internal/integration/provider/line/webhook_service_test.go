@@ -273,41 +273,29 @@ func TestWebhookService_ProcessIncoming_LowConfidenceTreatedAsChat(t *testing.T)
 		},
 	}
 	decisionStub := &stubLLMInteraction{
-		decision:           &llminteraction.ActionDecision{NextStep: llminteraction.NextStepAskClarifyingQuestion, APIOperation: "start_translation_locale", Confidence: 0.42, Reason: "stub reason"},
-		clarifyingQuestion: &llminteraction.QuestionAnswer{SchemaVersion: "v1", Answer: "請問你要翻譯成哪個語系？", Confidence: 0.35},
+		decision: &llminteraction.ActionDecision{NextStep: llminteraction.NextStepAskClarifyingQuestion, APIOperation: "start_translation_locale", Confidence: 0.42, Reason: "stub reason"},
+		answer:   &llminteraction.QuestionAnswer{SchemaVersion: "v1", Answer: "我推薦《星際效應》。", Confidence: 0.35},
 	}
 	pushStub := &stubPushMessageService{sentPlatformMessageID: "sent-123"}
 
 	(&WebhookService{topKFilterService: filterStub, llmInteractionService: decisionStub, followUpSender: pushStub}).ProcessIncoming(body, "sig")
 
-	// 低 action confidence 應走問答分支，而不是產生最終 action。
-	if !decisionStub.clarifyCalled {
-		t.Fatalf("expected AskClarifyingQuestion to be called on low action confidence")
+	// ask_clarifying_question 但無缺參數時，應走一般問答，避免追問迴圈。
+	if decisionStub.clarifyCalled {
+		t.Fatalf("expected AskClarifyingQuestion not to be called when no parameters are missing")
 	}
-	if decisionStub.clarifyReason != "stub reason" {
-		t.Fatalf("expected clarifying question to receive decision reason, got %q", decisionStub.clarifyReason)
+	if !decisionStub.answerCalled {
+		t.Fatalf("expected generic AnswerQuestion to be called on low action confidence without missing parameters")
 	}
-	if decisionStub.answerCalled {
-		t.Fatalf("expected generic AnswerQuestion not to be called on low action confidence")
-	}
-	if !pushStub.sendCalled {
-		t.Fatalf("expected clarifying question to be pushed to the same chat")
-	}
-	if pushStub.chatID != "U123" {
-		t.Fatalf("expected chatID=U123, got %q", pushStub.chatID)
-	}
-	if pushStub.lineUserID != "U123" {
-		t.Fatalf("expected lineUserID=U123, got %q", pushStub.lineUserID)
-	}
-	if pushStub.text != "請問你要翻譯成哪個語系？" {
-		t.Fatalf("expected clarifying question text to be pushed, got %q", pushStub.text)
+	if pushStub.sendCalled {
+		t.Fatalf("expected no clarifying push when mode is question_answer")
 	}
 	answerEntries := observed.FilterMessage("line message semantic question answered").All()
 	if len(answerEntries) == 0 {
 		t.Fatalf("expected semantic question answered log")
 	}
-	if answerEntries[0].ContextMap()["mode"] != "clarifying_question" {
-		t.Fatalf("expected mode=clarifying_question, got %v", answerEntries[0].ContextMap()["mode"])
+	if answerEntries[0].ContextMap()["mode"] != "question_answer" {
+		t.Fatalf("expected mode=question_answer, got %v", answerEntries[0].ContextMap()["mode"])
 	}
 	if answerEntries[0].ContextMap()["recommend_cloud_llm"] != true {
 		t.Fatalf("expected recommend_cloud_llm=true, got %v", answerEntries[0].ContextMap()["recommend_cloud_llm"])
@@ -343,18 +331,18 @@ func TestWebhookService_ProcessIncoming_ZeroConfidenceNoMatchRoutesToQuestionAns
 		},
 	}
 	decisionStub := &stubLLMInteraction{
-		decision:           &llminteraction.ActionDecision{NextStep: llminteraction.NextStepAskClarifyingQuestion, APIOperation: "", Confidence: 0.0, Reason: "no candidate matched"},
-		clarifyingQuestion: &llminteraction.QuestionAnswer{SchemaVersion: "v1", Answer: "你想要我幫你做哪一類型的事情？", Confidence: 0.88},
+		decision: &llminteraction.ActionDecision{NextStep: llminteraction.NextStepAskClarifyingQuestion, APIOperation: "", Confidence: 0.0, Reason: "no candidate matched"},
+		answer:   &llminteraction.QuestionAnswer{SchemaVersion: "v1", Answer: "你可以看《星際效應》。", Confidence: 0.88},
 	}
 
 	(&WebhookService{topKFilterService: filterStub, llmInteractionService: decisionStub}).ProcessIncoming(body, "sig")
 
-	// no_match 被視為正常語意結果，必須改走問答分支。
-	if !decisionStub.clarifyCalled {
-		t.Fatalf("expected AskClarifyingQuestion to be called when action decision confidence is 0")
+	// no_match 且無缺參數時，應直接走一般問答，避免追問迴圈。
+	if decisionStub.clarifyCalled {
+		t.Fatalf("expected AskClarifyingQuestion not to be called when no parameters are missing")
 	}
-	if decisionStub.answerCalled {
-		t.Fatalf("expected generic AnswerQuestion not to be called when action decision confidence is 0")
+	if !decisionStub.answerCalled {
+		t.Fatalf("expected generic AnswerQuestion to be called when action decision confidence is 0")
 	}
 	entries := observed.FilterMessage("line message semantic question answered").All()
 	if len(entries) == 0 {
@@ -363,8 +351,8 @@ func TestWebhookService_ProcessIncoming_ZeroConfidenceNoMatchRoutesToQuestionAns
 	if entries[0].ContextMap()["cause"] != "ask_clarifying_question" {
 		t.Fatalf("expected cause=ask_clarifying_question, got %v", entries[0].ContextMap()["cause"])
 	}
-	if entries[0].ContextMap()["mode"] != "clarifying_question" {
-		t.Fatalf("expected mode=clarifying_question, got %v", entries[0].ContextMap()["mode"])
+	if entries[0].ContextMap()["mode"] != "question_answer" {
+		t.Fatalf("expected mode=question_answer, got %v", entries[0].ContextMap()["mode"])
 	}
 	if observed.FilterMessage("line message final action decided").Len() != 0 {
 		t.Fatalf("expected no final action log when action decision is zero-confidence no-match")

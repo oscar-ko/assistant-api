@@ -146,12 +146,32 @@ func TestValidateActionDecisionNormalizesLocaleFormat(t *testing.T) {
 	}
 }
 
-func TestValidateActionDecisionRejectsLanguageOnlyLocale(t *testing.T) {
-	err := validateActionDecision(&ActionDecision{NextStep: NextStepExecuteAction, APIOperation: "start_translation_locale", ActionParams: map[string]json.RawMessage{
-		ActionParamTargetLocales: mustRawJSON(t, []string{"ja", "en"}),
-	}})
-	if err == nil {
-		t.Fatal("expected language-only locale to be rejected")
+func TestValidateActionDecisionAcceptsLanguageOnlyLocale(t *testing.T) {
+	decision := &ActionDecision{NextStep: NextStepExecuteAction, APIOperation: "start_translation_locale", ActionParams: map[string]json.RawMessage{
+		ActionParamTargetLocales: mustRawJSON(t, []string{"ja", "en", "zh"}),
+	}}
+	if err := validateActionDecision(decision); err != nil {
+		t.Fatalf("expected language-only locale to pass, got error: %v", err)
+	}
+
+	got := decision.ParamStringSlice(ActionParamTargetLocales)
+	want := []string{"ja", "en", "zh"}
+	if len(got) != len(want) {
+		t.Fatalf("normalized target_locales length mismatch: got=%v want=%v", got, want)
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			t.Fatalf("normalized target_locales mismatch at %d: got=%v want=%v", i, got, want)
+		}
+	}
+}
+
+func TestValidateActionDecisionAcceptsAnyLanguageOnlyLocaleFormat(t *testing.T) {
+	decision := &ActionDecision{NextStep: NextStepExecuteAction, APIOperation: "start_translation_locale", ActionParams: map[string]json.RawMessage{
+		ActionParamTargetLocales: mustRawJSON(t, []string{"xx"}),
+	}}
+	if err := validateActionDecision(decision); err != nil {
+		t.Fatalf("expected any two-letter language code format to pass, got error: %v", err)
 	}
 }
 

@@ -64,7 +64,7 @@ ai:
         # decision: "local"
         # chat: "chat_search"
         decision: "local"
-        chat: "local"
+        chat: "chat_search"
         local:
             service_url: "http://127.0.0.1:9002"
             service_timeout_seconds: 120
@@ -94,6 +94,8 @@ ai:
         # 0 代表關閉此門檻機制。
         # 此值只影響是否標記 recommend_cloud_llm，不改變問答本身是否執行。
         question_confidence_threshold: 0.6
+        # action decision JSON 格式錯誤時，最多重送幾次（不含第一次）。
+        decision_json_retry_count: 2
 
 # 資料庫 schema 自動建立開關（開發環境常設為 true）。
 database:

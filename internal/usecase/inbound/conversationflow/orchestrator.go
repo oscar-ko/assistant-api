@@ -3,6 +3,7 @@ package conversationflow
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"assistant-api/internal/repository"
 	llminteraction "assistant-api/internal/usecase/ai/llm_interaction"
 	"assistant-api/internal/usecase/ai/topkfilter"
+	"assistant-api/internal/usecase/inbound/qarouting"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -56,6 +58,8 @@ type Dependencies struct {
 	// QuestionConfidenceThreshold 目前不會阻擋回覆送出。
 	// 目前僅用於產生 recommend_cloud_llm 的觀測訊號。
 	QuestionConfidenceThreshold float64
+	// DecisionJSONRetryCount 控制 action decision JSON 格式錯誤時的重試次數。
+	DecisionJSONRetryCount int
 
 	// Repo：負責 outbound 訊息落庫與 action_results 寫入。
 	Repo *repository.ChannelMessageRepo
@@ -176,12 +180,8 @@ func (o *Orchestrator) ProcessCommand(message *unifiedmessage.Message, savedMess
 		}
 
 		var err error
-		finalDecision, err = o.deps.LLM.DecideFinalAction(context.Background(), decisionInputText, actionCandidates)
+		finalDecision, err = o.decideFinalActionWithRetry(context.Background(), decisionInputText, actionCandidates)
 		if err != nil {
-			// 決策錯誤分兩類商業語意：
-			// - 契約/驗證錯誤：可修復，走 ask_clarifying_question
-			// - 其他執行錯誤：先走 answer_question 避免流程中斷
-			// 核心原則：不讓使用者遇到「無回應」的靜默失敗。
 			zap.L().Warn(o.logKey("message final action decision failed"),
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
@@ -190,7 +190,12 @@ func (o *Orchestrator) ProcessCommand(message *unifiedmessage.Message, savedMess
 				zap.Error(err),
 			)
 
-			cause := "answer_question"
+			if isDecisionTimeoutError(err) {
+				o.sendServiceUnavailableNotice(message, savedMessage, strings.TrimSpace(senderUserID), strings.TrimSpace(replyRef), strings.TrimSpace(quoteRef), err)
+				return
+			}
+
+			cause := ""
 			apiOperation := ""
 			missingParameters := []string(nil)
 			if llminteraction.IsDecisionValidationError(err) {
@@ -202,12 +207,14 @@ func (o *Orchestrator) ProcessCommand(message *unifiedmessage.Message, savedMess
 					missingParameters = append([]string(nil), vErr.MissingParameters...)
 				}
 			}
+			if cause == "ask_clarifying_question" {
+				// 只有契約/驗證錯誤才進追問路徑；infra 類錯誤直接 fail-fast。
+				o.persistMissingParameterResult(savedMessage, apiOperation, "contract_reject", missingParameters, err.Error())
+				o.routeMessageToQuestionAnswer(message, savedMessage, strings.TrimSpace(senderUserID), 0, o.deps.CommandConfidenceThreshold, cause, err.Error(), missingParameters)
+				return
+			}
 
-			// 即使尚未進入 dispatch，也把缺參數狀態寫入 action_results。
-			// source=contract_reject 代表：模型產生了執行型輸出，但在契約層被拒絕。
-			o.persistMissingParameterResult(savedMessage, apiOperation, "contract_reject", missingParameters, err.Error())
-			// 立刻切到問答/追問路徑，避免錯誤被吞掉。
-			o.routeMessageToQuestionAnswer(message, savedMessage, strings.TrimSpace(senderUserID), 0, o.deps.CommandConfidenceThreshold, cause, err.Error(), missingParameters)
+			o.sendServiceUnavailableNotice(message, savedMessage, strings.TrimSpace(senderUserID), strings.TrimSpace(replyRef), strings.TrimSpace(quoteRef), err)
 			return
 		}
 		if finalDecision == nil {
@@ -232,13 +239,39 @@ func (o *Orchestrator) ProcessCommand(message *unifiedmessage.Message, savedMess
 		zap.String("reason", strings.TrimSpace(finalDecision.Reason)),
 	)
 
+	zap.L().Info(o.logKey("message action decision summary"),
+		zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+		zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+		zap.Bool("selected_command", strings.TrimSpace(finalDecision.APIOperation) != ""),
+		zap.String("selected_api_operation", strings.TrimSpace(finalDecision.APIOperation)),
+		zap.String("next_step", strings.TrimSpace(finalDecision.NextStep)),
+		zap.String("reason", strings.TrimSpace(finalDecision.Reason)),
+	)
+
 	nextStep := strings.TrimSpace(finalDecision.NextStep)
 	confidenceThreshold := o.deps.CommandConfidenceThreshold
 	switch nextStep {
 	case llminteraction.NextStepAskClarifyingQuestion:
+		// 關鍵說明：
+		// 在 ask_clarifying_question 路徑，模型有機會回傳空 api_operation。
+		// 但 persistMissingParameterResult 需要 api_operation 才能把 missing_parameter 寫進 action_results；
+		// 若維持空值，會直接早退，導致下一輪 command chain 找不到可重用指令。
+		// 因此這裡必須先推導一個「可追溯 operation」再落庫。
+		// 推導優先序見 inferClarifyingOperation 註解。
+		clarifyingOperation := inferClarifyingOperation(finalDecision.APIOperation, actionCandidates, chainContext)
+		if strings.TrimSpace(finalDecision.APIOperation) == "" && clarifyingOperation != "" {
+			// 回填到 finalDecision 讓後續 log / 觀測與資料庫一致，
+			// 避免 log 顯示空 operation 但 action_results 有 operation 的不一致情況。
+			finalDecision.APIOperation = clarifyingOperation
+			zap.L().Info(o.logKey("message clarifying operation inferred"),
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.String("api_operation", clarifyingOperation),
+			)
+		}
 		// 模型主動要求追問：寫成 missing_parameter，
 		// 與 contract_reject 共用同一狀態，便於統一查詢與統計。
-		o.persistMissingParameterResult(savedMessage, strings.TrimSpace(finalDecision.APIOperation), "llm_clarify", finalDecision.MissingParameters, strings.TrimSpace(finalDecision.Reason))
+		o.persistMissingParameterResult(savedMessage, clarifyingOperation, "llm_clarify", finalDecision.MissingParameters, strings.TrimSpace(finalDecision.Reason))
 		o.routeMessageToQuestionAnswer(message, savedMessage, strings.TrimSpace(senderUserID), finalDecision.Confidence, confidenceThreshold, "ask_clarifying_question", finalDecision.Reason, finalDecision.MissingParameters)
 		return
 	case llminteraction.NextStepAnswerQuestion:
@@ -318,6 +351,120 @@ func (o *Orchestrator) ProcessCommand(message *unifiedmessage.Message, savedMess
 	o.dispatchActionPostHandlers(message, savedMessage, strings.TrimSpace(senderUserID), strings.TrimSpace(replyRef), strings.TrimSpace(quoteRef), finalDecision, matchedSkillCode)
 }
 
+func (o *Orchestrator) decideFinalActionWithRetry(ctx context.Context, text string, candidates []llminteraction.ActionCandidate) (*llminteraction.ActionDecision, error) {
+	if o == nil || o.deps.LLM == nil {
+		return nil, nil
+	}
+	attempts := 1
+	if o.deps.DecisionJSONRetryCount > 0 {
+		attempts += o.deps.DecisionJSONRetryCount
+	}
+	var lastErr error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		decision, err := o.deps.LLM.DecideFinalAction(ctx, text, candidates)
+		if err == nil {
+			return decision, nil
+		}
+		lastErr = err
+		if !isDecisionJSONFormatError(err) || attempt == attempts {
+			break
+		}
+		zap.L().Warn(o.logKey("message final action decision json format invalid, retrying"),
+			zap.Int("attempt", attempt),
+			zap.Int("max_attempts", attempts),
+			zap.Error(err),
+		)
+	}
+	return nil, lastErr
+}
+
+func isDecisionTimeoutError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	message := strings.ToLower(strings.TrimSpace(err.Error()))
+	return strings.Contains(message, "client.timeout exceeded") || strings.Contains(message, "deadline exceeded") || strings.Contains(message, "timeout")
+}
+
+func isDecisionJSONFormatError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if llminteraction.IsDecisionValidationError(err) {
+		return false
+	}
+	message := strings.ToLower(strings.TrimSpace(err.Error()))
+	if message == "" {
+		return false
+	}
+	return strings.Contains(message, "invalid character") || strings.Contains(message, "cannot unmarshal") || strings.Contains(message, "unexpected end of json input") || strings.Contains(message, "json")
+}
+
+func (o *Orchestrator) sendServiceUnavailableNotice(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, userID string, replyRef string, quoteRef string, reason error) {
+	if o == nil || o.deps.Messenger == nil || message == nil {
+		return
+	}
+	text := "本服務暫時不提供"
+	chatID := strings.TrimSpace(message.ChannelID)
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return
+	}
+
+	sentPlatformMessageID, err := o.deps.Messenger.SendText(context.Background(), chatID, userID, text, strings.TrimSpace(replyRef), strings.TrimSpace(quoteRef))
+	if err != nil {
+		sentPlatformMessageID, err = o.deps.Messenger.SendText(context.Background(), chatID, userID, text, "", strings.TrimSpace(quoteRef))
+	}
+	if err != nil {
+		zap.L().Warn(o.logKey("service unavailable notice send failed"),
+			zap.String("channel_id", chatID),
+			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			zap.Error(err),
+		)
+		return
+	}
+
+	zap.L().Warn(o.logKey("service unavailable notice sent"),
+		zap.String("channel_id", chatID),
+		zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+		zap.String("outbound_text", text),
+		zap.String("sent_platform_message_id", sentPlatformMessageID),
+		zap.String("decision_error", strings.TrimSpace(errorMessage(reason))),
+	)
+
+	if o.deps.Repo == nil || savedMessage == nil {
+		return
+	}
+	if _, saveErr := o.deps.Repo.SaveSentMessage(
+		context.Background(),
+		savedMessage.ChannelID,
+		strings.TrimSpace(o.deps.BotSenderID),
+		"",
+		sentPlatformMessageID,
+		text,
+		"text",
+		time.Now().UnixMilli(),
+		savedMessage.ID,
+	); saveErr != nil {
+		zap.L().Warn(o.logKey("persist service unavailable notice failed"),
+			zap.String("channel_id", chatID),
+			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			zap.String("sent_platform_message_id", sentPlatformMessageID),
+			zap.Error(saveErr),
+		)
+	}
+}
+
+func errorMessage(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}
+
 // resolveActionDecisionFromChain 沿 reply/related 訊息鏈上溯，提取可重跑 AI 的指令上下文。
 // 回傳：chainCommandContext 與 error；若未命中指令則回傳 nil 與 nil error。
 func (o *Orchestrator) resolveActionDecisionFromChain(ctx context.Context, message *ent.ChannelMessage) (*chainCommandContext, error) {
@@ -395,16 +542,6 @@ func (o *Orchestrator) buildCommandDecisionInputText(messageText string, chainCt
 	if len(chainCtx.MissingParameters) > 0 {
 		parts = append(parts, "missing_parameters="+strings.Join(chainCtx.MissingParameters, ","))
 	}
-	if strings.EqualFold(strings.TrimSpace(chainCtx.APIOperation), "start_translation_locale") && containsMissingParameter(chainCtx.MissingParameters, "target_locales") {
-		parts = append(parts,
-			"[parameter_fill_policy]",
-			"目前任務是補齊 target_locales。",
-			"使用者可用自然語言語言名稱，不需要自行輸入 BCP47。",
-			"你必須把語言名稱轉成 BCP47 locale 並填入 action_params.target_locales。",
-			"例如：德文=de-DE、法文=fr-FR、西班牙文=es-ES、英文=en-US、日文=ja-JP。",
-			"若本句已明確提及語言名稱，應直接 execute_action，不可再次 ask_clarifying_question。",
-		)
-	}
 	parts = append(parts, "[user_reply]", text)
 	return strings.Join(parts, "\n")
 }
@@ -433,6 +570,28 @@ func containsMissingParameter(params []string, target string) bool {
 		}
 	}
 	return false
+}
+
+func inferClarifyingOperation(current string, candidates []llminteraction.ActionCandidate, chainCtx *chainCommandContext) string {
+	// 推導優先序設計：
+	// 1) current（模型明確給值）
+	// 2) chainCtx.APIOperation（同一條追問鏈既有 operation）
+	// 3) candidates 第一個 operation（本輪候選最高優先）
+	// 目的不是改寫模型意圖，而是確保 missing_parameter 可落庫並可在下一輪被 command chain 重用。
+	if op := strings.TrimSpace(current); op != "" {
+		return op
+	}
+	if chainCtx != nil {
+		if op := strings.TrimSpace(chainCtx.APIOperation); op != "" {
+			return op
+		}
+	}
+	for _, candidate := range candidates {
+		if op := strings.TrimSpace(candidate.Operation); op != "" {
+			return op
+		}
+	}
+	return ""
 }
 
 // buildFixedChainOperationCandidates 建立「固定單一 operation」候選，用於指令鍊補參數解析。
@@ -654,7 +813,7 @@ func (o *Orchestrator) routeMessageToQuestionAnswer(message *unifiedmessage.Mess
 		qaErr  error
 		qaMode = "question_answer"
 	)
-	if strings.EqualFold(strings.TrimSpace(cause), "low_action_confidence") || strings.EqualFold(strings.TrimSpace(cause), "ask_clarifying_question") {
+	if qarouting.ShouldUseClarifyingQuestionMode(cause, missingParameters) {
 		qaMode = "clarifying_question"
 		// 若缺參數是明確的，優先使用固定模板追問，
 		// 可降低模型波動並提升回覆一致性。
@@ -794,14 +953,14 @@ func (o *Orchestrator) sendClarifyingQuestion(message *unifiedmessage.Message, s
 	}
 }
 
-// buildMissingParameterTemplateQuestion 依缺參數清單產生固定追問模板。
+// buildMissingParameterTemplateQuestion 依缺參數清單產生通用追問模板。
 // 回傳：可直接回覆給使用者的追問字串；若無可用模板則回傳空字串。
 func buildMissingParameterTemplateQuestion(missingParameters []string) string {
 	// 將缺參數清單轉成固定追問文案。
 	// 正規化目標：
 	// - 去除空白並轉小寫
 	// - 去重
-	// - 命中特定高頻參數時使用專用模板
+	// - 一律採通用模板，不在 orchestrator 內硬編碼指令專用問句
 	if len(missingParameters) == 0 {
 		return ""
 	}
@@ -820,10 +979,6 @@ func buildMissingParameterTemplateQuestion(missingParameters []string) string {
 	}
 	if len(normalized) == 0 {
 		return ""
-	}
-	// 領域特化模板：翻譯語系參數。
-	if len(normalized) == 1 && normalized[0] == llminteraction.ActionParamTargetLocales {
-		return "請告訴我要翻譯成哪些語言？例如英文、日文。"
 	}
 	// 通用 fallback：直接列出缺少的參數鍵。
 	return "請補充以下必要資訊後我才能執行指令：" + strings.Join(normalized, ", ")
@@ -852,6 +1007,9 @@ func (o *Orchestrator) persistMissingParameterResult(savedMessage *ent.ChannelMe
 	}
 	apiOperation = strings.TrimSpace(apiOperation)
 	if apiOperation == "" {
+		// 注意：這裡會直接略過寫入。
+		// 若上游沒先提供/推導 api_operation，action_results 將沒有 missing_parameter 記錄，
+		// 下一輪 reply 在 command chain 可能無法重建 operation。
 		return
 	}
 	seen := make(map[string]struct{}, len(missingParameters))

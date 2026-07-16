@@ -163,8 +163,8 @@ func validateQuestionAnswer(answer *QuestionAnswer) error {
 	return nil
 }
 
-// normalizeLocaleActionParams 強制翻譯 locale 參數採用 xx-YY，
-// 並把大小寫統一為 lang 小寫 + region 大寫（例如 en-US）。
+// normalizeLocaleActionParams 驗證翻譯 locale 參數格式，
+// 接受語言碼（xx）或 locale（xx-YY）。
 func normalizeLocaleActionParams(decision *ActionDecision) error {
 	if decision == nil || len(decision.ActionParams) == 0 {
 		return nil
@@ -183,7 +183,7 @@ func normalizeLocaleActionParams(decision *ActionDecision) error {
 		for _, locale := range locales {
 			normalized, valid := normalizeLocaleTag(locale)
 			if !valid {
-				return fmt.Errorf("action_params.%s must contain ISO 639-1 + ISO 3166-1 values (xx-YY), got %q", ActionParamTargetLocales, strings.TrimSpace(locale))
+				return fmt.Errorf("action_params.%s must contain language code (xx) or locale (xx-YY), got %q", ActionParamTargetLocales, strings.TrimSpace(locale))
 			}
 			if _, exists := seen[normalized]; exists {
 				continue
@@ -204,9 +204,16 @@ func normalizeLocaleActionParams(decision *ActionDecision) error {
 	return nil
 }
 
-// normalizeLocaleTag 驗證 locale 是否符合 xx-YY，並回傳正規化格式。
+// normalizeLocaleTag 驗證 locale 格式並回傳正規化格式。
+// 規則：接受 xx 或 xx-YY；不做語言->地區推測。
 func normalizeLocaleTag(value string) (string, bool) {
 	trimmed := strings.TrimSpace(value)
+	if len(trimmed) == 2 && isASCIIAlpha2(trimmed) {
+		return strings.ToLower(trimmed), true
+	}
+	if len(trimmed) == 5 && trimmed[2] == '_' {
+		trimmed = trimmed[:2] + "-" + trimmed[3:]
+	}
 	if len(trimmed) != 5 || trimmed[2] != '-' {
 		return "", false
 	}
