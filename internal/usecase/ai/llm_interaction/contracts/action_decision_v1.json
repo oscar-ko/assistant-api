@@ -1,0 +1,53 @@
+{
+  "name": "action_decision",
+  "schema_version": "v1",
+  "output_fields": [
+    {
+      "name": "schema_version",
+      "type": "string",
+      "required": true,
+      "const": "v1"
+    },
+    {
+      "name": "next_step",
+      "type": "string",
+      "required": true,
+      "enum": [
+        "execute_action",
+        "ask_clarifying_question",
+        "answer_question"
+      ]
+    },
+    {
+      "name": "api_operation",
+      "type": "string",
+      "required": true,
+      "notes": "must be one of candidate operation values; must be empty string when next_step=answer_question"
+    },
+    {
+      "name": "action_params",
+      "type": "object",
+      "required": true,
+      "notes": "include only parameters required by chosen api_operation; must be empty object when next_step=answer_question"
+    },
+    {
+      "name": "missing_parameters",
+      "type": "array[string]",
+      "required": true,
+      "notes": "if non-empty, next_step must be ask_clarifying_question"
+    },
+    {
+      "name": "confidence",
+      "type": "number",
+      "required": true,
+      "minimum": 0,
+      "maximum": 1
+    },
+    {
+      "name": "reason",
+      "type": "string",
+      "required": true,
+      "notes": "plain text sentence only"
+    }
+  ]
+}
