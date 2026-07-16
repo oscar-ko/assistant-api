@@ -82,7 +82,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Enable translation for a specific locale in the current channel.",
 					APIOperation:   "start_translation_locale",
 					RouteTexts:     []string{"開啟翻譯", "開始翻譯模式", "新增翻譯語系", "幫我開啟某語言翻譯", "請翻譯成指定語言"},
-					CommandPurpose: fmt.Sprintf("用途: 啟用翻譯語系。規則: 只接受使用者明確指定的目標語系；禁止推測預設語系、聊天語言或從上下文自動補值。輸出格式: action_params.target_locales 必須是字串陣列，元素格式僅允許語言碼(xx)或語系碼(xx-YY)，例如 en、ja、zh-TW；不可輸出自然語言名稱（如英文、日文）。若輸入包含 [command_chain_context] 且 missing_parameters 含 %s，代表補參數階段；此時若使用者提及一個或多個語言名稱，必須直接 next_step=execute_action 並輸出 action_params.target_locales。若沒有 [command_chain_context]，代表初次決策階段；僅在使用者明確提及語言時才可 execute_action，若完全未提及任何語言，必須 next_step=ask_clarifying_question 且 missing_parameters=[%s]。", aillminteraction.ActionParamTargetLocales, aillminteraction.ActionParamTargetLocales),
+					CommandPurpose: fmt.Sprintf("用途: 啟用翻譯語系。規則: 只接受使用者明確指定的目標語系；禁止推測預設語系、聊天語言或從上下文自動補值。若使用者以自然語言提及語言名稱（如 中文/英文/日文 或 Chinese/English/Japanese），視為已明確指定語系，必須將其正規化為 action_params.target_locales 的語系碼。輸出格式: action_params.target_locales 必須是字串陣列，元素格式僅允許語言碼(xx)或語系碼(xx-YY)，例如 en、ja、zh-TW；不可輸出自然語言名稱。若輸入包含 [command_chain_context] 且 missing_parameters 含 %s，代表補參數階段；此時若使用者提及一個或多個語言名稱，必須直接 next_step=execute_action 並輸出 action_params.target_locales。若沒有 [command_chain_context]，代表初次決策階段；僅在使用者完全未提及任何可映射語系時，才可 next_step=ask_clarifying_question 且 missing_parameters=[%s]。", aillminteraction.ActionParamTargetLocales, aillminteraction.ActionParamTargetLocales),
 				},
 				{
 					ActionCode:     action.ActionCodeDisable,
@@ -98,7 +98,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Disable translation for a specific locale in the current channel.",
 					APIOperation:   "stop_translation_locale",
 					RouteTexts:     []string{"關閉某語言翻譯", "停止指定語言翻譯", "移除翻譯語系", "把某個語言的翻譯關掉", "不要某語言翻譯"},
-					CommandPurpose: fmt.Sprintf("用途: 停用指定翻譯語系。規則: 只接受使用者明確指定的目標語系；禁止推測預設語系、聊天語言或從上下文自動補值。輸出格式: action_params.target_locales 必須是字串陣列，元素格式僅允許語言碼(xx)或語系碼(xx-YY)，例如 en、ja、zh-TW；不可輸出自然語言名稱（如英文、日文）。若輸入包含 [command_chain_context] 且 missing_parameters 含 %s，代表補參數階段；此時若使用者提及一個或多個語言名稱，必須直接 next_step=execute_action 並輸出 action_params.target_locales。若沒有 [command_chain_context]，代表初次決策階段；僅在使用者明確提及語言時才可 execute_action，若完全未提及任何語言，必須 next_step=ask_clarifying_question 且 missing_parameters=[%s]。", aillminteraction.ActionParamTargetLocales, aillminteraction.ActionParamTargetLocales),
+					CommandPurpose: fmt.Sprintf("用途: 停用指定翻譯語系。規則: 只接受使用者明確指定的目標語系；禁止推測預設語系、聊天語言或從上下文自動補值。若使用者以自然語言提及語言名稱（如 中文/英文/日文 或 Chinese/English/Japanese），視為已明確指定語系，必須將其正規化為 action_params.target_locales 的語系碼。輸出格式: action_params.target_locales 必須是字串陣列，元素格式僅允許語言碼(xx)或語系碼(xx-YY)，例如 en、ja、zh-TW；不可輸出自然語言名稱。若輸入包含 [command_chain_context] 且 missing_parameters 含 %s，代表補參數階段；此時若使用者提及一個或多個語言名稱，必須直接 next_step=execute_action 並輸出 action_params.target_locales。若沒有 [command_chain_context]，代表初次決策階段；僅在使用者完全未提及任何可映射語系時，才可 next_step=ask_clarifying_question 且 missing_parameters=[%s]。", aillminteraction.ActionParamTargetLocales, aillminteraction.ActionParamTargetLocales),
 				},
 			},
 		},

@@ -630,6 +630,46 @@ func (r *ChannelMessageRepo) AddServiceMemberToChannel(ctx context.Context, chan
 	return nil
 }
 
+// HasChannelServiceMember 回傳某使用者是否在某頻道啟用了指定技能。
+//
+// 用途：
+// - 即時服務（例如翻譯）在執行前做精確 gating
+// - 避免「同頻道中未啟用服務的成員」被誤套用 side-effect
+//
+// 參數要求：
+// - channelID / ownerID / skillID 皆不可為 uuid.Nil
+//
+// 回傳語意：
+// - (true, nil): 存在啟用記錄
+// - (false, nil): 不存在啟用記錄（非錯誤）
+// - (false, err): 查詢或初始化失敗
+func (r *ChannelMessageRepo) HasChannelServiceMember(ctx context.Context, channelID uuid.UUID, ownerID uuid.UUID, skillID uuid.UUID) (bool, error) {
+	if r == nil || r.db == nil {
+		return false, fmt.Errorf("channel repository not initialized")
+	}
+	if channelID == uuid.Nil {
+		return false, fmt.Errorf("channel id is required")
+	}
+	if ownerID == uuid.Nil {
+		return false, fmt.Errorf("owner id is required")
+	}
+	if skillID == uuid.Nil {
+		return false, fmt.Errorf("skill id is required")
+	}
+
+	exists, err := r.db.ChannelServiceMember.Query().
+		Where(
+			channelservicemember.ChannelIDEQ(channelID),
+			channelservicemember.UserIDEQ(ownerID),
+			channelservicemember.SkillIDEQ(skillID),
+		).
+		Exist(ctx)
+	if err != nil {
+		return false, fmt.Errorf("failed to query service member: %w", err)
+	}
+	return exists, nil
+}
+
 // AddTranslationLocaleToChannel records a translation target locale with owner under a channel and skill.
 // The operation is idempotent and ignored if (channel_id, target_locale) already exists.
 func (r *ChannelMessageRepo) AddTranslationLocaleToChannel(ctx context.Context, channelID uuid.UUID, skillID uuid.UUID, ownerUserID uuid.UUID, targetLocale string) error {

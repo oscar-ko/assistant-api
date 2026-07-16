@@ -8,6 +8,10 @@ import (
 )
 
 func TestValidateQuestionAnswer(t *testing.T) {
+	// 這組測試覆蓋 question-answer 契約的核心邊界：
+	// - schema_version 多種別名正規化
+	// - answer 必填
+	// - confidence 合法範圍
 	tests := []struct {
 		name      string
 		input     *QuestionAnswer
@@ -23,6 +27,24 @@ func TestValidateQuestionAnswer(t *testing.T) {
 			wantError: false,
 		},
 		{
+			name: "valid schema alias 1.0",
+			input: &QuestionAnswer{
+				SchemaVersion: "1.0",
+				Answer:        "ok",
+				Confidence:    0.8,
+			},
+			wantError: false,
+		},
+		{
+			name: "valid schema alias 2.0",
+			input: &QuestionAnswer{
+				SchemaVersion: "2.0",
+				Answer:        "ok",
+				Confidence:    0.8,
+			},
+			wantError: false,
+		},
+		{
 			name: "missing schema version",
 			input: &QuestionAnswer{
 				SchemaVersion: "",
@@ -32,9 +54,18 @@ func TestValidateQuestionAnswer(t *testing.T) {
 			wantError: true,
 		},
 		{
-			name: "invalid schema version",
+			name: "valid schema version v2",
 			input: &QuestionAnswer{
 				SchemaVersion: "v2",
+				Answer:        "ok",
+				Confidence:    0.8,
+			},
+			wantError: false,
+		},
+		{
+			name: "invalid schema version v3",
+			input: &QuestionAnswer{
+				SchemaVersion: "v3",
 				Answer:        "ok",
 				Confidence:    0.8,
 			},
@@ -62,6 +93,8 @@ func TestValidateQuestionAnswer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// 每個 case 都走同一個驗證入口，
+			// 確保後續調整 normalize/validate 時不會破壞既有契約語意。
 			err := validateQuestionAnswer(tt.input)
 			if tt.wantError && err == nil {
 				t.Fatal("expected validation error, got nil")

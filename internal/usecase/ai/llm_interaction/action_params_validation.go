@@ -144,13 +144,13 @@ func validateQuestionAnswer(answer *QuestionAnswer) error {
 		return nil
 	}
 
-	answer.SchemaVersion = strings.TrimSpace(answer.SchemaVersion)
+	answer.SchemaVersion = normalizeQuestionAnswerSchemaVersion(answer.SchemaVersion)
 	answer.Answer = strings.TrimSpace(answer.Answer)
 
 	if answer.SchemaVersion == "" {
 		return fmt.Errorf("question answer schema_version is required")
 	}
-	if answer.SchemaVersion != "v1" {
+	if answer.SchemaVersion != "v1" && answer.SchemaVersion != "v2" {
 		return fmt.Errorf("question answer schema_version %q is invalid", answer.SchemaVersion)
 	}
 	if answer.Answer == "" {
@@ -161,6 +161,26 @@ func validateQuestionAnswer(answer *QuestionAnswer) error {
 	}
 
 	return nil
+}
+
+// normalizeQuestionAnswerSchemaVersion 負責把上游常見別名版本號正規化。
+// 目的：
+// 1) 避免因 "1.0" / "v1.0" / "2.0" 這類等價寫法造成不必要拒絕
+// 2) 保留未知版本原值，交由後續 validateQuestionAnswer 明確判斷是否允許
+//
+// 注意：
+// - 這裡只做「語法別名」正規化，不做版本升降級推論
+// - 是否接受 v1 / v2 由 validateQuestionAnswer 的業務規則決定
+func normalizeQuestionAnswerSchemaVersion(value string) string {
+	trimmed := strings.ToLower(strings.TrimSpace(value))
+	switch trimmed {
+	case "v1", "1", "1.0", "v1.0":
+		return "v1"
+	case "v2", "2", "2.0", "v2.0":
+		return "v2"
+	default:
+		return strings.TrimSpace(value)
+	}
 }
 
 // normalizeLocaleActionParams 驗證翻譯 locale 參數格式，

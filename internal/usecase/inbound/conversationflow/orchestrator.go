@@ -980,6 +980,11 @@ func buildMissingParameterTemplateQuestion(missingParameters []string) string {
 	if len(normalized) == 0 {
 		return ""
 	}
+
+	//TODO: 未來要用多國語言，將訊息抽出
+	if len(normalized) == 1 && normalized[0] == llminteraction.ActionParamTargetLocales {
+		return "請告訴我要翻譯成哪些語言？例如 zh-TW、en-US、ja-JP。"
+	}
 	// 通用 fallback：直接列出缺少的參數鍵。
 	return "請補充以下必要資訊後我才能執行指令：" + strings.Join(normalized, ", ")
 }

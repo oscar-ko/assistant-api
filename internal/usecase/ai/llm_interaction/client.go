@@ -281,6 +281,8 @@ func BuildFinalActionPrompt(candidates []ActionCandidate) string {
 - missing_parameters 非空時，next_step 必須是 ask_clarifying_question
 - 不可把 route_text、skill、score、operation 這類候選描述欄位複製到 action_params
 - 缺少必要參數時不可猜測
+- 翻譯類 action（例如 start_translation_locale / stop_translation_locale）若使用者已明確提到語言名稱（如 中文/英文/日文 或 Chinese/English/Japanese），視為已提供 target_locales，不可再回 missing_parameters
+- 翻譯類 action 的 action_params.target_locales 必須輸出為 BCP47/locale code（例如 zh-TW、en-US、ja-JP），不可回自然語言名稱
 - 若使用者訊息語意明顯對應某個候選，即使非分數最高也應選語意最貼合者
 - confidence 為 0 到 1，表示對「下一步判斷」的把握程度
 - reason 只允許一句純文字，不可包含雙引號、JSON 片段或候選清單原文
