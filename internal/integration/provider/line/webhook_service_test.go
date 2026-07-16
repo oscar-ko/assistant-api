@@ -36,27 +36,27 @@ func (s *stubTopKFilter) FilterMessage(ctx context.Context, message *unifiedmess
 }
 
 type stubSemanticDecision struct {
-	called              bool
-	decision            *semanticdecision.ActionDecision
-	err                 error
-	candidates          []semanticdecision.ActionCandidate
-	answerCalled        bool
-	answer              *semanticdecision.QuestionAnswer
-	answerErr           error
-	clarifyCalled       bool
-	clarifyReason       string
-	clarifyingQuestion  *semanticdecision.QuestionAnswer
+	called                bool
+	decision              *semanticdecision.ActionDecision
+	err                   error
+	candidates            []semanticdecision.ActionCandidate
+	answerCalled          bool
+	answer                *semanticdecision.QuestionAnswer
+	answerErr             error
+	clarifyCalled         bool
+	clarifyReason         string
+	clarifyingQuestion    *semanticdecision.QuestionAnswer
 	clarifyingQuestionErr error
 }
 
 type stubPushMessageService struct {
-	pushTextCalled         bool
-	pushMentionCalled      bool
-	chatID                 string
-	lineUserID             string
-	text                   string
-	sentPlatformMessageID  string
-	err                    error
+	pushTextCalled        bool
+	pushMentionCalled     bool
+	chatID                string
+	lineUserID            string
+	text                  string
+	sentPlatformMessageID string
+	err                   error
 }
 
 func (s *stubPushMessageService) PushText(ctx context.Context, lineUserID string, text string) error {

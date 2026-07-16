@@ -125,7 +125,7 @@ func TestValidateActionDecisionRejectsCandidateMetadataKeys(t *testing.T) {
 
 func TestValidateActionDecisionNormalizesLocaleFormat(t *testing.T) {
 	decision := &ActionDecision{NextStep: NextStepExecuteAction, ActionParams: map[string]json.RawMessage{
-		// execute_action 需同時帶有效 api_operation。
+				// execute_action 需同時帶有效 api_operation。
 	}, APIOperation: "start_translation_locale"}
 	decision.ActionParams = map[string]json.RawMessage{
 		ActionParamTargetLocales: mustRawJSON(t, []string{"ja-jp", "EN-us", "zh-tw"}),

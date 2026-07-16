@@ -286,10 +286,10 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 		confidenceThreshold := config.AI.SemanticDecision.CommandConfidenceThreshold
 		switch nextStep {
 		case semanticdecision.NextStepAskClarifyingQuestion:
-					s.routeMessageToQuestionAnswer(message, savedMessage, strings.TrimSpace(event.Source.UserID), finalDecision.Confidence, confidenceThreshold, "ask_clarifying_question", finalDecision.Reason)
+			s.routeMessageToQuestionAnswer(message, savedMessage, strings.TrimSpace(event.Source.UserID), finalDecision.Confidence, confidenceThreshold, "ask_clarifying_question", finalDecision.Reason)
 			continue
 		case semanticdecision.NextStepAnswerQuestion:
-					s.routeMessageToQuestionAnswer(message, savedMessage, strings.TrimSpace(event.Source.UserID), finalDecision.Confidence, confidenceThreshold, "answer_question", finalDecision.Reason)
+			s.routeMessageToQuestionAnswer(message, savedMessage, strings.TrimSpace(event.Source.UserID), finalDecision.Confidence, confidenceThreshold, "answer_question", finalDecision.Reason)
 			continue
 		case semanticdecision.NextStepExecuteAction:
 			// 繼續走 action 流程。
@@ -378,9 +378,9 @@ func (s *WebhookService) routeMessageToQuestionAnswer(message *unifiedmessage.Me
 	// 若是 low_action_confidence，優先請模型依原訊息與決策理由提出追問；
 	// 其餘情況才走一般問答模式。
 	var (
-		qa      *semanticdecision.QuestionAnswer
-		qaErr   error
-		qaMode  = "question_answer"
+		qa     *semanticdecision.QuestionAnswer
+		qaErr  error
+		qaMode = "question_answer"
 	)
 	if strings.EqualFold(strings.TrimSpace(cause), "low_action_confidence") || strings.EqualFold(strings.TrimSpace(cause), "ask_clarifying_question") {
 		qaMode = "clarifying_question"
