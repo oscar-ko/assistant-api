@@ -4,7 +4,7 @@ package ent
 
 import (
 	"assistant-api/internal/ent/action"
-	"assistant-api/internal/ent/actionsuccessmessage"
+	"assistant-api/internal/ent/actionresult"
 	"assistant-api/internal/ent/channelmessage"
 	"fmt"
 	"strings"
@@ -15,8 +15,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// ActionSuccessMessage is the model entity for the ActionSuccessMessage schema.
-type ActionSuccessMessage struct {
+// ActionResult is the model entity for the ActionResult schema.
+type ActionResult struct {
 	config `json:"-"`
 	// ID of the ent.
 	// 全域唯一主鍵 UUID
@@ -27,19 +27,23 @@ type ActionSuccessMessage struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// 對應 action ID
 	ActionID uuid.UUID `json:"action_id,omitempty"`
-	// 成功執行的指令訊息 ID
+	// 觸發指令的訊息 ID
 	ChannelMessageID uuid.UUID `json:"channel_message_id,omitempty"`
+	// 指令執行結果狀態
+	Status actionresult.Status `json:"status,omitempty"`
+	// 執行結果補充資訊（例如缺少參數名稱）
+	ResultMessage *string `json:"result_message,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
-	// The values are being populated by the ActionSuccessMessageQuery when eager-loading is set.
-	Edges        ActionSuccessMessageEdges `json:"edges"`
+	// The values are being populated by the ActionResultQuery when eager-loading is set.
+	Edges        ActionResultEdges `json:"edges"`
 	selectValues sql.SelectValues
 }
 
-// ActionSuccessMessageEdges holds the relations/edges for other nodes in the graph.
-type ActionSuccessMessageEdges struct {
-	// 成功訊息對應 action
+// ActionResultEdges holds the relations/edges for other nodes in the graph.
+type ActionResultEdges struct {
+	// 執行對應 action
 	Action *Action `json:"action,omitempty"`
-	// 成功執行的指令訊息
+	// 觸發該次執行的指令訊息
 	ChannelMessage *ChannelMessage `json:"channel_message,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
@@ -50,7 +54,7 @@ type ActionSuccessMessageEdges struct {
 
 // ActionOrErr returns the Action value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
-func (e ActionSuccessMessageEdges) ActionOrErr() (*Action, error) {
+func (e ActionResultEdges) ActionOrErr() (*Action, error) {
 	if e.Action != nil {
 		return e.Action, nil
 	} else if e.loadedTypes[0] {
@@ -61,7 +65,7 @@ func (e ActionSuccessMessageEdges) ActionOrErr() (*Action, error) {
 
 // ChannelMessageOrErr returns the ChannelMessage value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
-func (e ActionSuccessMessageEdges) ChannelMessageOrErr() (*ChannelMessage, error) {
+func (e ActionResultEdges) ChannelMessageOrErr() (*ChannelMessage, error) {
 	if e.ChannelMessage != nil {
 		return e.ChannelMessage, nil
 	} else if e.loadedTypes[1] {
@@ -71,13 +75,15 @@ func (e ActionSuccessMessageEdges) ChannelMessageOrErr() (*ChannelMessage, error
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
-func (*ActionSuccessMessage) scanValues(columns []string) ([]any, error) {
+func (*ActionResult) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case actionsuccessmessage.FieldCreatedAt, actionsuccessmessage.FieldUpdatedAt:
+		case actionresult.FieldStatus, actionresult.FieldResultMessage:
+			values[i] = new(sql.NullString)
+		case actionresult.FieldCreatedAt, actionresult.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
-		case actionsuccessmessage.FieldID, actionsuccessmessage.FieldActionID, actionsuccessmessage.FieldChannelMessageID:
+		case actionresult.FieldID, actionresult.FieldActionID, actionresult.FieldChannelMessageID:
 			values[i] = new(uuid.UUID)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -87,42 +93,55 @@ func (*ActionSuccessMessage) scanValues(columns []string) ([]any, error) {
 }
 
 // assignValues assigns the values that were returned from sql.Rows (after scanning)
-// to the ActionSuccessMessage fields.
-func (_m *ActionSuccessMessage) assignValues(columns []string, values []any) error {
+// to the ActionResult fields.
+func (_m *ActionResult) assignValues(columns []string, values []any) error {
 	if m, n := len(values), len(columns); m < n {
 		return fmt.Errorf("mismatch number of scan values: %d != %d", m, n)
 	}
 	for i := range columns {
 		switch columns[i] {
-		case actionsuccessmessage.FieldID:
+		case actionresult.FieldID:
 			if value, ok := values[i].(*uuid.UUID); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
 			} else if value != nil {
 				_m.ID = *value
 			}
-		case actionsuccessmessage.FieldCreatedAt:
+		case actionresult.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
 				_m.CreatedAt = value.Time
 			}
-		case actionsuccessmessage.FieldUpdatedAt:
+		case actionresult.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
 			} else if value.Valid {
 				_m.UpdatedAt = value.Time
 			}
-		case actionsuccessmessage.FieldActionID:
+		case actionresult.FieldActionID:
 			if value, ok := values[i].(*uuid.UUID); !ok {
 				return fmt.Errorf("unexpected type %T for field action_id", values[i])
 			} else if value != nil {
 				_m.ActionID = *value
 			}
-		case actionsuccessmessage.FieldChannelMessageID:
+		case actionresult.FieldChannelMessageID:
 			if value, ok := values[i].(*uuid.UUID); !ok {
 				return fmt.Errorf("unexpected type %T for field channel_message_id", values[i])
 			} else if value != nil {
 				_m.ChannelMessageID = *value
+			}
+		case actionresult.FieldStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field status", values[i])
+			} else if value.Valid {
+				_m.Status = actionresult.Status(value.String)
+			}
+		case actionresult.FieldResultMessage:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field result_message", values[i])
+			} else if value.Valid {
+				_m.ResultMessage = new(string)
+				*_m.ResultMessage = value.String
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -131,44 +150,44 @@ func (_m *ActionSuccessMessage) assignValues(columns []string, values []any) err
 	return nil
 }
 
-// Value returns the ent.Value that was dynamically selected and assigned to the ActionSuccessMessage.
+// Value returns the ent.Value that was dynamically selected and assigned to the ActionResult.
 // This includes values selected through modifiers, order, etc.
-func (_m *ActionSuccessMessage) Value(name string) (ent.Value, error) {
+func (_m *ActionResult) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
 }
 
-// QueryAction queries the "action" edge of the ActionSuccessMessage entity.
-func (_m *ActionSuccessMessage) QueryAction() *ActionQuery {
-	return NewActionSuccessMessageClient(_m.config).QueryAction(_m)
+// QueryAction queries the "action" edge of the ActionResult entity.
+func (_m *ActionResult) QueryAction() *ActionQuery {
+	return NewActionResultClient(_m.config).QueryAction(_m)
 }
 
-// QueryChannelMessage queries the "channel_message" edge of the ActionSuccessMessage entity.
-func (_m *ActionSuccessMessage) QueryChannelMessage() *ChannelMessageQuery {
-	return NewActionSuccessMessageClient(_m.config).QueryChannelMessage(_m)
+// QueryChannelMessage queries the "channel_message" edge of the ActionResult entity.
+func (_m *ActionResult) QueryChannelMessage() *ChannelMessageQuery {
+	return NewActionResultClient(_m.config).QueryChannelMessage(_m)
 }
 
-// Update returns a builder for updating this ActionSuccessMessage.
-// Note that you need to call ActionSuccessMessage.Unwrap() before calling this method if this ActionSuccessMessage
+// Update returns a builder for updating this ActionResult.
+// Note that you need to call ActionResult.Unwrap() before calling this method if this ActionResult
 // was returned from a transaction, and the transaction was committed or rolled back.
-func (_m *ActionSuccessMessage) Update() *ActionSuccessMessageUpdateOne {
-	return NewActionSuccessMessageClient(_m.config).UpdateOne(_m)
+func (_m *ActionResult) Update() *ActionResultUpdateOne {
+	return NewActionResultClient(_m.config).UpdateOne(_m)
 }
 
-// Unwrap unwraps the ActionSuccessMessage entity that was returned from a transaction after it was closed,
+// Unwrap unwraps the ActionResult entity that was returned from a transaction after it was closed,
 // so that all future queries will be executed through the driver which created the transaction.
-func (_m *ActionSuccessMessage) Unwrap() *ActionSuccessMessage {
+func (_m *ActionResult) Unwrap() *ActionResult {
 	_tx, ok := _m.config.driver.(*txDriver)
 	if !ok {
-		panic("ent: ActionSuccessMessage is not a transactional entity")
+		panic("ent: ActionResult is not a transactional entity")
 	}
 	_m.config.driver = _tx.drv
 	return _m
 }
 
 // String implements the fmt.Stringer.
-func (_m *ActionSuccessMessage) String() string {
+func (_m *ActionResult) String() string {
 	var builder strings.Builder
-	builder.WriteString("ActionSuccessMessage(")
+	builder.WriteString("ActionResult(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
@@ -181,9 +200,17 @@ func (_m *ActionSuccessMessage) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("channel_message_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ChannelMessageID))
+	builder.WriteString(", ")
+	builder.WriteString("status=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Status))
+	builder.WriteString(", ")
+	if v := _m.ResultMessage; v != nil {
+		builder.WriteString("result_message=")
+		builder.WriteString(*v)
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }
 
-// ActionSuccessMessages is a parsable slice of ActionSuccessMessage.
-type ActionSuccessMessages []*ActionSuccessMessage
+// ActionResults is a parsable slice of ActionResult.
+type ActionResults []*ActionResult

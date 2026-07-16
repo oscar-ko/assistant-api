@@ -4,7 +4,7 @@ package ent
 
 import (
 	"assistant-api/internal/ent/action"
-	"assistant-api/internal/ent/actionsuccessmessage"
+	"assistant-api/internal/ent/actionresult"
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/predicate"
 	"context"
@@ -18,33 +18,33 @@ import (
 	"github.com/google/uuid"
 )
 
-// ActionSuccessMessageUpdate is the builder for updating ActionSuccessMessage entities.
-type ActionSuccessMessageUpdate struct {
+// ActionResultUpdate is the builder for updating ActionResult entities.
+type ActionResultUpdate struct {
 	config
 	hooks    []Hook
-	mutation *ActionSuccessMessageMutation
+	mutation *ActionResultMutation
 }
 
-// Where appends a list predicates to the ActionSuccessMessageUpdate builder.
-func (_u *ActionSuccessMessageUpdate) Where(ps ...predicate.ActionSuccessMessage) *ActionSuccessMessageUpdate {
+// Where appends a list predicates to the ActionResultUpdate builder.
+func (_u *ActionResultUpdate) Where(ps ...predicate.ActionResult) *ActionResultUpdate {
 	_u.mutation.Where(ps...)
 	return _u
 }
 
 // SetUpdatedAt sets the "updated_at" field.
-func (_u *ActionSuccessMessageUpdate) SetUpdatedAt(v time.Time) *ActionSuccessMessageUpdate {
+func (_u *ActionResultUpdate) SetUpdatedAt(v time.Time) *ActionResultUpdate {
 	_u.mutation.SetUpdatedAt(v)
 	return _u
 }
 
 // SetActionID sets the "action_id" field.
-func (_u *ActionSuccessMessageUpdate) SetActionID(v uuid.UUID) *ActionSuccessMessageUpdate {
+func (_u *ActionResultUpdate) SetActionID(v uuid.UUID) *ActionResultUpdate {
 	_u.mutation.SetActionID(v)
 	return _u
 }
 
 // SetNillableActionID sets the "action_id" field if the given value is not nil.
-func (_u *ActionSuccessMessageUpdate) SetNillableActionID(v *uuid.UUID) *ActionSuccessMessageUpdate {
+func (_u *ActionResultUpdate) SetNillableActionID(v *uuid.UUID) *ActionResultUpdate {
 	if v != nil {
 		_u.SetActionID(*v)
 	}
@@ -52,54 +52,88 @@ func (_u *ActionSuccessMessageUpdate) SetNillableActionID(v *uuid.UUID) *ActionS
 }
 
 // SetChannelMessageID sets the "channel_message_id" field.
-func (_u *ActionSuccessMessageUpdate) SetChannelMessageID(v uuid.UUID) *ActionSuccessMessageUpdate {
+func (_u *ActionResultUpdate) SetChannelMessageID(v uuid.UUID) *ActionResultUpdate {
 	_u.mutation.SetChannelMessageID(v)
 	return _u
 }
 
 // SetNillableChannelMessageID sets the "channel_message_id" field if the given value is not nil.
-func (_u *ActionSuccessMessageUpdate) SetNillableChannelMessageID(v *uuid.UUID) *ActionSuccessMessageUpdate {
+func (_u *ActionResultUpdate) SetNillableChannelMessageID(v *uuid.UUID) *ActionResultUpdate {
 	if v != nil {
 		_u.SetChannelMessageID(*v)
 	}
 	return _u
 }
 
+// SetStatus sets the "status" field.
+func (_u *ActionResultUpdate) SetStatus(v actionresult.Status) *ActionResultUpdate {
+	_u.mutation.SetStatus(v)
+	return _u
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_u *ActionResultUpdate) SetNillableStatus(v *actionresult.Status) *ActionResultUpdate {
+	if v != nil {
+		_u.SetStatus(*v)
+	}
+	return _u
+}
+
+// SetResultMessage sets the "result_message" field.
+func (_u *ActionResultUpdate) SetResultMessage(v string) *ActionResultUpdate {
+	_u.mutation.SetResultMessage(v)
+	return _u
+}
+
+// SetNillableResultMessage sets the "result_message" field if the given value is not nil.
+func (_u *ActionResultUpdate) SetNillableResultMessage(v *string) *ActionResultUpdate {
+	if v != nil {
+		_u.SetResultMessage(*v)
+	}
+	return _u
+}
+
+// ClearResultMessage clears the value of the "result_message" field.
+func (_u *ActionResultUpdate) ClearResultMessage() *ActionResultUpdate {
+	_u.mutation.ClearResultMessage()
+	return _u
+}
+
 // SetAction sets the "action" edge to the Action entity.
-func (_u *ActionSuccessMessageUpdate) SetAction(v *Action) *ActionSuccessMessageUpdate {
+func (_u *ActionResultUpdate) SetAction(v *Action) *ActionResultUpdate {
 	return _u.SetActionID(v.ID)
 }
 
 // SetChannelMessage sets the "channel_message" edge to the ChannelMessage entity.
-func (_u *ActionSuccessMessageUpdate) SetChannelMessage(v *ChannelMessage) *ActionSuccessMessageUpdate {
+func (_u *ActionResultUpdate) SetChannelMessage(v *ChannelMessage) *ActionResultUpdate {
 	return _u.SetChannelMessageID(v.ID)
 }
 
-// Mutation returns the ActionSuccessMessageMutation object of the builder.
-func (_u *ActionSuccessMessageUpdate) Mutation() *ActionSuccessMessageMutation {
+// Mutation returns the ActionResultMutation object of the builder.
+func (_u *ActionResultUpdate) Mutation() *ActionResultMutation {
 	return _u.mutation
 }
 
 // ClearAction clears the "action" edge to the Action entity.
-func (_u *ActionSuccessMessageUpdate) ClearAction() *ActionSuccessMessageUpdate {
+func (_u *ActionResultUpdate) ClearAction() *ActionResultUpdate {
 	_u.mutation.ClearAction()
 	return _u
 }
 
 // ClearChannelMessage clears the "channel_message" edge to the ChannelMessage entity.
-func (_u *ActionSuccessMessageUpdate) ClearChannelMessage() *ActionSuccessMessageUpdate {
+func (_u *ActionResultUpdate) ClearChannelMessage() *ActionResultUpdate {
 	_u.mutation.ClearChannelMessage()
 	return _u
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
-func (_u *ActionSuccessMessageUpdate) Save(ctx context.Context) (int, error) {
+func (_u *ActionResultUpdate) Save(ctx context.Context) (int, error) {
 	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
-func (_u *ActionSuccessMessageUpdate) SaveX(ctx context.Context) int {
+func (_u *ActionResultUpdate) SaveX(ctx context.Context) int {
 	affected, err := _u.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -108,42 +142,47 @@ func (_u *ActionSuccessMessageUpdate) SaveX(ctx context.Context) int {
 }
 
 // Exec executes the query.
-func (_u *ActionSuccessMessageUpdate) Exec(ctx context.Context) error {
+func (_u *ActionResultUpdate) Exec(ctx context.Context) error {
 	_, err := _u.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_u *ActionSuccessMessageUpdate) ExecX(ctx context.Context) {
+func (_u *ActionResultUpdate) ExecX(ctx context.Context) {
 	if err := _u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
 // defaults sets the default values of the builder before save.
-func (_u *ActionSuccessMessageUpdate) defaults() {
+func (_u *ActionResultUpdate) defaults() {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
-		v := actionsuccessmessage.UpdateDefaultUpdatedAt()
+		v := actionresult.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)
 	}
 }
 
 // check runs all checks and user-defined validators on the builder.
-func (_u *ActionSuccessMessageUpdate) check() error {
+func (_u *ActionResultUpdate) check() error {
+	if v, ok := _u.mutation.Status(); ok {
+		if err := actionresult.StatusValidator(v); err != nil {
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "ActionResult.status": %w`, err)}
+		}
+	}
 	if _u.mutation.ActionCleared() && len(_u.mutation.ActionIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "ActionSuccessMessage.action"`)
+		return errors.New(`ent: clearing a required unique edge "ActionResult.action"`)
 	}
 	if _u.mutation.ChannelMessageCleared() && len(_u.mutation.ChannelMessageIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "ActionSuccessMessage.channel_message"`)
+		return errors.New(`ent: clearing a required unique edge "ActionResult.channel_message"`)
 	}
 	return nil
 }
 
-func (_u *ActionSuccessMessageUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+func (_u *ActionResultUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
 	}
-	_spec := sqlgraph.NewUpdateSpec(actionsuccessmessage.Table, actionsuccessmessage.Columns, sqlgraph.NewFieldSpec(actionsuccessmessage.FieldID, field.TypeUUID))
+	_spec := sqlgraph.NewUpdateSpec(actionresult.Table, actionresult.Columns, sqlgraph.NewFieldSpec(actionresult.FieldID, field.TypeUUID))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -152,14 +191,23 @@ func (_u *ActionSuccessMessageUpdate) sqlSave(ctx context.Context) (_node int, e
 		}
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
-		_spec.SetField(actionsuccessmessage.FieldUpdatedAt, field.TypeTime, value)
+		_spec.SetField(actionresult.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.Status(); ok {
+		_spec.SetField(actionresult.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.ResultMessage(); ok {
+		_spec.SetField(actionresult.FieldResultMessage, field.TypeString, value)
+	}
+	if _u.mutation.ResultMessageCleared() {
+		_spec.ClearField(actionresult.FieldResultMessage, field.TypeString)
 	}
 	if _u.mutation.ActionCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   actionsuccessmessage.ActionTable,
-			Columns: []string{actionsuccessmessage.ActionColumn},
+			Table:   actionresult.ActionTable,
+			Columns: []string{actionresult.ActionColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(action.FieldID, field.TypeUUID),
@@ -171,8 +219,8 @@ func (_u *ActionSuccessMessageUpdate) sqlSave(ctx context.Context) (_node int, e
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   actionsuccessmessage.ActionTable,
-			Columns: []string{actionsuccessmessage.ActionColumn},
+			Table:   actionresult.ActionTable,
+			Columns: []string{actionresult.ActionColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(action.FieldID, field.TypeUUID),
@@ -187,8 +235,8 @@ func (_u *ActionSuccessMessageUpdate) sqlSave(ctx context.Context) (_node int, e
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   actionsuccessmessage.ChannelMessageTable,
-			Columns: []string{actionsuccessmessage.ChannelMessageColumn},
+			Table:   actionresult.ChannelMessageTable,
+			Columns: []string{actionresult.ChannelMessageColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
@@ -200,8 +248,8 @@ func (_u *ActionSuccessMessageUpdate) sqlSave(ctx context.Context) (_node int, e
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   actionsuccessmessage.ChannelMessageTable,
-			Columns: []string{actionsuccessmessage.ChannelMessageColumn},
+			Table:   actionresult.ChannelMessageTable,
+			Columns: []string{actionresult.ChannelMessageColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
@@ -214,7 +262,7 @@ func (_u *ActionSuccessMessageUpdate) sqlSave(ctx context.Context) (_node int, e
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
-			err = &NotFoundError{actionsuccessmessage.Label}
+			err = &NotFoundError{actionresult.Label}
 		} else if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
@@ -224,28 +272,28 @@ func (_u *ActionSuccessMessageUpdate) sqlSave(ctx context.Context) (_node int, e
 	return _node, nil
 }
 
-// ActionSuccessMessageUpdateOne is the builder for updating a single ActionSuccessMessage entity.
-type ActionSuccessMessageUpdateOne struct {
+// ActionResultUpdateOne is the builder for updating a single ActionResult entity.
+type ActionResultUpdateOne struct {
 	config
 	fields   []string
 	hooks    []Hook
-	mutation *ActionSuccessMessageMutation
+	mutation *ActionResultMutation
 }
 
 // SetUpdatedAt sets the "updated_at" field.
-func (_u *ActionSuccessMessageUpdateOne) SetUpdatedAt(v time.Time) *ActionSuccessMessageUpdateOne {
+func (_u *ActionResultUpdateOne) SetUpdatedAt(v time.Time) *ActionResultUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
 	return _u
 }
 
 // SetActionID sets the "action_id" field.
-func (_u *ActionSuccessMessageUpdateOne) SetActionID(v uuid.UUID) *ActionSuccessMessageUpdateOne {
+func (_u *ActionResultUpdateOne) SetActionID(v uuid.UUID) *ActionResultUpdateOne {
 	_u.mutation.SetActionID(v)
 	return _u
 }
 
 // SetNillableActionID sets the "action_id" field if the given value is not nil.
-func (_u *ActionSuccessMessageUpdateOne) SetNillableActionID(v *uuid.UUID) *ActionSuccessMessageUpdateOne {
+func (_u *ActionResultUpdateOne) SetNillableActionID(v *uuid.UUID) *ActionResultUpdateOne {
 	if v != nil {
 		_u.SetActionID(*v)
 	}
@@ -253,67 +301,101 @@ func (_u *ActionSuccessMessageUpdateOne) SetNillableActionID(v *uuid.UUID) *Acti
 }
 
 // SetChannelMessageID sets the "channel_message_id" field.
-func (_u *ActionSuccessMessageUpdateOne) SetChannelMessageID(v uuid.UUID) *ActionSuccessMessageUpdateOne {
+func (_u *ActionResultUpdateOne) SetChannelMessageID(v uuid.UUID) *ActionResultUpdateOne {
 	_u.mutation.SetChannelMessageID(v)
 	return _u
 }
 
 // SetNillableChannelMessageID sets the "channel_message_id" field if the given value is not nil.
-func (_u *ActionSuccessMessageUpdateOne) SetNillableChannelMessageID(v *uuid.UUID) *ActionSuccessMessageUpdateOne {
+func (_u *ActionResultUpdateOne) SetNillableChannelMessageID(v *uuid.UUID) *ActionResultUpdateOne {
 	if v != nil {
 		_u.SetChannelMessageID(*v)
 	}
 	return _u
 }
 
+// SetStatus sets the "status" field.
+func (_u *ActionResultUpdateOne) SetStatus(v actionresult.Status) *ActionResultUpdateOne {
+	_u.mutation.SetStatus(v)
+	return _u
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_u *ActionResultUpdateOne) SetNillableStatus(v *actionresult.Status) *ActionResultUpdateOne {
+	if v != nil {
+		_u.SetStatus(*v)
+	}
+	return _u
+}
+
+// SetResultMessage sets the "result_message" field.
+func (_u *ActionResultUpdateOne) SetResultMessage(v string) *ActionResultUpdateOne {
+	_u.mutation.SetResultMessage(v)
+	return _u
+}
+
+// SetNillableResultMessage sets the "result_message" field if the given value is not nil.
+func (_u *ActionResultUpdateOne) SetNillableResultMessage(v *string) *ActionResultUpdateOne {
+	if v != nil {
+		_u.SetResultMessage(*v)
+	}
+	return _u
+}
+
+// ClearResultMessage clears the value of the "result_message" field.
+func (_u *ActionResultUpdateOne) ClearResultMessage() *ActionResultUpdateOne {
+	_u.mutation.ClearResultMessage()
+	return _u
+}
+
 // SetAction sets the "action" edge to the Action entity.
-func (_u *ActionSuccessMessageUpdateOne) SetAction(v *Action) *ActionSuccessMessageUpdateOne {
+func (_u *ActionResultUpdateOne) SetAction(v *Action) *ActionResultUpdateOne {
 	return _u.SetActionID(v.ID)
 }
 
 // SetChannelMessage sets the "channel_message" edge to the ChannelMessage entity.
-func (_u *ActionSuccessMessageUpdateOne) SetChannelMessage(v *ChannelMessage) *ActionSuccessMessageUpdateOne {
+func (_u *ActionResultUpdateOne) SetChannelMessage(v *ChannelMessage) *ActionResultUpdateOne {
 	return _u.SetChannelMessageID(v.ID)
 }
 
-// Mutation returns the ActionSuccessMessageMutation object of the builder.
-func (_u *ActionSuccessMessageUpdateOne) Mutation() *ActionSuccessMessageMutation {
+// Mutation returns the ActionResultMutation object of the builder.
+func (_u *ActionResultUpdateOne) Mutation() *ActionResultMutation {
 	return _u.mutation
 }
 
 // ClearAction clears the "action" edge to the Action entity.
-func (_u *ActionSuccessMessageUpdateOne) ClearAction() *ActionSuccessMessageUpdateOne {
+func (_u *ActionResultUpdateOne) ClearAction() *ActionResultUpdateOne {
 	_u.mutation.ClearAction()
 	return _u
 }
 
 // ClearChannelMessage clears the "channel_message" edge to the ChannelMessage entity.
-func (_u *ActionSuccessMessageUpdateOne) ClearChannelMessage() *ActionSuccessMessageUpdateOne {
+func (_u *ActionResultUpdateOne) ClearChannelMessage() *ActionResultUpdateOne {
 	_u.mutation.ClearChannelMessage()
 	return _u
 }
 
-// Where appends a list predicates to the ActionSuccessMessageUpdate builder.
-func (_u *ActionSuccessMessageUpdateOne) Where(ps ...predicate.ActionSuccessMessage) *ActionSuccessMessageUpdateOne {
+// Where appends a list predicates to the ActionResultUpdate builder.
+func (_u *ActionResultUpdateOne) Where(ps ...predicate.ActionResult) *ActionResultUpdateOne {
 	_u.mutation.Where(ps...)
 	return _u
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
-func (_u *ActionSuccessMessageUpdateOne) Select(field string, fields ...string) *ActionSuccessMessageUpdateOne {
+func (_u *ActionResultUpdateOne) Select(field string, fields ...string) *ActionResultUpdateOne {
 	_u.fields = append([]string{field}, fields...)
 	return _u
 }
 
-// Save executes the query and returns the updated ActionSuccessMessage entity.
-func (_u *ActionSuccessMessageUpdateOne) Save(ctx context.Context) (*ActionSuccessMessage, error) {
+// Save executes the query and returns the updated ActionResult entity.
+func (_u *ActionResultUpdateOne) Save(ctx context.Context) (*ActionResult, error) {
 	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
-func (_u *ActionSuccessMessageUpdateOne) SaveX(ctx context.Context) *ActionSuccessMessage {
+func (_u *ActionResultUpdateOne) SaveX(ctx context.Context) *ActionResult {
 	node, err := _u.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -322,55 +404,60 @@ func (_u *ActionSuccessMessageUpdateOne) SaveX(ctx context.Context) *ActionSucce
 }
 
 // Exec executes the query on the entity.
-func (_u *ActionSuccessMessageUpdateOne) Exec(ctx context.Context) error {
+func (_u *ActionResultUpdateOne) Exec(ctx context.Context) error {
 	_, err := _u.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_u *ActionSuccessMessageUpdateOne) ExecX(ctx context.Context) {
+func (_u *ActionResultUpdateOne) ExecX(ctx context.Context) {
 	if err := _u.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
 // defaults sets the default values of the builder before save.
-func (_u *ActionSuccessMessageUpdateOne) defaults() {
+func (_u *ActionResultUpdateOne) defaults() {
 	if _, ok := _u.mutation.UpdatedAt(); !ok {
-		v := actionsuccessmessage.UpdateDefaultUpdatedAt()
+		v := actionresult.UpdateDefaultUpdatedAt()
 		_u.mutation.SetUpdatedAt(v)
 	}
 }
 
 // check runs all checks and user-defined validators on the builder.
-func (_u *ActionSuccessMessageUpdateOne) check() error {
+func (_u *ActionResultUpdateOne) check() error {
+	if v, ok := _u.mutation.Status(); ok {
+		if err := actionresult.StatusValidator(v); err != nil {
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "ActionResult.status": %w`, err)}
+		}
+	}
 	if _u.mutation.ActionCleared() && len(_u.mutation.ActionIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "ActionSuccessMessage.action"`)
+		return errors.New(`ent: clearing a required unique edge "ActionResult.action"`)
 	}
 	if _u.mutation.ChannelMessageCleared() && len(_u.mutation.ChannelMessageIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "ActionSuccessMessage.channel_message"`)
+		return errors.New(`ent: clearing a required unique edge "ActionResult.channel_message"`)
 	}
 	return nil
 }
 
-func (_u *ActionSuccessMessageUpdateOne) sqlSave(ctx context.Context) (_node *ActionSuccessMessage, err error) {
+func (_u *ActionResultUpdateOne) sqlSave(ctx context.Context) (_node *ActionResult, err error) {
 	if err := _u.check(); err != nil {
 		return _node, err
 	}
-	_spec := sqlgraph.NewUpdateSpec(actionsuccessmessage.Table, actionsuccessmessage.Columns, sqlgraph.NewFieldSpec(actionsuccessmessage.FieldID, field.TypeUUID))
+	_spec := sqlgraph.NewUpdateSpec(actionresult.Table, actionresult.Columns, sqlgraph.NewFieldSpec(actionresult.FieldID, field.TypeUUID))
 	id, ok := _u.mutation.ID()
 	if !ok {
-		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "ActionSuccessMessage.id" for update`)}
+		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "ActionResult.id" for update`)}
 	}
 	_spec.Node.ID.Value = id
 	if fields := _u.fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, actionsuccessmessage.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, actionresult.FieldID)
 		for _, f := range fields {
-			if !actionsuccessmessage.ValidColumn(f) {
+			if !actionresult.ValidColumn(f) {
 				return nil, &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 			}
-			if f != actionsuccessmessage.FieldID {
+			if f != actionresult.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, f)
 			}
 		}
@@ -383,14 +470,23 @@ func (_u *ActionSuccessMessageUpdateOne) sqlSave(ctx context.Context) (_node *Ac
 		}
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
-		_spec.SetField(actionsuccessmessage.FieldUpdatedAt, field.TypeTime, value)
+		_spec.SetField(actionresult.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.Status(); ok {
+		_spec.SetField(actionresult.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.ResultMessage(); ok {
+		_spec.SetField(actionresult.FieldResultMessage, field.TypeString, value)
+	}
+	if _u.mutation.ResultMessageCleared() {
+		_spec.ClearField(actionresult.FieldResultMessage, field.TypeString)
 	}
 	if _u.mutation.ActionCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   actionsuccessmessage.ActionTable,
-			Columns: []string{actionsuccessmessage.ActionColumn},
+			Table:   actionresult.ActionTable,
+			Columns: []string{actionresult.ActionColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(action.FieldID, field.TypeUUID),
@@ -402,8 +498,8 @@ func (_u *ActionSuccessMessageUpdateOne) sqlSave(ctx context.Context) (_node *Ac
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   actionsuccessmessage.ActionTable,
-			Columns: []string{actionsuccessmessage.ActionColumn},
+			Table:   actionresult.ActionTable,
+			Columns: []string{actionresult.ActionColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(action.FieldID, field.TypeUUID),
@@ -418,8 +514,8 @@ func (_u *ActionSuccessMessageUpdateOne) sqlSave(ctx context.Context) (_node *Ac
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   actionsuccessmessage.ChannelMessageTable,
-			Columns: []string{actionsuccessmessage.ChannelMessageColumn},
+			Table:   actionresult.ChannelMessageTable,
+			Columns: []string{actionresult.ChannelMessageColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
@@ -431,8 +527,8 @@ func (_u *ActionSuccessMessageUpdateOne) sqlSave(ctx context.Context) (_node *Ac
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   actionsuccessmessage.ChannelMessageTable,
-			Columns: []string{actionsuccessmessage.ChannelMessageColumn},
+			Table:   actionresult.ChannelMessageTable,
+			Columns: []string{actionresult.ChannelMessageColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
@@ -443,12 +539,12 @@ func (_u *ActionSuccessMessageUpdateOne) sqlSave(ctx context.Context) (_node *Ac
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	_node = &ActionSuccessMessage{config: _u.config}
+	_node = &ActionResult{config: _u.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
 	if err = sqlgraph.UpdateNode(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
-			err = &NotFoundError{actionsuccessmessage.Label}
+			err = &NotFoundError{actionresult.Label}
 		} else if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}

@@ -4,8 +4,8 @@ package ent
 
 import (
 	"assistant-api/internal/ent/action"
+	"assistant-api/internal/ent/actionresult"
 	"assistant-api/internal/ent/actionroute"
-	"assistant-api/internal/ent/actionsuccessmessage"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/channelservicemember"
@@ -40,6 +40,27 @@ func init() {
 	actionDescID := actionMixinFields0[0].Descriptor()
 	// action.DefaultID holds the default value on creation for the id field.
 	action.DefaultID = actionDescID.Default.(func() uuid.UUID)
+	actionresultMixin := schema.ActionResult{}.Mixin()
+	actionresultMixinFields0 := actionresultMixin[0].Fields()
+	_ = actionresultMixinFields0
+	actionresultMixinFields1 := actionresultMixin[1].Fields()
+	_ = actionresultMixinFields1
+	actionresultFields := schema.ActionResult{}.Fields()
+	_ = actionresultFields
+	// actionresultDescCreatedAt is the schema descriptor for created_at field.
+	actionresultDescCreatedAt := actionresultMixinFields1[0].Descriptor()
+	// actionresult.DefaultCreatedAt holds the default value on creation for the created_at field.
+	actionresult.DefaultCreatedAt = actionresultDescCreatedAt.Default.(func() time.Time)
+	// actionresultDescUpdatedAt is the schema descriptor for updated_at field.
+	actionresultDescUpdatedAt := actionresultMixinFields1[1].Descriptor()
+	// actionresult.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	actionresult.DefaultUpdatedAt = actionresultDescUpdatedAt.Default.(func() time.Time)
+	// actionresult.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	actionresult.UpdateDefaultUpdatedAt = actionresultDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// actionresultDescID is the schema descriptor for id field.
+	actionresultDescID := actionresultMixinFields0[0].Descriptor()
+	// actionresult.DefaultID holds the default value on creation for the id field.
+	actionresult.DefaultID = actionresultDescID.Default.(func() uuid.UUID)
 	actionrouteMixin := schema.ActionRoute{}.Mixin()
 	actionrouteMixinFields0 := actionrouteMixin[0].Fields()
 	_ = actionrouteMixinFields0
@@ -57,27 +78,6 @@ func init() {
 	actionrouteDescID := actionrouteMixinFields0[0].Descriptor()
 	// actionroute.DefaultID holds the default value on creation for the id field.
 	actionroute.DefaultID = actionrouteDescID.Default.(func() uuid.UUID)
-	actionsuccessmessageMixin := schema.ActionSuccessMessage{}.Mixin()
-	actionsuccessmessageMixinFields0 := actionsuccessmessageMixin[0].Fields()
-	_ = actionsuccessmessageMixinFields0
-	actionsuccessmessageMixinFields1 := actionsuccessmessageMixin[1].Fields()
-	_ = actionsuccessmessageMixinFields1
-	actionsuccessmessageFields := schema.ActionSuccessMessage{}.Fields()
-	_ = actionsuccessmessageFields
-	// actionsuccessmessageDescCreatedAt is the schema descriptor for created_at field.
-	actionsuccessmessageDescCreatedAt := actionsuccessmessageMixinFields1[0].Descriptor()
-	// actionsuccessmessage.DefaultCreatedAt holds the default value on creation for the created_at field.
-	actionsuccessmessage.DefaultCreatedAt = actionsuccessmessageDescCreatedAt.Default.(func() time.Time)
-	// actionsuccessmessageDescUpdatedAt is the schema descriptor for updated_at field.
-	actionsuccessmessageDescUpdatedAt := actionsuccessmessageMixinFields1[1].Descriptor()
-	// actionsuccessmessage.DefaultUpdatedAt holds the default value on creation for the updated_at field.
-	actionsuccessmessage.DefaultUpdatedAt = actionsuccessmessageDescUpdatedAt.Default.(func() time.Time)
-	// actionsuccessmessage.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
-	actionsuccessmessage.UpdateDefaultUpdatedAt = actionsuccessmessageDescUpdatedAt.UpdateDefault.(func() time.Time)
-	// actionsuccessmessageDescID is the schema descriptor for id field.
-	actionsuccessmessageDescID := actionsuccessmessageMixinFields0[0].Descriptor()
-	// actionsuccessmessage.DefaultID holds the default value on creation for the id field.
-	actionsuccessmessage.DefaultID = actionsuccessmessageDescID.Default.(func() uuid.UUID)
 	channelMixin := schema.Channel{}.Mixin()
 	channelMixinFields0 := channelMixin[0].Fields()
 	_ = channelMixinFields0

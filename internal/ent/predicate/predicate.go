@@ -9,11 +9,11 @@ import (
 // Action is the predicate function for action builders.
 type Action func(*sql.Selector)
 
+// ActionResult is the predicate function for actionresult builders.
+type ActionResult func(*sql.Selector)
+
 // ActionRoute is the predicate function for actionroute builders.
 type ActionRoute func(*sql.Selector)
-
-// ActionSuccessMessage is the predicate function for actionsuccessmessage builders.
-type ActionSuccessMessage func(*sql.Selector)
 
 // Channel is the predicate function for channel builders.
 type Channel func(*sql.Selector)

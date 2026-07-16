@@ -28,26 +28,26 @@ func (_m *Action) Routes(ctx context.Context) (result []*ActionRoute, err error)
 	return result, err
 }
 
+func (_m *ActionResult) Action(ctx context.Context) (*Action, error) {
+	result, err := _m.Edges.ActionOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryAction().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *ActionResult) ChannelMessage(ctx context.Context) (*ChannelMessage, error) {
+	result, err := _m.Edges.ChannelMessageOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryChannelMessage().Only(ctx)
+	}
+	return result, err
+}
+
 func (_m *ActionRoute) Action(ctx context.Context) (*Action, error) {
 	result, err := _m.Edges.ActionOrErr()
 	if IsNotLoaded(err) {
 		result, err = _m.QueryAction().Only(ctx)
-	}
-	return result, err
-}
-
-func (_m *ActionSuccessMessage) Action(ctx context.Context) (*Action, error) {
-	result, err := _m.Edges.ActionOrErr()
-	if IsNotLoaded(err) {
-		result, err = _m.QueryAction().Only(ctx)
-	}
-	return result, err
-}
-
-func (_m *ActionSuccessMessage) ChannelMessage(ctx context.Context) (*ChannelMessage, error) {
-	result, err := _m.Edges.ChannelMessageOrErr()
-	if IsNotLoaded(err) {
-		result, err = _m.QueryChannelMessage().Only(ctx)
 	}
 	return result, err
 }

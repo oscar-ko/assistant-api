@@ -12,8 +12,8 @@ import (
 	"assistant-api/internal/ent/migrate"
 
 	"assistant-api/internal/ent/action"
+	"assistant-api/internal/ent/actionresult"
 	"assistant-api/internal/ent/actionroute"
-	"assistant-api/internal/ent/actionsuccessmessage"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/channelservicemember"
@@ -36,10 +36,10 @@ type Client struct {
 	Schema *migrate.Schema
 	// Action is the client for interacting with the Action builders.
 	Action *ActionClient
+	// ActionResult is the client for interacting with the ActionResult builders.
+	ActionResult *ActionResultClient
 	// ActionRoute is the client for interacting with the ActionRoute builders.
 	ActionRoute *ActionRouteClient
-	// ActionSuccessMessage is the client for interacting with the ActionSuccessMessage builders.
-	ActionSuccessMessage *ActionSuccessMessageClient
 	// Channel is the client for interacting with the Channel builders.
 	Channel *ChannelClient
 	// ChannelMessage is the client for interacting with the ChannelMessage builders.
@@ -66,8 +66,8 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.Action = NewActionClient(c.config)
+	c.ActionResult = NewActionResultClient(c.config)
 	c.ActionRoute = NewActionRouteClient(c.config)
-	c.ActionSuccessMessage = NewActionSuccessMessageClient(c.config)
 	c.Channel = NewChannelClient(c.config)
 	c.ChannelMessage = NewChannelMessageClient(c.config)
 	c.ChannelServiceMember = NewChannelServiceMemberClient(c.config)
@@ -168,8 +168,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ctx:                  ctx,
 		config:               cfg,
 		Action:               NewActionClient(cfg),
+		ActionResult:         NewActionResultClient(cfg),
 		ActionRoute:          NewActionRouteClient(cfg),
-		ActionSuccessMessage: NewActionSuccessMessageClient(cfg),
 		Channel:              NewChannelClient(cfg),
 		ChannelMessage:       NewChannelMessageClient(cfg),
 		ChannelServiceMember: NewChannelServiceMemberClient(cfg),
@@ -197,8 +197,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ctx:                  ctx,
 		config:               cfg,
 		Action:               NewActionClient(cfg),
+		ActionResult:         NewActionResultClient(cfg),
 		ActionRoute:          NewActionRouteClient(cfg),
-		ActionSuccessMessage: NewActionSuccessMessageClient(cfg),
 		Channel:              NewChannelClient(cfg),
 		ChannelMessage:       NewChannelMessageClient(cfg),
 		ChannelServiceMember: NewChannelServiceMemberClient(cfg),
@@ -235,7 +235,7 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.Action, c.ActionRoute, c.ActionSuccessMessage, c.Channel, c.ChannelMessage,
+		c.Action, c.ActionResult, c.ActionRoute, c.Channel, c.ChannelMessage,
 		c.ChannelServiceMember, c.Line, c.Skill, c.TranslationLocale, c.User,
 	} {
 		n.Use(hooks...)
@@ -246,7 +246,7 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.Action, c.ActionRoute, c.ActionSuccessMessage, c.Channel, c.ChannelMessage,
+		c.Action, c.ActionResult, c.ActionRoute, c.Channel, c.ChannelMessage,
 		c.ChannelServiceMember, c.Line, c.Skill, c.TranslationLocale, c.User,
 	} {
 		n.Intercept(interceptors...)
@@ -258,10 +258,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *ActionMutation:
 		return c.Action.mutate(ctx, m)
+	case *ActionResultMutation:
+		return c.ActionResult.mutate(ctx, m)
 	case *ActionRouteMutation:
 		return c.ActionRoute.mutate(ctx, m)
-	case *ActionSuccessMessageMutation:
-		return c.ActionSuccessMessage.mutate(ctx, m)
 	case *ChannelMutation:
 		return c.Channel.mutate(ctx, m)
 	case *ChannelMessageMutation:
@@ -446,6 +446,171 @@ func (c *ActionClient) mutate(ctx context.Context, m *ActionMutation) (Value, er
 	}
 }
 
+// ActionResultClient is a client for the ActionResult schema.
+type ActionResultClient struct {
+	config
+}
+
+// NewActionResultClient returns a client for the ActionResult from the given config.
+func NewActionResultClient(c config) *ActionResultClient {
+	return &ActionResultClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `actionresult.Hooks(f(g(h())))`.
+func (c *ActionResultClient) Use(hooks ...Hook) {
+	c.hooks.ActionResult = append(c.hooks.ActionResult, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `actionresult.Intercept(f(g(h())))`.
+func (c *ActionResultClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ActionResult = append(c.inters.ActionResult, interceptors...)
+}
+
+// Create returns a builder for creating a ActionResult entity.
+func (c *ActionResultClient) Create() *ActionResultCreate {
+	mutation := newActionResultMutation(c.config, OpCreate)
+	return &ActionResultCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ActionResult entities.
+func (c *ActionResultClient) CreateBulk(builders ...*ActionResultCreate) *ActionResultCreateBulk {
+	return &ActionResultCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ActionResultClient) MapCreateBulk(slice any, setFunc func(*ActionResultCreate, int)) *ActionResultCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ActionResultCreateBulk{err: fmt.Errorf("calling to ActionResultClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ActionResultCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ActionResultCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ActionResult.
+func (c *ActionResultClient) Update() *ActionResultUpdate {
+	mutation := newActionResultMutation(c.config, OpUpdate)
+	return &ActionResultUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ActionResultClient) UpdateOne(_m *ActionResult) *ActionResultUpdateOne {
+	mutation := newActionResultMutation(c.config, OpUpdateOne, withActionResult(_m))
+	return &ActionResultUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ActionResultClient) UpdateOneID(id uuid.UUID) *ActionResultUpdateOne {
+	mutation := newActionResultMutation(c.config, OpUpdateOne, withActionResultID(id))
+	return &ActionResultUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ActionResult.
+func (c *ActionResultClient) Delete() *ActionResultDelete {
+	mutation := newActionResultMutation(c.config, OpDelete)
+	return &ActionResultDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ActionResultClient) DeleteOne(_m *ActionResult) *ActionResultDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ActionResultClient) DeleteOneID(id uuid.UUID) *ActionResultDeleteOne {
+	builder := c.Delete().Where(actionresult.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ActionResultDeleteOne{builder}
+}
+
+// Query returns a query builder for ActionResult.
+func (c *ActionResultClient) Query() *ActionResultQuery {
+	return &ActionResultQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeActionResult},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ActionResult entity by its id.
+func (c *ActionResultClient) Get(ctx context.Context, id uuid.UUID) (*ActionResult, error) {
+	return c.Query().Where(actionresult.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ActionResultClient) GetX(ctx context.Context, id uuid.UUID) *ActionResult {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryAction queries the action edge of a ActionResult.
+func (c *ActionResultClient) QueryAction(_m *ActionResult) *ActionQuery {
+	query := (&ActionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(actionresult.Table, actionresult.FieldID, id),
+			sqlgraph.To(action.Table, action.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, actionresult.ActionTable, actionresult.ActionColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryChannelMessage queries the channel_message edge of a ActionResult.
+func (c *ActionResultClient) QueryChannelMessage(_m *ActionResult) *ChannelMessageQuery {
+	query := (&ChannelMessageClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(actionresult.Table, actionresult.FieldID, id),
+			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, actionresult.ChannelMessageTable, actionresult.ChannelMessageColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ActionResultClient) Hooks() []Hook {
+	return c.hooks.ActionResult
+}
+
+// Interceptors returns the client interceptors.
+func (c *ActionResultClient) Interceptors() []Interceptor {
+	return c.inters.ActionResult
+}
+
+func (c *ActionResultClient) mutate(ctx context.Context, m *ActionResultMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ActionResultCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ActionResultUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ActionResultUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ActionResultDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ActionResult mutation op: %q", m.Op())
+	}
+}
+
 // ActionRouteClient is a client for the ActionRoute schema.
 type ActionRouteClient struct {
 	config
@@ -592,171 +757,6 @@ func (c *ActionRouteClient) mutate(ctx context.Context, m *ActionRouteMutation) 
 		return (&ActionRouteDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown ActionRoute mutation op: %q", m.Op())
-	}
-}
-
-// ActionSuccessMessageClient is a client for the ActionSuccessMessage schema.
-type ActionSuccessMessageClient struct {
-	config
-}
-
-// NewActionSuccessMessageClient returns a client for the ActionSuccessMessage from the given config.
-func NewActionSuccessMessageClient(c config) *ActionSuccessMessageClient {
-	return &ActionSuccessMessageClient{config: c}
-}
-
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `actionsuccessmessage.Hooks(f(g(h())))`.
-func (c *ActionSuccessMessageClient) Use(hooks ...Hook) {
-	c.hooks.ActionSuccessMessage = append(c.hooks.ActionSuccessMessage, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `actionsuccessmessage.Intercept(f(g(h())))`.
-func (c *ActionSuccessMessageClient) Intercept(interceptors ...Interceptor) {
-	c.inters.ActionSuccessMessage = append(c.inters.ActionSuccessMessage, interceptors...)
-}
-
-// Create returns a builder for creating a ActionSuccessMessage entity.
-func (c *ActionSuccessMessageClient) Create() *ActionSuccessMessageCreate {
-	mutation := newActionSuccessMessageMutation(c.config, OpCreate)
-	return &ActionSuccessMessageCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// CreateBulk returns a builder for creating a bulk of ActionSuccessMessage entities.
-func (c *ActionSuccessMessageClient) CreateBulk(builders ...*ActionSuccessMessageCreate) *ActionSuccessMessageCreateBulk {
-	return &ActionSuccessMessageCreateBulk{config: c.config, builders: builders}
-}
-
-// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
-// a builder and applies setFunc on it.
-func (c *ActionSuccessMessageClient) MapCreateBulk(slice any, setFunc func(*ActionSuccessMessageCreate, int)) *ActionSuccessMessageCreateBulk {
-	rv := reflect.ValueOf(slice)
-	if rv.Kind() != reflect.Slice {
-		return &ActionSuccessMessageCreateBulk{err: fmt.Errorf("calling to ActionSuccessMessageClient.MapCreateBulk with wrong type %T, need slice", slice)}
-	}
-	builders := make([]*ActionSuccessMessageCreate, rv.Len())
-	for i := 0; i < rv.Len(); i++ {
-		builders[i] = c.Create()
-		setFunc(builders[i], i)
-	}
-	return &ActionSuccessMessageCreateBulk{config: c.config, builders: builders}
-}
-
-// Update returns an update builder for ActionSuccessMessage.
-func (c *ActionSuccessMessageClient) Update() *ActionSuccessMessageUpdate {
-	mutation := newActionSuccessMessageMutation(c.config, OpUpdate)
-	return &ActionSuccessMessageUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOne returns an update builder for the given entity.
-func (c *ActionSuccessMessageClient) UpdateOne(_m *ActionSuccessMessage) *ActionSuccessMessageUpdateOne {
-	mutation := newActionSuccessMessageMutation(c.config, OpUpdateOne, withActionSuccessMessage(_m))
-	return &ActionSuccessMessageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOneID returns an update builder for the given id.
-func (c *ActionSuccessMessageClient) UpdateOneID(id uuid.UUID) *ActionSuccessMessageUpdateOne {
-	mutation := newActionSuccessMessageMutation(c.config, OpUpdateOne, withActionSuccessMessageID(id))
-	return &ActionSuccessMessageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// Delete returns a delete builder for ActionSuccessMessage.
-func (c *ActionSuccessMessageClient) Delete() *ActionSuccessMessageDelete {
-	mutation := newActionSuccessMessageMutation(c.config, OpDelete)
-	return &ActionSuccessMessageDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// DeleteOne returns a builder for deleting the given entity.
-func (c *ActionSuccessMessageClient) DeleteOne(_m *ActionSuccessMessage) *ActionSuccessMessageDeleteOne {
-	return c.DeleteOneID(_m.ID)
-}
-
-// DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *ActionSuccessMessageClient) DeleteOneID(id uuid.UUID) *ActionSuccessMessageDeleteOne {
-	builder := c.Delete().Where(actionsuccessmessage.ID(id))
-	builder.mutation.id = &id
-	builder.mutation.op = OpDeleteOne
-	return &ActionSuccessMessageDeleteOne{builder}
-}
-
-// Query returns a query builder for ActionSuccessMessage.
-func (c *ActionSuccessMessageClient) Query() *ActionSuccessMessageQuery {
-	return &ActionSuccessMessageQuery{
-		config: c.config,
-		ctx:    &QueryContext{Type: TypeActionSuccessMessage},
-		inters: c.Interceptors(),
-	}
-}
-
-// Get returns a ActionSuccessMessage entity by its id.
-func (c *ActionSuccessMessageClient) Get(ctx context.Context, id uuid.UUID) (*ActionSuccessMessage, error) {
-	return c.Query().Where(actionsuccessmessage.ID(id)).Only(ctx)
-}
-
-// GetX is like Get, but panics if an error occurs.
-func (c *ActionSuccessMessageClient) GetX(ctx context.Context, id uuid.UUID) *ActionSuccessMessage {
-	obj, err := c.Get(ctx, id)
-	if err != nil {
-		panic(err)
-	}
-	return obj
-}
-
-// QueryAction queries the action edge of a ActionSuccessMessage.
-func (c *ActionSuccessMessageClient) QueryAction(_m *ActionSuccessMessage) *ActionQuery {
-	query := (&ActionClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(actionsuccessmessage.Table, actionsuccessmessage.FieldID, id),
-			sqlgraph.To(action.Table, action.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, actionsuccessmessage.ActionTable, actionsuccessmessage.ActionColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// QueryChannelMessage queries the channel_message edge of a ActionSuccessMessage.
-func (c *ActionSuccessMessageClient) QueryChannelMessage(_m *ActionSuccessMessage) *ChannelMessageQuery {
-	query := (&ChannelMessageClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(actionsuccessmessage.Table, actionsuccessmessage.FieldID, id),
-			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, actionsuccessmessage.ChannelMessageTable, actionsuccessmessage.ChannelMessageColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// Hooks returns the client hooks.
-func (c *ActionSuccessMessageClient) Hooks() []Hook {
-	return c.hooks.ActionSuccessMessage
-}
-
-// Interceptors returns the client interceptors.
-func (c *ActionSuccessMessageClient) Interceptors() []Interceptor {
-	return c.inters.ActionSuccessMessage
-}
-
-func (c *ActionSuccessMessageClient) mutate(ctx context.Context, m *ActionSuccessMessageMutation) (Value, error) {
-	switch m.Op() {
-	case OpCreate:
-		return (&ActionSuccessMessageCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdate:
-		return (&ActionSuccessMessageUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdateOne:
-		return (&ActionSuccessMessageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpDelete, OpDeleteOne:
-		return (&ActionSuccessMessageDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
-	default:
-		return nil, fmt.Errorf("ent: unknown ActionSuccessMessage mutation op: %q", m.Op())
 	}
 }
 
@@ -1998,11 +1998,11 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Action, ActionRoute, ActionSuccessMessage, Channel, ChannelMessage,
+		Action, ActionResult, ActionRoute, Channel, ChannelMessage,
 		ChannelServiceMember, Line, Skill, TranslationLocale, User []ent.Hook
 	}
 	inters struct {
-		Action, ActionRoute, ActionSuccessMessage, Channel, ChannelMessage,
+		Action, ActionResult, ActionRoute, Channel, ChannelMessage,
 		ChannelServiceMember, Line, Skill, TranslationLocale, User []ent.Interceptor
 	}
 )

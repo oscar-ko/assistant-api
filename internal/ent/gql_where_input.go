@@ -4,8 +4,8 @@ package ent
 
 import (
 	"assistant-api/internal/ent/action"
+	"assistant-api/internal/ent/actionresult"
 	"assistant-api/internal/ent/actionroute"
-	"assistant-api/internal/ent/actionsuccessmessage"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/channelservicemember"
@@ -458,6 +458,358 @@ func (i *ActionWhereInput) P() (predicate.Action, error) {
 	}
 }
 
+// ActionResultWhereInput represents a where input for filtering ActionResult queries.
+type ActionResultWhereInput struct {
+	Predicates []predicate.ActionResult  `json:"-"`
+	Not        *ActionResultWhereInput   `json:"not,omitempty"`
+	Or         []*ActionResultWhereInput `json:"or,omitempty"`
+	And        []*ActionResultWhereInput `json:"and,omitempty"`
+
+	// "id" field predicates.
+	ID      *uuid.UUID  `json:"id,omitempty"`
+	IDNEQ   *uuid.UUID  `json:"idNEQ,omitempty"`
+	IDIn    []uuid.UUID `json:"idIn,omitempty"`
+	IDNotIn []uuid.UUID `json:"idNotIn,omitempty"`
+	IDGT    *uuid.UUID  `json:"idGT,omitempty"`
+	IDGTE   *uuid.UUID  `json:"idGTE,omitempty"`
+	IDLT    *uuid.UUID  `json:"idLT,omitempty"`
+	IDLTE   *uuid.UUID  `json:"idLTE,omitempty"`
+
+	// "created_at" field predicates.
+	CreatedAt      *time.Time  `json:"createdAt,omitempty"`
+	CreatedAtNEQ   *time.Time  `json:"createdAtNEQ,omitempty"`
+	CreatedAtIn    []time.Time `json:"createdAtIn,omitempty"`
+	CreatedAtNotIn []time.Time `json:"createdAtNotIn,omitempty"`
+	CreatedAtGT    *time.Time  `json:"createdAtGT,omitempty"`
+	CreatedAtGTE   *time.Time  `json:"createdAtGTE,omitempty"`
+	CreatedAtLT    *time.Time  `json:"createdAtLT,omitempty"`
+	CreatedAtLTE   *time.Time  `json:"createdAtLTE,omitempty"`
+
+	// "updated_at" field predicates.
+	UpdatedAt      *time.Time  `json:"updatedAt,omitempty"`
+	UpdatedAtNEQ   *time.Time  `json:"updatedAtNEQ,omitempty"`
+	UpdatedAtIn    []time.Time `json:"updatedAtIn,omitempty"`
+	UpdatedAtNotIn []time.Time `json:"updatedAtNotIn,omitempty"`
+	UpdatedAtGT    *time.Time  `json:"updatedAtGT,omitempty"`
+	UpdatedAtGTE   *time.Time  `json:"updatedAtGTE,omitempty"`
+	UpdatedAtLT    *time.Time  `json:"updatedAtLT,omitempty"`
+	UpdatedAtLTE   *time.Time  `json:"updatedAtLTE,omitempty"`
+
+	// "action_id" field predicates.
+	ActionID      *uuid.UUID  `json:"actionID,omitempty"`
+	ActionIDNEQ   *uuid.UUID  `json:"actionIDNEQ,omitempty"`
+	ActionIDIn    []uuid.UUID `json:"actionIDIn,omitempty"`
+	ActionIDNotIn []uuid.UUID `json:"actionIDNotIn,omitempty"`
+
+	// "channel_message_id" field predicates.
+	ChannelMessageID      *uuid.UUID  `json:"channelMessageID,omitempty"`
+	ChannelMessageIDNEQ   *uuid.UUID  `json:"channelMessageIDNEQ,omitempty"`
+	ChannelMessageIDIn    []uuid.UUID `json:"channelMessageIDIn,omitempty"`
+	ChannelMessageIDNotIn []uuid.UUID `json:"channelMessageIDNotIn,omitempty"`
+
+	// "status" field predicates.
+	Status      *actionresult.Status  `json:"status,omitempty"`
+	StatusNEQ   *actionresult.Status  `json:"statusNEQ,omitempty"`
+	StatusIn    []actionresult.Status `json:"statusIn,omitempty"`
+	StatusNotIn []actionresult.Status `json:"statusNotIn,omitempty"`
+
+	// "result_message" field predicates.
+	ResultMessage             *string  `json:"resultMessage,omitempty"`
+	ResultMessageNEQ          *string  `json:"resultMessageNEQ,omitempty"`
+	ResultMessageIn           []string `json:"resultMessageIn,omitempty"`
+	ResultMessageNotIn        []string `json:"resultMessageNotIn,omitempty"`
+	ResultMessageGT           *string  `json:"resultMessageGT,omitempty"`
+	ResultMessageGTE          *string  `json:"resultMessageGTE,omitempty"`
+	ResultMessageLT           *string  `json:"resultMessageLT,omitempty"`
+	ResultMessageLTE          *string  `json:"resultMessageLTE,omitempty"`
+	ResultMessageContains     *string  `json:"resultMessageContains,omitempty"`
+	ResultMessageHasPrefix    *string  `json:"resultMessageHasPrefix,omitempty"`
+	ResultMessageHasSuffix    *string  `json:"resultMessageHasSuffix,omitempty"`
+	ResultMessageIsNil        bool     `json:"resultMessageIsNil,omitempty"`
+	ResultMessageNotNil       bool     `json:"resultMessageNotNil,omitempty"`
+	ResultMessageEqualFold    *string  `json:"resultMessageEqualFold,omitempty"`
+	ResultMessageContainsFold *string  `json:"resultMessageContainsFold,omitempty"`
+
+	// "action" edge predicates.
+	HasAction     *bool               `json:"hasAction,omitempty"`
+	HasActionWith []*ActionWhereInput `json:"hasActionWith,omitempty"`
+
+	// "channel_message" edge predicates.
+	HasChannelMessage     *bool                       `json:"hasChannelMessage,omitempty"`
+	HasChannelMessageWith []*ChannelMessageWhereInput `json:"hasChannelMessageWith,omitempty"`
+}
+
+// AddPredicates adds custom predicates to the where input to be used during the filtering phase.
+func (i *ActionResultWhereInput) AddPredicates(predicates ...predicate.ActionResult) {
+	i.Predicates = append(i.Predicates, predicates...)
+}
+
+// Filter applies the ActionResultWhereInput filter on the ActionResultQuery builder.
+func (i *ActionResultWhereInput) Filter(q *ActionResultQuery) (*ActionResultQuery, error) {
+	if i == nil {
+		return q, nil
+	}
+	p, err := i.P()
+	if err != nil {
+		if err == ErrEmptyActionResultWhereInput {
+			return q, nil
+		}
+		return nil, err
+	}
+	return q.Where(p), nil
+}
+
+// ErrEmptyActionResultWhereInput is returned in case the ActionResultWhereInput is empty.
+var ErrEmptyActionResultWhereInput = errors.New("ent: empty predicate ActionResultWhereInput")
+
+// P returns a predicate for filtering actionresults.
+// An error is returned if the input is empty or invalid.
+func (i *ActionResultWhereInput) P() (predicate.ActionResult, error) {
+	var predicates []predicate.ActionResult
+	if i.Not != nil {
+		p, err := i.Not.P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'not'", err)
+		}
+		predicates = append(predicates, actionresult.Not(p))
+	}
+	switch n := len(i.Or); {
+	case n == 1:
+		p, err := i.Or[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'or'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		or := make([]predicate.ActionResult, 0, n)
+		for _, w := range i.Or {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'or'", err)
+			}
+			or = append(or, p)
+		}
+		predicates = append(predicates, actionresult.Or(or...))
+	}
+	switch n := len(i.And); {
+	case n == 1:
+		p, err := i.And[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'and'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		and := make([]predicate.ActionResult, 0, n)
+		for _, w := range i.And {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'and'", err)
+			}
+			and = append(and, p)
+		}
+		predicates = append(predicates, actionresult.And(and...))
+	}
+	predicates = append(predicates, i.Predicates...)
+	if i.ID != nil {
+		predicates = append(predicates, actionresult.IDEQ(*i.ID))
+	}
+	if i.IDNEQ != nil {
+		predicates = append(predicates, actionresult.IDNEQ(*i.IDNEQ))
+	}
+	if len(i.IDIn) > 0 {
+		predicates = append(predicates, actionresult.IDIn(i.IDIn...))
+	}
+	if len(i.IDNotIn) > 0 {
+		predicates = append(predicates, actionresult.IDNotIn(i.IDNotIn...))
+	}
+	if i.IDGT != nil {
+		predicates = append(predicates, actionresult.IDGT(*i.IDGT))
+	}
+	if i.IDGTE != nil {
+		predicates = append(predicates, actionresult.IDGTE(*i.IDGTE))
+	}
+	if i.IDLT != nil {
+		predicates = append(predicates, actionresult.IDLT(*i.IDLT))
+	}
+	if i.IDLTE != nil {
+		predicates = append(predicates, actionresult.IDLTE(*i.IDLTE))
+	}
+	if i.CreatedAt != nil {
+		predicates = append(predicates, actionresult.CreatedAtEQ(*i.CreatedAt))
+	}
+	if i.CreatedAtNEQ != nil {
+		predicates = append(predicates, actionresult.CreatedAtNEQ(*i.CreatedAtNEQ))
+	}
+	if len(i.CreatedAtIn) > 0 {
+		predicates = append(predicates, actionresult.CreatedAtIn(i.CreatedAtIn...))
+	}
+	if len(i.CreatedAtNotIn) > 0 {
+		predicates = append(predicates, actionresult.CreatedAtNotIn(i.CreatedAtNotIn...))
+	}
+	if i.CreatedAtGT != nil {
+		predicates = append(predicates, actionresult.CreatedAtGT(*i.CreatedAtGT))
+	}
+	if i.CreatedAtGTE != nil {
+		predicates = append(predicates, actionresult.CreatedAtGTE(*i.CreatedAtGTE))
+	}
+	if i.CreatedAtLT != nil {
+		predicates = append(predicates, actionresult.CreatedAtLT(*i.CreatedAtLT))
+	}
+	if i.CreatedAtLTE != nil {
+		predicates = append(predicates, actionresult.CreatedAtLTE(*i.CreatedAtLTE))
+	}
+	if i.UpdatedAt != nil {
+		predicates = append(predicates, actionresult.UpdatedAtEQ(*i.UpdatedAt))
+	}
+	if i.UpdatedAtNEQ != nil {
+		predicates = append(predicates, actionresult.UpdatedAtNEQ(*i.UpdatedAtNEQ))
+	}
+	if len(i.UpdatedAtIn) > 0 {
+		predicates = append(predicates, actionresult.UpdatedAtIn(i.UpdatedAtIn...))
+	}
+	if len(i.UpdatedAtNotIn) > 0 {
+		predicates = append(predicates, actionresult.UpdatedAtNotIn(i.UpdatedAtNotIn...))
+	}
+	if i.UpdatedAtGT != nil {
+		predicates = append(predicates, actionresult.UpdatedAtGT(*i.UpdatedAtGT))
+	}
+	if i.UpdatedAtGTE != nil {
+		predicates = append(predicates, actionresult.UpdatedAtGTE(*i.UpdatedAtGTE))
+	}
+	if i.UpdatedAtLT != nil {
+		predicates = append(predicates, actionresult.UpdatedAtLT(*i.UpdatedAtLT))
+	}
+	if i.UpdatedAtLTE != nil {
+		predicates = append(predicates, actionresult.UpdatedAtLTE(*i.UpdatedAtLTE))
+	}
+	if i.ActionID != nil {
+		predicates = append(predicates, actionresult.ActionIDEQ(*i.ActionID))
+	}
+	if i.ActionIDNEQ != nil {
+		predicates = append(predicates, actionresult.ActionIDNEQ(*i.ActionIDNEQ))
+	}
+	if len(i.ActionIDIn) > 0 {
+		predicates = append(predicates, actionresult.ActionIDIn(i.ActionIDIn...))
+	}
+	if len(i.ActionIDNotIn) > 0 {
+		predicates = append(predicates, actionresult.ActionIDNotIn(i.ActionIDNotIn...))
+	}
+	if i.ChannelMessageID != nil {
+		predicates = append(predicates, actionresult.ChannelMessageIDEQ(*i.ChannelMessageID))
+	}
+	if i.ChannelMessageIDNEQ != nil {
+		predicates = append(predicates, actionresult.ChannelMessageIDNEQ(*i.ChannelMessageIDNEQ))
+	}
+	if len(i.ChannelMessageIDIn) > 0 {
+		predicates = append(predicates, actionresult.ChannelMessageIDIn(i.ChannelMessageIDIn...))
+	}
+	if len(i.ChannelMessageIDNotIn) > 0 {
+		predicates = append(predicates, actionresult.ChannelMessageIDNotIn(i.ChannelMessageIDNotIn...))
+	}
+	if i.Status != nil {
+		predicates = append(predicates, actionresult.StatusEQ(*i.Status))
+	}
+	if i.StatusNEQ != nil {
+		predicates = append(predicates, actionresult.StatusNEQ(*i.StatusNEQ))
+	}
+	if len(i.StatusIn) > 0 {
+		predicates = append(predicates, actionresult.StatusIn(i.StatusIn...))
+	}
+	if len(i.StatusNotIn) > 0 {
+		predicates = append(predicates, actionresult.StatusNotIn(i.StatusNotIn...))
+	}
+	if i.ResultMessage != nil {
+		predicates = append(predicates, actionresult.ResultMessageEQ(*i.ResultMessage))
+	}
+	if i.ResultMessageNEQ != nil {
+		predicates = append(predicates, actionresult.ResultMessageNEQ(*i.ResultMessageNEQ))
+	}
+	if len(i.ResultMessageIn) > 0 {
+		predicates = append(predicates, actionresult.ResultMessageIn(i.ResultMessageIn...))
+	}
+	if len(i.ResultMessageNotIn) > 0 {
+		predicates = append(predicates, actionresult.ResultMessageNotIn(i.ResultMessageNotIn...))
+	}
+	if i.ResultMessageGT != nil {
+		predicates = append(predicates, actionresult.ResultMessageGT(*i.ResultMessageGT))
+	}
+	if i.ResultMessageGTE != nil {
+		predicates = append(predicates, actionresult.ResultMessageGTE(*i.ResultMessageGTE))
+	}
+	if i.ResultMessageLT != nil {
+		predicates = append(predicates, actionresult.ResultMessageLT(*i.ResultMessageLT))
+	}
+	if i.ResultMessageLTE != nil {
+		predicates = append(predicates, actionresult.ResultMessageLTE(*i.ResultMessageLTE))
+	}
+	if i.ResultMessageContains != nil {
+		predicates = append(predicates, actionresult.ResultMessageContains(*i.ResultMessageContains))
+	}
+	if i.ResultMessageHasPrefix != nil {
+		predicates = append(predicates, actionresult.ResultMessageHasPrefix(*i.ResultMessageHasPrefix))
+	}
+	if i.ResultMessageHasSuffix != nil {
+		predicates = append(predicates, actionresult.ResultMessageHasSuffix(*i.ResultMessageHasSuffix))
+	}
+	if i.ResultMessageIsNil {
+		predicates = append(predicates, actionresult.ResultMessageIsNil())
+	}
+	if i.ResultMessageNotNil {
+		predicates = append(predicates, actionresult.ResultMessageNotNil())
+	}
+	if i.ResultMessageEqualFold != nil {
+		predicates = append(predicates, actionresult.ResultMessageEqualFold(*i.ResultMessageEqualFold))
+	}
+	if i.ResultMessageContainsFold != nil {
+		predicates = append(predicates, actionresult.ResultMessageContainsFold(*i.ResultMessageContainsFold))
+	}
+
+	if i.HasAction != nil {
+		p := actionresult.HasAction()
+		if !*i.HasAction {
+			p = actionresult.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasActionWith) > 0 {
+		with := make([]predicate.Action, 0, len(i.HasActionWith))
+		for _, w := range i.HasActionWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasActionWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, actionresult.HasActionWith(with...))
+	}
+	if i.HasChannelMessage != nil {
+		p := actionresult.HasChannelMessage()
+		if !*i.HasChannelMessage {
+			p = actionresult.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasChannelMessageWith) > 0 {
+		with := make([]predicate.ChannelMessage, 0, len(i.HasChannelMessageWith))
+		for _, w := range i.HasChannelMessageWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasChannelMessageWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, actionresult.HasChannelMessageWith(with...))
+	}
+	switch len(predicates) {
+	case 0:
+		return nil, ErrEmptyActionResultWhereInput
+	case 1:
+		return predicates[0], nil
+	default:
+		return actionresult.And(predicates...), nil
+	}
+}
+
 // ActionRouteWhereInput represents a where input for filtering ActionRoute queries.
 type ActionRouteWhereInput struct {
 	Predicates []predicate.ActionRoute  `json:"-"`
@@ -769,278 +1121,6 @@ func (i *ActionRouteWhereInput) P() (predicate.ActionRoute, error) {
 		return predicates[0], nil
 	default:
 		return actionroute.And(predicates...), nil
-	}
-}
-
-// ActionSuccessMessageWhereInput represents a where input for filtering ActionSuccessMessage queries.
-type ActionSuccessMessageWhereInput struct {
-	Predicates []predicate.ActionSuccessMessage  `json:"-"`
-	Not        *ActionSuccessMessageWhereInput   `json:"not,omitempty"`
-	Or         []*ActionSuccessMessageWhereInput `json:"or,omitempty"`
-	And        []*ActionSuccessMessageWhereInput `json:"and,omitempty"`
-
-	// "id" field predicates.
-	ID      *uuid.UUID  `json:"id,omitempty"`
-	IDNEQ   *uuid.UUID  `json:"idNEQ,omitempty"`
-	IDIn    []uuid.UUID `json:"idIn,omitempty"`
-	IDNotIn []uuid.UUID `json:"idNotIn,omitempty"`
-	IDGT    *uuid.UUID  `json:"idGT,omitempty"`
-	IDGTE   *uuid.UUID  `json:"idGTE,omitempty"`
-	IDLT    *uuid.UUID  `json:"idLT,omitempty"`
-	IDLTE   *uuid.UUID  `json:"idLTE,omitempty"`
-
-	// "created_at" field predicates.
-	CreatedAt      *time.Time  `json:"createdAt,omitempty"`
-	CreatedAtNEQ   *time.Time  `json:"createdAtNEQ,omitempty"`
-	CreatedAtIn    []time.Time `json:"createdAtIn,omitempty"`
-	CreatedAtNotIn []time.Time `json:"createdAtNotIn,omitempty"`
-	CreatedAtGT    *time.Time  `json:"createdAtGT,omitempty"`
-	CreatedAtGTE   *time.Time  `json:"createdAtGTE,omitempty"`
-	CreatedAtLT    *time.Time  `json:"createdAtLT,omitempty"`
-	CreatedAtLTE   *time.Time  `json:"createdAtLTE,omitempty"`
-
-	// "updated_at" field predicates.
-	UpdatedAt      *time.Time  `json:"updatedAt,omitempty"`
-	UpdatedAtNEQ   *time.Time  `json:"updatedAtNEQ,omitempty"`
-	UpdatedAtIn    []time.Time `json:"updatedAtIn,omitempty"`
-	UpdatedAtNotIn []time.Time `json:"updatedAtNotIn,omitempty"`
-	UpdatedAtGT    *time.Time  `json:"updatedAtGT,omitempty"`
-	UpdatedAtGTE   *time.Time  `json:"updatedAtGTE,omitempty"`
-	UpdatedAtLT    *time.Time  `json:"updatedAtLT,omitempty"`
-	UpdatedAtLTE   *time.Time  `json:"updatedAtLTE,omitempty"`
-
-	// "action_id" field predicates.
-	ActionID      *uuid.UUID  `json:"actionID,omitempty"`
-	ActionIDNEQ   *uuid.UUID  `json:"actionIDNEQ,omitempty"`
-	ActionIDIn    []uuid.UUID `json:"actionIDIn,omitempty"`
-	ActionIDNotIn []uuid.UUID `json:"actionIDNotIn,omitempty"`
-
-	// "channel_message_id" field predicates.
-	ChannelMessageID      *uuid.UUID  `json:"channelMessageID,omitempty"`
-	ChannelMessageIDNEQ   *uuid.UUID  `json:"channelMessageIDNEQ,omitempty"`
-	ChannelMessageIDIn    []uuid.UUID `json:"channelMessageIDIn,omitempty"`
-	ChannelMessageIDNotIn []uuid.UUID `json:"channelMessageIDNotIn,omitempty"`
-
-	// "action" edge predicates.
-	HasAction     *bool               `json:"hasAction,omitempty"`
-	HasActionWith []*ActionWhereInput `json:"hasActionWith,omitempty"`
-
-	// "channel_message" edge predicates.
-	HasChannelMessage     *bool                       `json:"hasChannelMessage,omitempty"`
-	HasChannelMessageWith []*ChannelMessageWhereInput `json:"hasChannelMessageWith,omitempty"`
-}
-
-// AddPredicates adds custom predicates to the where input to be used during the filtering phase.
-func (i *ActionSuccessMessageWhereInput) AddPredicates(predicates ...predicate.ActionSuccessMessage) {
-	i.Predicates = append(i.Predicates, predicates...)
-}
-
-// Filter applies the ActionSuccessMessageWhereInput filter on the ActionSuccessMessageQuery builder.
-func (i *ActionSuccessMessageWhereInput) Filter(q *ActionSuccessMessageQuery) (*ActionSuccessMessageQuery, error) {
-	if i == nil {
-		return q, nil
-	}
-	p, err := i.P()
-	if err != nil {
-		if err == ErrEmptyActionSuccessMessageWhereInput {
-			return q, nil
-		}
-		return nil, err
-	}
-	return q.Where(p), nil
-}
-
-// ErrEmptyActionSuccessMessageWhereInput is returned in case the ActionSuccessMessageWhereInput is empty.
-var ErrEmptyActionSuccessMessageWhereInput = errors.New("ent: empty predicate ActionSuccessMessageWhereInput")
-
-// P returns a predicate for filtering actionsuccessmessages.
-// An error is returned if the input is empty or invalid.
-func (i *ActionSuccessMessageWhereInput) P() (predicate.ActionSuccessMessage, error) {
-	var predicates []predicate.ActionSuccessMessage
-	if i.Not != nil {
-		p, err := i.Not.P()
-		if err != nil {
-			return nil, fmt.Errorf("%w: field 'not'", err)
-		}
-		predicates = append(predicates, actionsuccessmessage.Not(p))
-	}
-	switch n := len(i.Or); {
-	case n == 1:
-		p, err := i.Or[0].P()
-		if err != nil {
-			return nil, fmt.Errorf("%w: field 'or'", err)
-		}
-		predicates = append(predicates, p)
-	case n > 1:
-		or := make([]predicate.ActionSuccessMessage, 0, n)
-		for _, w := range i.Or {
-			p, err := w.P()
-			if err != nil {
-				return nil, fmt.Errorf("%w: field 'or'", err)
-			}
-			or = append(or, p)
-		}
-		predicates = append(predicates, actionsuccessmessage.Or(or...))
-	}
-	switch n := len(i.And); {
-	case n == 1:
-		p, err := i.And[0].P()
-		if err != nil {
-			return nil, fmt.Errorf("%w: field 'and'", err)
-		}
-		predicates = append(predicates, p)
-	case n > 1:
-		and := make([]predicate.ActionSuccessMessage, 0, n)
-		for _, w := range i.And {
-			p, err := w.P()
-			if err != nil {
-				return nil, fmt.Errorf("%w: field 'and'", err)
-			}
-			and = append(and, p)
-		}
-		predicates = append(predicates, actionsuccessmessage.And(and...))
-	}
-	predicates = append(predicates, i.Predicates...)
-	if i.ID != nil {
-		predicates = append(predicates, actionsuccessmessage.IDEQ(*i.ID))
-	}
-	if i.IDNEQ != nil {
-		predicates = append(predicates, actionsuccessmessage.IDNEQ(*i.IDNEQ))
-	}
-	if len(i.IDIn) > 0 {
-		predicates = append(predicates, actionsuccessmessage.IDIn(i.IDIn...))
-	}
-	if len(i.IDNotIn) > 0 {
-		predicates = append(predicates, actionsuccessmessage.IDNotIn(i.IDNotIn...))
-	}
-	if i.IDGT != nil {
-		predicates = append(predicates, actionsuccessmessage.IDGT(*i.IDGT))
-	}
-	if i.IDGTE != nil {
-		predicates = append(predicates, actionsuccessmessage.IDGTE(*i.IDGTE))
-	}
-	if i.IDLT != nil {
-		predicates = append(predicates, actionsuccessmessage.IDLT(*i.IDLT))
-	}
-	if i.IDLTE != nil {
-		predicates = append(predicates, actionsuccessmessage.IDLTE(*i.IDLTE))
-	}
-	if i.CreatedAt != nil {
-		predicates = append(predicates, actionsuccessmessage.CreatedAtEQ(*i.CreatedAt))
-	}
-	if i.CreatedAtNEQ != nil {
-		predicates = append(predicates, actionsuccessmessage.CreatedAtNEQ(*i.CreatedAtNEQ))
-	}
-	if len(i.CreatedAtIn) > 0 {
-		predicates = append(predicates, actionsuccessmessage.CreatedAtIn(i.CreatedAtIn...))
-	}
-	if len(i.CreatedAtNotIn) > 0 {
-		predicates = append(predicates, actionsuccessmessage.CreatedAtNotIn(i.CreatedAtNotIn...))
-	}
-	if i.CreatedAtGT != nil {
-		predicates = append(predicates, actionsuccessmessage.CreatedAtGT(*i.CreatedAtGT))
-	}
-	if i.CreatedAtGTE != nil {
-		predicates = append(predicates, actionsuccessmessage.CreatedAtGTE(*i.CreatedAtGTE))
-	}
-	if i.CreatedAtLT != nil {
-		predicates = append(predicates, actionsuccessmessage.CreatedAtLT(*i.CreatedAtLT))
-	}
-	if i.CreatedAtLTE != nil {
-		predicates = append(predicates, actionsuccessmessage.CreatedAtLTE(*i.CreatedAtLTE))
-	}
-	if i.UpdatedAt != nil {
-		predicates = append(predicates, actionsuccessmessage.UpdatedAtEQ(*i.UpdatedAt))
-	}
-	if i.UpdatedAtNEQ != nil {
-		predicates = append(predicates, actionsuccessmessage.UpdatedAtNEQ(*i.UpdatedAtNEQ))
-	}
-	if len(i.UpdatedAtIn) > 0 {
-		predicates = append(predicates, actionsuccessmessage.UpdatedAtIn(i.UpdatedAtIn...))
-	}
-	if len(i.UpdatedAtNotIn) > 0 {
-		predicates = append(predicates, actionsuccessmessage.UpdatedAtNotIn(i.UpdatedAtNotIn...))
-	}
-	if i.UpdatedAtGT != nil {
-		predicates = append(predicates, actionsuccessmessage.UpdatedAtGT(*i.UpdatedAtGT))
-	}
-	if i.UpdatedAtGTE != nil {
-		predicates = append(predicates, actionsuccessmessage.UpdatedAtGTE(*i.UpdatedAtGTE))
-	}
-	if i.UpdatedAtLT != nil {
-		predicates = append(predicates, actionsuccessmessage.UpdatedAtLT(*i.UpdatedAtLT))
-	}
-	if i.UpdatedAtLTE != nil {
-		predicates = append(predicates, actionsuccessmessage.UpdatedAtLTE(*i.UpdatedAtLTE))
-	}
-	if i.ActionID != nil {
-		predicates = append(predicates, actionsuccessmessage.ActionIDEQ(*i.ActionID))
-	}
-	if i.ActionIDNEQ != nil {
-		predicates = append(predicates, actionsuccessmessage.ActionIDNEQ(*i.ActionIDNEQ))
-	}
-	if len(i.ActionIDIn) > 0 {
-		predicates = append(predicates, actionsuccessmessage.ActionIDIn(i.ActionIDIn...))
-	}
-	if len(i.ActionIDNotIn) > 0 {
-		predicates = append(predicates, actionsuccessmessage.ActionIDNotIn(i.ActionIDNotIn...))
-	}
-	if i.ChannelMessageID != nil {
-		predicates = append(predicates, actionsuccessmessage.ChannelMessageIDEQ(*i.ChannelMessageID))
-	}
-	if i.ChannelMessageIDNEQ != nil {
-		predicates = append(predicates, actionsuccessmessage.ChannelMessageIDNEQ(*i.ChannelMessageIDNEQ))
-	}
-	if len(i.ChannelMessageIDIn) > 0 {
-		predicates = append(predicates, actionsuccessmessage.ChannelMessageIDIn(i.ChannelMessageIDIn...))
-	}
-	if len(i.ChannelMessageIDNotIn) > 0 {
-		predicates = append(predicates, actionsuccessmessage.ChannelMessageIDNotIn(i.ChannelMessageIDNotIn...))
-	}
-
-	if i.HasAction != nil {
-		p := actionsuccessmessage.HasAction()
-		if !*i.HasAction {
-			p = actionsuccessmessage.Not(p)
-		}
-		predicates = append(predicates, p)
-	}
-	if len(i.HasActionWith) > 0 {
-		with := make([]predicate.Action, 0, len(i.HasActionWith))
-		for _, w := range i.HasActionWith {
-			p, err := w.P()
-			if err != nil {
-				return nil, fmt.Errorf("%w: field 'HasActionWith'", err)
-			}
-			with = append(with, p)
-		}
-		predicates = append(predicates, actionsuccessmessage.HasActionWith(with...))
-	}
-	if i.HasChannelMessage != nil {
-		p := actionsuccessmessage.HasChannelMessage()
-		if !*i.HasChannelMessage {
-			p = actionsuccessmessage.Not(p)
-		}
-		predicates = append(predicates, p)
-	}
-	if len(i.HasChannelMessageWith) > 0 {
-		with := make([]predicate.ChannelMessage, 0, len(i.HasChannelMessageWith))
-		for _, w := range i.HasChannelMessageWith {
-			p, err := w.P()
-			if err != nil {
-				return nil, fmt.Errorf("%w: field 'HasChannelMessageWith'", err)
-			}
-			with = append(with, p)
-		}
-		predicates = append(predicates, actionsuccessmessage.HasChannelMessageWith(with...))
-	}
-	switch len(predicates) {
-	case 0:
-		return nil, ErrEmptyActionSuccessMessageWhereInput
-	case 1:
-		return predicates[0], nil
-	default:
-		return actionsuccessmessage.And(predicates...), nil
 	}
 }
 

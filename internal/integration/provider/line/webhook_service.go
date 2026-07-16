@@ -15,6 +15,7 @@ import (
 	"assistant-api/internal/usecase/ai/topkfilter"
 	"assistant-api/internal/usecase/inbound/commandchain"
 	"assistant-api/internal/usecase/inbound/commanddecision"
+	"assistant-api/internal/usecase/inbound/conversationflow"
 	"assistant-api/internal/usecase/inbound/messagepersist"
 
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
@@ -38,6 +39,7 @@ type WebhookService struct {
 	topKFilterService     topkfilter.Service
 	actionPostDispatcher  *actionpost.Dispatcher
 	followUpSender        PushMessageService
+	commandFlow           *conversationflow.Orchestrator
 }
 
 // WebhookServiceOptions 提供 webhook service 的擴充設定。
@@ -77,14 +79,28 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 	persistSvc := messagepersist.NewService(repo, lineSenderNameResolver{repo: repo, client: lineClient, cache: cache, memberNameTTL: memberNameTTL, now: time.Now})
 	chainSvc := commandchain.NewService(repo)
 	decisionSvc := commanddecision.NewService(chainSvc)
+	dispatcher := actionpost.NewDefaultDispatcher(repo)
+	flow := conversationflow.NewFromFactory(conversationflow.FactoryOptions{
+		PlatformLabel:               "line",
+		BotSenderID:                 strings.TrimSpace(config.Line.BotUserID),
+		SuccessText:                 "指令已執行成功",
+		CommandConfidenceThreshold:  config.AI.LLMInteraction.CommandConfidenceThreshold,
+		QuestionConfidenceThreshold: config.AI.LLMInteraction.QuestionConfidenceThreshold,
+		Repo:                        repo,
+		TopKFilter:                  options.TopKFilter,
+		LLM:                         options.LLMInteraction,
+		Dispatcher:                  dispatcher,
+		Messenger:                   lineOutboundMessenger{sender: options.FollowUpSender},
+	})
 	return &WebhookService{
 		repo:                  repo,
 		decisionService:       decisionSvc,
 		llmInteractionService: options.LLMInteraction,
 		persistenceService:    persistSvc,
 		topKFilterService:     options.TopKFilter,
-		actionPostDispatcher:  actionpost.NewDefaultDispatcher(repo),
+		actionPostDispatcher:  dispatcher,
 		followUpSender:        options.FollowUpSender,
+		commandFlow:           flow,
 	}
 }
 
@@ -238,127 +254,53 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 			)
 		}
 
-		if s.topKFilterService == nil {
-			// 未注入 top-k/rerank 服務時，保留可觀測與落庫，但不做 AI 決策。
+		s.ensureCommandFlow()
+		if s.commandFlow == nil {
 			continue
 		}
-
-		// 第三階段：把 reranker 精排後的候選交給 LLM 互動模型，選出最終唯一一個 action。
-		candidates := s.topKFilterService.FilterMessage(context.Background(), message)
-		if len(candidates) == 0 || s.llmInteractionService == nil {
-			// 若沒有可用候選，或未注入 final 互動服務，
-			// 就停在 rerank 結果，不強行產生最終 action。
-			continue
-		}
-
-		actionCandidates := toActionCandidates(candidates)
-		finalDecision, err := s.llmInteractionService.DecideFinalAction(context.Background(), message.Text, actionCandidates)
-		if err != nil {
-			zap.L().Warn("line message final action decision failed",
-				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-				zap.String("text", strings.TrimSpace(message.Text)),
-				zap.String("error_message", err.Error()),
-				zap.Error(err),
-			)
-			continue
-		}
-		if finalDecision == nil {
-			// 模型端允許回 nil（例如策略性略過），呼叫端視為本次不下最終 action。
-			// 這裡保持靜默跳過，避免把「未決策」誤記錄成錯誤。
-			continue
-		}
-
-		// 無論後續是否因低信心改走問答，先把 action decision 原始判讀結果印出來，
-		// 方便觀察模型在候選 action 之間的實際選擇與信心值。
-		zap.L().Info("line message action decision evaluated",
-			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-			zap.String("text", strings.TrimSpace(message.Text)),
-			zap.String("next_step", strings.TrimSpace(finalDecision.NextStep)),
-			zap.String("api_operation", finalDecision.APIOperation),
-			zap.Float64("confidence", finalDecision.Confidence),
-			zap.String("reason", strings.TrimSpace(finalDecision.Reason)),
-		)
-
-		// next_step 是結構化流程控制欄位：
-		// - execute_action: 繼續 action 路徑
-		// - ask_clarifying_question: 生成追問
-		// - answer_question: 生成一般問答回覆
-		// 只有 execute_action 允許繼續往下走到 final action decided log。
-		nextStep := strings.TrimSpace(finalDecision.NextStep)
-		confidenceThreshold := config.AI.LLMInteraction.CommandConfidenceThreshold
-		switch nextStep {
-		case llminteraction.NextStepAskClarifyingQuestion:
-			s.routeMessageToQuestionAnswer(message, savedMessage, strings.TrimSpace(event.Source.UserID), finalDecision.Confidence, confidenceThreshold, "ask_clarifying_question", finalDecision.Reason)
-			continue
-		case llminteraction.NextStepAnswerQuestion:
-			s.routeMessageToQuestionAnswer(message, savedMessage, strings.TrimSpace(event.Source.UserID), finalDecision.Confidence, confidenceThreshold, "answer_question", finalDecision.Reason)
-			continue
-		case llminteraction.NextStepExecuteAction:
-			// 繼續走 action 流程。
-		default:
-			zap.L().Warn("line message llm interaction next_step invalid",
-				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-				zap.String("next_step", nextStep),
-			)
-			continue
-		}
-
-		// execute_action 仍保留低信心保護，避免模型誤報可執行動作。
-		if confidenceThreshold > 0 && finalDecision.Confidence < confidenceThreshold {
-			s.routeMessageToQuestionAnswer(message, savedMessage, strings.TrimSpace(event.Source.UserID), finalDecision.Confidence, confidenceThreshold, "low_action_confidence", finalDecision.Reason)
-			continue
-		}
-
-		// 把模型選出的 api_operation 對應回候選清單，確認它真的落在候選範圍內，
-		// 同時取得對應的 skill_code/route_text，讓最終結果一眼就能看出對應到哪個 action。
-		matchedSkillCode := ""
-		matchedRouteText := ""
-		validSelection := false
-		for _, candidate := range actionCandidates {
-			if candidate.Operation == finalDecision.APIOperation {
-				matchedSkillCode = candidate.SkillCode
-				matchedRouteText = candidate.RouteText
-				validSelection = true
-				break
-			}
-		}
-		if !validSelection {
-			// 若模型選出不在候選清單內的 operation，代表可能發生 hallucination 或 prompt 偏移；
-			// 保留告警，但仍輸出 final log 供後續排查與離線評估。
-			zap.L().Warn("line message final action not in candidates",
-				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-				zap.String("api_operation", finalDecision.APIOperation),
-			)
-		}
-
-		zap.L().Info("line message final action decided",
-			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-			zap.String("text", strings.TrimSpace(message.Text)),
-			zap.String("next_step", strings.TrimSpace(finalDecision.NextStep)),
-			zap.String("api_operation", finalDecision.APIOperation),
-			zap.String("skill_code", matchedSkillCode),
-			zap.String("matched_route_text", matchedRouteText),
-			zap.Bool("valid_selection", validSelection),
-			zap.Float64("confidence", finalDecision.Confidence),
-			zap.String("reason", finalDecision.Reason),
-		)
-
-		s.dispatchActionPostHandlers(
+		s.commandFlow.ProcessCommand(
 			message,
 			savedMessage,
 			strings.TrimSpace(event.Source.UserID),
 			strings.TrimSpace(event.ReplyToken),
 			strings.TrimSpace(event.Message.QuoteToken),
-			finalDecision,
-			matchedSkillCode,
 		)
 	}
 
+}
+
+type lineOutboundMessenger struct {
+	sender PushMessageService
+}
+
+func (m lineOutboundMessenger) SendText(ctx context.Context, chatID string, userID string, text string, replyRef string, quoteRef string) (string, error) {
+	if m.sender == nil {
+		return "", nil
+	}
+	return m.sender.SendTextToChat(ctx, chatID, userID, text, replyRef, quoteRef)
+}
+
+func (s *WebhookService) ensureCommandFlow() {
+	if s == nil || s.commandFlow != nil {
+		return
+	}
+	dispatcher := s.actionPostDispatcher
+	if dispatcher == nil {
+		dispatcher = actionpost.NewDefaultDispatcher(s.repo)
+		s.actionPostDispatcher = dispatcher
+	}
+	s.commandFlow = conversationflow.NewFromFactory(conversationflow.FactoryOptions{
+		PlatformLabel:               "line",
+		BotSenderID:                 strings.TrimSpace(config.Line.BotUserID),
+		SuccessText:                 "指令已執行成功",
+		CommandConfidenceThreshold:  config.AI.LLMInteraction.CommandConfidenceThreshold,
+		QuestionConfidenceThreshold: config.AI.LLMInteraction.QuestionConfidenceThreshold,
+		Repo:                        s.repo,
+		TopKFilter:                  s.topKFilterService,
+		LLM:                         s.llmInteractionService,
+		Dispatcher:                  dispatcher,
+		Messenger:                   lineOutboundMessenger{sender: s.followUpSender},
+	})
 }
 
 // dispatchActionPostHandlers 依最終決策的 api_operation 分派對應後處理。
@@ -488,7 +430,7 @@ func translationTargetLocalesFromDecision(decision *llminteraction.ActionDecisio
 	return actionpost.ExtractTranslationTargetLocales(decision)
 }
 
-func (s *WebhookService) routeMessageToQuestionAnswer(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, lineUserID string, actionConfidence float64, actionThreshold float64, cause string, decisionReason string) {
+func (s *WebhookService) routeMessageToQuestionAnswer(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, lineUserID string, actionConfidence float64, actionThreshold float64, cause string, decisionReason string, missingParameters []string) {
 	if s == nil || s.llmInteractionService == nil || message == nil {
 		return
 	}
@@ -503,8 +445,21 @@ func (s *WebhookService) routeMessageToQuestionAnswer(message *unifiedmessage.Me
 	)
 	if strings.EqualFold(strings.TrimSpace(cause), "low_action_confidence") || strings.EqualFold(strings.TrimSpace(cause), "ask_clarifying_question") {
 		qaMode = "clarifying_question"
-		qa, qaErr = s.llmInteractionService.AskClarifyingQuestion(context.Background(), message.Text, decisionReason)
+		// 若已能從 missing parameters 推導出可用模板，優先用固定文案。
+		// 這可避免模型在「明確缺參數」時產生不穩定追問。
+		// 例如 target_locales 缺失時，一律問「要翻譯成哪些語言」。
+		if template := buildMissingParameterTemplateQuestion(missingParameters); strings.TrimSpace(template) != "" {
+			qa = &llminteraction.QuestionAnswer{
+				SchemaVersion: "v1",
+				Answer:        template,
+				Confidence:    1,
+			}
+		} else {
+			// 沒有模板時才退回 LLM 生成追問，避免固定模板覆蓋複雜情境。
+			qa, qaErr = s.llmInteractionService.AskClarifyingQuestion(context.Background(), message.Text, decisionReason)
+		}
 	} else {
+		// 非追問類型（例如 answer_question）走一般問答。
 		qa, qaErr = s.llmInteractionService.AnswerQuestion(context.Background(), message.Text)
 	}
 	if qaErr != nil {
@@ -563,6 +518,85 @@ func (s *WebhookService) routeMessageToQuestionAnswer(message *unifiedmessage.Me
 
 	if qaMode == "clarifying_question" {
 		s.sendClarifyingQuestion(message, savedMessage, lineUserID, strings.TrimSpace(qa.Answer))
+	}
+}
+
+func buildMissingParameterTemplateQuestion(missingParameters []string) string {
+	// 這個 helper 專門把缺參數訊號轉成「可直接發送」的固定追問文案。
+	// 規則：
+	// 1) 先正規化與去重
+	// 2) 有特例模板（目前 target_locales）時優先使用
+	// 3) 其餘情況回退為通用模板
+	if len(missingParameters) == 0 {
+		return ""
+	}
+	normalized := make([]string, 0, len(missingParameters))
+	seen := make(map[string]struct{}, len(missingParameters))
+	for _, parameter := range missingParameters {
+		key := strings.ToLower(strings.TrimSpace(parameter))
+		if key == "" {
+			continue
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		normalized = append(normalized, key)
+	}
+	if len(normalized) == 0 {
+		return ""
+	}
+	if len(normalized) == 1 && normalized[0] == llminteraction.ActionParamTargetLocales {
+		return "請告訴我要翻譯成哪些語言？例如英文、日文。"
+	}
+	return "請補充以下必要資訊後我才能執行指令：" + strings.Join(normalized, ", ")
+}
+
+func (s *WebhookService) persistMissingParameterResult(savedMessage *ent.ChannelMessage, apiOperation string, source string, missingParameters []string, reason string) {
+	// 這裡是 missing_parameter 狀態統一落庫入口。
+	// 任何「需要追問才能繼續」的情境都應收斂到這裡：
+	// - 模型主動 ask_clarifying_question
+	// - execute_action 但被契約拒絕
+	// 好處是 action_results 可維持單一查詢語意，不需要分散解讀多種狀態。
+	if s == nil || s.repo == nil || savedMessage == nil {
+		return
+	}
+	apiOperation = strings.TrimSpace(apiOperation)
+	if apiOperation == "" {
+		return
+	}
+	seen := make(map[string]struct{}, len(missingParameters))
+	normalized := make([]string, 0, len(missingParameters))
+	for _, parameter := range missingParameters {
+		key := strings.ToLower(strings.TrimSpace(parameter))
+		if key == "" {
+			continue
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		normalized = append(normalized, key)
+	}
+	if len(normalized) == 0 {
+		// 若上游沒給 missing_parameters，嘗試從 reason 文字中抽取 action_params.xxx。
+		// 這讓 contract_reject 路徑仍可儘量留下結構化資訊。
+		normalized = llminteraction.InferMissingParametersFromReason(reason)
+	}
+	resultMessage := "source=" + strings.TrimSpace(source)
+	if len(normalized) > 0 {
+		resultMessage += ";missing_parameters=" + strings.Join(normalized, ",")
+	}
+	if trimmedReason := strings.TrimSpace(reason); trimmedReason != "" {
+		resultMessage += ";reason=" + trimmedReason
+	}
+	if err := s.repo.UpsertActionResult(context.Background(), apiOperation, savedMessage.ID, "missing_parameter", resultMessage); err != nil {
+		zap.L().Warn("persist missing-parameter action result failed",
+			zap.String("channel_id", savedMessage.ChannelID.String()),
+			zap.String("message_id", savedMessage.ID.String()),
+			zap.String("api_operation", apiOperation),
+			zap.Error(err),
+		)
 	}
 }
 

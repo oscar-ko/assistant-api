@@ -2,9 +2,76 @@ package llminteraction
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 )
+
+// DecisionValidationError 表示模型回傳符合 JSON 但不符合 action 決策契約。
+// 例如：next_step 不合法、execute_action 缺 api_operation、target_locales 格式錯誤等。
+type DecisionValidationError struct {
+	// Reason 是原始驗證失敗訊息，保留給 log 與追問理由。
+	Reason string
+	// APIOperation 是模型回覆中的 operation（若有），用於落 action_results。
+	APIOperation string
+	// MissingParameters 是從契約錯誤推斷出的缺參數清單。
+	// 若上游原本未提供 missing_parameters，這欄可補齊可追蹤性。
+	MissingParameters []string
+}
+
+func (e *DecisionValidationError) Error() string {
+	if e == nil {
+		return "action decision validation failed"
+	}
+	return strings.TrimSpace(e.Reason)
+}
+
+// IsDecisionValidationError 用於區分「可追問修正」的契約錯誤與其他運行時錯誤。
+func IsDecisionValidationError(err error) bool {
+	var target *DecisionValidationError
+	return errors.As(err, &target)
+}
+
+// AsDecisionValidationError returns typed validation error when present.
+func AsDecisionValidationError(err error) *DecisionValidationError {
+	var target *DecisionValidationError
+	if errors.As(err, &target) {
+		return target
+	}
+	return nil
+}
+
+var actionParamKeyPattern = regexp.MustCompile(`action_params\.([a-zA-Z0-9_]+)`)
+
+// InferMissingParametersFromReason extracts missing parameter keys from contract error messages.
+func InferMissingParametersFromReason(reason string) []string {
+	// 這裡只抽 action_params.<key> 型態，避免把一般敘述文字誤判成參數名。
+	matches := actionParamKeyPattern.FindAllStringSubmatch(strings.TrimSpace(reason), -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(matches))
+	out := make([]string, 0, len(matches))
+	for _, item := range matches {
+		if len(item) < 2 {
+			continue
+		}
+		key := strings.ToLower(strings.TrimSpace(item[1]))
+		if key == "" {
+			continue
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, key)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
 
 // forbiddenActionParamKeys 是安全邊界：
 // 候選描述欄位不允許出現在 action_params，避免模型把檢索 metadata 當成執行參數。

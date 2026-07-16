@@ -4,7 +4,7 @@ package ent
 
 import (
 	"assistant-api/internal/ent/action"
-	"assistant-api/internal/ent/actionsuccessmessage"
+	"assistant-api/internal/ent/actionresult"
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/predicate"
 	"context"
@@ -18,55 +18,55 @@ import (
 	"github.com/google/uuid"
 )
 
-// ActionSuccessMessageQuery is the builder for querying ActionSuccessMessage entities.
-type ActionSuccessMessageQuery struct {
+// ActionResultQuery is the builder for querying ActionResult entities.
+type ActionResultQuery struct {
 	config
 	ctx                *QueryContext
-	order              []actionsuccessmessage.OrderOption
+	order              []actionresult.OrderOption
 	inters             []Interceptor
-	predicates         []predicate.ActionSuccessMessage
+	predicates         []predicate.ActionResult
 	withAction         *ActionQuery
 	withChannelMessage *ChannelMessageQuery
 	modifiers          []func(*sql.Selector)
-	loadTotal          []func(context.Context, []*ActionSuccessMessage) error
+	loadTotal          []func(context.Context, []*ActionResult) error
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
-// Where adds a new predicate for the ActionSuccessMessageQuery builder.
-func (_q *ActionSuccessMessageQuery) Where(ps ...predicate.ActionSuccessMessage) *ActionSuccessMessageQuery {
+// Where adds a new predicate for the ActionResultQuery builder.
+func (_q *ActionResultQuery) Where(ps ...predicate.ActionResult) *ActionResultQuery {
 	_q.predicates = append(_q.predicates, ps...)
 	return _q
 }
 
 // Limit the number of records to be returned by this query.
-func (_q *ActionSuccessMessageQuery) Limit(limit int) *ActionSuccessMessageQuery {
+func (_q *ActionResultQuery) Limit(limit int) *ActionResultQuery {
 	_q.ctx.Limit = &limit
 	return _q
 }
 
 // Offset to start from.
-func (_q *ActionSuccessMessageQuery) Offset(offset int) *ActionSuccessMessageQuery {
+func (_q *ActionResultQuery) Offset(offset int) *ActionResultQuery {
 	_q.ctx.Offset = &offset
 	return _q
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
-func (_q *ActionSuccessMessageQuery) Unique(unique bool) *ActionSuccessMessageQuery {
+func (_q *ActionResultQuery) Unique(unique bool) *ActionResultQuery {
 	_q.ctx.Unique = &unique
 	return _q
 }
 
 // Order specifies how the records should be ordered.
-func (_q *ActionSuccessMessageQuery) Order(o ...actionsuccessmessage.OrderOption) *ActionSuccessMessageQuery {
+func (_q *ActionResultQuery) Order(o ...actionresult.OrderOption) *ActionResultQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
 
 // QueryAction chains the current query on the "action" edge.
-func (_q *ActionSuccessMessageQuery) QueryAction() *ActionQuery {
+func (_q *ActionResultQuery) QueryAction() *ActionQuery {
 	query := (&ActionClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
@@ -77,9 +77,9 @@ func (_q *ActionSuccessMessageQuery) QueryAction() *ActionQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(actionsuccessmessage.Table, actionsuccessmessage.FieldID, selector),
+			sqlgraph.From(actionresult.Table, actionresult.FieldID, selector),
 			sqlgraph.To(action.Table, action.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, actionsuccessmessage.ActionTable, actionsuccessmessage.ActionColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, actionresult.ActionTable, actionresult.ActionColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -88,7 +88,7 @@ func (_q *ActionSuccessMessageQuery) QueryAction() *ActionQuery {
 }
 
 // QueryChannelMessage chains the current query on the "channel_message" edge.
-func (_q *ActionSuccessMessageQuery) QueryChannelMessage() *ChannelMessageQuery {
+func (_q *ActionResultQuery) QueryChannelMessage() *ChannelMessageQuery {
 	query := (&ChannelMessageClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
@@ -99,9 +99,9 @@ func (_q *ActionSuccessMessageQuery) QueryChannelMessage() *ChannelMessageQuery 
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(actionsuccessmessage.Table, actionsuccessmessage.FieldID, selector),
+			sqlgraph.From(actionresult.Table, actionresult.FieldID, selector),
 			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, actionsuccessmessage.ChannelMessageTable, actionsuccessmessage.ChannelMessageColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, actionresult.ChannelMessageTable, actionresult.ChannelMessageColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -109,21 +109,21 @@ func (_q *ActionSuccessMessageQuery) QueryChannelMessage() *ChannelMessageQuery 
 	return query
 }
 
-// First returns the first ActionSuccessMessage entity from the query.
-// Returns a *NotFoundError when no ActionSuccessMessage was found.
-func (_q *ActionSuccessMessageQuery) First(ctx context.Context) (*ActionSuccessMessage, error) {
+// First returns the first ActionResult entity from the query.
+// Returns a *NotFoundError when no ActionResult was found.
+func (_q *ActionResultQuery) First(ctx context.Context) (*ActionResult, error) {
 	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{actionsuccessmessage.Label}
+		return nil, &NotFoundError{actionresult.Label}
 	}
 	return nodes[0], nil
 }
 
 // FirstX is like First, but panics if an error occurs.
-func (_q *ActionSuccessMessageQuery) FirstX(ctx context.Context) *ActionSuccessMessage {
+func (_q *ActionResultQuery) FirstX(ctx context.Context) *ActionResult {
 	node, err := _q.First(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -131,22 +131,22 @@ func (_q *ActionSuccessMessageQuery) FirstX(ctx context.Context) *ActionSuccessM
 	return node
 }
 
-// FirstID returns the first ActionSuccessMessage ID from the query.
-// Returns a *NotFoundError when no ActionSuccessMessage ID was found.
-func (_q *ActionSuccessMessageQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
+// FirstID returns the first ActionResult ID from the query.
+// Returns a *NotFoundError when no ActionResult ID was found.
+func (_q *ActionResultQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
 	var ids []uuid.UUID
 	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{actionsuccessmessage.Label}
+		err = &NotFoundError{actionresult.Label}
 		return
 	}
 	return ids[0], nil
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *ActionSuccessMessageQuery) FirstIDX(ctx context.Context) uuid.UUID {
+func (_q *ActionResultQuery) FirstIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -154,10 +154,10 @@ func (_q *ActionSuccessMessageQuery) FirstIDX(ctx context.Context) uuid.UUID {
 	return id
 }
 
-// Only returns a single ActionSuccessMessage entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when more than one ActionSuccessMessage entity is found.
-// Returns a *NotFoundError when no ActionSuccessMessage entities are found.
-func (_q *ActionSuccessMessageQuery) Only(ctx context.Context) (*ActionSuccessMessage, error) {
+// Only returns a single ActionResult entity found by the query, ensuring it only returns one.
+// Returns a *NotSingularError when more than one ActionResult entity is found.
+// Returns a *NotFoundError when no ActionResult entities are found.
+func (_q *ActionResultQuery) Only(ctx context.Context) (*ActionResult, error) {
 	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
@@ -166,14 +166,14 @@ func (_q *ActionSuccessMessageQuery) Only(ctx context.Context) (*ActionSuccessMe
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{actionsuccessmessage.Label}
+		return nil, &NotFoundError{actionresult.Label}
 	default:
-		return nil, &NotSingularError{actionsuccessmessage.Label}
+		return nil, &NotSingularError{actionresult.Label}
 	}
 }
 
 // OnlyX is like Only, but panics if an error occurs.
-func (_q *ActionSuccessMessageQuery) OnlyX(ctx context.Context) *ActionSuccessMessage {
+func (_q *ActionResultQuery) OnlyX(ctx context.Context) *ActionResult {
 	node, err := _q.Only(ctx)
 	if err != nil {
 		panic(err)
@@ -181,10 +181,10 @@ func (_q *ActionSuccessMessageQuery) OnlyX(ctx context.Context) *ActionSuccessMe
 	return node
 }
 
-// OnlyID is like Only, but returns the only ActionSuccessMessage ID in the query.
-// Returns a *NotSingularError when more than one ActionSuccessMessage ID is found.
+// OnlyID is like Only, but returns the only ActionResult ID in the query.
+// Returns a *NotSingularError when more than one ActionResult ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *ActionSuccessMessageQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
+func (_q *ActionResultQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
 	var ids []uuid.UUID
 	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
@@ -193,15 +193,15 @@ func (_q *ActionSuccessMessageQuery) OnlyID(ctx context.Context) (id uuid.UUID, 
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{actionsuccessmessage.Label}
+		err = &NotFoundError{actionresult.Label}
 	default:
-		err = &NotSingularError{actionsuccessmessage.Label}
+		err = &NotSingularError{actionresult.Label}
 	}
 	return
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *ActionSuccessMessageQuery) OnlyIDX(ctx context.Context) uuid.UUID {
+func (_q *ActionResultQuery) OnlyIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -209,18 +209,18 @@ func (_q *ActionSuccessMessageQuery) OnlyIDX(ctx context.Context) uuid.UUID {
 	return id
 }
 
-// All executes the query and returns a list of ActionSuccessMessages.
-func (_q *ActionSuccessMessageQuery) All(ctx context.Context) ([]*ActionSuccessMessage, error) {
+// All executes the query and returns a list of ActionResults.
+func (_q *ActionResultQuery) All(ctx context.Context) ([]*ActionResult, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*ActionSuccessMessage, *ActionSuccessMessageQuery]()
-	return withInterceptors[[]*ActionSuccessMessage](ctx, _q, qr, _q.inters)
+	qr := querierAll[[]*ActionResult, *ActionResultQuery]()
+	return withInterceptors[[]*ActionResult](ctx, _q, qr, _q.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
-func (_q *ActionSuccessMessageQuery) AllX(ctx context.Context) []*ActionSuccessMessage {
+func (_q *ActionResultQuery) AllX(ctx context.Context) []*ActionResult {
 	nodes, err := _q.All(ctx)
 	if err != nil {
 		panic(err)
@@ -228,20 +228,20 @@ func (_q *ActionSuccessMessageQuery) AllX(ctx context.Context) []*ActionSuccessM
 	return nodes
 }
 
-// IDs executes the query and returns a list of ActionSuccessMessage IDs.
-func (_q *ActionSuccessMessageQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
+// IDs executes the query and returns a list of ActionResult IDs.
+func (_q *ActionResultQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(actionsuccessmessage.FieldID).Scan(ctx, &ids); err != nil {
+	if err = _q.Select(actionresult.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *ActionSuccessMessageQuery) IDsX(ctx context.Context) []uuid.UUID {
+func (_q *ActionResultQuery) IDsX(ctx context.Context) []uuid.UUID {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -250,16 +250,16 @@ func (_q *ActionSuccessMessageQuery) IDsX(ctx context.Context) []uuid.UUID {
 }
 
 // Count returns the count of the given query.
-func (_q *ActionSuccessMessageQuery) Count(ctx context.Context) (int, error) {
+func (_q *ActionResultQuery) Count(ctx context.Context) (int, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*ActionSuccessMessageQuery](), _q.inters)
+	return withInterceptors[int](ctx, _q, querierCount[*ActionResultQuery](), _q.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
-func (_q *ActionSuccessMessageQuery) CountX(ctx context.Context) int {
+func (_q *ActionResultQuery) CountX(ctx context.Context) int {
 	count, err := _q.Count(ctx)
 	if err != nil {
 		panic(err)
@@ -268,7 +268,7 @@ func (_q *ActionSuccessMessageQuery) CountX(ctx context.Context) int {
 }
 
 // Exist returns true if the query has elements in the graph.
-func (_q *ActionSuccessMessageQuery) Exist(ctx context.Context) (bool, error) {
+func (_q *ActionResultQuery) Exist(ctx context.Context) (bool, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
@@ -281,7 +281,7 @@ func (_q *ActionSuccessMessageQuery) Exist(ctx context.Context) (bool, error) {
 }
 
 // ExistX is like Exist, but panics if an error occurs.
-func (_q *ActionSuccessMessageQuery) ExistX(ctx context.Context) bool {
+func (_q *ActionResultQuery) ExistX(ctx context.Context) bool {
 	exist, err := _q.Exist(ctx)
 	if err != nil {
 		panic(err)
@@ -289,18 +289,18 @@ func (_q *ActionSuccessMessageQuery) ExistX(ctx context.Context) bool {
 	return exist
 }
 
-// Clone returns a duplicate of the ActionSuccessMessageQuery builder, including all associated steps. It can be
+// Clone returns a duplicate of the ActionResultQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
-func (_q *ActionSuccessMessageQuery) Clone() *ActionSuccessMessageQuery {
+func (_q *ActionResultQuery) Clone() *ActionResultQuery {
 	if _q == nil {
 		return nil
 	}
-	return &ActionSuccessMessageQuery{
+	return &ActionResultQuery{
 		config:             _q.config,
 		ctx:                _q.ctx.Clone(),
-		order:              append([]actionsuccessmessage.OrderOption{}, _q.order...),
+		order:              append([]actionresult.OrderOption{}, _q.order...),
 		inters:             append([]Interceptor{}, _q.inters...),
-		predicates:         append([]predicate.ActionSuccessMessage{}, _q.predicates...),
+		predicates:         append([]predicate.ActionResult{}, _q.predicates...),
 		withAction:         _q.withAction.Clone(),
 		withChannelMessage: _q.withChannelMessage.Clone(),
 		// clone intermediate query.
@@ -311,7 +311,7 @@ func (_q *ActionSuccessMessageQuery) Clone() *ActionSuccessMessageQuery {
 
 // WithAction tells the query-builder to eager-load the nodes that are connected to
 // the "action" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *ActionSuccessMessageQuery) WithAction(opts ...func(*ActionQuery)) *ActionSuccessMessageQuery {
+func (_q *ActionResultQuery) WithAction(opts ...func(*ActionQuery)) *ActionResultQuery {
 	query := (&ActionClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
@@ -322,7 +322,7 @@ func (_q *ActionSuccessMessageQuery) WithAction(opts ...func(*ActionQuery)) *Act
 
 // WithChannelMessage tells the query-builder to eager-load the nodes that are connected to
 // the "channel_message" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *ActionSuccessMessageQuery) WithChannelMessage(opts ...func(*ChannelMessageQuery)) *ActionSuccessMessageQuery {
+func (_q *ActionResultQuery) WithChannelMessage(opts ...func(*ChannelMessageQuery)) *ActionResultQuery {
 	query := (&ChannelMessageClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
@@ -341,15 +341,15 @@ func (_q *ActionSuccessMessageQuery) WithChannelMessage(opts ...func(*ChannelMes
 //		Count int `json:"count,omitempty"`
 //	}
 //
-//	client.ActionSuccessMessage.Query().
-//		GroupBy(actionsuccessmessage.FieldCreatedAt).
+//	client.ActionResult.Query().
+//		GroupBy(actionresult.FieldCreatedAt).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *ActionSuccessMessageQuery) GroupBy(field string, fields ...string) *ActionSuccessMessageGroupBy {
+func (_q *ActionResultQuery) GroupBy(field string, fields ...string) *ActionResultGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &ActionSuccessMessageGroupBy{build: _q}
+	grbuild := &ActionResultGroupBy{build: _q}
 	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = actionsuccessmessage.Label
+	grbuild.label = actionresult.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
 }
@@ -363,23 +363,23 @@ func (_q *ActionSuccessMessageQuery) GroupBy(field string, fields ...string) *Ac
 //		CreatedAt time.Time `json:"created_at,omitempty"`
 //	}
 //
-//	client.ActionSuccessMessage.Query().
-//		Select(actionsuccessmessage.FieldCreatedAt).
+//	client.ActionResult.Query().
+//		Select(actionresult.FieldCreatedAt).
 //		Scan(ctx, &v)
-func (_q *ActionSuccessMessageQuery) Select(fields ...string) *ActionSuccessMessageSelect {
+func (_q *ActionResultQuery) Select(fields ...string) *ActionResultSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &ActionSuccessMessageSelect{ActionSuccessMessageQuery: _q}
-	sbuild.label = actionsuccessmessage.Label
+	sbuild := &ActionResultSelect{ActionResultQuery: _q}
+	sbuild.label = actionresult.Label
 	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
 
-// Aggregate returns a ActionSuccessMessageSelect configured with the given aggregations.
-func (_q *ActionSuccessMessageQuery) Aggregate(fns ...AggregateFunc) *ActionSuccessMessageSelect {
+// Aggregate returns a ActionResultSelect configured with the given aggregations.
+func (_q *ActionResultQuery) Aggregate(fns ...AggregateFunc) *ActionResultSelect {
 	return _q.Select().Aggregate(fns...)
 }
 
-func (_q *ActionSuccessMessageQuery) prepareQuery(ctx context.Context) error {
+func (_q *ActionResultQuery) prepareQuery(ctx context.Context) error {
 	for _, inter := range _q.inters {
 		if inter == nil {
 			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
@@ -391,7 +391,7 @@ func (_q *ActionSuccessMessageQuery) prepareQuery(ctx context.Context) error {
 		}
 	}
 	for _, f := range _q.ctx.Fields {
-		if !actionsuccessmessage.ValidColumn(f) {
+		if !actionresult.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
@@ -405,9 +405,9 @@ func (_q *ActionSuccessMessageQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (_q *ActionSuccessMessageQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*ActionSuccessMessage, error) {
+func (_q *ActionResultQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*ActionResult, error) {
 	var (
-		nodes       = []*ActionSuccessMessage{}
+		nodes       = []*ActionResult{}
 		_spec       = _q.querySpec()
 		loadedTypes = [2]bool{
 			_q.withAction != nil,
@@ -415,10 +415,10 @@ func (_q *ActionSuccessMessageQuery) sqlAll(ctx context.Context, hooks ...queryH
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
-		return (*ActionSuccessMessage).scanValues(nil, columns)
+		return (*ActionResult).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
-		node := &ActionSuccessMessage{config: _q.config}
+		node := &ActionResult{config: _q.config}
 		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
@@ -437,13 +437,13 @@ func (_q *ActionSuccessMessageQuery) sqlAll(ctx context.Context, hooks ...queryH
 	}
 	if query := _q.withAction; query != nil {
 		if err := _q.loadAction(ctx, query, nodes, nil,
-			func(n *ActionSuccessMessage, e *Action) { n.Edges.Action = e }); err != nil {
+			func(n *ActionResult, e *Action) { n.Edges.Action = e }); err != nil {
 			return nil, err
 		}
 	}
 	if query := _q.withChannelMessage; query != nil {
 		if err := _q.loadChannelMessage(ctx, query, nodes, nil,
-			func(n *ActionSuccessMessage, e *ChannelMessage) { n.Edges.ChannelMessage = e }); err != nil {
+			func(n *ActionResult, e *ChannelMessage) { n.Edges.ChannelMessage = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -455,9 +455,9 @@ func (_q *ActionSuccessMessageQuery) sqlAll(ctx context.Context, hooks ...queryH
 	return nodes, nil
 }
 
-func (_q *ActionSuccessMessageQuery) loadAction(ctx context.Context, query *ActionQuery, nodes []*ActionSuccessMessage, init func(*ActionSuccessMessage), assign func(*ActionSuccessMessage, *Action)) error {
+func (_q *ActionResultQuery) loadAction(ctx context.Context, query *ActionQuery, nodes []*ActionResult, init func(*ActionResult), assign func(*ActionResult, *Action)) error {
 	ids := make([]uuid.UUID, 0, len(nodes))
-	nodeids := make(map[uuid.UUID][]*ActionSuccessMessage)
+	nodeids := make(map[uuid.UUID][]*ActionResult)
 	for i := range nodes {
 		fk := nodes[i].ActionID
 		if _, ok := nodeids[fk]; !ok {
@@ -484,9 +484,9 @@ func (_q *ActionSuccessMessageQuery) loadAction(ctx context.Context, query *Acti
 	}
 	return nil
 }
-func (_q *ActionSuccessMessageQuery) loadChannelMessage(ctx context.Context, query *ChannelMessageQuery, nodes []*ActionSuccessMessage, init func(*ActionSuccessMessage), assign func(*ActionSuccessMessage, *ChannelMessage)) error {
+func (_q *ActionResultQuery) loadChannelMessage(ctx context.Context, query *ChannelMessageQuery, nodes []*ActionResult, init func(*ActionResult), assign func(*ActionResult, *ChannelMessage)) error {
 	ids := make([]uuid.UUID, 0, len(nodes))
-	nodeids := make(map[uuid.UUID][]*ActionSuccessMessage)
+	nodeids := make(map[uuid.UUID][]*ActionResult)
 	for i := range nodes {
 		fk := nodes[i].ChannelMessageID
 		if _, ok := nodeids[fk]; !ok {
@@ -514,7 +514,7 @@ func (_q *ActionSuccessMessageQuery) loadChannelMessage(ctx context.Context, que
 	return nil
 }
 
-func (_q *ActionSuccessMessageQuery) sqlCount(ctx context.Context) (int, error) {
+func (_q *ActionResultQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
 	if len(_q.modifiers) > 0 {
 		_spec.Modifiers = _q.modifiers
@@ -526,8 +526,8 @@ func (_q *ActionSuccessMessageQuery) sqlCount(ctx context.Context) (int, error) 
 	return sqlgraph.CountNodes(ctx, _q.driver, _spec)
 }
 
-func (_q *ActionSuccessMessageQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(actionsuccessmessage.Table, actionsuccessmessage.Columns, sqlgraph.NewFieldSpec(actionsuccessmessage.FieldID, field.TypeUUID))
+func (_q *ActionResultQuery) querySpec() *sqlgraph.QuerySpec {
+	_spec := sqlgraph.NewQuerySpec(actionresult.Table, actionresult.Columns, sqlgraph.NewFieldSpec(actionresult.FieldID, field.TypeUUID))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -536,17 +536,17 @@ func (_q *ActionSuccessMessageQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, actionsuccessmessage.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, actionresult.FieldID)
 		for i := range fields {
-			if fields[i] != actionsuccessmessage.FieldID {
+			if fields[i] != actionresult.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
 		}
 		if _q.withAction != nil {
-			_spec.Node.AddColumnOnce(actionsuccessmessage.FieldActionID)
+			_spec.Node.AddColumnOnce(actionresult.FieldActionID)
 		}
 		if _q.withChannelMessage != nil {
-			_spec.Node.AddColumnOnce(actionsuccessmessage.FieldChannelMessageID)
+			_spec.Node.AddColumnOnce(actionresult.FieldChannelMessageID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {
@@ -572,12 +572,12 @@ func (_q *ActionSuccessMessageQuery) querySpec() *sqlgraph.QuerySpec {
 	return _spec
 }
 
-func (_q *ActionSuccessMessageQuery) sqlQuery(ctx context.Context) *sql.Selector {
+func (_q *ActionResultQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(_q.driver.Dialect())
-	t1 := builder.Table(actionsuccessmessage.Table)
+	t1 := builder.Table(actionresult.Table)
 	columns := _q.ctx.Fields
 	if len(columns) == 0 {
-		columns = actionsuccessmessage.Columns
+		columns = actionresult.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if _q.sql != nil {
@@ -604,28 +604,28 @@ func (_q *ActionSuccessMessageQuery) sqlQuery(ctx context.Context) *sql.Selector
 	return selector
 }
 
-// ActionSuccessMessageGroupBy is the group-by builder for ActionSuccessMessage entities.
-type ActionSuccessMessageGroupBy struct {
+// ActionResultGroupBy is the group-by builder for ActionResult entities.
+type ActionResultGroupBy struct {
 	selector
-	build *ActionSuccessMessageQuery
+	build *ActionResultQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
-func (_g *ActionSuccessMessageGroupBy) Aggregate(fns ...AggregateFunc) *ActionSuccessMessageGroupBy {
+func (_g *ActionResultGroupBy) Aggregate(fns ...AggregateFunc) *ActionResultGroupBy {
 	_g.fns = append(_g.fns, fns...)
 	return _g
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_g *ActionSuccessMessageGroupBy) Scan(ctx context.Context, v any) error {
+func (_g *ActionResultGroupBy) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
 	if err := _g.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*ActionSuccessMessageQuery, *ActionSuccessMessageGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return scanWithInterceptors[*ActionResultQuery, *ActionResultGroupBy](ctx, _g.build, _g, _g.build.inters, v)
 }
 
-func (_g *ActionSuccessMessageGroupBy) sqlScan(ctx context.Context, root *ActionSuccessMessageQuery, v any) error {
+func (_g *ActionResultGroupBy) sqlScan(ctx context.Context, root *ActionResultQuery, v any) error {
 	selector := root.sqlQuery(ctx).Select()
 	aggregation := make([]string, 0, len(_g.fns))
 	for _, fn := range _g.fns {
@@ -652,28 +652,28 @@ func (_g *ActionSuccessMessageGroupBy) sqlScan(ctx context.Context, root *Action
 	return sql.ScanSlice(rows, v)
 }
 
-// ActionSuccessMessageSelect is the builder for selecting fields of ActionSuccessMessage entities.
-type ActionSuccessMessageSelect struct {
-	*ActionSuccessMessageQuery
+// ActionResultSelect is the builder for selecting fields of ActionResult entities.
+type ActionResultSelect struct {
+	*ActionResultQuery
 	selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
-func (_s *ActionSuccessMessageSelect) Aggregate(fns ...AggregateFunc) *ActionSuccessMessageSelect {
+func (_s *ActionResultSelect) Aggregate(fns ...AggregateFunc) *ActionResultSelect {
 	_s.fns = append(_s.fns, fns...)
 	return _s
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_s *ActionSuccessMessageSelect) Scan(ctx context.Context, v any) error {
+func (_s *ActionResultSelect) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
 	if err := _s.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*ActionSuccessMessageQuery, *ActionSuccessMessageSelect](ctx, _s.ActionSuccessMessageQuery, _s, _s.inters, v)
+	return scanWithInterceptors[*ActionResultQuery, *ActionResultSelect](ctx, _s.ActionResultQuery, _s, _s.inters, v)
 }
 
-func (_s *ActionSuccessMessageSelect) sqlScan(ctx context.Context, root *ActionSuccessMessageQuery, v any) error {
+func (_s *ActionResultSelect) sqlScan(ctx context.Context, root *ActionResultQuery, v any) error {
 	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(_s.fns))
 	for _, fn := range _s.fns {

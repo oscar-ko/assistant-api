@@ -8,7 +8,7 @@ import (
 
 	"assistant-api/internal/ent"
 	"assistant-api/internal/ent/action"
-	"assistant-api/internal/ent/actionsuccessmessage"
+	"assistant-api/internal/ent/actionresult"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/channelservicemember"
@@ -372,8 +372,8 @@ func (r *ChannelMessageRepo) LinkRelatedMessageByReply(ctx context.Context, mess
 	return updated, nil
 }
 
-// LinkSuccessfulMessageToAction records relation between successful command message and action.
-func (r *ChannelMessageRepo) LinkSuccessfulMessageToAction(ctx context.Context, apiOperation string, messageID uuid.UUID) error {
+// UpsertActionResult records command execution result for action-message pair.
+func (r *ChannelMessageRepo) UpsertActionResult(ctx context.Context, apiOperation string, messageID uuid.UUID, status string, resultMessage string) error {
 	if r == nil || r.db == nil {
 		return fmt.Errorf("channel repository not initialized")
 	}
@@ -384,6 +384,19 @@ func (r *ChannelMessageRepo) LinkSuccessfulMessageToAction(ctx context.Context, 
 	if messageID == uuid.Nil {
 		return fmt.Errorf("message id is required")
 	}
+	status = strings.ToLower(strings.TrimSpace(status))
+	resultMessage = strings.TrimSpace(resultMessage)
+	var statusValue actionresult.Status
+	switch status {
+	case string(actionresult.StatusSuccess):
+		statusValue = actionresult.StatusSuccess
+	case string(actionresult.StatusMissingParameter):
+		statusValue = actionresult.StatusMissingParameter
+	case string(actionresult.StatusFailed):
+		statusValue = actionresult.StatusFailed
+	default:
+		return fmt.Errorf("invalid action result status: %s", status)
+	}
 
 	actionItem, err := r.db.Action.Query().Where(action.APIOperationEQ(operation)).Only(ctx)
 	if err != nil {
@@ -393,24 +406,38 @@ func (r *ChannelMessageRepo) LinkSuccessfulMessageToAction(ctx context.Context, 
 		return fmt.Errorf("query action by api operation failed: %w", err)
 	}
 
-	exists, err := r.db.ActionSuccessMessage.Query().
+	item, err := r.db.ActionResult.Query().
 		Where(
-			actionsuccessmessage.ActionIDEQ(actionItem.ID),
-			actionsuccessmessage.ChannelMessageIDEQ(messageID),
+			actionresult.ActionIDEQ(actionItem.ID),
+			actionresult.ChannelMessageIDEQ(messageID),
 		).
-		Exist(ctx)
-	if err != nil {
-		return fmt.Errorf("query action-success relation failed: %w", err)
+		Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return fmt.Errorf("query action result failed: %w", err)
 	}
-	if exists {
+
+	if item != nil {
+		builder := r.db.ActionResult.UpdateOneID(item.ID).SetStatus(statusValue)
+		if resultMessage != "" {
+			builder = builder.SetResultMessage(resultMessage)
+		} else {
+			builder = builder.ClearResultMessage()
+		}
+		if _, err := builder.Save(ctx); err != nil {
+			return fmt.Errorf("update action result failed: %w", err)
+		}
 		return nil
 	}
 
-	if _, err := r.db.ActionSuccessMessage.Create().
+	builder := r.db.ActionResult.Create().
 		SetActionID(actionItem.ID).
 		SetChannelMessageID(messageID).
-		Save(ctx); err != nil {
-		return fmt.Errorf("create action-success relation failed: %w", err)
+		SetStatus(statusValue)
+	if resultMessage != "" {
+		builder = builder.SetResultMessage(resultMessage)
+	}
+	if _, err := builder.Save(ctx); err != nil {
+		return fmt.Errorf("create action result failed: %w", err)
 	}
 	return nil
 }

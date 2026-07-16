@@ -4,8 +4,8 @@ package ent
 
 import (
 	"assistant-api/internal/ent/action"
+	"assistant-api/internal/ent/actionresult"
 	"assistant-api/internal/ent/actionroute"
-	"assistant-api/internal/ent/actionsuccessmessage"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/channelservicemember"
@@ -32,15 +32,15 @@ var actionImplementors = []string{"Action", "Node"}
 // IsNode implements the Node interface check for GQLGen.
 func (*Action) IsNode() {}
 
+var actionresultImplementors = []string{"ActionResult", "Node"}
+
+// IsNode implements the Node interface check for GQLGen.
+func (*ActionResult) IsNode() {}
+
 var actionrouteImplementors = []string{"ActionRoute", "Node"}
 
 // IsNode implements the Node interface check for GQLGen.
 func (*ActionRoute) IsNode() {}
-
-var actionsuccessmessageImplementors = []string{"ActionSuccessMessage", "Node"}
-
-// IsNode implements the Node interface check for GQLGen.
-func (*ActionSuccessMessage) IsNode() {}
 
 var channelImplementors = []string{"Channel", "Node"}
 
@@ -144,20 +144,20 @@ func (c *Client) noder(ctx context.Context, table string, id uuid.UUID) (Noder, 
 			}
 		}
 		return query.Only(ctx)
+	case actionresult.Table:
+		query := c.ActionResult.Query().
+			Where(actionresult.ID(id))
+		if fc := graphql.GetFieldContext(ctx); fc != nil {
+			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, actionresultImplementors...); err != nil {
+				return nil, err
+			}
+		}
+		return query.Only(ctx)
 	case actionroute.Table:
 		query := c.ActionRoute.Query().
 			Where(actionroute.ID(id))
 		if fc := graphql.GetFieldContext(ctx); fc != nil {
 			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, actionrouteImplementors...); err != nil {
-				return nil, err
-			}
-		}
-		return query.Only(ctx)
-	case actionsuccessmessage.Table:
-		query := c.ActionSuccessMessage.Query().
-			Where(actionsuccessmessage.ID(id))
-		if fc := graphql.GetFieldContext(ctx); fc != nil {
-			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, actionsuccessmessageImplementors...); err != nil {
 				return nil, err
 			}
 		}
@@ -314,10 +314,10 @@ func (c *Client) noders(ctx context.Context, table string, ids []uuid.UUID) ([]N
 				*noder = node
 			}
 		}
-	case actionroute.Table:
-		query := c.ActionRoute.Query().
-			Where(actionroute.IDIn(ids...))
-		query, err := query.CollectFields(ctx, actionrouteImplementors...)
+	case actionresult.Table:
+		query := c.ActionResult.Query().
+			Where(actionresult.IDIn(ids...))
+		query, err := query.CollectFields(ctx, actionresultImplementors...)
 		if err != nil {
 			return nil, err
 		}
@@ -330,10 +330,10 @@ func (c *Client) noders(ctx context.Context, table string, ids []uuid.UUID) ([]N
 				*noder = node
 			}
 		}
-	case actionsuccessmessage.Table:
-		query := c.ActionSuccessMessage.Query().
-			Where(actionsuccessmessage.IDIn(ids...))
-		query, err := query.CollectFields(ctx, actionsuccessmessageImplementors...)
+	case actionroute.Table:
+		query := c.ActionRoute.Query().
+			Where(actionroute.IDIn(ids...))
+		query, err := query.CollectFields(ctx, actionrouteImplementors...)
 		if err != nil {
 			return nil, err
 		}

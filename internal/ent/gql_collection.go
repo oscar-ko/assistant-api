@@ -4,8 +4,8 @@ package ent
 
 import (
 	"assistant-api/internal/ent/action"
+	"assistant-api/internal/ent/actionresult"
 	"assistant-api/internal/ent/actionroute"
-	"assistant-api/internal/ent/actionsuccessmessage"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/channelservicemember"
@@ -140,6 +140,128 @@ func newActionPaginateArgs(rv map[string]any) *actionPaginateArgs {
 }
 
 // CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
+func (_q *ActionResultQuery) CollectFields(ctx context.Context, satisfies ...string) (*ActionResultQuery, error) {
+	fc := graphql.GetFieldContext(ctx)
+	if fc == nil {
+		return _q, nil
+	}
+	if err := _q.collectField(ctx, false, graphql.GetOperationContext(ctx), fc.Field, nil, satisfies...); err != nil {
+		return nil, err
+	}
+	return _q, nil
+}
+
+func (_q *ActionResultQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
+	path = append([]string(nil), path...)
+	var (
+		unknownSeen    bool
+		fieldSeen      = make(map[string]struct{}, len(actionresult.Columns))
+		selectedFields = []string{actionresult.FieldID}
+	)
+	for _, field := range graphql.CollectFields(opCtx, collected.Selections, satisfies) {
+		switch field.Name {
+
+		case "action":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&ActionClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, actionImplementors)...); err != nil {
+				return err
+			}
+			_q.withAction = query
+			if _, ok := fieldSeen[actionresult.FieldActionID]; !ok {
+				selectedFields = append(selectedFields, actionresult.FieldActionID)
+				fieldSeen[actionresult.FieldActionID] = struct{}{}
+			}
+
+		case "channelMessage":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&ChannelMessageClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, channelmessageImplementors)...); err != nil {
+				return err
+			}
+			_q.withChannelMessage = query
+			if _, ok := fieldSeen[actionresult.FieldChannelMessageID]; !ok {
+				selectedFields = append(selectedFields, actionresult.FieldChannelMessageID)
+				fieldSeen[actionresult.FieldChannelMessageID] = struct{}{}
+			}
+		case "createdAt":
+			if _, ok := fieldSeen[actionresult.FieldCreatedAt]; !ok {
+				selectedFields = append(selectedFields, actionresult.FieldCreatedAt)
+				fieldSeen[actionresult.FieldCreatedAt] = struct{}{}
+			}
+		case "updatedAt":
+			if _, ok := fieldSeen[actionresult.FieldUpdatedAt]; !ok {
+				selectedFields = append(selectedFields, actionresult.FieldUpdatedAt)
+				fieldSeen[actionresult.FieldUpdatedAt] = struct{}{}
+			}
+		case "actionID":
+			if _, ok := fieldSeen[actionresult.FieldActionID]; !ok {
+				selectedFields = append(selectedFields, actionresult.FieldActionID)
+				fieldSeen[actionresult.FieldActionID] = struct{}{}
+			}
+		case "channelMessageID":
+			if _, ok := fieldSeen[actionresult.FieldChannelMessageID]; !ok {
+				selectedFields = append(selectedFields, actionresult.FieldChannelMessageID)
+				fieldSeen[actionresult.FieldChannelMessageID] = struct{}{}
+			}
+		case "status":
+			if _, ok := fieldSeen[actionresult.FieldStatus]; !ok {
+				selectedFields = append(selectedFields, actionresult.FieldStatus)
+				fieldSeen[actionresult.FieldStatus] = struct{}{}
+			}
+		case "resultMessage":
+			if _, ok := fieldSeen[actionresult.FieldResultMessage]; !ok {
+				selectedFields = append(selectedFields, actionresult.FieldResultMessage)
+				fieldSeen[actionresult.FieldResultMessage] = struct{}{}
+			}
+		case "id":
+		case "__typename":
+		default:
+			unknownSeen = true
+		}
+	}
+	if !unknownSeen {
+		_q.Select(selectedFields...)
+	}
+	return nil
+}
+
+type actionresultPaginateArgs struct {
+	first, last   *int
+	after, before *Cursor
+	opts          []ActionResultPaginateOption
+}
+
+func newActionResultPaginateArgs(rv map[string]any) *actionresultPaginateArgs {
+	args := &actionresultPaginateArgs{}
+	if rv == nil {
+		return args
+	}
+	if v := rv[firstField]; v != nil {
+		args.first = v.(*int)
+	}
+	if v := rv[lastField]; v != nil {
+		args.last = v.(*int)
+	}
+	if v := rv[afterField]; v != nil {
+		args.after = v.(*Cursor)
+	}
+	if v := rv[beforeField]; v != nil {
+		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[whereField].(*ActionResultWhereInput); ok {
+		args.opts = append(args.opts, WithActionResultFilter(v.Filter))
+	}
+	return args
+}
+
+// CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
 func (_q *ActionRouteQuery) CollectFields(ctx context.Context, satisfies ...string) (*ActionRouteQuery, error) {
 	fc := graphql.GetFieldContext(ctx)
 	if fc == nil {
@@ -232,118 +354,6 @@ func newActionRoutePaginateArgs(rv map[string]any) *actionroutePaginateArgs {
 	}
 	if v, ok := rv[whereField].(*ActionRouteWhereInput); ok {
 		args.opts = append(args.opts, WithActionRouteFilter(v.Filter))
-	}
-	return args
-}
-
-// CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
-func (_q *ActionSuccessMessageQuery) CollectFields(ctx context.Context, satisfies ...string) (*ActionSuccessMessageQuery, error) {
-	fc := graphql.GetFieldContext(ctx)
-	if fc == nil {
-		return _q, nil
-	}
-	if err := _q.collectField(ctx, false, graphql.GetOperationContext(ctx), fc.Field, nil, satisfies...); err != nil {
-		return nil, err
-	}
-	return _q, nil
-}
-
-func (_q *ActionSuccessMessageQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
-	path = append([]string(nil), path...)
-	var (
-		unknownSeen    bool
-		fieldSeen      = make(map[string]struct{}, len(actionsuccessmessage.Columns))
-		selectedFields = []string{actionsuccessmessage.FieldID}
-	)
-	for _, field := range graphql.CollectFields(opCtx, collected.Selections, satisfies) {
-		switch field.Name {
-
-		case "action":
-			var (
-				alias = field.Alias
-				path  = append(path, alias)
-				query = (&ActionClient{config: _q.config}).Query()
-			)
-			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, actionImplementors)...); err != nil {
-				return err
-			}
-			_q.withAction = query
-			if _, ok := fieldSeen[actionsuccessmessage.FieldActionID]; !ok {
-				selectedFields = append(selectedFields, actionsuccessmessage.FieldActionID)
-				fieldSeen[actionsuccessmessage.FieldActionID] = struct{}{}
-			}
-
-		case "channelMessage":
-			var (
-				alias = field.Alias
-				path  = append(path, alias)
-				query = (&ChannelMessageClient{config: _q.config}).Query()
-			)
-			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, channelmessageImplementors)...); err != nil {
-				return err
-			}
-			_q.withChannelMessage = query
-			if _, ok := fieldSeen[actionsuccessmessage.FieldChannelMessageID]; !ok {
-				selectedFields = append(selectedFields, actionsuccessmessage.FieldChannelMessageID)
-				fieldSeen[actionsuccessmessage.FieldChannelMessageID] = struct{}{}
-			}
-		case "createdAt":
-			if _, ok := fieldSeen[actionsuccessmessage.FieldCreatedAt]; !ok {
-				selectedFields = append(selectedFields, actionsuccessmessage.FieldCreatedAt)
-				fieldSeen[actionsuccessmessage.FieldCreatedAt] = struct{}{}
-			}
-		case "updatedAt":
-			if _, ok := fieldSeen[actionsuccessmessage.FieldUpdatedAt]; !ok {
-				selectedFields = append(selectedFields, actionsuccessmessage.FieldUpdatedAt)
-				fieldSeen[actionsuccessmessage.FieldUpdatedAt] = struct{}{}
-			}
-		case "actionID":
-			if _, ok := fieldSeen[actionsuccessmessage.FieldActionID]; !ok {
-				selectedFields = append(selectedFields, actionsuccessmessage.FieldActionID)
-				fieldSeen[actionsuccessmessage.FieldActionID] = struct{}{}
-			}
-		case "channelMessageID":
-			if _, ok := fieldSeen[actionsuccessmessage.FieldChannelMessageID]; !ok {
-				selectedFields = append(selectedFields, actionsuccessmessage.FieldChannelMessageID)
-				fieldSeen[actionsuccessmessage.FieldChannelMessageID] = struct{}{}
-			}
-		case "id":
-		case "__typename":
-		default:
-			unknownSeen = true
-		}
-	}
-	if !unknownSeen {
-		_q.Select(selectedFields...)
-	}
-	return nil
-}
-
-type actionsuccessmessagePaginateArgs struct {
-	first, last   *int
-	after, before *Cursor
-	opts          []ActionSuccessMessagePaginateOption
-}
-
-func newActionSuccessMessagePaginateArgs(rv map[string]any) *actionsuccessmessagePaginateArgs {
-	args := &actionsuccessmessagePaginateArgs{}
-	if rv == nil {
-		return args
-	}
-	if v := rv[firstField]; v != nil {
-		args.first = v.(*int)
-	}
-	if v := rv[lastField]; v != nil {
-		args.last = v.(*int)
-	}
-	if v := rv[afterField]; v != nil {
-		args.after = v.(*Cursor)
-	}
-	if v := rv[beforeField]; v != nil {
-		args.before = v.(*Cursor)
-	}
-	if v, ok := rv[whereField].(*ActionSuccessMessageWhereInput); ok {
-		args.opts = append(args.opts, WithActionSuccessMessageFilter(v.Filter))
 	}
 	return args
 }

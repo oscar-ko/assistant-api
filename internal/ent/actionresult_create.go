@@ -4,7 +4,7 @@ package ent
 
 import (
 	"assistant-api/internal/ent/action"
-	"assistant-api/internal/ent/actionsuccessmessage"
+	"assistant-api/internal/ent/actionresult"
 	"assistant-api/internal/ent/channelmessage"
 	"context"
 	"errors"
@@ -16,21 +16,21 @@ import (
 	"github.com/google/uuid"
 )
 
-// ActionSuccessMessageCreate is the builder for creating a ActionSuccessMessage entity.
-type ActionSuccessMessageCreate struct {
+// ActionResultCreate is the builder for creating a ActionResult entity.
+type ActionResultCreate struct {
 	config
-	mutation *ActionSuccessMessageMutation
+	mutation *ActionResultMutation
 	hooks    []Hook
 }
 
 // SetCreatedAt sets the "created_at" field.
-func (_c *ActionSuccessMessageCreate) SetCreatedAt(v time.Time) *ActionSuccessMessageCreate {
+func (_c *ActionResultCreate) SetCreatedAt(v time.Time) *ActionResultCreate {
 	_c.mutation.SetCreatedAt(v)
 	return _c
 }
 
 // SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
-func (_c *ActionSuccessMessageCreate) SetNillableCreatedAt(v *time.Time) *ActionSuccessMessageCreate {
+func (_c *ActionResultCreate) SetNillableCreatedAt(v *time.Time) *ActionResultCreate {
 	if v != nil {
 		_c.SetCreatedAt(*v)
 	}
@@ -38,13 +38,13 @@ func (_c *ActionSuccessMessageCreate) SetNillableCreatedAt(v *time.Time) *Action
 }
 
 // SetUpdatedAt sets the "updated_at" field.
-func (_c *ActionSuccessMessageCreate) SetUpdatedAt(v time.Time) *ActionSuccessMessageCreate {
+func (_c *ActionResultCreate) SetUpdatedAt(v time.Time) *ActionResultCreate {
 	_c.mutation.SetUpdatedAt(v)
 	return _c
 }
 
 // SetNillableUpdatedAt sets the "updated_at" field if the given value is not nil.
-func (_c *ActionSuccessMessageCreate) SetNillableUpdatedAt(v *time.Time) *ActionSuccessMessageCreate {
+func (_c *ActionResultCreate) SetNillableUpdatedAt(v *time.Time) *ActionResultCreate {
 	if v != nil {
 		_c.SetUpdatedAt(*v)
 	}
@@ -52,25 +52,45 @@ func (_c *ActionSuccessMessageCreate) SetNillableUpdatedAt(v *time.Time) *Action
 }
 
 // SetActionID sets the "action_id" field.
-func (_c *ActionSuccessMessageCreate) SetActionID(v uuid.UUID) *ActionSuccessMessageCreate {
+func (_c *ActionResultCreate) SetActionID(v uuid.UUID) *ActionResultCreate {
 	_c.mutation.SetActionID(v)
 	return _c
 }
 
 // SetChannelMessageID sets the "channel_message_id" field.
-func (_c *ActionSuccessMessageCreate) SetChannelMessageID(v uuid.UUID) *ActionSuccessMessageCreate {
+func (_c *ActionResultCreate) SetChannelMessageID(v uuid.UUID) *ActionResultCreate {
 	_c.mutation.SetChannelMessageID(v)
 	return _c
 }
 
+// SetStatus sets the "status" field.
+func (_c *ActionResultCreate) SetStatus(v actionresult.Status) *ActionResultCreate {
+	_c.mutation.SetStatus(v)
+	return _c
+}
+
+// SetResultMessage sets the "result_message" field.
+func (_c *ActionResultCreate) SetResultMessage(v string) *ActionResultCreate {
+	_c.mutation.SetResultMessage(v)
+	return _c
+}
+
+// SetNillableResultMessage sets the "result_message" field if the given value is not nil.
+func (_c *ActionResultCreate) SetNillableResultMessage(v *string) *ActionResultCreate {
+	if v != nil {
+		_c.SetResultMessage(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
-func (_c *ActionSuccessMessageCreate) SetID(v uuid.UUID) *ActionSuccessMessageCreate {
+func (_c *ActionResultCreate) SetID(v uuid.UUID) *ActionResultCreate {
 	_c.mutation.SetID(v)
 	return _c
 }
 
 // SetNillableID sets the "id" field if the given value is not nil.
-func (_c *ActionSuccessMessageCreate) SetNillableID(v *uuid.UUID) *ActionSuccessMessageCreate {
+func (_c *ActionResultCreate) SetNillableID(v *uuid.UUID) *ActionResultCreate {
 	if v != nil {
 		_c.SetID(*v)
 	}
@@ -78,28 +98,28 @@ func (_c *ActionSuccessMessageCreate) SetNillableID(v *uuid.UUID) *ActionSuccess
 }
 
 // SetAction sets the "action" edge to the Action entity.
-func (_c *ActionSuccessMessageCreate) SetAction(v *Action) *ActionSuccessMessageCreate {
+func (_c *ActionResultCreate) SetAction(v *Action) *ActionResultCreate {
 	return _c.SetActionID(v.ID)
 }
 
 // SetChannelMessage sets the "channel_message" edge to the ChannelMessage entity.
-func (_c *ActionSuccessMessageCreate) SetChannelMessage(v *ChannelMessage) *ActionSuccessMessageCreate {
+func (_c *ActionResultCreate) SetChannelMessage(v *ChannelMessage) *ActionResultCreate {
 	return _c.SetChannelMessageID(v.ID)
 }
 
-// Mutation returns the ActionSuccessMessageMutation object of the builder.
-func (_c *ActionSuccessMessageCreate) Mutation() *ActionSuccessMessageMutation {
+// Mutation returns the ActionResultMutation object of the builder.
+func (_c *ActionResultCreate) Mutation() *ActionResultMutation {
 	return _c.mutation
 }
 
-// Save creates the ActionSuccessMessage in the database.
-func (_c *ActionSuccessMessageCreate) Save(ctx context.Context) (*ActionSuccessMessage, error) {
+// Save creates the ActionResult in the database.
+func (_c *ActionResultCreate) Save(ctx context.Context) (*ActionResult, error) {
 	_c.defaults()
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
-func (_c *ActionSuccessMessageCreate) SaveX(ctx context.Context) *ActionSuccessMessage {
+func (_c *ActionResultCreate) SaveX(ctx context.Context) *ActionResult {
 	v, err := _c.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -108,58 +128,66 @@ func (_c *ActionSuccessMessageCreate) SaveX(ctx context.Context) *ActionSuccessM
 }
 
 // Exec executes the query.
-func (_c *ActionSuccessMessageCreate) Exec(ctx context.Context) error {
+func (_c *ActionResultCreate) Exec(ctx context.Context) error {
 	_, err := _c.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_c *ActionSuccessMessageCreate) ExecX(ctx context.Context) {
+func (_c *ActionResultCreate) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *ActionSuccessMessageCreate) defaults() {
+func (_c *ActionResultCreate) defaults() {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
-		v := actionsuccessmessage.DefaultCreatedAt()
+		v := actionresult.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
-		v := actionsuccessmessage.DefaultUpdatedAt()
+		v := actionresult.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
 	if _, ok := _c.mutation.ID(); !ok {
-		v := actionsuccessmessage.DefaultID()
+		v := actionresult.DefaultID()
 		_c.mutation.SetID(v)
 	}
 }
 
 // check runs all checks and user-defined validators on the builder.
-func (_c *ActionSuccessMessageCreate) check() error {
+func (_c *ActionResultCreate) check() error {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
-		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "ActionSuccessMessage.created_at"`)}
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "ActionResult.created_at"`)}
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
-		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "ActionSuccessMessage.updated_at"`)}
+		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "ActionResult.updated_at"`)}
 	}
 	if _, ok := _c.mutation.ActionID(); !ok {
-		return &ValidationError{Name: "action_id", err: errors.New(`ent: missing required field "ActionSuccessMessage.action_id"`)}
+		return &ValidationError{Name: "action_id", err: errors.New(`ent: missing required field "ActionResult.action_id"`)}
 	}
 	if _, ok := _c.mutation.ChannelMessageID(); !ok {
-		return &ValidationError{Name: "channel_message_id", err: errors.New(`ent: missing required field "ActionSuccessMessage.channel_message_id"`)}
+		return &ValidationError{Name: "channel_message_id", err: errors.New(`ent: missing required field "ActionResult.channel_message_id"`)}
+	}
+	if _, ok := _c.mutation.Status(); !ok {
+		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "ActionResult.status"`)}
+	}
+	if v, ok := _c.mutation.Status(); ok {
+		if err := actionresult.StatusValidator(v); err != nil {
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "ActionResult.status": %w`, err)}
+		}
 	}
 	if len(_c.mutation.ActionIDs()) == 0 {
-		return &ValidationError{Name: "action", err: errors.New(`ent: missing required edge "ActionSuccessMessage.action"`)}
+		return &ValidationError{Name: "action", err: errors.New(`ent: missing required edge "ActionResult.action"`)}
 	}
 	if len(_c.mutation.ChannelMessageIDs()) == 0 {
-		return &ValidationError{Name: "channel_message", err: errors.New(`ent: missing required edge "ActionSuccessMessage.channel_message"`)}
+		return &ValidationError{Name: "channel_message", err: errors.New(`ent: missing required edge "ActionResult.channel_message"`)}
 	}
 	return nil
 }
 
-func (_c *ActionSuccessMessageCreate) sqlSave(ctx context.Context) (*ActionSuccessMessage, error) {
+func (_c *ActionResultCreate) sqlSave(ctx context.Context) (*ActionResult, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
@@ -182,29 +210,37 @@ func (_c *ActionSuccessMessageCreate) sqlSave(ctx context.Context) (*ActionSucce
 	return _node, nil
 }
 
-func (_c *ActionSuccessMessageCreate) createSpec() (*ActionSuccessMessage, *sqlgraph.CreateSpec) {
+func (_c *ActionResultCreate) createSpec() (*ActionResult, *sqlgraph.CreateSpec) {
 	var (
-		_node = &ActionSuccessMessage{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(actionsuccessmessage.Table, sqlgraph.NewFieldSpec(actionsuccessmessage.FieldID, field.TypeUUID))
+		_node = &ActionResult{config: _c.config}
+		_spec = sqlgraph.NewCreateSpec(actionresult.Table, sqlgraph.NewFieldSpec(actionresult.FieldID, field.TypeUUID))
 	)
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
-		_spec.SetField(actionsuccessmessage.FieldCreatedAt, field.TypeTime, value)
+		_spec.SetField(actionresult.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
 	}
 	if value, ok := _c.mutation.UpdatedAt(); ok {
-		_spec.SetField(actionsuccessmessage.FieldUpdatedAt, field.TypeTime, value)
+		_spec.SetField(actionresult.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if value, ok := _c.mutation.Status(); ok {
+		_spec.SetField(actionresult.FieldStatus, field.TypeEnum, value)
+		_node.Status = value
+	}
+	if value, ok := _c.mutation.ResultMessage(); ok {
+		_spec.SetField(actionresult.FieldResultMessage, field.TypeString, value)
+		_node.ResultMessage = &value
 	}
 	if nodes := _c.mutation.ActionIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   actionsuccessmessage.ActionTable,
-			Columns: []string{actionsuccessmessage.ActionColumn},
+			Table:   actionresult.ActionTable,
+			Columns: []string{actionresult.ActionColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(action.FieldID, field.TypeUUID),
@@ -220,8 +256,8 @@ func (_c *ActionSuccessMessageCreate) createSpec() (*ActionSuccessMessage, *sqlg
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   actionsuccessmessage.ChannelMessageTable,
-			Columns: []string{actionsuccessmessage.ChannelMessageColumn},
+			Table:   actionresult.ChannelMessageTable,
+			Columns: []string{actionresult.ChannelMessageColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
@@ -236,27 +272,27 @@ func (_c *ActionSuccessMessageCreate) createSpec() (*ActionSuccessMessage, *sqlg
 	return _node, _spec
 }
 
-// ActionSuccessMessageCreateBulk is the builder for creating many ActionSuccessMessage entities in bulk.
-type ActionSuccessMessageCreateBulk struct {
+// ActionResultCreateBulk is the builder for creating many ActionResult entities in bulk.
+type ActionResultCreateBulk struct {
 	config
 	err      error
-	builders []*ActionSuccessMessageCreate
+	builders []*ActionResultCreate
 }
 
-// Save creates the ActionSuccessMessage entities in the database.
-func (_c *ActionSuccessMessageCreateBulk) Save(ctx context.Context) ([]*ActionSuccessMessage, error) {
+// Save creates the ActionResult entities in the database.
+func (_c *ActionResultCreateBulk) Save(ctx context.Context) ([]*ActionResult, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
 	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
-	nodes := make([]*ActionSuccessMessage, len(_c.builders))
+	nodes := make([]*ActionResult, len(_c.builders))
 	mutators := make([]Mutator, len(_c.builders))
 	for i := range _c.builders {
 		func(i int, root context.Context) {
 			builder := _c.builders[i]
 			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*ActionSuccessMessageMutation)
+				mutation, ok := m.(*ActionResultMutation)
 				if !ok {
 					return nil, fmt.Errorf("unexpected mutation type %T", m)
 				}
@@ -299,7 +335,7 @@ func (_c *ActionSuccessMessageCreateBulk) Save(ctx context.Context) ([]*ActionSu
 }
 
 // SaveX is like Save, but panics if an error occurs.
-func (_c *ActionSuccessMessageCreateBulk) SaveX(ctx context.Context) []*ActionSuccessMessage {
+func (_c *ActionResultCreateBulk) SaveX(ctx context.Context) []*ActionResult {
 	v, err := _c.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -308,13 +344,13 @@ func (_c *ActionSuccessMessageCreateBulk) SaveX(ctx context.Context) []*ActionSu
 }
 
 // Exec executes the query.
-func (_c *ActionSuccessMessageCreateBulk) Exec(ctx context.Context) error {
+func (_c *ActionResultCreateBulk) Exec(ctx context.Context) error {
 	_, err := _c.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_c *ActionSuccessMessageCreateBulk) ExecX(ctx context.Context) {
+func (_c *ActionResultCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
 		panic(err)
 	}

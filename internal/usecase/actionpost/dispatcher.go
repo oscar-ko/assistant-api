@@ -138,16 +138,7 @@ func NewPersistTranslationCommandStateHandler(repo *repository.ChannelMessageRep
 			return false
 		}
 
-		// 從通用 action_params 抽取 locale；缺參時視為契約錯誤。
-		targetLocales := ExtractTranslationTargetLocales(decision)
-		if len(targetLocales) == 0 {
-			zap.L().Error("translation command persistence failed: missing required locale params",
-				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-				zap.String("api_operation", strings.TrimSpace(decision.APIOperation)),
-			)
-			return false
-		}
+		apiOperation := strings.TrimSpace(decision.APIOperation)
 
 		// unified message 的 ChannelID 是平台外部識別（例如 LINE group/user id），
 		// 不是資料庫 channel 主鍵；這裡必須先解析/查回內部 channel UUID。
@@ -169,9 +160,62 @@ func NewPersistTranslationCommandStateHandler(repo *repository.ChannelMessageRep
 		}
 		channelUUID := channel.ID
 
+		persistedMessage, err := repo.FindMessageByPlatformMessageID(context.Background(), channelUUID, strings.TrimSpace(message.PlatformMessageID))
+		if err != nil {
+			zap.L().Error("translation command persistence failed: resolve persisted message for action result",
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.String("api_operation", apiOperation),
+				zap.Error(err),
+			)
+			return false
+		}
+		if persistedMessage == nil || persistedMessage.ID == uuid.Nil {
+			zap.L().Error("translation command persistence failed: persisted message not found for action result",
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.String("api_operation", apiOperation),
+			)
+			return false
+		}
+
+		persistResult := func(status string, resultMessage string) bool {
+			// action_results 在此作為「可查詢、可統計」的執行狀態來源。
+			// status 建議語意：
+			// - missing_parameter: 指令意圖成立，但缺必要參數
+			// - failed: 已具備參數但執行過程失敗
+			// - success: 執行完成
+			// 這樣前後端不必解析 log 就能還原每次指令執行結果。
+			if err := repo.UpsertActionResult(context.Background(), apiOperation, persistedMessage.ID, status, resultMessage); err != nil {
+				zap.L().Error("translation command persistence failed: upsert action result",
+					zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+					zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+					zap.String("persisted_message_id", persistedMessage.ID.String()),
+					zap.String("api_operation", apiOperation),
+					zap.String("result_status", status),
+					zap.Error(err),
+				)
+				return false
+			}
+			return true
+		}
+
+		// 從通用 action_params 抽取 locale；缺參時記錄 missing_parameter。
+		targetLocales := ExtractTranslationTargetLocales(decision)
+		if len(targetLocales) == 0 {
+			_ = persistResult("missing_parameter", "target_locales is required")
+			zap.L().Error("translation command persistence failed: missing required locale params",
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.String("api_operation", apiOperation),
+			)
+			return false
+		}
+
 		// senderUserID 必須由 caller 提供；不再 fallback，避免來源不明。
 		senderUserID = strings.TrimSpace(senderUserID)
 		if senderUserID == "" || strings.EqualFold(senderUserID, "unknown") {
+			_ = persistResult("failed", "missing sender user id")
 			zap.L().Error("translation command persistence failed: missing sender user id",
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
@@ -183,6 +227,7 @@ func NewPersistTranslationCommandStateHandler(repo *repository.ChannelMessageRep
 		// 先把平台 user id 解析成系統內 user id；解析失敗則不進行後續任何寫入。
 		ownerUserID, err := repo.ResolveUserIDByLineUserID(context.Background(), senderUserID)
 		if err != nil {
+			_ = persistResult("failed", "resolve owner user failed")
 			zap.L().Error("translation command persistence failed: resolve owner user failed",
 				zap.String("line_user_id", senderUserID),
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
@@ -193,6 +238,7 @@ func NewPersistTranslationCommandStateHandler(repo *repository.ChannelMessageRep
 		}
 		// uuid.Nil 代表未綁定，視為錯誤。
 		if ownerUserID == uuid.Nil {
+			_ = persistResult("failed", "line user not bound")
 			zap.L().Error("translation command persistence failed: line user not bound",
 				zap.String("line_user_id", senderUserID),
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
@@ -204,6 +250,7 @@ func NewPersistTranslationCommandStateHandler(repo *repository.ChannelMessageRep
 		// 嚴格模式：必須帶上游映射出的 skillCode，不再使用預設值。
 		skillCode := strings.TrimSpace(matchedSkillCode)
 		if skillCode == "" {
+			_ = persistResult("failed", "missing matched skill code")
 			zap.L().Error("translation command persistence failed: missing matched skill code",
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
@@ -214,6 +261,7 @@ func NewPersistTranslationCommandStateHandler(repo *repository.ChannelMessageRep
 		// skillID 解析失敗或不存在都不應落庫，避免資料關聯錯誤。
 		skillID, err := repo.ResolveSkillIDByCode(context.Background(), skillCode)
 		if err != nil {
+			_ = persistResult("failed", "resolve skill failed")
 			zap.L().Error("translation command persistence failed: resolve skill failed",
 				zap.String("skill_code", skillCode),
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
@@ -223,6 +271,7 @@ func NewPersistTranslationCommandStateHandler(repo *repository.ChannelMessageRep
 			return false
 		}
 		if skillID == uuid.Nil {
+			_ = persistResult("failed", "skill not found")
 			zap.L().Error("translation command persistence failed: skill not found",
 				zap.String("skill_code", skillCode),
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
@@ -233,6 +282,7 @@ func NewPersistTranslationCommandStateHandler(repo *repository.ChannelMessageRep
 
 		// 先建立 service member，確保 locale 寫入前已具備服務成員關聯。
 		if err := repo.AddServiceMemberToChannel(context.Background(), channelUUID, ownerUserID, skillID); err != nil {
+			_ = persistResult("failed", "add service member failed")
 			zap.L().Error("translation command persistence failed: add service member",
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
@@ -262,6 +312,7 @@ func NewPersistTranslationCommandStateHandler(repo *repository.ChannelMessageRep
 
 		// 全失敗視為錯誤，直接輸出 error。
 		if len(appliedLocales) == 0 {
+			_ = persistResult("failed", "all locale writes failed")
 			zap.L().Error("translation command persistence failed: all locale writes failed",
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
@@ -271,36 +322,7 @@ func NewPersistTranslationCommandStateHandler(repo *repository.ChannelMessageRep
 			return false
 		}
 
-		persistedMessage, err := repo.FindMessageByPlatformMessageID(context.Background(), channelUUID, strings.TrimSpace(message.PlatformMessageID))
-		if err != nil {
-			zap.L().Error("translation command persistence failed: resolve persisted message for action relation",
-				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-				zap.String("skill_code", skillCode),
-				zap.String("api_operation", strings.TrimSpace(decision.APIOperation)),
-				zap.Error(err),
-			)
-			return false
-		}
-		if persistedMessage == nil || persistedMessage.ID == uuid.Nil {
-			zap.L().Error("translation command persistence failed: persisted message not found for action relation",
-				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-				zap.String("skill_code", skillCode),
-				zap.String("api_operation", strings.TrimSpace(decision.APIOperation)),
-			)
-			return false
-		}
-
-		if err := repo.LinkSuccessfulMessageToAction(context.Background(), strings.TrimSpace(decision.APIOperation), persistedMessage.ID); err != nil {
-			zap.L().Error("translation command persistence failed: link successful message and action",
-				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-				zap.String("persisted_message_id", persistedMessage.ID.String()),
-				zap.String("skill_code", skillCode),
-				zap.String("api_operation", strings.TrimSpace(decision.APIOperation)),
-				zap.Error(err),
-			)
+		if !persistResult("success", "applied_locales="+strings.Join(appliedLocales, ",")) {
 			return false
 		}
 
@@ -311,7 +333,7 @@ func NewPersistTranslationCommandStateHandler(repo *repository.ChannelMessageRep
 			zap.String("persisted_message_id", persistedMessage.ID.String()),
 			zap.String("line_user_id", senderUserID),
 			zap.String("skill_code", skillCode),
-			zap.String("api_operation", strings.TrimSpace(decision.APIOperation)),
+			zap.String("api_operation", apiOperation),
 			zap.Strings("target_locales", appliedLocales),
 		)
 		return true

@@ -4,8 +4,8 @@ package ent
 
 import (
 	"assistant-api/internal/ent/action"
+	"assistant-api/internal/ent/actionresult"
 	"assistant-api/internal/ent/actionroute"
-	"assistant-api/internal/ent/actionsuccessmessage"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/channelservicemember"
@@ -357,6 +357,255 @@ func (_m *Action) ToEdge(order *ActionOrder) *ActionEdge {
 	}
 }
 
+// ActionResultEdge is the edge representation of ActionResult.
+type ActionResultEdge struct {
+	Node   *ActionResult `json:"node"`
+	Cursor Cursor        `json:"cursor"`
+}
+
+// ActionResultConnection is the connection containing edges to ActionResult.
+type ActionResultConnection struct {
+	Edges      []*ActionResultEdge `json:"edges"`
+	PageInfo   PageInfo            `json:"pageInfo"`
+	TotalCount int                 `json:"totalCount"`
+}
+
+func (c *ActionResultConnection) build(nodes []*ActionResult, pager *actionresultPager, after *Cursor, first *int, before *Cursor, last *int) {
+	c.PageInfo.HasNextPage = before != nil
+	c.PageInfo.HasPreviousPage = after != nil
+	if first != nil && *first+1 == len(nodes) {
+		c.PageInfo.HasNextPage = true
+		nodes = nodes[:len(nodes)-1]
+	} else if last != nil && *last+1 == len(nodes) {
+		c.PageInfo.HasPreviousPage = true
+		nodes = nodes[:len(nodes)-1]
+	}
+	var nodeAt func(int) *ActionResult
+	if last != nil {
+		n := len(nodes) - 1
+		nodeAt = func(i int) *ActionResult {
+			return nodes[n-i]
+		}
+	} else {
+		nodeAt = func(i int) *ActionResult {
+			return nodes[i]
+		}
+	}
+	c.Edges = make([]*ActionResultEdge, len(nodes))
+	for i := range nodes {
+		node := nodeAt(i)
+		c.Edges[i] = &ActionResultEdge{
+			Node:   node,
+			Cursor: pager.toCursor(node),
+		}
+	}
+	if l := len(c.Edges); l > 0 {
+		c.PageInfo.StartCursor = &c.Edges[0].Cursor
+		c.PageInfo.EndCursor = &c.Edges[l-1].Cursor
+	}
+	if c.TotalCount == 0 {
+		c.TotalCount = len(nodes)
+	}
+}
+
+// ActionResultPaginateOption enables pagination customization.
+type ActionResultPaginateOption func(*actionresultPager) error
+
+// WithActionResultOrder configures pagination ordering.
+func WithActionResultOrder(order *ActionResultOrder) ActionResultPaginateOption {
+	if order == nil {
+		order = DefaultActionResultOrder
+	}
+	o := *order
+	return func(pager *actionresultPager) error {
+		if err := o.Direction.Validate(); err != nil {
+			return err
+		}
+		if o.Field == nil {
+			o.Field = DefaultActionResultOrder.Field
+		}
+		pager.order = &o
+		return nil
+	}
+}
+
+// WithActionResultFilter configures pagination filter.
+func WithActionResultFilter(filter func(*ActionResultQuery) (*ActionResultQuery, error)) ActionResultPaginateOption {
+	return func(pager *actionresultPager) error {
+		if filter == nil {
+			return errors.New("ActionResultQuery filter cannot be nil")
+		}
+		pager.filter = filter
+		return nil
+	}
+}
+
+type actionresultPager struct {
+	reverse bool
+	order   *ActionResultOrder
+	filter  func(*ActionResultQuery) (*ActionResultQuery, error)
+}
+
+func newActionResultPager(opts []ActionResultPaginateOption, reverse bool) (*actionresultPager, error) {
+	pager := &actionresultPager{reverse: reverse}
+	for _, opt := range opts {
+		if err := opt(pager); err != nil {
+			return nil, err
+		}
+	}
+	if pager.order == nil {
+		pager.order = DefaultActionResultOrder
+	}
+	return pager, nil
+}
+
+func (p *actionresultPager) applyFilter(query *ActionResultQuery) (*ActionResultQuery, error) {
+	if p.filter != nil {
+		return p.filter(query)
+	}
+	return query, nil
+}
+
+func (p *actionresultPager) toCursor(_m *ActionResult) Cursor {
+	return p.order.Field.toCursor(_m)
+}
+
+func (p *actionresultPager) applyCursors(query *ActionResultQuery, after, before *Cursor) (*ActionResultQuery, error) {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	for _, predicate := range entgql.CursorsPredicate(after, before, DefaultActionResultOrder.Field.column, p.order.Field.column, direction) {
+		query = query.Where(predicate)
+	}
+	return query, nil
+}
+
+func (p *actionresultPager) applyOrder(query *ActionResultQuery) *ActionResultQuery {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	query = query.Order(p.order.Field.toTerm(direction.OrderTermOption()))
+	if p.order.Field != DefaultActionResultOrder.Field {
+		query = query.Order(DefaultActionResultOrder.Field.toTerm(direction.OrderTermOption()))
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return query
+}
+
+func (p *actionresultPager) orderExpr(query *ActionResultQuery) sql.Querier {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return sql.ExprFunc(func(b *sql.Builder) {
+		b.Ident(p.order.Field.column).Pad().WriteString(string(direction))
+		if p.order.Field != DefaultActionResultOrder.Field {
+			b.Comma().Ident(DefaultActionResultOrder.Field.column).Pad().WriteString(string(direction))
+		}
+	})
+}
+
+// Paginate executes the query and returns a relay based cursor connection to ActionResult.
+func (_m *ActionResultQuery) Paginate(
+	ctx context.Context, after *Cursor, first *int,
+	before *Cursor, last *int, opts ...ActionResultPaginateOption,
+) (*ActionResultConnection, error) {
+	if err := validateFirstLast(first, last); err != nil {
+		return nil, err
+	}
+	pager, err := newActionResultPager(opts, last != nil)
+	if err != nil {
+		return nil, err
+	}
+	if _m, err = pager.applyFilter(_m); err != nil {
+		return nil, err
+	}
+	conn := &ActionResultConnection{Edges: []*ActionResultEdge{}}
+	ignoredEdges := !hasCollectedField(ctx, edgesField)
+	if hasCollectedField(ctx, totalCountField) || hasCollectedField(ctx, pageInfoField) {
+		hasPagination := after != nil || first != nil || before != nil || last != nil
+		if hasPagination || ignoredEdges {
+			c := _m.Clone()
+			c.ctx.Fields = nil
+			if conn.TotalCount, err = c.Count(ctx); err != nil {
+				return nil, err
+			}
+			conn.PageInfo.HasNextPage = first != nil && conn.TotalCount > 0
+			conn.PageInfo.HasPreviousPage = last != nil && conn.TotalCount > 0
+		}
+	}
+	if ignoredEdges || (first != nil && *first == 0) || (last != nil && *last == 0) {
+		return conn, nil
+	}
+	if _m, err = pager.applyCursors(_m, after, before); err != nil {
+		return nil, err
+	}
+	limit := paginateLimit(first, last)
+	if limit != 0 {
+		_m.Limit(limit)
+	}
+	if field := collectedField(ctx, edgesField, nodeField); field != nil {
+		if err := _m.collectField(ctx, limit == 1, graphql.GetOperationContext(ctx), *field, []string{edgesField, nodeField}); err != nil {
+			return nil, err
+		}
+	}
+	_m = pager.applyOrder(_m)
+	nodes, err := _m.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	conn.build(nodes, pager, after, first, before, last)
+	return conn, nil
+}
+
+// ActionResultOrderField defines the ordering field of ActionResult.
+type ActionResultOrderField struct {
+	// Value extracts the ordering value from the given ActionResult.
+	Value    func(*ActionResult) (ent.Value, error)
+	column   string // field or computed.
+	toTerm   func(...sql.OrderTermOption) actionresult.OrderOption
+	toCursor func(*ActionResult) Cursor
+}
+
+// ActionResultOrder defines the ordering of ActionResult.
+type ActionResultOrder struct {
+	Direction OrderDirection          `json:"direction"`
+	Field     *ActionResultOrderField `json:"field"`
+}
+
+// DefaultActionResultOrder is the default ordering of ActionResult.
+var DefaultActionResultOrder = &ActionResultOrder{
+	Direction: entgql.OrderDirectionAsc,
+	Field: &ActionResultOrderField{
+		Value: func(_m *ActionResult) (ent.Value, error) {
+			return _m.ID, nil
+		},
+		column: actionresult.FieldID,
+		toTerm: actionresult.ByID,
+		toCursor: func(_m *ActionResult) Cursor {
+			return Cursor{ID: _m.ID}
+		},
+	},
+}
+
+// ToEdge converts ActionResult into ActionResultEdge.
+func (_m *ActionResult) ToEdge(order *ActionResultOrder) *ActionResultEdge {
+	if order == nil {
+		order = DefaultActionResultOrder
+	}
+	return &ActionResultEdge{
+		Node:   _m,
+		Cursor: order.Field.toCursor(_m),
+	}
+}
+
 // ActionRouteEdge is the edge representation of ActionRoute.
 type ActionRouteEdge struct {
 	Node   *ActionRoute `json:"node"`
@@ -601,255 +850,6 @@ func (_m *ActionRoute) ToEdge(order *ActionRouteOrder) *ActionRouteEdge {
 		order = DefaultActionRouteOrder
 	}
 	return &ActionRouteEdge{
-		Node:   _m,
-		Cursor: order.Field.toCursor(_m),
-	}
-}
-
-// ActionSuccessMessageEdge is the edge representation of ActionSuccessMessage.
-type ActionSuccessMessageEdge struct {
-	Node   *ActionSuccessMessage `json:"node"`
-	Cursor Cursor                `json:"cursor"`
-}
-
-// ActionSuccessMessageConnection is the connection containing edges to ActionSuccessMessage.
-type ActionSuccessMessageConnection struct {
-	Edges      []*ActionSuccessMessageEdge `json:"edges"`
-	PageInfo   PageInfo                    `json:"pageInfo"`
-	TotalCount int                         `json:"totalCount"`
-}
-
-func (c *ActionSuccessMessageConnection) build(nodes []*ActionSuccessMessage, pager *actionsuccessmessagePager, after *Cursor, first *int, before *Cursor, last *int) {
-	c.PageInfo.HasNextPage = before != nil
-	c.PageInfo.HasPreviousPage = after != nil
-	if first != nil && *first+1 == len(nodes) {
-		c.PageInfo.HasNextPage = true
-		nodes = nodes[:len(nodes)-1]
-	} else if last != nil && *last+1 == len(nodes) {
-		c.PageInfo.HasPreviousPage = true
-		nodes = nodes[:len(nodes)-1]
-	}
-	var nodeAt func(int) *ActionSuccessMessage
-	if last != nil {
-		n := len(nodes) - 1
-		nodeAt = func(i int) *ActionSuccessMessage {
-			return nodes[n-i]
-		}
-	} else {
-		nodeAt = func(i int) *ActionSuccessMessage {
-			return nodes[i]
-		}
-	}
-	c.Edges = make([]*ActionSuccessMessageEdge, len(nodes))
-	for i := range nodes {
-		node := nodeAt(i)
-		c.Edges[i] = &ActionSuccessMessageEdge{
-			Node:   node,
-			Cursor: pager.toCursor(node),
-		}
-	}
-	if l := len(c.Edges); l > 0 {
-		c.PageInfo.StartCursor = &c.Edges[0].Cursor
-		c.PageInfo.EndCursor = &c.Edges[l-1].Cursor
-	}
-	if c.TotalCount == 0 {
-		c.TotalCount = len(nodes)
-	}
-}
-
-// ActionSuccessMessagePaginateOption enables pagination customization.
-type ActionSuccessMessagePaginateOption func(*actionsuccessmessagePager) error
-
-// WithActionSuccessMessageOrder configures pagination ordering.
-func WithActionSuccessMessageOrder(order *ActionSuccessMessageOrder) ActionSuccessMessagePaginateOption {
-	if order == nil {
-		order = DefaultActionSuccessMessageOrder
-	}
-	o := *order
-	return func(pager *actionsuccessmessagePager) error {
-		if err := o.Direction.Validate(); err != nil {
-			return err
-		}
-		if o.Field == nil {
-			o.Field = DefaultActionSuccessMessageOrder.Field
-		}
-		pager.order = &o
-		return nil
-	}
-}
-
-// WithActionSuccessMessageFilter configures pagination filter.
-func WithActionSuccessMessageFilter(filter func(*ActionSuccessMessageQuery) (*ActionSuccessMessageQuery, error)) ActionSuccessMessagePaginateOption {
-	return func(pager *actionsuccessmessagePager) error {
-		if filter == nil {
-			return errors.New("ActionSuccessMessageQuery filter cannot be nil")
-		}
-		pager.filter = filter
-		return nil
-	}
-}
-
-type actionsuccessmessagePager struct {
-	reverse bool
-	order   *ActionSuccessMessageOrder
-	filter  func(*ActionSuccessMessageQuery) (*ActionSuccessMessageQuery, error)
-}
-
-func newActionSuccessMessagePager(opts []ActionSuccessMessagePaginateOption, reverse bool) (*actionsuccessmessagePager, error) {
-	pager := &actionsuccessmessagePager{reverse: reverse}
-	for _, opt := range opts {
-		if err := opt(pager); err != nil {
-			return nil, err
-		}
-	}
-	if pager.order == nil {
-		pager.order = DefaultActionSuccessMessageOrder
-	}
-	return pager, nil
-}
-
-func (p *actionsuccessmessagePager) applyFilter(query *ActionSuccessMessageQuery) (*ActionSuccessMessageQuery, error) {
-	if p.filter != nil {
-		return p.filter(query)
-	}
-	return query, nil
-}
-
-func (p *actionsuccessmessagePager) toCursor(_m *ActionSuccessMessage) Cursor {
-	return p.order.Field.toCursor(_m)
-}
-
-func (p *actionsuccessmessagePager) applyCursors(query *ActionSuccessMessageQuery, after, before *Cursor) (*ActionSuccessMessageQuery, error) {
-	direction := p.order.Direction
-	if p.reverse {
-		direction = direction.Reverse()
-	}
-	for _, predicate := range entgql.CursorsPredicate(after, before, DefaultActionSuccessMessageOrder.Field.column, p.order.Field.column, direction) {
-		query = query.Where(predicate)
-	}
-	return query, nil
-}
-
-func (p *actionsuccessmessagePager) applyOrder(query *ActionSuccessMessageQuery) *ActionSuccessMessageQuery {
-	direction := p.order.Direction
-	if p.reverse {
-		direction = direction.Reverse()
-	}
-	query = query.Order(p.order.Field.toTerm(direction.OrderTermOption()))
-	if p.order.Field != DefaultActionSuccessMessageOrder.Field {
-		query = query.Order(DefaultActionSuccessMessageOrder.Field.toTerm(direction.OrderTermOption()))
-	}
-	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(p.order.Field.column)
-	}
-	return query
-}
-
-func (p *actionsuccessmessagePager) orderExpr(query *ActionSuccessMessageQuery) sql.Querier {
-	direction := p.order.Direction
-	if p.reverse {
-		direction = direction.Reverse()
-	}
-	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(p.order.Field.column)
-	}
-	return sql.ExprFunc(func(b *sql.Builder) {
-		b.Ident(p.order.Field.column).Pad().WriteString(string(direction))
-		if p.order.Field != DefaultActionSuccessMessageOrder.Field {
-			b.Comma().Ident(DefaultActionSuccessMessageOrder.Field.column).Pad().WriteString(string(direction))
-		}
-	})
-}
-
-// Paginate executes the query and returns a relay based cursor connection to ActionSuccessMessage.
-func (_m *ActionSuccessMessageQuery) Paginate(
-	ctx context.Context, after *Cursor, first *int,
-	before *Cursor, last *int, opts ...ActionSuccessMessagePaginateOption,
-) (*ActionSuccessMessageConnection, error) {
-	if err := validateFirstLast(first, last); err != nil {
-		return nil, err
-	}
-	pager, err := newActionSuccessMessagePager(opts, last != nil)
-	if err != nil {
-		return nil, err
-	}
-	if _m, err = pager.applyFilter(_m); err != nil {
-		return nil, err
-	}
-	conn := &ActionSuccessMessageConnection{Edges: []*ActionSuccessMessageEdge{}}
-	ignoredEdges := !hasCollectedField(ctx, edgesField)
-	if hasCollectedField(ctx, totalCountField) || hasCollectedField(ctx, pageInfoField) {
-		hasPagination := after != nil || first != nil || before != nil || last != nil
-		if hasPagination || ignoredEdges {
-			c := _m.Clone()
-			c.ctx.Fields = nil
-			if conn.TotalCount, err = c.Count(ctx); err != nil {
-				return nil, err
-			}
-			conn.PageInfo.HasNextPage = first != nil && conn.TotalCount > 0
-			conn.PageInfo.HasPreviousPage = last != nil && conn.TotalCount > 0
-		}
-	}
-	if ignoredEdges || (first != nil && *first == 0) || (last != nil && *last == 0) {
-		return conn, nil
-	}
-	if _m, err = pager.applyCursors(_m, after, before); err != nil {
-		return nil, err
-	}
-	limit := paginateLimit(first, last)
-	if limit != 0 {
-		_m.Limit(limit)
-	}
-	if field := collectedField(ctx, edgesField, nodeField); field != nil {
-		if err := _m.collectField(ctx, limit == 1, graphql.GetOperationContext(ctx), *field, []string{edgesField, nodeField}); err != nil {
-			return nil, err
-		}
-	}
-	_m = pager.applyOrder(_m)
-	nodes, err := _m.All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	conn.build(nodes, pager, after, first, before, last)
-	return conn, nil
-}
-
-// ActionSuccessMessageOrderField defines the ordering field of ActionSuccessMessage.
-type ActionSuccessMessageOrderField struct {
-	// Value extracts the ordering value from the given ActionSuccessMessage.
-	Value    func(*ActionSuccessMessage) (ent.Value, error)
-	column   string // field or computed.
-	toTerm   func(...sql.OrderTermOption) actionsuccessmessage.OrderOption
-	toCursor func(*ActionSuccessMessage) Cursor
-}
-
-// ActionSuccessMessageOrder defines the ordering of ActionSuccessMessage.
-type ActionSuccessMessageOrder struct {
-	Direction OrderDirection                  `json:"direction"`
-	Field     *ActionSuccessMessageOrderField `json:"field"`
-}
-
-// DefaultActionSuccessMessageOrder is the default ordering of ActionSuccessMessage.
-var DefaultActionSuccessMessageOrder = &ActionSuccessMessageOrder{
-	Direction: entgql.OrderDirectionAsc,
-	Field: &ActionSuccessMessageOrderField{
-		Value: func(_m *ActionSuccessMessage) (ent.Value, error) {
-			return _m.ID, nil
-		},
-		column: actionsuccessmessage.FieldID,
-		toTerm: actionsuccessmessage.ByID,
-		toCursor: func(_m *ActionSuccessMessage) Cursor {
-			return Cursor{ID: _m.ID}
-		},
-	},
-}
-
-// ToEdge converts ActionSuccessMessage into ActionSuccessMessageEdge.
-func (_m *ActionSuccessMessage) ToEdge(order *ActionSuccessMessageOrder) *ActionSuccessMessageEdge {
-	if order == nil {
-		order = DefaultActionSuccessMessageOrder
-	}
-	return &ActionSuccessMessageEdge{
 		Node:   _m,
 		Cursor: order.Field.toCursor(_m),
 	}

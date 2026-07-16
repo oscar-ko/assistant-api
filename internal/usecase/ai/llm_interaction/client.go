@@ -436,7 +436,15 @@ func decodeActionDecisionResponse(resp *http.Response) (*ActionDecision, error) 
 		return nil, err
 	}
 	if err := validateActionDecision(&decoded); err != nil {
-		return nil, err
+		// 把純文字驗證錯誤升級成結構化錯誤，
+		// 讓 webhook 可區分這是「可追問修復」的契約問題，而不是一般執行失敗。
+		// 同時附上推斷出的 missing parameters，供 action_results 寫入與模板追問使用。
+		inferredMissing := InferMissingParametersFromReason(err.Error())
+		return nil, &DecisionValidationError{
+			Reason:            err.Error(),
+			APIOperation:      strings.TrimSpace(decoded.APIOperation),
+			MissingParameters: append([]string(nil), inferredMissing...),
+		}
 	}
 
 	return &decoded, nil

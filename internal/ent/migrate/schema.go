@@ -45,6 +45,48 @@ var (
 			},
 		},
 	}
+	// ActionResultsColumns holds the columns for the "action_results" table.
+	ActionResultsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"success", "missing_parameter", "failed"}},
+		{Name: "result_message", Type: field.TypeString, Nullable: true},
+		{Name: "action_id", Type: field.TypeUUID},
+		{Name: "channel_message_id", Type: field.TypeUUID},
+	}
+	// ActionResultsTable holds the schema information for the "action_results" table.
+	ActionResultsTable = &schema.Table{
+		Name:       "action_results",
+		Columns:    ActionResultsColumns,
+		PrimaryKey: []*schema.Column{ActionResultsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "action_results_actions_action",
+				Columns:    []*schema.Column{ActionResultsColumns[5]},
+				RefColumns: []*schema.Column{ActionsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "action_results_channel_messages_channel_message",
+				Columns:    []*schema.Column{ActionResultsColumns[6]},
+				RefColumns: []*schema.Column{ChannelMessagesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "actionresult_action_id_channel_message_id",
+				Unique:  true,
+				Columns: []*schema.Column{ActionResultsColumns[5], ActionResultsColumns[6]},
+			},
+			{
+				Name:    "actionresult_status",
+				Unique:  false,
+				Columns: []*schema.Column{ActionResultsColumns[3]},
+			},
+		},
+	}
 	// ActionRoutesColumns holds the columns for the "action_routes" table.
 	ActionRoutesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -85,46 +127,6 @@ var (
 					OpClass: "vector_cosine_ops",
 					Type:    "hnsw",
 				},
-			},
-		},
-	}
-	// ActionSuccessMessagesColumns holds the columns for the "action_success_messages" table.
-	ActionSuccessMessagesColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeUUID},
-		{Name: "created_at", Type: field.TypeTime},
-		{Name: "updated_at", Type: field.TypeTime},
-		{Name: "action_id", Type: field.TypeUUID},
-		{Name: "channel_message_id", Type: field.TypeUUID},
-	}
-	// ActionSuccessMessagesTable holds the schema information for the "action_success_messages" table.
-	ActionSuccessMessagesTable = &schema.Table{
-		Name:       "action_success_messages",
-		Columns:    ActionSuccessMessagesColumns,
-		PrimaryKey: []*schema.Column{ActionSuccessMessagesColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{
-			{
-				Symbol:     "action_success_messages_actions_action",
-				Columns:    []*schema.Column{ActionSuccessMessagesColumns[3]},
-				RefColumns: []*schema.Column{ActionsColumns[0]},
-				OnDelete:   schema.NoAction,
-			},
-			{
-				Symbol:     "action_success_messages_channel_messages_channel_message",
-				Columns:    []*schema.Column{ActionSuccessMessagesColumns[4]},
-				RefColumns: []*schema.Column{ChannelMessagesColumns[0]},
-				OnDelete:   schema.NoAction,
-			},
-		},
-		Indexes: []*schema.Index{
-			{
-				Name:    "actionsuccessmessage_action_id_channel_message_id",
-				Unique:  true,
-				Columns: []*schema.Column{ActionSuccessMessagesColumns[3], ActionSuccessMessagesColumns[4]},
-			},
-			{
-				Name:    "actionsuccessmessage_channel_message_id",
-				Unique:  true,
-				Columns: []*schema.Column{ActionSuccessMessagesColumns[4]},
 			},
 		},
 	}
@@ -378,8 +380,8 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		ActionsTable,
+		ActionResultsTable,
 		ActionRoutesTable,
-		ActionSuccessMessagesTable,
 		ChannelsTable,
 		ChannelMessagesTable,
 		ChannelServiceMembersTable,
@@ -392,9 +394,9 @@ var (
 
 func init() {
 	ActionsTable.ForeignKeys[0].RefTable = SkillsTable
+	ActionResultsTable.ForeignKeys[0].RefTable = ActionsTable
+	ActionResultsTable.ForeignKeys[1].RefTable = ChannelMessagesTable
 	ActionRoutesTable.ForeignKeys[0].RefTable = ActionsTable
-	ActionSuccessMessagesTable.ForeignKeys[0].RefTable = ActionsTable
-	ActionSuccessMessagesTable.ForeignKeys[1].RefTable = ChannelMessagesTable
 	ChannelMessagesTable.ForeignKeys[0].RefTable = ChannelsTable
 	ChannelMessagesTable.ForeignKeys[1].RefTable = ChannelMessagesTable
 	ChannelServiceMembersTable.ForeignKeys[0].RefTable = ChannelsTable
