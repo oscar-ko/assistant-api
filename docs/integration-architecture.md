@@ -81,3 +81,4 @@ internal/
 
 詳細規範與 code review 檢查項請參考：
 - [docs/config-default-policy.md](docs/config-default-policy.md)
+- [docs/ai-folder-naming-guideline.md](docs/ai-folder-naming-guideline.md)

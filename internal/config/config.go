@@ -22,6 +22,7 @@ type configuration struct {
 	PostgreSQL *PostgreSQLConfig `mapstructure:"postgresql"`
 	AI         *AIConfig         `mapstructure:"ai"`
 	Line       *LineConfig       `mapstructure:"line"`
+	OpenAI     *OpenAIConfig     `mapstructure:"openai"`
 	GraphQL    *GraphQLConfig    `mapstructure:"graphql"`
 }
 
@@ -112,6 +113,15 @@ type LineConfig struct {
 	Scopes          string `mapstructure:"scopes" yaml:"scopes"`
 }
 
+// OpenAIConfig 集中管理 ChatGPT / OpenAI 相容端點設定。
+type OpenAIConfig struct {
+	Token          string `mapstructure:"token" yaml:"token"`
+	BaseURL        string `mapstructure:"base_url" yaml:"base_url"`
+	Model          string `mapstructure:"model" yaml:"model"`
+	TimeoutSeconds int    `mapstructure:"timeout_seconds" yaml:"timeout_seconds"`
+	MaxTokens      int    `mapstructure:"max_tokens" yaml:"max_tokens"`
+}
+
 // PostgreSQLConfig 參照 backend 風格，集中管理 PostgreSQL 連線參數。
 type PostgreSQLConfig struct {
 	Address    string `mapstructure:"address" yaml:"address"`
@@ -152,6 +162,7 @@ var (
 	PostgreSQL PostgreSQLConfig
 	AI         AIConfig
 	Line       LineConfig
+	OpenAI     OpenAIConfig
 	GraphQL    GraphQLConfig
 
 	config = &configuration{
@@ -162,6 +173,7 @@ var (
 		PostgreSQL: &PostgreSQL,
 		AI:         &AI,
 		Line:       &Line,
+		OpenAI:     &OpenAI,
 		GraphQL:    &GraphQL,
 	}
 )
@@ -244,6 +256,11 @@ func MustLoad() {
 		viper.SetDefault("line.redirect_uri", "")
 		viper.SetDefault("line.assistant_bot_url", "")
 		viper.SetDefault("line.scopes", "openid profile email")
+		viper.SetDefault("openai.token", "")
+		viper.SetDefault("openai.base_url", "https://api.openai.com/v1")
+		viper.SetDefault("openai.model", "gpt-4o-mini")
+		viper.SetDefault("openai.timeout_seconds", 60)
+		viper.SetDefault("openai.max_tokens", 1024)
 		viper.SetDefault("graphql.query_path", "/query")
 		viper.SetDefault("graphql.playground_path", "/playground")
 
