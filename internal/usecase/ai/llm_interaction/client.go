@@ -257,7 +257,6 @@ func BuildFinalActionPrompt(candidates []ActionCandidate) string {
 	}
 
 	return strings.TrimSpace(`
-你是跨通訊軟體的最終動作決策器。
 以下是系統依向量召回與 cross-encoder 精排後，篩選出的候選 action，
 依 rerank 分數由高到低排序（第 1 筆為目前分數最高的候選）：
 
@@ -275,22 +274,16 @@ func BuildFinalActionPrompt(candidates []ActionCandidate) string {
 	2) 再只套用該 api_operation 對應的 operation 專屬動態規則來填 action_params
 - 不可套用未被選中 operation 的動態規則
 - next_step 只能是 execute_action、ask_clarifying_question、answer_question 三者之一
-- 若已能安全決定候選 action 且必要參數足夠，next_step 必須是 execute_action
-- 若最合理的是某個候選 action，但仍缺必要參數或存在關鍵歧義，next_step 必須是 ask_clarifying_question
-- 若使用者其實是在一般問答、說明、閒聊，而不是要執行候選 action，next_step 必須是 answer_question
-- confidence 表示你對「下一步判斷」的把握程度，不等於已可直接執行 action
-- api_operation 必須是上述候選其中一個 operation 的原始值，不可自行創造新值
-- 若 next_step=execute_action，api_operation 必須是非空字串，且 action_params 只能填該 action 真正需要的參數
-- 若 next_step=ask_clarifying_question，api_operation 應盡量填入目前最可能的候選 operation；若完全無法判定，可留空字串
-- 若 next_step=answer_question，api_operation 必須為空字串，action_params 必須為空物件
-- action_params 為物件，僅填入本次 action 真正需要且可從訊息明確擷取的參數
-- 不可把候選清單中的 route_text、skill、score、operation 等描述欄位複製到 action_params
-- 缺少必要參數時，不可猜測，請把缺失參數名稱放入 missing_parameters
-- 若 missing_parameters 非空，next_step 必須是 ask_clarifying_question，不可是 execute_action
-- 若使用者訊息語意明顯對應某個候選，即使非分數最高的候選，也應選擇語意最貼合的那個
-- confidence 為 0 到 1 的數字，表示你對這個選擇的把握程度
-- reason 用一句話簡述為何選擇該 action，而非其他候選
-- reason 必須是純文字句子，不可包含雙引號、不可複製候選清單原文、不可輸出 JSON 片段
+- api_operation 只能是候選 operation 之一；不可創造新值
+- 若 next_step=execute_action：api_operation 必須非空，action_params 只可填必要且可明確擷取的參數
+- 若 next_step=ask_clarifying_question：保留最可能的 api_operation，並把缺失參數放入 missing_parameters
+- 若 next_step=answer_question：api_operation 必須為空字串，action_params 必須為空物件
+- missing_parameters 非空時，next_step 必須是 ask_clarifying_question
+- 不可把 route_text、skill、score、operation 這類候選描述欄位複製到 action_params
+- 缺少必要參數時不可猜測
+- 若使用者訊息語意明顯對應某個候選，即使非分數最高也應選語意最貼合者
+- confidence 為 0 到 1，表示對「下一步判斷」的把握程度
+- reason 只允許一句純文字，不可包含雙引號、JSON 片段或候選清單原文
 `)
 }
 
@@ -486,6 +479,9 @@ func decodeQuestionAnswerResponse(resp *http.Response) (*QuestionAnswer, error) 
 
 	var decoded QuestionAnswer
 	if err := json.Unmarshal(data, &decoded); err != nil {
+		return nil, err
+	}
+	if err := validateQuestionAnswer(&decoded); err != nil {
 		return nil, err
 	}
 

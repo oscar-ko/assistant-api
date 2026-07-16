@@ -57,8 +57,35 @@ ai:
     # 注意：這裡的 API 契約是 action decision（api_operation），
     # 不再使用舊的 intent_label 分類格式。
     llm_interaction:
-        service_url: "http://127.0.0.1:9002"
-        service_timeout_seconds: 120
+        # 角色路由設定（放最上層）：
+        # - local（走本地 interaction service）
+        # - profile_key（走 chatgpt.profiles.<profile_key>）
+        # 範例（決策 local、聊天 chatgpt）：
+        # decision: "local"
+        # chat: "chat_search"
+        decision: "action_decision"
+        chat: "chat_search"
+        local:
+            service_url: "http://127.0.0.1:9002"
+            service_timeout_seconds: 120
+        # ChatGPT/OpenAI 供應商設定（provider=chatgpt 時使用）。
+        chatgpt:
+            url: "https://api.openai.com/v1"
+            token: ""
+            profiles:
+                # profile key = default
+                action_decision:
+                    model_name: "gpt-4o-mini"
+                    timeout_seconds: 120
+                    max_tokens: 1024
+                    temperature: 0.2
+                # profile key = search（不接受 temperature 的模型）
+                chat_search:
+                    model_name: "gpt-5-search-api-2025-10-14"
+                    timeout_seconds: 120
+                    max_tokens: 1024
+                    # 不支援的參數可直接省略或設為 null（都不會送出）。
+                    temperature: null
         # 最終 action decision 若低於此信心值，視為「對話問題」而非可執行指令。
         # 0 代表關閉此門檻機制。
         # 例如 no_match 或低匹配語意時，會改走 question_answer。

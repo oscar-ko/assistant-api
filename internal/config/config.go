@@ -22,7 +22,6 @@ type configuration struct {
 	PostgreSQL *PostgreSQLConfig `mapstructure:"postgresql"`
 	AI         *AIConfig         `mapstructure:"ai"`
 	Line       *LineConfig       `mapstructure:"line"`
-	OpenAI     *OpenAIConfig     `mapstructure:"openai"`
 	GraphQL    *GraphQLConfig    `mapstructure:"graphql"`
 }
 
@@ -43,7 +42,7 @@ type DatabaseConfig struct {
 }
 
 // AIConfig 集中管理 AI 相關子系統設定，依用途拆成三個子區塊：
-// - LLMInteraction：本地/雲端 LLM 互動（問答、追問、決策）
+// - LLMInteraction：依角色路由到指定 provider/model（問答、追問、決策）
 // - Embedding：第一階段候選召回（recall）
 // - Reranker：第二階段候選精排（precision）
 type AIConfig struct {
@@ -52,16 +51,46 @@ type AIConfig struct {
 	Reranker       RerankerConfig       `mapstructure:"reranker" yaml:"reranker"`
 }
 
-// LLMInteractionConfig 為本地/雲端 LLM 互動端點設定。
+// LLMInteractionConfig 為角色導向的 LLM 互動設定。
 type LLMInteractionConfig struct {
-	ServiceURL            string `mapstructure:"service_url" yaml:"service_url"`
-	ServiceTimeoutSeconds int    `mapstructure:"service_timeout_seconds" yaml:"service_timeout_seconds"`
+	// Decision 指定「最終 action 決策」使用的 profile 名稱。
+	// 目前支援：
+	// - local（使用本地 interaction service）
+	// - chatgpt 下的 profile key（例如 default, low_temp）
+	Decision string `mapstructure:"decision" yaml:"decision"`
+	// Chat 指定「一般問答/追問」使用的 profile 名稱。
+	// 規則與 Decision 相同。
+	Chat    string            `mapstructure:"chat" yaml:"chat"`
+	Local   LLMEndpointConfig `mapstructure:"local" yaml:"local"`
+	ChatGPT ChatGPTConfig     `mapstructure:"chatgpt" yaml:"chatgpt"`
 	// CommandConfidenceThreshold 決定 final action 信心值低於多少時，
 	// 直接視為對話意圖（非指令 action）。0 代表關閉此門檻判斷。
 	CommandConfidenceThreshold float64 `mapstructure:"command_confidence_threshold" yaml:"command_confidence_threshold"`
 	// QuestionConfidenceThreshold 決定問答回覆信心值低於多少時，
 	// 應改由其他 cloud LLM 回答會更合適。0 代表關閉此門檻判斷。
 	QuestionConfidenceThreshold float64 `mapstructure:"question_confidence_threshold" yaml:"question_confidence_threshold"`
+}
+
+// LLMEndpointConfig 為統一 interaction 端點設定。
+type LLMEndpointConfig struct {
+	ServiceURL            string `mapstructure:"service_url" yaml:"service_url"`
+	ServiceTimeoutSeconds int    `mapstructure:"service_timeout_seconds" yaml:"service_timeout_seconds"`
+}
+
+// ChatGPTConfig 為 ChatGPT/OpenAI 供應商設定。
+type ChatGPTConfig struct {
+	URL      string                        `mapstructure:"url" yaml:"url"`
+	Token    string                        `mapstructure:"token" yaml:"token"`
+	Profiles map[string]ChatGPTModelConfig `mapstructure:"profiles" yaml:"profiles"`
+}
+
+// ChatGPTModelConfig 描述單一 ChatGPT 模型 profile。
+// 可定義是否支援特定參數，避免因模型參數不相容而回 400。
+type ChatGPTModelConfig struct {
+	ModelName      string   `mapstructure:"model_name" yaml:"model_name"`
+	TimeoutSeconds int      `mapstructure:"timeout_seconds" yaml:"timeout_seconds"`
+	MaxTokens      *int     `mapstructure:"max_tokens" yaml:"max_tokens"`
+	Temperature    *float64 `mapstructure:"temperature" yaml:"temperature"`
 }
 
 // EmbeddingConfig 為第一階段候選召回使用的向量化服務設定。
@@ -113,15 +142,6 @@ type LineConfig struct {
 	Scopes          string `mapstructure:"scopes" yaml:"scopes"`
 }
 
-// OpenAIConfig 集中管理 ChatGPT / OpenAI 相容端點設定。
-type OpenAIConfig struct {
-	Token          string `mapstructure:"token" yaml:"token"`
-	BaseURL        string `mapstructure:"base_url" yaml:"base_url"`
-	Model          string `mapstructure:"model" yaml:"model"`
-	TimeoutSeconds int    `mapstructure:"timeout_seconds" yaml:"timeout_seconds"`
-	MaxTokens      int    `mapstructure:"max_tokens" yaml:"max_tokens"`
-}
-
 // PostgreSQLConfig 參照 backend 風格，集中管理 PostgreSQL 連線參數。
 type PostgreSQLConfig struct {
 	Address    string `mapstructure:"address" yaml:"address"`
@@ -162,7 +182,6 @@ var (
 	PostgreSQL PostgreSQLConfig
 	AI         AIConfig
 	Line       LineConfig
-	OpenAI     OpenAIConfig
 	GraphQL    GraphQLConfig
 
 	config = &configuration{
@@ -173,7 +192,6 @@ var (
 		PostgreSQL: &PostgreSQL,
 		AI:         &AI,
 		Line:       &Line,
-		OpenAI:     &OpenAI,
 		GraphQL:    &GraphQL,
 	}
 )
@@ -214,14 +232,22 @@ func MustLoad() {
 		viper.SetDefault("postgresql.user_name", "")
 		viper.SetDefault("postgresql.password", "")
 		viper.SetDefault("postgresql.parameters", "sslmode=disable")
-		viper.SetDefault("ai.semantic_decision.service_url", "http://127.0.0.1:9002")
-		viper.SetDefault("ai.semantic_decision.service_timeout_seconds", 90)
+		viper.SetDefault("ai.llm_interaction.decision", "local")
+		viper.SetDefault("ai.llm_interaction.chat", "local")
+		viper.SetDefault("ai.llm_interaction.local.service_url", "http://127.0.0.1:9002")
+		viper.SetDefault("ai.llm_interaction.local.service_timeout_seconds", 90)
+		viper.SetDefault("ai.llm_interaction.chatgpt.url", "https://api.openai.com/v1")
+		viper.SetDefault("ai.llm_interaction.chatgpt.token", "")
+		viper.SetDefault("ai.llm_interaction.chatgpt.profiles.default.model_name", "gpt-4o-mini")
+		viper.SetDefault("ai.llm_interaction.chatgpt.profiles.default.timeout_seconds", 120)
+		viper.SetDefault("ai.llm_interaction.chatgpt.profiles.default.max_tokens", 1024)
+		viper.SetDefault("ai.llm_interaction.chatgpt.profiles.default.temperature", 0.2)
 		// 第一層門檻：action decision confidence 低於此值時，
 		// 不直接執行 action，改走 question-answer 分支。
-		viper.SetDefault("ai.semantic_decision.command_confidence_threshold", 0.7)
+		viper.SetDefault("ai.llm_interaction.command_confidence_threshold", 0.7)
 		// 第二層門檻：question-answer confidence 低於此值時，
 		// 標記建議改送 cloud LLM（例如時事/高難推理問題）。
-		viper.SetDefault("ai.semantic_decision.question_confidence_threshold", 0.6)
+		viper.SetDefault("ai.llm_interaction.question_confidence_threshold", 0.6)
 		viper.SetDefault("ai.embedding.url", "http://127.0.0.1:9000")
 		viper.SetDefault("ai.embedding.timeout_seconds", 60)
 		viper.SetDefault("ai.embedding.max_attempts", 4)
@@ -256,11 +282,6 @@ func MustLoad() {
 		viper.SetDefault("line.redirect_uri", "")
 		viper.SetDefault("line.assistant_bot_url", "")
 		viper.SetDefault("line.scopes", "openid profile email")
-		viper.SetDefault("openai.token", "")
-		viper.SetDefault("openai.base_url", "https://api.openai.com/v1")
-		viper.SetDefault("openai.model", "gpt-4o-mini")
-		viper.SetDefault("openai.timeout_seconds", 60)
-		viper.SetDefault("openai.max_tokens", 1024)
 		viper.SetDefault("graphql.query_path", "/query")
 		viper.SetDefault("graphql.playground_path", "/playground")
 

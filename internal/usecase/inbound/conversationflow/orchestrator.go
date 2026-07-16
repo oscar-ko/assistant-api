@@ -111,7 +111,7 @@ func (o *Orchestrator) ProcessCommand(message *unifiedmessage.Message, savedMess
 	matchedRouteText := ""
 	validSelection := false
 	reusedCommand := false
-	decisionInputText := strings.TrimSpace(message.Text)
+	decisionInputText := buildInitialDecisionInputText(message.Text)
 
 	// 優先路徑：reply 鏈上若已存在 action_result 對應指令，
 	// 先把既有指令上下文（含缺參數）組回提示，再重跑 AI 解析。
@@ -382,14 +382,52 @@ func (o *Orchestrator) buildCommandDecisionInputText(messageText string, chainCt
 	}
 
 	parts := []string{
+		"[decision_phase]",
+		"mode=chain_parameter_fill",
 		"[command_chain_context]",
 		"api_operation=" + strings.TrimSpace(chainCtx.APIOperation),
 	}
 	if len(chainCtx.MissingParameters) > 0 {
 		parts = append(parts, "missing_parameters="+strings.Join(chainCtx.MissingParameters, ","))
 	}
+	if strings.EqualFold(strings.TrimSpace(chainCtx.APIOperation), "start_translation_locale") && containsMissingParameter(chainCtx.MissingParameters, "target_locales") {
+		parts = append(parts,
+			"[parameter_fill_policy]",
+			"目前任務是補齊 target_locales。",
+			"使用者可用自然語言語言名稱，不需要自行輸入 BCP47。",
+			"你必須把語言名稱轉成 BCP47 locale 並填入 action_params.target_locales。",
+			"例如：德文=de-DE、法文=fr-FR、西班牙文=es-ES、英文=en-US、日文=ja-JP。",
+			"若本句已明確提及語言名稱，應直接 execute_action，不可再次 ask_clarifying_question。",
+		)
+	}
 	parts = append(parts, "[user_reply]", text)
 	return strings.Join(parts, "\n")
+}
+
+func buildInitialDecisionInputText(messageText string) string {
+	text := strings.TrimSpace(messageText)
+	if text == "" {
+		return ""
+	}
+	return strings.Join([]string{
+		"[decision_phase]",
+		"mode=initial_action_decision",
+		"[user_message]",
+		text,
+	}, "\n")
+}
+
+func containsMissingParameter(params []string, target string) bool {
+	target = strings.ToLower(strings.TrimSpace(target))
+	if target == "" {
+		return false
+	}
+	for _, param := range params {
+		if strings.ToLower(strings.TrimSpace(param)) == target {
+			return true
+		}
+	}
+	return false
 }
 
 // buildFixedChainOperationCandidates 建立「固定單一 operation」候選，用於指令鍊補參數解析。

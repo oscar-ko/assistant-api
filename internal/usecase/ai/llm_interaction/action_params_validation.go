@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"strings"
 )
@@ -122,18 +123,43 @@ func validateActionDecision(decision *ActionDecision) error {
 		}
 	}
 
-	if len(decision.ActionParams) == 0 {
-		return nil
-	}
-	for key := range decision.ActionParams {
-		normalized := strings.ToLower(strings.TrimSpace(key))
-		if _, forbidden := forbiddenActionParamKeys[normalized]; forbidden {
-			return fmt.Errorf("action decision contains forbidden action_params key %q", normalized)
+	if len(decision.ActionParams) > 0 {
+		for key := range decision.ActionParams {
+			normalized := strings.ToLower(strings.TrimSpace(key))
+			if _, forbidden := forbiddenActionParamKeys[normalized]; forbidden {
+				return fmt.Errorf("action decision contains forbidden action_params key %q", normalized)
+			}
+		}
+		if err := normalizeLocaleActionParams(decision); err != nil {
+			return err
 		}
 	}
-	if err := normalizeLocaleActionParams(decision); err != nil {
-		return err
+	return nil
+}
+
+// validateQuestionAnswer 驗證問答契約，並做最小正規化。
+// 這層會在 local/cloud 兩種 client 路徑共用，確保切換 provider 仍維持同一份 contract。
+func validateQuestionAnswer(answer *QuestionAnswer) error {
+	if answer == nil {
+		return nil
 	}
+
+	answer.SchemaVersion = strings.TrimSpace(answer.SchemaVersion)
+	answer.Answer = strings.TrimSpace(answer.Answer)
+
+	if answer.SchemaVersion == "" {
+		return fmt.Errorf("question answer schema_version is required")
+	}
+	if answer.SchemaVersion != "v1" {
+		return fmt.Errorf("question answer schema_version %q is invalid", answer.SchemaVersion)
+	}
+	if answer.Answer == "" {
+		return fmt.Errorf("question answer answer is required")
+	}
+	if math.IsNaN(answer.Confidence) || answer.Confidence < 0 || answer.Confidence > 1 {
+		return fmt.Errorf("question answer confidence must be between 0 and 1")
+	}
+
 	return nil
 }
 

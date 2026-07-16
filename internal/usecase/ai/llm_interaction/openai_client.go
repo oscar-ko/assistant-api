@@ -1,0 +1,256 @@
+package llminteraction
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+)
+
+// NewOpenAIInteractionClient 建立可直接呼叫 OpenAI Chat Completions 的 interaction client。
+// 這個 client 會把 OpenAI 回應轉成既有 ActionDecision / QuestionAnswer 契約。
+func NewOpenAIInteractionClient(baseURL string, token string, decisionModel string, chatModel string, timeoutSeconds int, maxTokens *int, temperature *float64) (InteractionClient, error) {
+	trimmedBaseURL := strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if trimmedBaseURL == "" {
+		return nil, fmt.Errorf("openai base url is empty")
+	}
+	trimmedToken := strings.TrimSpace(token)
+	if trimmedToken == "" {
+		return nil, fmt.Errorf("openai token is empty")
+	}
+	trimmedDecisionModel := strings.TrimSpace(decisionModel)
+	if trimmedDecisionModel == "" {
+		trimmedDecisionModel = "gpt-4o-mini"
+	}
+	trimmedChatModel := strings.TrimSpace(chatModel)
+	if trimmedChatModel == "" {
+		trimmedChatModel = "gpt-4o-mini"
+	}
+	if timeoutSeconds <= 0 {
+		timeoutSeconds = 120
+	}
+	var normalizedMaxTokens *int
+	if maxTokens != nil {
+		value := *maxTokens
+		if value > 0 {
+			normalizedMaxTokens = &value
+		}
+	}
+
+	var normalizedTemperature *float64
+	if temperature != nil {
+		value := *temperature
+		normalizedTemperature = &value
+	}
+	return &openAIInteractionClient{
+		baseURL:       trimmedBaseURL,
+		token:         trimmedToken,
+		decisionModel: trimmedDecisionModel,
+		chatModel:     trimmedChatModel,
+		maxTokens:     normalizedMaxTokens,
+		temperature:   normalizedTemperature,
+		httpClient:    &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second},
+	}, nil
+}
+
+type openAIInteractionClient struct {
+	baseURL       string
+	token         string
+	decisionModel string
+	chatModel     string
+	maxTokens     *int
+	temperature   *float64
+	httpClient    *http.Client
+}
+
+type openAIChatCompletionRequest struct {
+	Model       string                        `json:"model"`
+	Messages    []openAIChatCompletionMessage `json:"messages"`
+	Temperature *float64                      `json:"temperature,omitempty"`
+	MaxTokens   *int                          `json:"max_tokens,omitempty"`
+	ResponseFmt *openAIResponseFormat         `json:"response_format,omitempty"`
+}
+
+type openAIResponseFormat struct {
+	Type string `json:"type"`
+}
+
+type openAIChatCompletionMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+type openAIChatCompletionResponse struct {
+	Choices []struct {
+		Message openAIChatCompletionMessage `json:"message"`
+	} `json:"choices"`
+}
+
+func (c *openAIInteractionClient) ClassifyAction(ctx context.Context, prompt string, text string) (*ActionDecision, error) {
+	content, err := c.completeJSON(ctx, c.decisionModel, prompt, text)
+	if err != nil {
+		return nil, err
+	}
+	decoded, err := parseActionDecisionContent(content)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateActionDecision(decoded); err != nil {
+		inferredMissing := InferMissingParametersFromReason(err.Error())
+		return nil, &DecisionValidationError{
+			Reason:            err.Error(),
+			APIOperation:      strings.TrimSpace(decoded.APIOperation),
+			MissingParameters: append([]string(nil), inferredMissing...),
+		}
+	}
+	return decoded, nil
+}
+
+func (c *openAIInteractionClient) AnswerQuestion(ctx context.Context, prompt string, text string) (*QuestionAnswer, error) {
+	content, err := c.completeJSON(ctx, c.chatModel, prompt, text)
+	if err != nil {
+		return nil, err
+	}
+	decoded, err := parseQuestionAnswerContent(content)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateQuestionAnswer(decoded); err != nil {
+		return nil, err
+	}
+	return decoded, nil
+}
+
+func (c *openAIInteractionClient) completeJSON(ctx context.Context, model string, prompt string, text string) (string, error) {
+	if c == nil || c.httpClient == nil {
+		return "", fmt.Errorf("openai interaction client is not initialized")
+	}
+	trimmedModel := strings.TrimSpace(model)
+	if trimmedModel == "" {
+		return "", fmt.Errorf("openai model is empty")
+	}
+
+	fullPrompt := strings.TrimSpace(prompt)
+	if strings.TrimSpace(text) != "" {
+		fullPrompt += "\n\n使用者原始輸入：\n" + strings.TrimSpace(text)
+	}
+
+	includeTemperature := c.temperature != nil
+	includeMaxTokens := c.maxTokens != nil
+
+	for {
+		payload := openAIChatCompletionRequest{
+			Model: trimmedModel,
+			Messages: []openAIChatCompletionMessage{
+				{Role: "user", Content: fullPrompt},
+			},
+			ResponseFmt: &openAIResponseFormat{Type: "json_object"},
+		}
+		if includeTemperature {
+			payload.Temperature = c.temperature
+		}
+		if includeMaxTokens {
+			payload.MaxTokens = c.maxTokens
+		}
+
+		content, statusCode, responseBody, err := c.completeJSONWithPayload(ctx, payload)
+		if err == nil {
+			return content, nil
+		}
+
+		if statusCode == http.StatusBadRequest {
+			if includeTemperature && isIncompatibleRequestArgument(responseBody, "temperature") {
+				includeTemperature = false
+				continue
+			}
+			if includeMaxTokens && isIncompatibleRequestArgument(responseBody, "max_tokens") {
+				includeMaxTokens = false
+				continue
+			}
+		}
+
+		return "", err
+	}
+}
+
+func (c *openAIInteractionClient) completeJSONWithPayload(ctx context.Context, payload openAIChatCompletionRequest) (string, int, string, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return "", 0, "", err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return "", 0, "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", 0, "", err
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", resp.StatusCode, "", err
+	}
+	trimmedBody := strings.TrimSpace(string(respBody))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", resp.StatusCode, trimmedBody, fmt.Errorf("openai chat completion returned status %d: %s", resp.StatusCode, trimmedBody)
+	}
+
+	var decoded openAIChatCompletionResponse
+	if err := json.Unmarshal(respBody, &decoded); err != nil {
+		return "", resp.StatusCode, trimmedBody, err
+	}
+	if len(decoded.Choices) == 0 {
+		return "", resp.StatusCode, trimmedBody, fmt.Errorf("openai chat completion returned empty choices")
+	}
+	content := strings.TrimSpace(decoded.Choices[0].Message.Content)
+	if content == "" {
+		return "", resp.StatusCode, trimmedBody, fmt.Errorf("openai chat completion returned empty content")
+	}
+	return normalizeJSONLikeContent(content), resp.StatusCode, trimmedBody, nil
+}
+
+func isIncompatibleRequestArgument(responseBody string, argName string) bool {
+	msg := strings.ToLower(strings.TrimSpace(responseBody))
+	if msg == "" {
+		return false
+	}
+	needle := "model incompatible request argument supplied: " + strings.ToLower(strings.TrimSpace(argName))
+	return strings.Contains(msg, needle)
+}
+
+func normalizeJSONLikeContent(content string) string {
+	trimmed := strings.TrimSpace(content)
+	if strings.HasPrefix(trimmed, "```") {
+		trimmed = strings.TrimPrefix(trimmed, "```json")
+		trimmed = strings.TrimPrefix(trimmed, "```")
+		trimmed = strings.TrimSuffix(trimmed, "```")
+		trimmed = strings.TrimSpace(trimmed)
+	}
+	return trimmed
+}
+
+func parseActionDecisionContent(content string) (*ActionDecision, error) {
+	var decoded ActionDecision
+	if err := json.Unmarshal([]byte(content), &decoded); err != nil {
+		return nil, err
+	}
+	return &decoded, nil
+}
+
+func parseQuestionAnswerContent(content string) (*QuestionAnswer, error) {
+	var decoded QuestionAnswer
+	if err := json.Unmarshal([]byte(content), &decoded); err != nil {
+		return nil, err
+	}
+	return &decoded, nil
+}

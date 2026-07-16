@@ -82,7 +82,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Enable translation for a specific locale in the current channel.",
 					APIOperation:   "start_translation_locale",
 					RouteTexts:     []string{"開啟翻譯", "開始翻譯模式", "新增翻譯語系", "幫我開啟某語言翻譯", "請翻譯成指定語言"},
-					CommandPurpose: fmt.Sprintf("用途: 啟用翻譯語系。規則: 只接受使用者明確指定的目標語系；禁止推測預設語系、聊天語言或從上下文自動補值。『自然語言語言名稱（例如英文、日文、繁中）即視為明確指定』，不得誤判為未提供語系。若有語言名稱，必須先轉為 BCP47 locale 字串陣列（格式固定 xx-YY，例如日文=ja-JP、英文=en-US、繁中=zh-TW）後填入 action_params.target_locales；不可輸出裸語言碼（如 ja、en、zh）。僅在使用者完全未提及任何語言時，才輸出 missing_parameters=[%s] 並追問。", aillminteraction.ActionParamTargetLocales),
+					CommandPurpose: fmt.Sprintf("用途: 啟用翻譯語系。規則: 只接受使用者明確指定的目標語系；禁止推測預設語系、聊天語言或從上下文自動補值。決策分兩階段：1) 若輸入包含 [command_chain_context] 且 missing_parameters 含 %s，代表補參數階段；此時若使用者有語言名稱（例如英文、日文、德文、法文、西班牙文），必須直接 next_step=execute_action 並輸出 action_params.target_locales。2) 若沒有 [command_chain_context]，代表初次決策階段；僅在使用者明確提及語言時才可 execute_action，若完全未提及任何語言，必須 next_step=ask_clarifying_question 且 missing_parameters=[%s]。自然語言語言名稱即視為已提供，不可要求使用者改用 BCP47 格式代碼。你要把語言名稱自行轉為 BCP47 locale（格式 xx-YY）再填入 action_params.target_locales，不可輸出裸語言碼（如 ja、en、zh）。", aillminteraction.ActionParamTargetLocales, aillminteraction.ActionParamTargetLocales),
 				},
 				{
 					ActionCode:     action.ActionCodeDisable,
@@ -98,7 +98,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Disable translation for a specific locale in the current channel.",
 					APIOperation:   "stop_translation_locale",
 					RouteTexts:     []string{"關閉某語言翻譯", "停止指定語言翻譯", "移除翻譯語系", "把某個語言的翻譯關掉", "不要某語言翻譯"},
-					CommandPurpose: fmt.Sprintf("用途: 停用指定翻譯語系。規則: 只接受使用者明確指定的目標語系；禁止推測預設語系、聊天語言或從上下文自動補值。『自然語言語言名稱（例如英文、日文、繁中）即視為明確指定』，不得誤判為未提供語系。若有語言名稱，必須先轉為 BCP47 locale 字串陣列（格式固定 xx-YY，例如日文=ja-JP、英文=en-US、繁中=zh-TW）後填入 action_params.target_locales；不可輸出裸語言碼（如 ja、en、zh）。僅在使用者完全未提及任何語言時，才輸出 missing_parameters=[%s] 並追問。", aillminteraction.ActionParamTargetLocales),
+					CommandPurpose: fmt.Sprintf("用途: 停用指定翻譯語系。規則: 只接受使用者明確指定的目標語系；禁止推測預設語系、聊天語言或從上下文自動補值。決策分兩階段：1) 若輸入包含 [command_chain_context] 且 missing_parameters 含 %s，代表補參數階段；此時若使用者有語言名稱（例如英文、日文、德文、法文、西班牙文），必須直接 next_step=execute_action 並輸出 action_params.target_locales。2) 若沒有 [command_chain_context]，代表初次決策階段；僅在使用者明確提及語言時才可 execute_action，若完全未提及任何語言，必須 next_step=ask_clarifying_question 且 missing_parameters=[%s]。自然語言語言名稱即視為已提供，不可要求使用者改用 BCP47 格式代碼。你要把語言名稱自行轉為 BCP47 locale（格式 xx-YY）再填入 action_params.target_locales，不可輸出裸語言碼（如 ja、en、zh）。", aillminteraction.ActionParamTargetLocales, aillminteraction.ActionParamTargetLocales),
 				},
 			},
 		},
