@@ -335,6 +335,157 @@ func (r *ChannelMessageRepo) FindMessageByPlatformMessageID(ctx context.Context,
 	return item, nil
 }
 
+// ResolveParentMessage 解析單則訊息的父節點。
+// 優先序設計：
+// 1) related_message_id：系統內部已建立的關聯，準確度最高。
+// 2) reply_to_msg_id：平台層回覆 ID，在同 channel 內做 fallback 查詢。
+//
+// 這個方法的目標是把「父訊息解析策略」集中管理，
+// 避免上層流程在多處重複寫 related/reply 的分支邏輯。
+func (r *ChannelMessageRepo) ResolveParentMessage(ctx context.Context, message *ent.ChannelMessage) (*ent.ChannelMessage, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("channel repository not initialized")
+	}
+	if message == nil {
+		return nil, nil
+	}
+
+	// 先走內部關聯：當 related_message_id 存在時，代表已完成資料映射。
+	if message.RelatedMessageID != nil && *message.RelatedMessageID != uuid.Nil {
+		return r.GetMessageByID(ctx, *message.RelatedMessageID)
+	}
+	// 若尚未建立 related 關聯，再退回平台回覆 ID 查找父訊息。
+	if replyToMsgID := strings.TrimSpace(message.ReplyToMsgID); replyToMsgID != "" {
+		return r.FindMessageByPlatformMessageID(ctx, message.ChannelID, replyToMsgID)
+	}
+	return nil, nil
+}
+
+// FindLatestActionOperationByMessageID 取得某則訊息最新的 action api_operation。
+//
+// 為什麼取「最新」：
+// - 同一 message 在極端情況下可能被重試/覆寫 action_results。
+// - 以 updated_at 由新到舊排序，能讓上層拿到最終狀態對應的 operation。
+//
+// 回傳空字串代表「目前沒有可重用的既有指令」，不視為錯誤。
+func (r *ChannelMessageRepo) FindLatestActionOperationByMessageID(ctx context.Context, messageID uuid.UUID) (string, error) {
+	if r == nil || r.db == nil {
+		return "", fmt.Errorf("channel repository not initialized")
+	}
+	if messageID == uuid.Nil {
+		return "", nil
+	}
+
+	item, err := r.db.ActionResult.Query().
+		Where(actionresult.ChannelMessageIDEQ(messageID)).
+		// 以 updated_at 排序，確保回傳的是最新一筆結果。
+		Order(ent.Desc(actionresult.FieldUpdatedAt)).
+		WithAction().
+		First(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return "", nil
+		}
+		return "", fmt.Errorf("query action result by message id failed: %w", err)
+	}
+	// action edge 未載入或不存在時，視為沒有可用 operation。
+	if item == nil || item.Edges.Action == nil {
+		return "", nil
+	}
+	return strings.TrimSpace(item.Edges.Action.APIOperation), nil
+}
+
+// FindLatestActionResultByMessageID 取得某則訊息最新的 action_result 詳細上下文。
+//
+// 回傳值包含：
+// - action (api_operation)
+// - status (success/missing_parameter/failed)
+// - result_message（例如 missing_parameters、reason）
+//
+// 若查無資料則回傳 nil, nil，讓呼叫端自行決定 fallback 策略。
+func (r *ChannelMessageRepo) FindLatestActionResultByMessageID(ctx context.Context, messageID uuid.UUID) (*ent.ActionResult, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("channel repository not initialized")
+	}
+	if messageID == uuid.Nil {
+		return nil, nil
+	}
+
+	item, err := r.db.ActionResult.Query().
+		Where(actionresult.ChannelMessageIDEQ(messageID)).
+		Order(ent.Desc(actionresult.FieldUpdatedAt)).
+		WithAction().
+		First(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("query action result by message id failed: %w", err)
+	}
+	return item, nil
+}
+
+// ResolveSkillCodeByAPIOperation 由 api_operation 反查 skill_code。
+//
+// 用途：當流程直接重用既有指令（略過重新解析）時，
+// 仍需要 skill_code 給 post-action handler 做嚴格校驗與落庫關聯。
+func (r *ChannelMessageRepo) ResolveSkillCodeByAPIOperation(ctx context.Context, apiOperation string) (string, error) {
+	if r == nil || r.db == nil {
+		return "", fmt.Errorf("channel repository not initialized")
+	}
+	operation := strings.TrimSpace(apiOperation)
+	if operation == "" {
+		return "", nil
+	}
+
+	actionItem, err := r.db.Action.Query().
+		Where(action.APIOperationEQ(operation)).
+		WithSkill().
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return "", nil
+		}
+		return "", fmt.Errorf("query action by api operation failed: %w", err)
+	}
+	// 查無 skill 關聯時回空值，讓上層可選擇保守降級而非直接 panic。
+	if actionItem == nil || actionItem.Edges.Skill == nil {
+		return "", nil
+	}
+	return strings.TrimSpace(actionItem.Edges.Skill.SkillCode), nil
+}
+
+// ResolveActionPromptByAPIOperation 由 api_operation 反查 action.command_purpose。
+//
+// 用途：
+// - 在指令鍊補參數模式下，把 seed 動態規則重新帶回 LLM prompt。
+// - 避免鏈路固定 operation 時遺失 operation 專屬指引。
+//
+// 回傳空字串代表查無 prompt 或未配置，不視為錯誤。
+func (r *ChannelMessageRepo) ResolveActionPromptByAPIOperation(ctx context.Context, apiOperation string) (string, error) {
+	if r == nil || r.db == nil {
+		return "", fmt.Errorf("channel repository not initialized")
+	}
+	operation := strings.TrimSpace(apiOperation)
+	if operation == "" {
+		return "", nil
+	}
+
+	actionItem, err := r.db.Action.Query().
+		Where(action.APIOperationEQ(operation)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return "", nil
+		}
+		return "", fmt.Errorf("query action by api operation failed: %w", err)
+	}
+	if actionItem == nil || actionItem.CommandPurpose == nil {
+		return "", nil
+	}
+	return strings.TrimSpace(*actionItem.CommandPurpose), nil
+}
+
 // LinkRelatedMessageByReply links related_message_id from reply_to_msg_id when target message exists.
 func (r *ChannelMessageRepo) LinkRelatedMessageByReply(ctx context.Context, message *ent.ChannelMessage) (*ent.ChannelMessage, error) {
 	if r == nil || r.db == nil {

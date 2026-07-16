@@ -11,6 +11,7 @@ import (
 	llminteraction "assistant-api/internal/usecase/ai/llm_interaction"
 	"assistant-api/internal/usecase/ai/topkfilter"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -72,7 +73,15 @@ type Orchestrator struct {
 	deps Dependencies
 }
 
-// New 建立可跨平台重用的流程實例。
+type chainCommandContext struct {
+	APIOperation      string
+	SkillCode         string
+	ActionPrompt      string
+	MissingParameters []string
+}
+
+// New 建立可跨平台重用的流程實例，並補齊必要預設值。
+// 回傳：初始化完成的 Orchestrator 指標；若輸入缺省會帶入安全預設。
 func New(deps Dependencies) *Orchestrator {
 	// 先做預設值正規化，讓下游流程可直接使用，減少分支噪音。
 	if strings.TrimSpace(deps.PlatformLabel) == "" {
@@ -84,70 +93,130 @@ func New(deps Dependencies) *Orchestrator {
 	return &Orchestrator{deps: deps}
 }
 
-// ProcessCommand 是核心主流程：
+// ProcessCommand 是核心主流程，負責 command 決策、分流、執行與通知。
 // 1) 取候選 action
 // 2) 請 LLM 做最終決策
 // 3) 依 next_step 分流（執行 / 追問 / 問答）
 // 4) 執行 post-action
 // 5) 成功時發送通知並落庫
+// 回傳：無；以副作用形式執行流程（dispatch、send message、persist log/result）。
 func (o *Orchestrator) ProcessCommand(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, senderUserID string, replyRef string, quoteRef string) {
 	// 基本防禦：沒有流程實例或訊息本體時直接返回。
 	if o == nil || message == nil {
 		return
 	}
-	// 若未注入 top-k，代表此部署尚未啟用 action 決策能力。
-	// 這裡選擇靜默返回，避免半套配置導致錯誤行為。
-	if o.deps.TopKFilter == nil {
-		return
-	}
 
-	// 階段 1：取得已排序候選(使用 Top-K 及 Reranker)。
-	// 候選為空表示目前訊息沒有可執行 action，流程應安靜結束。
-	candidates := o.deps.TopKFilter.FilterMessage(context.Background(), message)
-	if len(candidates) == 0 || o.deps.LLM == nil {
-		return
-	}
+	actionCandidates := []llminteraction.ActionCandidate(nil)
+	matchedSkillCode := ""
+	matchedRouteText := ""
+	validSelection := false
+	reusedCommand := false
+	decisionInputText := strings.TrimSpace(message.Text)
 
-	// 階段 2：轉換候選格式到 LLM 契約型別。
-	actionCandidates := toActionCandidates(candidates)
-	// 階段 3：請 LLM 產生最終決策。
-	finalDecision, err := o.deps.LLM.DecideFinalAction(context.Background(), message.Text, actionCandidates)
-	if err != nil {
-		// 決策錯誤分兩類商業語意：
-		// - 契約/驗證錯誤：可修復，走 ask_clarifying_question
-		// - 其他執行錯誤：先走 answer_question 避免流程中斷
-		// 核心原則：不讓使用者遇到「無回應」的靜默失敗。
-		zap.L().Warn(o.logKey("message final action decision failed"),
+	// 優先路徑：reply 鏈上若已存在 action_result 對應指令，
+	// 先把既有指令上下文（含缺參數）組回提示，再重跑 AI 解析。
+	//
+	// 這個流程的目的：
+	// 1) 降低重複解析成本（top-k + LLM）
+	// 2) 保持同一條指令會話的一致性，避免前後步驟被重新判成不同操作
+	// 3) 讓「補參數」訊息能透過上下文重新組合成完整指令
+	finalDecision := (*llminteraction.ActionDecision)(nil)
+	chainContext := (*chainCommandContext)(nil)
+	if resolved, resolveErr := o.resolveActionDecisionFromChain(context.Background(), savedMessage); resolveErr != nil {
+		zap.L().Warn(o.logKey("resolve action command from chain failed"),
 			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-			zap.String("text", strings.TrimSpace(message.Text)),
-			zap.String("error_message", err.Error()),
-			zap.Error(err),
+			zap.Error(resolveErr),
 		)
+	} else if resolved != nil && strings.TrimSpace(resolved.APIOperation) != "" {
+		reusedCommand = true
+		chainContext = resolved
+		matchedSkillCode = strings.TrimSpace(resolved.SkillCode)
+		decisionInputText = o.buildCommandDecisionInputText(message.Text, resolved)
+		zap.L().Info(o.logKey("message action command chain context resolved"),
+			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			zap.String("api_operation", strings.TrimSpace(resolved.APIOperation)),
+			zap.String("skill_code", matchedSkillCode),
+			zap.Strings("missing_parameters", append([]string(nil), resolved.MissingParameters...)),
+		)
+	}
 
-		cause := "answer_question"
-		apiOperation := ""
-		missingParameters := []string(nil)
-		if llminteraction.IsDecisionValidationError(err) {
-			// 驗證錯誤通常可透過追問補參數修復，因此轉成追問路徑。
-			cause = "ask_clarifying_question"
-			if vErr := llminteraction.AsDecisionValidationError(err); vErr != nil {
-				// 盡量使用 typed error 內的結構化欄位，提升資料可分析性。
-				apiOperation = strings.TrimSpace(vErr.APIOperation)
-				missingParameters = append([]string(nil), vErr.MissingParameters...)
-			}
+	if finalDecision == nil {
+		// 若未命中既有指令鍊，且本訊息本身也沒有明確指令訊號（例如 mention bot），
+		// 則視為一般訊息直接略過，不再進入指令解析流程。
+		// 這可避免純補充敘述或一般回覆在 command chain 情境下被誤判成新指令。
+		if !reusedCommand && !o.hasDirectCommandSignal(message) {
+			return
 		}
 
-		// 即使尚未進入 dispatch，也把缺參數狀態寫入 action_results。
-		// source=contract_reject 代表：模型產生了執行型輸出，但在契約層被拒絕。
-		o.persistMissingParameterResult(savedMessage, apiOperation, "contract_reject", missingParameters, err.Error())
-		// 立刻切到問答/追問路徑，避免錯誤被吞掉。
-		o.routeMessageToQuestionAnswer(message, savedMessage, strings.TrimSpace(senderUserID), 0, o.deps.CommandConfidenceThreshold, cause, err.Error(), missingParameters)
-		return
-	}
-	if finalDecision == nil {
-		// nil 決策視為上游策略性略過，不當作錯誤。
-		return
+		if reusedCommand {
+			if o.deps.LLM == nil {
+				return
+			}
+			// 命中指令鍊時固定既有 operation，不再重新挑選指令。
+			// AI 只需在該 operation 下判斷：
+			// 1) 參數是否已補齊
+			// 2) 是否仍需追問
+			actionCandidates = o.buildFixedChainOperationCandidates(chainContext)
+			if len(actionCandidates) == 0 {
+				return
+			}
+		} else {
+			// 回退路徑：未命中既有指令時，走既有 top-k + LLM 指令解析流程。
+			if o.deps.TopKFilter == nil {
+				return
+			}
+			candidates := o.deps.TopKFilter.FilterMessage(context.Background(), message)
+			if len(candidates) == 0 || o.deps.LLM == nil {
+				return
+			}
+			actionCandidates = toActionCandidates(candidates)
+		}
+
+		var err error
+		finalDecision, err = o.deps.LLM.DecideFinalAction(context.Background(), decisionInputText, actionCandidates)
+		if err != nil {
+			// 決策錯誤分兩類商業語意：
+			// - 契約/驗證錯誤：可修復，走 ask_clarifying_question
+			// - 其他執行錯誤：先走 answer_question 避免流程中斷
+			// 核心原則：不讓使用者遇到「無回應」的靜默失敗。
+			zap.L().Warn(o.logKey("message final action decision failed"),
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.String("text", strings.TrimSpace(message.Text)),
+				zap.String("error_message", err.Error()),
+				zap.Error(err),
+			)
+
+			cause := "answer_question"
+			apiOperation := ""
+			missingParameters := []string(nil)
+			if llminteraction.IsDecisionValidationError(err) {
+				// 驗證錯誤通常可透過追問補參數修復，因此轉成追問路徑。
+				cause = "ask_clarifying_question"
+				if vErr := llminteraction.AsDecisionValidationError(err); vErr != nil {
+					// 盡量使用 typed error 內的結構化欄位，提升資料可分析性。
+					apiOperation = strings.TrimSpace(vErr.APIOperation)
+					missingParameters = append([]string(nil), vErr.MissingParameters...)
+				}
+			}
+
+			// 即使尚未進入 dispatch，也把缺參數狀態寫入 action_results。
+			// source=contract_reject 代表：模型產生了執行型輸出，但在契約層被拒絕。
+			o.persistMissingParameterResult(savedMessage, apiOperation, "contract_reject", missingParameters, err.Error())
+			// 立刻切到問答/追問路徑，避免錯誤被吞掉。
+			o.routeMessageToQuestionAnswer(message, savedMessage, strings.TrimSpace(senderUserID), 0, o.deps.CommandConfidenceThreshold, cause, err.Error(), missingParameters)
+			return
+		}
+		if finalDecision == nil {
+			// nil 決策視為上游策略性略過，不當作錯誤。
+			return
+		}
+		if reusedCommand && chainContext != nil && strings.TrimSpace(chainContext.APIOperation) != "" {
+			// 指令鍊模式下固定 operation，避免 AI 將補參數回覆誤改成其他操作。
+			finalDecision.APIOperation = strings.TrimSpace(chainContext.APIOperation)
+		}
 	}
 
 	zap.L().Info(o.logKey("message action decision evaluated"),
@@ -191,17 +260,31 @@ func (o *Orchestrator) ProcessCommand(message *unifiedmessage.Message, savedMess
 		return
 	}
 
-	// 檢查模型選到的 api_operation 是否在候選集合內，
+	// 若走解析路徑，檢查模型選到的 api_operation 是否在候選集合內，
 	// 目的：防止幻覺 operation 直接進入 dispatch。
-	matchedSkillCode := ""
-	matchedRouteText := ""
-	validSelection := false
-	for _, candidate := range actionCandidates {
-		if candidate.Operation == finalDecision.APIOperation {
-			matchedSkillCode = candidate.SkillCode
-			matchedRouteText = candidate.RouteText
-			validSelection = true
-			break
+	//
+	// 若走重用路徑（reusedCommand=true），
+	// validSelection 已在上方命中既有指令時設為 true，
+	// 因為該 operation 來源是歷史 action_result，而非模型即時生成。
+	if !reusedCommand {
+		for _, candidate := range actionCandidates {
+			if candidate.Operation == finalDecision.APIOperation {
+				matchedSkillCode = candidate.SkillCode
+				matchedRouteText = candidate.RouteText
+				validSelection = true
+				break
+			}
+		}
+	} else {
+		for _, candidate := range actionCandidates {
+			if candidate.Operation == finalDecision.APIOperation {
+				if strings.TrimSpace(matchedSkillCode) == "" {
+					matchedSkillCode = candidate.SkillCode
+				}
+				matchedRouteText = candidate.RouteText
+				validSelection = true
+				break
+			}
 		}
 	}
 	if !validSelection {
@@ -230,6 +313,171 @@ func (o *Orchestrator) ProcessCommand(message *unifiedmessage.Message, savedMess
 	o.dispatchActionPostHandlers(message, savedMessage, strings.TrimSpace(senderUserID), strings.TrimSpace(replyRef), strings.TrimSpace(quoteRef), finalDecision, matchedSkillCode)
 }
 
+// resolveActionDecisionFromChain 沿 reply/related 訊息鏈上溯，提取可重跑 AI 的指令上下文。
+// 回傳：chainCommandContext 與 error；若未命中指令則回傳 nil 與 nil error。
+func (o *Orchestrator) resolveActionDecisionFromChain(ctx context.Context, message *ent.ChannelMessage) (*chainCommandContext, error) {
+	if o == nil || o.deps.Repo == nil || message == nil {
+		return nil, nil
+	}
+
+	// visited 用於防止關聯資料異常形成回圈（例如 A->B->A）。
+	visited := map[uuid.UUID]struct{}{}
+	current := message
+	for current != nil {
+		if current.ID == uuid.Nil {
+			return nil, nil
+		}
+		if _, seen := visited[current.ID]; seen {
+			return nil, nil
+		}
+		visited[current.ID] = struct{}{}
+
+		// 每一層都先查 action_result 是否已有 operation。
+		// 一旦命中就立即回傳，避免不必要的持續上溯。
+		actionResult, err := o.deps.Repo.FindLatestActionResultByMessageID(ctx, current.ID)
+		if err != nil {
+			return nil, err
+		}
+		if actionResult != nil && actionResult.Edges.Action != nil {
+			operation := strings.TrimSpace(actionResult.Edges.Action.APIOperation)
+			if operation == "" {
+				continue
+			}
+			// 命中 operation 後同步回填 skill_code，
+			// 讓 post-action handler 能維持嚴格 skill 驗證與資料關聯。
+			skillCode, skillErr := o.deps.Repo.ResolveSkillCodeByAPIOperation(ctx, operation)
+			if skillErr != nil {
+				return nil, skillErr
+			}
+			actionPrompt, promptErr := o.deps.Repo.ResolveActionPromptByAPIOperation(ctx, operation)
+			if promptErr != nil {
+				return nil, promptErr
+			}
+			missing := parseMissingParametersFromActionResult(actionResult)
+			return &chainCommandContext{
+				APIOperation:      operation,
+				SkillCode:         strings.TrimSpace(skillCode),
+				ActionPrompt:      strings.TrimSpace(actionPrompt),
+				MissingParameters: missing,
+			}, nil
+		}
+
+		// 未命中時才往父節點繼續追溯。
+		parent, parentErr := o.deps.Repo.ResolveParentMessage(ctx, current)
+		if parentErr != nil {
+			return nil, parentErr
+		}
+		current = parent
+	}
+
+	return nil, nil
+}
+
+// buildCommandDecisionInputText 把鏈上既有指令與缺參數上下文拼入本次訊息，供 AI 重新解析。
+// 回傳：可直接送進 DecideFinalAction 的輸入文字。
+func (o *Orchestrator) buildCommandDecisionInputText(messageText string, chainCtx *chainCommandContext) string {
+	text := strings.TrimSpace(messageText)
+	if chainCtx == nil || strings.TrimSpace(chainCtx.APIOperation) == "" {
+		return text
+	}
+
+	parts := []string{
+		"[command_chain_context]",
+		"api_operation=" + strings.TrimSpace(chainCtx.APIOperation),
+	}
+	if len(chainCtx.MissingParameters) > 0 {
+		parts = append(parts, "missing_parameters="+strings.Join(chainCtx.MissingParameters, ","))
+	}
+	parts = append(parts, "[user_reply]", text)
+	return strings.Join(parts, "\n")
+}
+
+// buildFixedChainOperationCandidates 建立「固定單一 operation」候選，用於指令鍊補參數解析。
+// 回傳：只包含鏈上 operation 的候選陣列；若 operation 無效則回傳 nil。
+func (o *Orchestrator) buildFixedChainOperationCandidates(chainCtx *chainCommandContext) []llminteraction.ActionCandidate {
+	if chainCtx == nil {
+		return nil
+	}
+	operation := strings.TrimSpace(chainCtx.APIOperation)
+	if operation == "" {
+		return nil
+	}
+	return []llminteraction.ActionCandidate{{
+		Operation: operation,
+		SkillCode: strings.TrimSpace(chainCtx.SkillCode),
+		Prompt:    strings.TrimSpace(chainCtx.ActionPrompt),
+	}}
+}
+
+// parseMissingParametersFromActionResult 從 action_result.result_message 抽取 missing_parameters 清單。
+// 回傳：正規化且去重後的參數鍵；若無資料則回傳 nil。
+func parseMissingParametersFromActionResult(item *ent.ActionResult) []string {
+	if item == nil || item.ResultMessage == nil {
+		return nil
+	}
+	result := strings.TrimSpace(*item.ResultMessage)
+	if result == "" {
+		return nil
+	}
+
+	segments := strings.Split(result, ";")
+	for _, segment := range segments {
+		segment = strings.TrimSpace(segment)
+		const keyPrefix = "missing_parameters="
+		lowered := strings.ToLower(segment)
+		if !strings.HasPrefix(lowered, keyPrefix) {
+			continue
+		}
+		value := strings.TrimSpace(segment[len(keyPrefix):])
+		if value == "" {
+			return nil
+		}
+		raw := strings.Split(value, ",")
+		seen := make(map[string]struct{}, len(raw))
+		out := make([]string, 0, len(raw))
+		for _, item := range raw {
+			key := strings.ToLower(strings.TrimSpace(item))
+			if key == "" {
+				continue
+			}
+			if _, exists := seen[key]; exists {
+				continue
+			}
+			seen[key] = struct{}{}
+			out = append(out, key)
+		}
+		if len(out) == 0 {
+			return nil
+		}
+		return out
+	}
+
+	return nil
+}
+
+// hasDirectCommandSignal 判斷訊息本身是否具備直接進入指令模式的訊號。
+// 回傳：true 表示可視為 command 訊息；false 表示需依賴鏈上既有指令才可進流程。
+func (o *Orchestrator) hasDirectCommandSignal(message *unifiedmessage.Message) bool {
+	if message == nil {
+		return false
+	}
+	// 目前 direct command 訊號定義：
+	// - 私聊訊息（沿用既有 command gate）
+	// - 訊息明確 mention bot（與 command gate 一致）
+	// - 若 bot id 尚未配置，退回「存在 mention 標記」作為保守判定
+	// 其餘情境則需依賴「鏈上既有指令」才能繼續 command 流程。
+	if strings.EqualFold(strings.TrimSpace(message.ChannelType), "private") {
+		return true
+	}
+	botUserID := strings.TrimSpace(o.deps.BotSenderID)
+	if botUserID != "" {
+		return message.MentionsUser(botUserID)
+	}
+	return len(message.Mentions) > 0
+}
+
+// dispatchActionPostHandlers 依最終決策分派 post-action handler，並在成功後送出成功通知。
+// 回傳：無；失敗情境採早退，不拋錯中斷主流程。
 func (o *Orchestrator) dispatchActionPostHandlers(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, userID string, replyRef string, quoteRef string, decision *llminteraction.ActionDecision, matchedSkillCode string) {
 	// Dispatcher 可選，方便分階段上線或測試時局部注入。
 	if o == nil || decision == nil || o.deps.Dispatcher == nil {
@@ -243,6 +491,8 @@ func (o *Orchestrator) dispatchActionPostHandlers(message *unifiedmessage.Messag
 	o.sendActionSuccessNotice(message, savedMessage, userID, replyRef, quoteRef)
 }
 
+// sendActionSuccessNotice 發送「指令執行成功」通知，並將 outbound 訊息落庫。
+// 回傳：無；發送或落庫失敗僅記錄 log，不回傳錯誤阻斷流程。
 func (o *Orchestrator) sendActionSuccessNotice(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, userID string, replyRef string, quoteRef string) {
 	// 發送成功通知至少需要 messenger 與訊息上下文。
 	if o == nil || o.deps.Messenger == nil || message == nil {
@@ -344,6 +594,8 @@ func (o *Orchestrator) sendActionSuccessNotice(message *unifiedmessage.Message, 
 	}
 }
 
+// routeMessageToQuestionAnswer 將訊息導向問答或追問流程，並處理低信心降級。
+// 回傳：無；必要時會透過 messenger 發送追問訊息並落庫。
 func (o *Orchestrator) routeMessageToQuestionAnswer(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, userID string, actionConfidence float64, actionThreshold float64, cause string, decisionReason string, missingParameters []string) {
 	// 此函式是問答/追問共用路由，涵蓋三種來源：
 	// - execute_action 低信心降級
@@ -435,6 +687,8 @@ func (o *Orchestrator) routeMessageToQuestionAnswer(message *unifiedmessage.Mess
 	}
 }
 
+// sendClarifyingQuestion 發送釐清問題（clarifying question）並寫入訊息紀錄。
+// 回傳：無；若發送失敗僅記錄告警並結束。
 func (o *Orchestrator) sendClarifyingQuestion(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, userID string, question string) {
 	// 追問目前採非 reply 送出，
 	// 以支援延遲生成、重送或非同步流程情境。
@@ -495,6 +749,8 @@ func (o *Orchestrator) sendClarifyingQuestion(message *unifiedmessage.Message, s
 	}
 }
 
+// buildMissingParameterTemplateQuestion 依缺參數清單產生固定追問模板。
+// 回傳：可直接回覆給使用者的追問字串；若無可用模板則回傳空字串。
 func buildMissingParameterTemplateQuestion(missingParameters []string) string {
 	// 將缺參數清單轉成固定追問文案。
 	// 正規化目標：
@@ -528,6 +784,8 @@ func buildMissingParameterTemplateQuestion(missingParameters []string) string {
 	return "請補充以下必要資訊後我才能執行指令：" + strings.Join(normalized, ", ")
 }
 
+// persistMissingParameterResult 將 missing_parameter 結果統一寫入 action_results。
+// 回傳：無；寫入失敗僅記錄警告，避免阻斷主要互動流程。
 func (o *Orchestrator) persistMissingParameterResult(savedMessage *ent.ChannelMessage, apiOperation string, source string, missingParameters []string, reason string) {
 	// missing_parameter 狀態統一落庫入口。
 	// source 目前約定：
@@ -575,6 +833,8 @@ func (o *Orchestrator) persistMissingParameterResult(savedMessage *ent.ChannelMe
 	}
 }
 
+// toActionCandidates 將 topkfilter 候選轉換為 LLM 互動層使用的契約型別。
+// 回傳：llm_interaction.ActionCandidate 陣列，供最終決策模型使用。
 func toActionCandidates(candidates []topkfilter.ScoredCandidate) []llminteraction.ActionCandidate {
 	// 候選轉換集中在這裡，避免 topkfilter 型別滲透到 LLM 互動層。
 	out := make([]llminteraction.ActionCandidate, 0, len(candidates))
@@ -590,6 +850,8 @@ func toActionCandidates(candidates []topkfilter.ScoredCandidate) []llminteractio
 	return out
 }
 
+// logKey 生成帶平台前綴的統一日誌 key。
+// 回傳：格式化後的 log key 字串（例如 line message final action decided）。
 func (o *Orchestrator) logKey(suffix string) string {
 	// logKey 確保抽出共用流程後，log 仍可辨識平台來源。
 	prefix := strings.TrimSpace(o.deps.PlatformLabel)

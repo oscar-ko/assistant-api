@@ -82,7 +82,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Enable translation for a specific locale in the current channel.",
 					APIOperation:   "start_translation_locale",
 					RouteTexts:     []string{"開啟翻譯", "開始翻譯模式", "新增翻譯語系", "幫我開啟某語言翻譯", "請翻譯成指定語言"},
-					CommandPurpose: fmt.Sprintf("用途: 啟用翻譯語系。規則: 使用者只要提供語言名稱（例如英文、德文）即可，系統自行將語言名稱正規化為 %s（例如 英文->en-US、德文->de-DE），並以字串陣列輸出。若語言不明確才提問。", aillminteraction.ActionParamTargetLocales),
+					CommandPurpose: fmt.Sprintf("用途: 啟用翻譯語系。規則: 只接受使用者明確指定的目標語系；禁止推測預設語系、聊天語言或從上下文自動補值。『自然語言語言名稱（例如英文、日文、繁中）即視為明確指定』，不得誤判為未提供語系。若有語言名稱，必須先轉為 BCP47 locale 字串陣列（格式固定 xx-YY，例如日文=ja-JP、英文=en-US、繁中=zh-TW）後填入 action_params.target_locales；不可輸出裸語言碼（如 ja、en、zh）。僅在使用者完全未提及任何語言時，才輸出 missing_parameters=[%s] 並追問。", aillminteraction.ActionParamTargetLocales),
 				},
 				{
 					ActionCode:     action.ActionCodeDisable,
@@ -98,7 +98,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Disable translation for a specific locale in the current channel.",
 					APIOperation:   "stop_translation_locale",
 					RouteTexts:     []string{"關閉某語言翻譯", "停止指定語言翻譯", "移除翻譯語系", "把某個語言的翻譯關掉", "不要某語言翻譯"},
-					CommandPurpose: fmt.Sprintf("用途: 停用指定翻譯語系。規則: 使用者只要提供語言名稱（例如英文、德文）即可，系統自行自行將語言名稱轉為 %s 後輸出；不要要求使用者輸入 locale 格式。若未提到任何語言才提問。", aillminteraction.ActionParamTargetLocales),
+					CommandPurpose: fmt.Sprintf("用途: 停用指定翻譯語系。規則: 只接受使用者明確指定的目標語系；禁止推測預設語系、聊天語言或從上下文自動補值。『自然語言語言名稱（例如英文、日文、繁中）即視為明確指定』，不得誤判為未提供語系。若有語言名稱，必須先轉為 BCP47 locale 字串陣列（格式固定 xx-YY，例如日文=ja-JP、英文=en-US、繁中=zh-TW）後填入 action_params.target_locales；不可輸出裸語言碼（如 ja、en、zh）。僅在使用者完全未提及任何語言時，才輸出 missing_parameters=[%s] 並追問。", aillminteraction.ActionParamTargetLocales),
 				},
 			},
 		},

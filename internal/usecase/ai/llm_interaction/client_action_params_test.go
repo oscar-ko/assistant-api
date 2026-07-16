@@ -146,6 +146,15 @@ func TestValidateActionDecisionNormalizesLocaleFormat(t *testing.T) {
 	}
 }
 
+func TestValidateActionDecisionRejectsLanguageOnlyLocale(t *testing.T) {
+	err := validateActionDecision(&ActionDecision{NextStep: NextStepExecuteAction, APIOperation: "start_translation_locale", ActionParams: map[string]json.RawMessage{
+		ActionParamTargetLocales: mustRawJSON(t, []string{"ja", "en"}),
+	}})
+	if err == nil {
+		t.Fatal("expected language-only locale to be rejected")
+	}
+}
+
 func TestValidateActionDecisionRejectsInvalidLocaleFormat(t *testing.T) {
 	err := validateActionDecision(&ActionDecision{NextStep: NextStepExecuteAction, APIOperation: "start_translation_locale", ActionParams: map[string]json.RawMessage{
 		ActionParamTargetLocales: mustRawJSON(t, []string{"english-US"}),

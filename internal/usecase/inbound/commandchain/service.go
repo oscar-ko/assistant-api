@@ -14,6 +14,8 @@ import (
 type MessageStore interface {
 	GetMessageByID(ctx context.Context, id uuid.UUID) (*ent.ChannelMessage, error)
 	FindMessageByPlatformMessageID(ctx context.Context, channelID uuid.UUID, platformMessageID string) (*ent.ChannelMessage, error)
+	// FindLatestActionOperationByMessageID 用於判斷某節點是否已存在可重用指令。
+	FindLatestActionOperationByMessageID(ctx context.Context, messageID uuid.UUID) (string, error)
 }
 
 // Service 提供跨平台共用的指令訊息鍊判斷。
@@ -59,6 +61,15 @@ func (s *service) IsCommandChainMessage(ctx context.Context, message *ent.Channe
 		return true, nil
 	}
 
+	// 新規則：若當前訊息本身已有 action_result 對應 operation，
+	// 直接視為在 command 鏈上，避免再做一次昂貴的指令解析。
+	if hasCommand, err := s.messageHasCommand(ctx, message.ID); err != nil {
+		return false, err
+	} else if hasCommand {
+		s.markSeed(message.ID)
+		return true, nil
+	}
+
 	// visited 用於防止資料異常形成回圈（例如 A->B->A）造成無限追溯。
 	visited := map[uuid.UUID]struct{}{message.ID: {}}
 	current := message
@@ -92,9 +103,30 @@ func (s *service) IsCommandChainMessage(ctx context.Context, message *ent.Channe
 		if s.isSeed(parent.ID) {
 			return true, nil
 		}
+		// 上溯父節點時同樣檢查是否有既有指令，
+		// 命中後立刻短路成功，並把該節點註冊為 seed 供後續快取命中。
+		if hasCommand, checkErr := s.messageHasCommand(ctx, parent.ID); checkErr != nil {
+			return false, checkErr
+		} else if hasCommand {
+			s.markSeed(parent.ID)
+			return true, nil
+		}
 
 		current = parent
 	}
+}
+
+func (s *service) messageHasCommand(ctx context.Context, messageID uuid.UUID) (bool, error) {
+	if s == nil || s.store == nil || messageID == uuid.Nil {
+		return false, nil
+	}
+	// 只要 action_results 能解析出非空 api_operation，
+	// 就代表這個節點有既有指令可重用。
+	operation, err := s.store.FindLatestActionOperationByMessageID(ctx, messageID)
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(operation) != "", nil
 }
 
 func (s *service) resolveParent(ctx context.Context, message *ent.ChannelMessage) (*ent.ChannelMessage, error) {

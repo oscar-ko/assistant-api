@@ -125,3 +125,26 @@ func TestDecideMessageSkipsComparisonOutsideCommandMode(t *testing.T) {
 		t.Fatal("expected command comparison to be skipped")
 	}
 }
+
+func TestDecideMessageReplyContextChecksCommandChain(t *testing.T) {
+	// 非 mention、非 private 的訊息，只要具有 reply context，
+	// 仍需觸發 command chain 判斷，避免補參數訊息被錯誤略過。
+	parentID := uuid.New()
+	message := &unifiedmessage.Message{ChannelType: "group", Text: "補參數"}
+	saved := &ent.ChannelMessage{ID: uuid.New(), RelatedMessageID: &parentID}
+	chain := &mockCommandChain{onChain: true}
+
+	decision := (&service{commandChain: chain}).DecideMessage(context.Background(), message, saved, "BOT001")
+	if decision == nil {
+		t.Fatal("expected decision")
+	}
+	if !chain.called {
+		t.Fatal("expected command chain to be called for reply context")
+	}
+	if !decision.IsOnCommandChain {
+		t.Fatal("expected on_command_chain=true for reply context")
+	}
+	if !decision.IsCommand() {
+		t.Fatal("expected reply context on command chain to enter command mode")
+	}
+}
