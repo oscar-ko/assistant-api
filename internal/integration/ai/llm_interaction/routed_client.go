@@ -2,6 +2,7 @@ package llminteraction
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -48,6 +49,25 @@ func (c *routedInteractionClient) ClassifyAction(ctx context.Context, prompt str
 	if err != nil {
 		return nil, fmt.Errorf("ai decision profile=%s: %w", label, err)
 	}
+	if result == nil {
+		return nil, fmt.Errorf("ai decision profile=%s returned nil result", label)
+	}
+	actionParamsJSON := "{}"
+	if len(result.ActionParams) > 0 {
+		if payload, marshalErr := json.Marshal(result.ActionParams); marshalErr == nil {
+			actionParamsJSON = string(payload)
+		}
+	}
+	zap.L().Info("ai response payload",
+		zap.String("role", "decision"),
+		zap.String("profile", label),
+		zap.String("next_step", strings.TrimSpace(result.NextStep)),
+		zap.String("api_operation", strings.TrimSpace(result.APIOperation)),
+		zap.String("action_params", actionParamsJSON),
+		zap.Strings("missing_parameters", append([]string(nil), result.MissingParameters...)),
+		zap.Float64("confidence", result.Confidence),
+		zap.String("reason", strings.TrimSpace(result.Reason)),
+	)
 	return result, nil
 }
 
@@ -66,5 +86,15 @@ func (c *routedInteractionClient) AnswerQuestion(ctx context.Context, prompt str
 	if err != nil {
 		return nil, fmt.Errorf("ai chat profile=%s: %w", label, err)
 	}
+	if result == nil {
+		return nil, fmt.Errorf("ai chat profile=%s returned nil result", label)
+	}
+	zap.L().Info("ai response payload",
+		zap.String("role", "chat"),
+		zap.String("profile", label),
+		zap.String("schema_version", strings.TrimSpace(result.SchemaVersion)),
+		zap.String("answer", strings.TrimSpace(result.Answer)),
+		zap.Float64("confidence", result.Confidence),
+	)
 	return result, nil
 }

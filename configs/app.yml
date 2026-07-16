@@ -63,8 +63,8 @@ ai:
         # 範例（決策 local、聊天 chatgpt）：
         # decision: "local"
         # chat: "chat_search"
-        decision: "action_decision"
-        chat: "chat_search"
+        decision: "local"
+        chat: "local"
         local:
             service_url: "http://127.0.0.1:9002"
             service_timeout_seconds: 120

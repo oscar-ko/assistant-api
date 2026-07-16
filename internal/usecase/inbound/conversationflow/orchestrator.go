@@ -2,6 +2,7 @@ package conversationflow
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -225,6 +226,8 @@ func (o *Orchestrator) ProcessCommand(message *unifiedmessage.Message, savedMess
 		zap.String("text", strings.TrimSpace(message.Text)),
 		zap.String("next_step", strings.TrimSpace(finalDecision.NextStep)),
 		zap.String("api_operation", finalDecision.APIOperation),
+		zap.String("action_params", marshalActionParamsForLog(finalDecision.ActionParams)),
+		zap.Strings("missing_parameters", append([]string(nil), finalDecision.MissingParameters...)),
 		zap.Float64("confidence", finalDecision.Confidence),
 		zap.String("reason", strings.TrimSpace(finalDecision.Reason)),
 	)
@@ -303,6 +306,8 @@ func (o *Orchestrator) ProcessCommand(message *unifiedmessage.Message, savedMess
 		zap.String("text", strings.TrimSpace(message.Text)),
 		zap.String("next_step", strings.TrimSpace(finalDecision.NextStep)),
 		zap.String("api_operation", finalDecision.APIOperation),
+		zap.String("action_params", marshalActionParamsForLog(finalDecision.ActionParams)),
+		zap.Strings("missing_parameters", append([]string(nil), finalDecision.MissingParameters...)),
 		zap.String("skill_code", matchedSkillCode),
 		zap.String("matched_route_text", matchedRouteText),
 		zap.Bool("valid_selection", validSelection),
@@ -601,6 +606,7 @@ func (o *Orchestrator) sendActionSuccessNotice(message *unifiedmessage.Message, 
 		zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 		zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 		zap.String("user_id", userID),
+		zap.String("outbound_text", strings.TrimSpace(text)),
 		zap.Bool("used_reply", usedReply),
 		zap.String("sent_platform_message_id", sentPlatformMessageID),
 	)
@@ -760,6 +766,7 @@ func (o *Orchestrator) sendClarifyingQuestion(message *unifiedmessage.Message, s
 		zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 		zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 		zap.String("user_id", strings.TrimSpace(userID)),
+		zap.String("outbound_text", question),
 		zap.String("sent_platform_message_id", sentPlatformMessageID),
 	)
 
@@ -820,6 +827,17 @@ func buildMissingParameterTemplateQuestion(missingParameters []string) string {
 	}
 	// 通用 fallback：直接列出缺少的參數鍵。
 	return "請補充以下必要資訊後我才能執行指令：" + strings.Join(normalized, ", ")
+}
+
+func marshalActionParamsForLog(params map[string]json.RawMessage) string {
+	if len(params) == 0 {
+		return "{}"
+	}
+	payload, err := json.Marshal(params)
+	if err != nil {
+		return "{}"
+	}
+	return string(payload)
 }
 
 // persistMissingParameterResult 將 missing_parameter 結果統一寫入 action_results。
