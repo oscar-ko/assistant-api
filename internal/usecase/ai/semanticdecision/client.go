@@ -45,9 +45,9 @@ type ActionDecision struct {
 }
 
 const (
-	NextStepExecuteAction        = "execute_action"
+	NextStepExecuteAction         = "execute_action"
 	NextStepAskClarifyingQuestion = "ask_clarifying_question"
-	NextStepAnswerQuestion       = "answer_question"
+	NextStepAnswerQuestion        = "answer_question"
 )
 
 // ParamString 讀取 action_params 裡的字串參數。
@@ -266,8 +266,8 @@ func BuildFinalActionPrompt(candidates []ActionCandidate) string {
 
 請只根據使用者訊息與上述候選，選出「唯一一個」最終應執行的 action。
 
-輸出格式必須是 JSON，欄位固定如下：
-schema_version, next_step, api_operation, action_params, missing_parameters, confidence, reason
+輸出格式必須是 JSON，並遵守以下 contract：
+` + actionDecisionContractPromptBlock() + `
 
 規則：
 - 先完成兩階段決策：
@@ -300,8 +300,8 @@ schema_version, next_step, api_operation, action_params, missing_parameters, con
 func BuildQuestionAnswerPrompt() string {
 	return strings.TrimSpace(`
 你是通訊助理的問答回覆器。
-請直接回答使用者問題，並輸出 JSON，欄位固定如下：
-schema_version, answer, confidence
+請直接回答使用者問題，並輸出 JSON，遵守以下 contract：
+` + questionAnswerContractPromptBlock() + `
 
 規則：
 - answer: 直接可讀的最終回答（繁體中文）
@@ -329,8 +329,8 @@ func BuildClarifyingQuestionPrompt(reason string) string {
 
 請根據使用者原始訊息與上述原因，提出一個最能消除歧義的追問問題。
 
-輸出格式必須是 JSON，欄位固定如下：
-schema_version, answer, confidence
+輸出格式必須是 JSON，並遵守以下 contract：
+` + questionAnswerContractPromptBlock() + `
 
 規則：
 - answer 必須是一句直接對使用者提問的繁體中文追問句

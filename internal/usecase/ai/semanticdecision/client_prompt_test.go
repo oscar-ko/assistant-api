@@ -40,6 +40,15 @@ func TestBuildFinalActionPromptIncludesActionPromptGuidance(t *testing.T) {
 	if !strings.Contains(prompt, "operation=stop_translation_all prompt=作用範圍不明時先提問。") {
 		t.Fatalf("expected stop_translation_all guidance in prompt, got: %s", prompt)
 	}
+	if !strings.Contains(prompt, "欄位約束（由 contract spec 產生）：") {
+		t.Fatalf("expected generated contract block in prompt, got: %s", prompt)
+	}
+	if !strings.Contains(prompt, "schema_version=v1") {
+		t.Fatalf("expected schema version from spec in prompt, got: %s", prompt)
+	}
+	if !strings.Contains(prompt, "next_step: string, required, enum=execute_action|ask_clarifying_question|answer_question") {
+		t.Fatalf("expected next_step enum constraints in prompt, got: %s", prompt)
+	}
 }
 
 func TestBuildClarifyingQuestionPromptIncludesDecisionReason(t *testing.T) {
@@ -52,5 +61,24 @@ func TestBuildClarifyingQuestionPromptIncludesDecisionReason(t *testing.T) {
 	}
 	if !strings.Contains(prompt, "只能問一個最小必要問題") {
 		t.Fatalf("expected minimal follow-up constraint in prompt, got: %s", prompt)
+	}
+	if !strings.Contains(prompt, "欄位固定如下：") {
+		t.Fatalf("expected generated question-answer contract fields in prompt, got: %s", prompt)
+	}
+	if !strings.Contains(prompt, "schema_version, answer, confidence") {
+		t.Fatalf("expected question-answer fields from spec in prompt, got: %s", prompt)
+	}
+}
+
+func TestBuildQuestionAnswerPromptUsesContractSpecBlock(t *testing.T) {
+	prompt := BuildQuestionAnswerPrompt()
+	if !strings.Contains(prompt, "schema_version=v1") {
+		t.Fatalf("expected schema version from spec in prompt, got: %s", prompt)
+	}
+	if !strings.Contains(prompt, "answer: string, required") {
+		t.Fatalf("expected answer field constraints in prompt, got: %s", prompt)
+	}
+	if !strings.Contains(prompt, "confidence: number, required, min=0, max=1") {
+		t.Fatalf("expected confidence constraints in prompt, got: %s", prompt)
 	}
 }
