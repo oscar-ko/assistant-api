@@ -42,17 +42,17 @@ type DatabaseConfig struct {
 }
 
 // AIConfig 集中管理 AI 相關子系統設定，依用途拆成三個子區塊：
-// - SemanticDecision：語義決策（意圖/任務判斷）
+// - LLMInteraction：本地/雲端 LLM 互動（問答、追問、決策）
 // - Embedding：第一階段候選召回（recall）
 // - Reranker：第二階段候選精排（precision）
 type AIConfig struct {
-	SemanticDecision SemanticDecisionConfig `mapstructure:"semantic_decision" yaml:"semantic_decision"`
-	Embedding        EmbeddingConfig        `mapstructure:"embedding" yaml:"embedding"`
-	Reranker         RerankerConfig         `mapstructure:"reranker" yaml:"reranker"`
+	LLMInteraction LLMInteractionConfig `mapstructure:"llm_interaction" yaml:"llm_interaction"`
+	Embedding      EmbeddingConfig      `mapstructure:"embedding" yaml:"embedding"`
+	Reranker       RerankerConfig       `mapstructure:"reranker" yaml:"reranker"`
 }
 
-// SemanticDecisionConfig 為語義決策服務（意圖/決策）端點設定。
-type SemanticDecisionConfig struct {
+// LLMInteractionConfig 為本地/雲端 LLM 互動端點設定。
+type LLMInteractionConfig struct {
 	ServiceURL            string `mapstructure:"service_url" yaml:"service_url"`
 	ServiceTimeoutSeconds int    `mapstructure:"service_timeout_seconds" yaml:"service_timeout_seconds"`
 	// CommandConfidenceThreshold 決定 final action 信心值低於多少時，

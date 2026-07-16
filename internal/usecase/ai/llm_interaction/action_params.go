@@ -1,4 +1,4 @@
-package semanticdecision
+package llminteraction
 
 const (
 	// ActionParamTargetLocales 是翻譯 action 的語系參數鍵名。

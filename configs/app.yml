@@ -12,7 +12,7 @@ server:
     # API 服務對外監聽埠。
     port: "8080"
 
-# AI 相關設定：包含語義決策、召回 embedding 與 reranker 精排。
+# AI 相關設定：包含本地/雲端 LLM 互動、召回 embedding 與 reranker 精排。
 ai:
     # 第一階段：embedding 向量服務（用於 top-k 候選召回）。
     embedding:
@@ -52,11 +52,11 @@ ai:
         alive_success_ttl_ms: 10000
         alive_failure_cooldown_ms: 3000
 
-    # 語義決策服務（第三階段）
+    # LLM 互動服務（第三階段）
     # 職責：接收「原始訊息 + rerank 後候選」並產生單一最終 api_operation。
     # 注意：這裡的 API 契約是 action decision（api_operation），
     # 不再使用舊的 intent_label 分類格式。
-    semantic_decision:
+    llm_interaction:
         service_url: "http://127.0.0.1:9002"
         service_timeout_seconds: 120
         # 最終 action decision 若低於此信心值，視為「對話問題」而非可執行指令。

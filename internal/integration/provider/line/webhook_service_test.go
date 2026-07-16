@@ -8,7 +8,7 @@ import (
 	"assistant-api/internal/config"
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
-	"assistant-api/internal/usecase/ai/semanticdecision"
+	llminteraction "assistant-api/internal/usecase/ai/llm_interaction"
 	"assistant-api/internal/usecase/ai/topkfilter"
 
 	"go.uber.org/zap"
@@ -35,17 +35,17 @@ func (s *stubTopKFilter) FilterMessage(ctx context.Context, message *unifiedmess
 	return s.candidates
 }
 
-type stubSemanticDecision struct {
+type stubLLMInteraction struct {
 	called                bool
-	decision              *semanticdecision.ActionDecision
+	decision              *llminteraction.ActionDecision
 	err                   error
-	candidates            []semanticdecision.ActionCandidate
+	candidates            []llminteraction.ActionCandidate
 	answerCalled          bool
-	answer                *semanticdecision.QuestionAnswer
+	answer                *llminteraction.QuestionAnswer
 	answerErr             error
 	clarifyCalled         bool
 	clarifyReason         string
-	clarifyingQuestion    *semanticdecision.QuestionAnswer
+	clarifyingQuestion    *llminteraction.QuestionAnswer
 	clarifyingQuestionErr error
 }
 
@@ -76,7 +76,7 @@ func (s *stubPushMessageService) PushMentionTextToChat(ctx context.Context, chat
 	return s.sentPlatformMessageID, s.err
 }
 
-func (s *stubSemanticDecision) DecideFinalAction(ctx context.Context, text string, candidates []semanticdecision.ActionCandidate) (*semanticdecision.ActionDecision, error) {
+func (s *stubLLMInteraction) DecideFinalAction(ctx context.Context, text string, candidates []llminteraction.ActionCandidate) (*llminteraction.ActionDecision, error) {
 	_ = ctx
 	_ = text
 	s.called = true
@@ -84,14 +84,14 @@ func (s *stubSemanticDecision) DecideFinalAction(ctx context.Context, text strin
 	return s.decision, s.err
 }
 
-func (s *stubSemanticDecision) AnswerQuestion(ctx context.Context, text string) (*semanticdecision.QuestionAnswer, error) {
+func (s *stubLLMInteraction) AnswerQuestion(ctx context.Context, text string) (*llminteraction.QuestionAnswer, error) {
 	_ = ctx
 	_ = text
 	s.answerCalled = true
 	return s.answer, s.answerErr
 }
 
-func (s *stubSemanticDecision) AskClarifyingQuestion(ctx context.Context, text string, reason string) (*semanticdecision.QuestionAnswer, error) {
+func (s *stubLLMInteraction) AskClarifyingQuestion(ctx context.Context, text string, reason string) (*llminteraction.QuestionAnswer, error) {
 	_ = ctx
 	_ = text
 	s.clarifyCalled = true
@@ -200,9 +200,9 @@ func TestWebhookService_ProcessIncoming_FinalActionDecision(t *testing.T) {
 			{Candidate: repository.ActionRouteVectorCandidate{APIOperation: "start_translation_locale", SkillCode: "channel.translation", RouteText: "\u958b\u555f\u7ffb\u8b6f"}},
 		},
 	}
-	decisionStub := &stubSemanticDecision{decision: &semanticdecision.ActionDecision{NextStep: semanticdecision.NextStepExecuteAction, APIOperation: "start_translation_locale", Confidence: 0.92, Reason: "stub reason"}}
+	decisionStub := &stubLLMInteraction{decision: &llminteraction.ActionDecision{NextStep: llminteraction.NextStepExecuteAction, APIOperation: "start_translation_locale", Confidence: 0.92, Reason: "stub reason"}}
 
-	(&WebhookService{topKFilterService: filterStub, semanticService: decisionStub}).ProcessIncoming(body, "sig")
+	(&WebhookService{topKFilterService: filterStub, llmInteractionService: decisionStub}).ProcessIncoming(body, "sig")
 
 	if !decisionStub.called {
 		t.Fatalf("expected final action decision to be called")
@@ -240,9 +240,9 @@ func TestWebhookService_ProcessIncoming_FinalActionNotInCandidates(t *testing.T)
 		},
 	}
 	// 模擬模型回傳一個不在候選清單裡的 api_operation，驗證會被捕捉並告警。
-	decisionStub := &stubSemanticDecision{decision: &semanticdecision.ActionDecision{NextStep: semanticdecision.NextStepExecuteAction, APIOperation: "unknown_operation", Confidence: 0.5, Reason: "stub reason"}}
+	decisionStub := &stubLLMInteraction{decision: &llminteraction.ActionDecision{NextStep: llminteraction.NextStepExecuteAction, APIOperation: "unknown_operation", Confidence: 0.5, Reason: "stub reason"}}
 
-	(&WebhookService{topKFilterService: filterStub, semanticService: decisionStub}).ProcessIncoming(body, "sig")
+	(&WebhookService{topKFilterService: filterStub, llmInteractionService: decisionStub}).ProcessIncoming(body, "sig")
 
 	if observed.FilterMessage("line message final action not in candidates").Len() == 0 {
 		t.Fatalf("expected hallucination warning when operation is not among candidates")
@@ -262,13 +262,13 @@ func TestWebhookService_ProcessIncoming_LowConfidenceTreatedAsChat(t *testing.T)
 	zap.ReplaceGlobals(zap.New(core))
 	defer zap.ReplaceGlobals(oldLogger)
 
-	oldThreshold := config.AI.SemanticDecision.CommandConfidenceThreshold
-	oldQuestionThreshold := config.AI.SemanticDecision.QuestionConfidenceThreshold
-	config.AI.SemanticDecision.CommandConfidenceThreshold = 0.7
-	config.AI.SemanticDecision.QuestionConfidenceThreshold = 0.6
+	oldThreshold := config.AI.LLMInteraction.CommandConfidenceThreshold
+	oldQuestionThreshold := config.AI.LLMInteraction.QuestionConfidenceThreshold
+	config.AI.LLMInteraction.CommandConfidenceThreshold = 0.7
+	config.AI.LLMInteraction.QuestionConfidenceThreshold = 0.6
 	defer func() {
-		config.AI.SemanticDecision.CommandConfidenceThreshold = oldThreshold
-		config.AI.SemanticDecision.QuestionConfidenceThreshold = oldQuestionThreshold
+		config.AI.LLMInteraction.CommandConfidenceThreshold = oldThreshold
+		config.AI.LLMInteraction.QuestionConfidenceThreshold = oldQuestionThreshold
 	}()
 
 	body := []byte(`{"events":[{"type":"message","source":{"type":"private","userId":"U123"},"message":{"type":"text","text":"這個問題幫我解釋一下"}}]}`)
@@ -277,13 +277,13 @@ func TestWebhookService_ProcessIncoming_LowConfidenceTreatedAsChat(t *testing.T)
 			{Candidate: repository.ActionRouteVectorCandidate{APIOperation: "start_translation_locale", SkillCode: "channel.translation", RouteText: "開啟翻譯"}},
 		},
 	}
-	decisionStub := &stubSemanticDecision{
-		decision:           &semanticdecision.ActionDecision{NextStep: semanticdecision.NextStepAskClarifyingQuestion, APIOperation: "start_translation_locale", Confidence: 0.42, Reason: "stub reason"},
-		clarifyingQuestion: &semanticdecision.QuestionAnswer{SchemaVersion: "v1", Answer: "請問你要翻譯成哪個語系？", Confidence: 0.35},
+	decisionStub := &stubLLMInteraction{
+		decision:           &llminteraction.ActionDecision{NextStep: llminteraction.NextStepAskClarifyingQuestion, APIOperation: "start_translation_locale", Confidence: 0.42, Reason: "stub reason"},
+		clarifyingQuestion: &llminteraction.QuestionAnswer{SchemaVersion: "v1", Answer: "請問你要翻譯成哪個語系？", Confidence: 0.35},
 	}
 	pushStub := &stubPushMessageService{sentPlatformMessageID: "sent-123"}
 
-	(&WebhookService{topKFilterService: filterStub, semanticService: decisionStub, followUpSender: pushStub}).ProcessIncoming(body, "sig")
+	(&WebhookService{topKFilterService: filterStub, llmInteractionService: decisionStub, followUpSender: pushStub}).ProcessIncoming(body, "sig")
 
 	// 低 action confidence 應走問答分支，而不是產生最終 action。
 	if !decisionStub.clarifyCalled {
@@ -332,13 +332,13 @@ func TestWebhookService_ProcessIncoming_ZeroConfidenceNoMatchRoutesToQuestionAns
 	zap.ReplaceGlobals(zap.New(core))
 	defer zap.ReplaceGlobals(oldLogger)
 
-	oldCommandThreshold := config.AI.SemanticDecision.CommandConfidenceThreshold
-	oldQuestionThreshold := config.AI.SemanticDecision.QuestionConfidenceThreshold
-	config.AI.SemanticDecision.CommandConfidenceThreshold = 0.7
-	config.AI.SemanticDecision.QuestionConfidenceThreshold = 0.6
+	oldCommandThreshold := config.AI.LLMInteraction.CommandConfidenceThreshold
+	oldQuestionThreshold := config.AI.LLMInteraction.QuestionConfidenceThreshold
+	config.AI.LLMInteraction.CommandConfidenceThreshold = 0.7
+	config.AI.LLMInteraction.QuestionConfidenceThreshold = 0.6
 	defer func() {
-		config.AI.SemanticDecision.CommandConfidenceThreshold = oldCommandThreshold
-		config.AI.SemanticDecision.QuestionConfidenceThreshold = oldQuestionThreshold
+		config.AI.LLMInteraction.CommandConfidenceThreshold = oldCommandThreshold
+		config.AI.LLMInteraction.QuestionConfidenceThreshold = oldQuestionThreshold
 	}()
 
 	body := []byte(`{"events":[{"type":"message","source":{"type":"private","userId":"U123"},"message":{"type":"text","text":"推薦一部電影"}}]}`)
@@ -347,12 +347,12 @@ func TestWebhookService_ProcessIncoming_ZeroConfidenceNoMatchRoutesToQuestionAns
 			{Candidate: repository.ActionRouteVectorCandidate{APIOperation: "start_translation_locale", SkillCode: "channel.translation", RouteText: "開啟翻譯"}},
 		},
 	}
-	decisionStub := &stubSemanticDecision{
-		decision:           &semanticdecision.ActionDecision{NextStep: semanticdecision.NextStepAskClarifyingQuestion, APIOperation: "", Confidence: 0.0, Reason: "no candidate matched"},
-		clarifyingQuestion: &semanticdecision.QuestionAnswer{SchemaVersion: "v1", Answer: "你想要我幫你做哪一類型的事情？", Confidence: 0.88},
+	decisionStub := &stubLLMInteraction{
+		decision:           &llminteraction.ActionDecision{NextStep: llminteraction.NextStepAskClarifyingQuestion, APIOperation: "", Confidence: 0.0, Reason: "no candidate matched"},
+		clarifyingQuestion: &llminteraction.QuestionAnswer{SchemaVersion: "v1", Answer: "你想要我幫你做哪一類型的事情？", Confidence: 0.88},
 	}
 
-	(&WebhookService{topKFilterService: filterStub, semanticService: decisionStub}).ProcessIncoming(body, "sig")
+	(&WebhookService{topKFilterService: filterStub, llmInteractionService: decisionStub}).ProcessIncoming(body, "sig")
 
 	// no_match 被視為正常語意結果，必須改走問答分支。
 	if !decisionStub.clarifyCalled {
@@ -388,12 +388,12 @@ func TestWebhookService_ProcessIncoming_AnswerQuestionNextStepUsesGenericQA(t *t
 			{Candidate: repository.ActionRouteVectorCandidate{APIOperation: "start_translation_locale", SkillCode: "channel.translation", RouteText: "開啟翻譯"}},
 		},
 	}
-	decisionStub := &stubSemanticDecision{
-		decision: &semanticdecision.ActionDecision{NextStep: semanticdecision.NextStepAnswerQuestion, APIOperation: "", Confidence: 0.88, Reason: "user is asking a general question"},
-		answer:   &semanticdecision.QuestionAnswer{SchemaVersion: "v1", Answer: "你可以看《星際效應》。", Confidence: 0.88},
+	decisionStub := &stubLLMInteraction{
+		decision: &llminteraction.ActionDecision{NextStep: llminteraction.NextStepAnswerQuestion, APIOperation: "", Confidence: 0.88, Reason: "user is asking a general question"},
+		answer:   &llminteraction.QuestionAnswer{SchemaVersion: "v1", Answer: "你可以看《星際效應》。", Confidence: 0.88},
 	}
 
-	(&WebhookService{topKFilterService: filterStub, semanticService: decisionStub}).ProcessIncoming(body, "sig")
+	(&WebhookService{topKFilterService: filterStub, llmInteractionService: decisionStub}).ProcessIncoming(body, "sig")
 
 	if !decisionStub.answerCalled {
 		t.Fatalf("expected generic AnswerQuestion to be called when next_step=answer_question")
@@ -423,7 +423,7 @@ func TestTranslationTargetLocalesFromDecision(t *testing.T) {
 	// - 空輸入回 nil
 	tests := []struct {
 		name     string
-		decision *semanticdecision.ActionDecision
+		decision *llminteraction.ActionDecision
 		want     []string
 	}{
 		{
@@ -433,14 +433,14 @@ func TestTranslationTargetLocalesFromDecision(t *testing.T) {
 		},
 		{
 			name: "target_locales with dedupe",
-			decision: &semanticdecision.ActionDecision{ActionParams: map[string]json.RawMessage{
+			decision: &llminteraction.ActionDecision{ActionParams: map[string]json.RawMessage{
 				"target_locales": rawJSON([]string{"ja-JP", "en-us", "zh-TW"}),
 			}},
 			want: []string{"ja-JP", "en-us", "zh-TW"},
 		},
 		{
 			name: "single string target_locales is ignored",
-			decision: &semanticdecision.ActionDecision{ActionParams: map[string]json.RawMessage{
+			decision: &llminteraction.ActionDecision{ActionParams: map[string]json.RawMessage{
 				"target_locales": rawJSON("fr-FR"),
 			}},
 			want: nil,

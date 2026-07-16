@@ -1,4 +1,4 @@
-package semanticdecision
+package llminteraction
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// ActionCandidate 為 reranker 精排後、提供給最終決策模型參考的候選描述。
+// ActionCandidate 為 reranker 精排後、提供給 LLM 互動層參考的候選描述。
 // 只保留文字判斷所需的最小資訊，避免把 topkfilter/ranking 內部型別直接洩漏到這一層。
 type ActionCandidate struct {
 	Operation string
@@ -21,7 +21,7 @@ type ActionCandidate struct {
 	Score     *float64
 }
 
-// ActionDecision 表示語意決策模型針對候選 action 選出的最終結果。
+// ActionDecision 表示 LLM 互動模型針對候選 action 選出的最終結果。
 // 回傳的是 api_operation（對應 action 的實際執行操作）。
 type ActionDecision struct {
 	// SchemaVersion 用來標示目前 action 決策回應的契約版本，
@@ -145,8 +145,8 @@ type QuestionAnswer struct {
 	Confidence    float64 `json:"confidence"`
 }
 
-// Client 定義通用語意決策能力。
-type Client interface {
+// InteractionClient 定義通用 LLM 互動能力。
+type InteractionClient interface {
 	// ClassifyAction 把 prompt+text 送進 actionDecisionPath，
 	// 回應 payload 解析成 ActionDecision（api_operation）。
 	ClassifyAction(ctx context.Context, prompt string, text string) (*ActionDecision, error)
@@ -155,7 +155,7 @@ type Client interface {
 	AnswerQuestion(ctx context.Context, prompt string, text string) (*QuestionAnswer, error)
 }
 
-type decisionClient struct {
+type interactionClient struct {
 	baseURL string
 	client  *http.Client
 }
@@ -180,15 +180,15 @@ type UpstreamError struct {
 
 func (e *UpstreamError) Error() string {
 	if e == nil {
-		return "semantic decision upstream error"
+		return "llm interaction upstream error"
 	}
 	if strings.TrimSpace(e.Detail) != "" {
-		return fmt.Sprintf("semantic decision upstream %s returned status %d: %s", e.Path, e.StatusCode, e.Detail)
+		return fmt.Sprintf("llm interaction upstream %s returned status %d: %s", e.Path, e.StatusCode, e.Detail)
 	}
 	if strings.TrimSpace(e.Body) != "" {
-		return fmt.Sprintf("semantic decision upstream %s returned status %d: %s", e.Path, e.StatusCode, e.Body)
+		return fmt.Sprintf("llm interaction upstream %s returned status %d: %s", e.Path, e.StatusCode, e.Body)
 	}
-	return fmt.Sprintf("semantic decision upstream %s returned status %d", e.Path, e.StatusCode)
+	return fmt.Sprintf("llm interaction upstream %s returned status %d", e.Path, e.StatusCode)
 }
 
 // actionDecisionPath 是獨立於 command/message 分類的端點，
@@ -199,13 +199,13 @@ const actionDecisionPath = "/predict/action_decision"
 // 服務端會回覆 answer 與 confidence。
 const questionAnswerPath = "/predict/question_answer"
 
-// NewClient 建立通用語意決策 client。
-func NewClient(baseURL string, timeoutSeconds int) Client {
+// NewInteractionClient 建立通用 LLM 互動 client。
+func NewInteractionClient(baseURL string, timeoutSeconds int) InteractionClient {
 	trimmed := strings.TrimSpace(baseURL)
 	if trimmed == "" {
 		return nil
 	}
-	return &decisionClient{
+	return &interactionClient{
 		baseURL: strings.TrimRight(trimmed, "/"),
 		client:  &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second},
 	}
@@ -342,7 +342,7 @@ func BuildClarifyingQuestionPrompt(reason string) string {
 `)
 }
 
-func (c *decisionClient) buildRequest(ctx context.Context, path string, prompt string, text string) (*http.Request, error) {
+func (c *interactionClient) buildRequest(ctx context.Context, path string, prompt string, text string) (*http.Request, error) {
 	// 這裡只傳兩個欄位：prompt + text。
 	// 目的是讓 9002 只做「語意到 action 的最後選擇」，不承擔上游 rerank 結構細節。
 	payload := classificationRequest{Prompt: strings.TrimSpace(prompt), Text: strings.TrimSpace(text)}
@@ -396,7 +396,7 @@ func decodeUpstreamError(resp *http.Response, path string) error {
 }
 
 // ClassifyAction 把 prompt+text 送進 actionDecisionPath，回應解析成 ActionDecision（api_operation）。
-func (c *decisionClient) ClassifyAction(ctx context.Context, prompt string, text string) (*ActionDecision, error) {
+func (c *interactionClient) ClassifyAction(ctx context.Context, prompt string, text string) (*ActionDecision, error) {
 	if c == nil {
 		return nil, fmt.Errorf("semantic decision client is not initialized")
 	}
@@ -443,7 +443,7 @@ func decodeActionDecisionResponse(resp *http.Response) (*ActionDecision, error) 
 }
 
 // AnswerQuestion 把 prompt+text 送進 questionAnswerPath，回應解析成 QuestionAnswer。
-func (c *decisionClient) AnswerQuestion(ctx context.Context, prompt string, text string) (*QuestionAnswer, error) {
+func (c *interactionClient) AnswerQuestion(ctx context.Context, prompt string, text string) (*QuestionAnswer, error) {
 	if c == nil {
 		return nil, fmt.Errorf("semantic decision client is not initialized")
 	}

@@ -11,8 +11,8 @@ import (
 	"assistant-api/internal/ent/action"
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/skill"
-	"assistant-api/internal/usecase/ai/embedding"
-	"assistant-api/internal/usecase/ai/semanticdecision"
+	aiembedding "assistant-api/internal/integration/ai/embedding"
+	aillminteraction "assistant-api/internal/integration/ai/llm_interaction"
 
 	"github.com/google/uuid"
 	"github.com/pgvector/pgvector-go"
@@ -82,7 +82,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Enable translation for a specific locale in the current channel.",
 					APIOperation:   "start_translation_locale",
 					RouteTexts:     []string{"開啟翻譯", "開始翻譯模式", "新增翻譯語系", "幫我開啟某語言翻譯", "請翻譯成指定語言"},
-					CommandPurpose: fmt.Sprintf("用途: 協助模型判斷此指令是啟用翻譯語系。必要參數: %s(字串陣列，元素格式需為 xx-YY，如 [en-US] 或 [en-US,de-DE])、channel_scope。缺參策略: 僅接受使用者明確指定語系；若未明確提供任何語系，先提問請使用者補充，不可自行推測。規則: 翻譯語系參數格式必須使用 zh-TW 這種 Locale 表示法（不可使用 zh_TW）。規則:若 api_operation=start_translation_locale，action_params 只能使用 target_locales，不可使用 route_text。規則: 若使用者明確提到翻譯語系一個或多個，必須選擇 api_operation=start_translation_locale，並將所有明確語系放入 action_params.target_locales（字串陣列，元素必須是 xx-YY）。", semanticdecision.ActionParamTargetLocales),
+					CommandPurpose: fmt.Sprintf("用途: 協助模型判斷此指令是啟用翻譯語系。必要參數: %s(字串陣列，元素格式需為 xx-YY，如 [en-US] 或 [en-US,de-DE])、channel_scope。缺參策略: 僅接受使用者明確指定語系；若未明確提供任何語系，先提問請使用者補充，不可自行推測。規則: 翻譯語系參數格式必須使用 zh-TW 這種 Locale 表示法（不可使用 zh_TW）。規則:若 api_operation=start_translation_locale，action_params 只能使用 target_locales，不可使用 route_text。規則: 若使用者明確提到翻譯語系一個或多個，必須選擇 api_operation=start_translation_locale，並將所有明確語系放入 action_params.target_locales（字串陣列，元素必須是 xx-YY）。", aillminteraction.ActionParamTargetLocales),
 				},
 				{
 					ActionCode:     action.ActionCodeDisable,
@@ -98,7 +98,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Disable translation for a specific locale in the current channel.",
 					APIOperation:   "stop_translation_locale",
 					RouteTexts:     []string{"關閉某語言翻譯", "停止指定語言翻譯", "移除翻譯語系", "把某個語言的翻譯關掉", "不要某語言翻譯"},
-					CommandPurpose: fmt.Sprintf("用途: 協助模型判斷此指令是停用指定翻譯語系。必要參數: %s(字串陣列，元素格式需為 xx-YY，單一語系也用單元素陣列)、channel_scope。缺參策略: 若缺 %s，必須先提問取得語系後再執行，不可推測。規則: 翻譯語系參數格式必須使用 zh-TW 這種 Locale 表示法（不可使用 zh_TW）。", semanticdecision.ActionParamTargetLocales, semanticdecision.ActionParamTargetLocales),
+					CommandPurpose: fmt.Sprintf("用途: 協助模型判斷此指令是停用指定翻譯語系。必要參數: %s(字串陣列，元素格式需為 xx-YY，單一語系也用單元素陣列)、channel_scope。缺參策略: 若缺 %s，必須先提問取得語系後再執行，不可推測。規則: 翻譯語系參數格式必須使用 zh-TW 這種 Locale 表示法（不可使用 zh_TW）。", aillminteraction.ActionParamTargetLocales, aillminteraction.ActionParamTargetLocales),
 				},
 			},
 		},
@@ -326,11 +326,11 @@ func backfillActionRouteEmbeddings(ctx context.Context, client *ent.Client) erro
 
 // buildEmbeddingClientForSeed 依設定建立 embedding client。
 // 若未提供 embedding_url，回傳 nil 表示目前環境不啟用向量回填。
-func buildEmbeddingClientForSeed() embedding.Service {
+func buildEmbeddingClientForSeed() aiembedding.Service {
 	if strings.TrimSpace(config.AI.Embedding.URL) == "" {
 		return nil
 	}
-	return embedding.NewClient(
+	return aiembedding.NewClient(
 		config.AI.Embedding.URL,
 		config.AI.Embedding.TimeoutSeconds,
 		config.AI.Embedding.Path,

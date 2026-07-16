@@ -1,4 +1,4 @@
-package semanticdecision
+package llminteraction
 
 import (
 	_ "embed"

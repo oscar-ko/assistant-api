@@ -7,7 +7,7 @@ import (
 
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
-	"assistant-api/internal/usecase/ai/semanticdecision"
+	llminteraction "assistant-api/internal/usecase/ai/llm_interaction"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -26,7 +26,7 @@ const (
 // - senderUserID: 平台來源使用者 ID（可為空，handler 內可再 fallback）
 // - decision: final action decision（包含 api_operation 與 action_params）
 // - matchedSkillCode: 上游候選比對出的 skill_code（可為空）
-type Handler func(message *unifiedmessage.Message, senderUserID string, decision *semanticdecision.ActionDecision, matchedSkillCode string)
+type Handler func(message *unifiedmessage.Message, senderUserID string, decision *llminteraction.ActionDecision, matchedSkillCode string)
 
 // Dispatcher 依 api_operation 分派 post-action handler。
 //
@@ -75,7 +75,7 @@ func NewDefaultDispatcher(repo *repository.ChannelMessageRepo) *Dispatcher {
 // - d 或 decision 為 nil 時靜默返回（不阻塞主流程）
 // - 找不到 handler 時靜默返回（允許部分 action 尚未有 side-effect）
 // - 不會回傳錯誤；錯誤由各 handler 內自行記錄與觀測
-func (d *Dispatcher) Dispatch(message *unifiedmessage.Message, senderUserID string, decision *semanticdecision.ActionDecision, matchedSkillCode string) {
+func (d *Dispatcher) Dispatch(message *unifiedmessage.Message, senderUserID string, decision *llminteraction.ActionDecision, matchedSkillCode string) {
 	if d == nil || decision == nil {
 		return
 	}
@@ -118,7 +118,7 @@ func (d *Dispatcher) Dispatch(message *unifiedmessage.Message, senderUserID stri
 // - 採「可觀測但不中斷主流程」：遇錯只記錄 warn 並返回
 // - locale 寫入採逐筆容錯：單一 locale 失敗不影響其他 locale
 func NewPersistTranslationCommandStateHandler(repo *repository.ChannelMessageRepo) Handler {
-	return func(message *unifiedmessage.Message, senderUserID string, decision *semanticdecision.ActionDecision, matchedSkillCode string) {
+	return func(message *unifiedmessage.Message, senderUserID string, decision *llminteraction.ActionDecision, matchedSkillCode string) {
 		// 嚴格模式：必要依賴缺失時直接記錄 error，並停止本次副作用。
 		if repo == nil || message == nil || decision == nil {
 			zap.L().Error("translation command persistence failed: missing required dependency",
@@ -283,11 +283,11 @@ func NewPersistTranslationCommandStateHandler(repo *repository.ChannelMessageRep
 // 單一語系也使用單元素陣列表示。
 //
 // 輸出會經過 dedupeLocales 做清理與去重。
-func ExtractTranslationTargetLocales(decision *semanticdecision.ActionDecision) []string {
+func ExtractTranslationTargetLocales(decision *llminteraction.ActionDecision) []string {
 	if decision == nil || len(decision.ActionParams) == 0 {
 		return nil
 	}
-	raw, ok := decision.ActionParams[semanticdecision.ActionParamTargetLocales]
+	raw, ok := decision.ActionParams[llminteraction.ActionParamTargetLocales]
 	if !ok || len(raw) == 0 {
 		return nil
 	}

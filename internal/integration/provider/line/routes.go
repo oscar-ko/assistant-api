@@ -8,11 +8,11 @@ import (
 
 	"assistant-api/internal/config"
 	"assistant-api/internal/ent"
+	aiembedding "assistant-api/internal/integration/ai/embedding"
+	aillminteraction "assistant-api/internal/integration/ai/llm_interaction"
+	aireranker "assistant-api/internal/integration/ai/reranker"
 	"assistant-api/internal/integration/auth"
 	"assistant-api/internal/repository"
-	"assistant-api/internal/usecase/ai/embedding"
-	"assistant-api/internal/usecase/ai/reranker"
-	"assistant-api/internal/usecase/ai/semanticdecision"
 	"assistant-api/internal/usecase/ai/topkfilter"
 
 	"github.com/gin-gonic/gin"
@@ -28,7 +28,7 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 	// action route repository 提供 top-k 向量召回查詢能力。
 	actionRouteRepo := repository.NewActionRouteRepo(client)
 	// embedding client 是第一階段召回必備依賴。
-	embeddingClient := embedding.NewClient(
+	embeddingClient := aiembedding.NewClient(
 		config.AI.Embedding.URL,
 		config.AI.Embedding.TimeoutSeconds,
 		config.AI.Embedding.Path,
@@ -44,7 +44,7 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 		// 第二階段 cross-encoder 精排 client，僅對 retrieval 候選做重排。
 		// 流程是先 retrieval(top-k) 再 rerank，不會讓 reranker 直接查全量路由，
 		// 以控制延遲與成本，同時提升最終排序精準度。
-		rerankerClient := reranker.NewClient(
+		rerankerClient := aireranker.NewClient(
 			config.AI.Reranker.URL,
 			config.AI.Reranker.TimeoutSeconds,
 			config.AI.Reranker.Path,
@@ -57,10 +57,10 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 		)
 		filterService = topkfilter.NewServiceWithReranker(actionRouteRepo, embeddingClient, rerankerClient, "zh-TW", config.AI.Embedding.RetrievalTopK, config.AI.Reranker.TopK)
 	}
-	// 第三階段：語意決策服務，把 rerank 後的候選交給模型選出最終唯一一個 action。
-	semanticDecisionService := semanticdecision.NewService(semanticdecision.NewClient(
-		config.AI.SemanticDecision.ServiceURL,
-		config.AI.SemanticDecision.ServiceTimeoutSeconds,
+	// 第三階段：LLM 互動服務，把 rerank 後的候選交給模型選出最終唯一一個 action。
+	llmInteractionService := aillminteraction.NewInteractionService(aillminteraction.NewInteractionClient(
+		config.AI.LLMInteraction.ServiceURL,
+		config.AI.LLMInteraction.ServiceTimeoutSeconds,
 	))
 	followUpSender, _ := NewPushMessageService()
 
@@ -69,7 +69,7 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 	r.GET("/line/oauth/start", oauthStart)
 	r.GET("/line/oauth/callback", oauthCallback(lineRepo))
 	// Webhook 採 handler -> service 分層，便於後續替換 queue/worker 實作。
-	r.POST("/line/webhook", webhookHandler(NewWebhookServiceWithOptions(channelMessageRepo, WebhookServiceOptions{SemanticDecision: semanticDecisionService, TopKFilter: filterService, FollowUpSender: followUpSender})))
+	r.POST("/line/webhook", webhookHandler(NewWebhookServiceWithOptions(channelMessageRepo, WebhookServiceOptions{LLMInteraction: llmInteractionService, TopKFilter: filterService, FollowUpSender: followUpSender})))
 }
 
 // bindPage 回傳 LINE 綁定頁面。

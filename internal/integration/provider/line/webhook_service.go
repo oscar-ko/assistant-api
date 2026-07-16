@@ -11,7 +11,7 @@ import (
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
 	"assistant-api/internal/usecase/actionpost"
-	"assistant-api/internal/usecase/ai/semanticdecision"
+	llminteraction "assistant-api/internal/usecase/ai/llm_interaction"
 	"assistant-api/internal/usecase/ai/topkfilter"
 	"assistant-api/internal/usecase/inbound/commandchain"
 	"assistant-api/internal/usecase/inbound/commanddecision"
@@ -31,23 +31,23 @@ type WebhookProcessor interface {
 // WebhookService 是最小可用的預設實作：
 // 僅解析事件並輸出到 console，便於開發階段觀察 webhook 是否正常進站。
 type WebhookService struct {
-	repo                 *repository.ChannelMessageRepo
-	decisionService      commanddecision.Service
-	semanticService      semanticdecision.Service
-	persistenceService   messagepersist.Service
-	topKFilterService    topkfilter.Service
-	actionPostDispatcher *actionpost.Dispatcher
-	followUpSender       PushMessageService
+	repo                  *repository.ChannelMessageRepo
+	decisionService       commanddecision.Service
+	llmInteractionService llminteraction.InteractionService
+	persistenceService    messagepersist.Service
+	topKFilterService     topkfilter.Service
+	actionPostDispatcher  *actionpost.Dispatcher
+	followUpSender        PushMessageService
 }
 
 // WebhookServiceOptions 提供 webhook service 的擴充設定。
 // 目前主要預留 member name cache 與 TTL，方便後續替換 Redis。
 type WebhookServiceOptions struct {
-	MemberNameCache  MemberNameCache
-	MemberNameTTL    time.Duration
-	SemanticDecision semanticdecision.Service
-	TopKFilter       topkfilter.Service
-	FollowUpSender   PushMessageService
+	MemberNameCache MemberNameCache
+	MemberNameTTL   time.Duration
+	LLMInteraction  llminteraction.InteractionService
+	TopKFilter      topkfilter.Service
+	FollowUpSender  PushMessageService
 }
 
 // NewWebhookService 建立預設 webhook service
@@ -78,13 +78,13 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 	chainSvc := commandchain.NewService(repo)
 	decisionSvc := commanddecision.NewService(chainSvc)
 	return &WebhookService{
-		repo:                 repo,
-		decisionService:      decisionSvc,
-		semanticService:      options.SemanticDecision,
-		persistenceService:   persistSvc,
-		topKFilterService:    options.TopKFilter,
-		actionPostDispatcher: actionpost.NewDefaultDispatcher(repo),
-		followUpSender:       options.FollowUpSender,
+		repo:                  repo,
+		decisionService:       decisionSvc,
+		llmInteractionService: options.LLMInteraction,
+		persistenceService:    persistSvc,
+		topKFilterService:     options.TopKFilter,
+		actionPostDispatcher:  actionpost.NewDefaultDispatcher(repo),
+		followUpSender:        options.FollowUpSender,
 	}
 }
 
@@ -239,16 +239,16 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 			continue
 		}
 
-		// 第三階段：把 reranker 精排後的候選交給語意決策模型，選出最終唯一一個 action。
+		// 第三階段：把 reranker 精排後的候選交給 LLM 互動模型，選出最終唯一一個 action。
 		candidates := s.topKFilterService.FilterMessage(context.Background(), message)
-		if len(candidates) == 0 || s.semanticService == nil {
-			// 若沒有可用候選，或未注入 final semantic 服務，
+		if len(candidates) == 0 || s.llmInteractionService == nil {
+			// 若沒有可用候選，或未注入 final 互動服務，
 			// 就停在 rerank 結果，不強行產生最終 action。
 			continue
 		}
 
 		actionCandidates := toActionCandidates(candidates)
-		finalDecision, err := s.semanticService.DecideFinalAction(context.Background(), message.Text, actionCandidates)
+		finalDecision, err := s.llmInteractionService.DecideFinalAction(context.Background(), message.Text, actionCandidates)
 		if err != nil {
 			zap.L().Warn("line message final action decision failed",
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
@@ -283,18 +283,18 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 		// - answer_question: 生成一般問答回覆
 		// 只有 execute_action 允許繼續往下走到 final action decided log。
 		nextStep := strings.TrimSpace(finalDecision.NextStep)
-		confidenceThreshold := config.AI.SemanticDecision.CommandConfidenceThreshold
+		confidenceThreshold := config.AI.LLMInteraction.CommandConfidenceThreshold
 		switch nextStep {
-		case semanticdecision.NextStepAskClarifyingQuestion:
+		case llminteraction.NextStepAskClarifyingQuestion:
 			s.routeMessageToQuestionAnswer(message, savedMessage, strings.TrimSpace(event.Source.UserID), finalDecision.Confidence, confidenceThreshold, "ask_clarifying_question", finalDecision.Reason)
 			continue
-		case semanticdecision.NextStepAnswerQuestion:
+		case llminteraction.NextStepAnswerQuestion:
 			s.routeMessageToQuestionAnswer(message, savedMessage, strings.TrimSpace(event.Source.UserID), finalDecision.Confidence, confidenceThreshold, "answer_question", finalDecision.Reason)
 			continue
-		case semanticdecision.NextStepExecuteAction:
+		case llminteraction.NextStepExecuteAction:
 			// 繼續走 action 流程。
 		default:
-			zap.L().Warn("line message semantic decision next_step invalid",
+			zap.L().Warn("line message llm interaction next_step invalid",
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 				zap.String("next_step", nextStep),
@@ -351,7 +351,7 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 
 // dispatchActionPostHandlers 依最終決策的 api_operation 分派對應後處理。
 // 這層刻意放在主流程之外，讓新 action 只需註冊 handler，不需改 ProcessIncoming 主幹。
-func (s *WebhookService) dispatchActionPostHandlers(message *unifiedmessage.Message, lineUserID string, decision *semanticdecision.ActionDecision, matchedSkillCode string) {
+func (s *WebhookService) dispatchActionPostHandlers(message *unifiedmessage.Message, lineUserID string, decision *llminteraction.ActionDecision, matchedSkillCode string) {
 	if s == nil || decision == nil {
 		return
 	}
@@ -365,12 +365,12 @@ func (s *WebhookService) dispatchActionPostHandlers(message *unifiedmessage.Mess
 // translationTargetLocalesFromDecision 從通用 action_params 擷取翻譯語系參數。
 // 契約固定使用 target_locales（字串陣列），
 // 輸出會經過清理與去重，避免同語系重覆寫入。
-func translationTargetLocalesFromDecision(decision *semanticdecision.ActionDecision) []string {
+func translationTargetLocalesFromDecision(decision *llminteraction.ActionDecision) []string {
 	return actionpost.ExtractTranslationTargetLocales(decision)
 }
 
 func (s *WebhookService) routeMessageToQuestionAnswer(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, lineUserID string, actionConfidence float64, actionThreshold float64, cause string, decisionReason string) {
-	if s == nil || s.semanticService == nil || message == nil {
+	if s == nil || s.llmInteractionService == nil || message == nil {
 		return
 	}
 
@@ -378,15 +378,15 @@ func (s *WebhookService) routeMessageToQuestionAnswer(message *unifiedmessage.Me
 	// 若是 low_action_confidence，優先請模型依原訊息與決策理由提出追問；
 	// 其餘情況才走一般問答模式。
 	var (
-		qa     *semanticdecision.QuestionAnswer
+		qa     *llminteraction.QuestionAnswer
 		qaErr  error
 		qaMode = "question_answer"
 	)
 	if strings.EqualFold(strings.TrimSpace(cause), "low_action_confidence") || strings.EqualFold(strings.TrimSpace(cause), "ask_clarifying_question") {
 		qaMode = "clarifying_question"
-		qa, qaErr = s.semanticService.AskClarifyingQuestion(context.Background(), message.Text, decisionReason)
+		qa, qaErr = s.llmInteractionService.AskClarifyingQuestion(context.Background(), message.Text, decisionReason)
 	} else {
-		qa, qaErr = s.semanticService.AnswerQuestion(context.Background(), message.Text)
+		qa, qaErr = s.llmInteractionService.AnswerQuestion(context.Background(), message.Text)
 	}
 	if qaErr != nil {
 		zap.L().Warn("line message semantic question answer failed",
@@ -415,7 +415,7 @@ func (s *WebhookService) routeMessageToQuestionAnswer(message *unifiedmessage.Me
 		return
 	}
 
-	questionThreshold := config.AI.SemanticDecision.QuestionConfidenceThreshold
+	questionThreshold := config.AI.LLMInteraction.QuestionConfidenceThreshold
 	// 第二道門檻：問答答案信心不足時，標記建議改送 cloud LLM。
 	// 目前先記錄 recommend_cloud_llm，不在此函式直接呼叫外部 cloud provider。
 	recommendCloudLLM := questionThreshold > 0 && qa.Confidence < questionThreshold
@@ -503,13 +503,13 @@ func (s *WebhookService) persistUnifiedMessage(message *unifiedmessage.Message) 
 	return s.persistenceService.PersistUnifiedMessage(context.Background(), message)
 }
 
-// toActionCandidates 把 topkfilter 的 reranked 候選轉成 semanticdecision 可用的文字描述，
-// 刻意在這裡做轉換，避免 semanticdecision 直接依賴 topkfilter/ranking 內部型別。
-func toActionCandidates(candidates []topkfilter.ScoredCandidate) []semanticdecision.ActionCandidate {
-	out := make([]semanticdecision.ActionCandidate, 0, len(candidates))
+// toActionCandidates 把 topkfilter 的 reranked 候選轉成 llm_interaction 可用的文字描述，
+// 刻意在這裡做轉換，避免 llm_interaction 直接依賴 topkfilter/ranking 內部型別。
+func toActionCandidates(candidates []topkfilter.ScoredCandidate) []llminteraction.ActionCandidate {
+	out := make([]llminteraction.ActionCandidate, 0, len(candidates))
 	for _, item := range candidates {
-		// 只抽出最終語意判斷需要的欄位，避免把底層資料結構耦合到 semanticdecision。
-		out = append(out, semanticdecision.ActionCandidate{
+		// 只抽出最終互動判斷需要的欄位，避免把底層資料結構耦合到 llm_interaction。
+		out = append(out, llminteraction.ActionCandidate{
 			Operation: item.Candidate.APIOperation,
 			SkillCode: item.Candidate.SkillCode,
 			RouteText: item.Candidate.RouteText,
