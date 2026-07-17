@@ -176,6 +176,9 @@ func (s *WebhookService) ProcessIncoming(body []byte) (string, error) {
 	if req.Event == nil {
 		return "", nil
 	}
+	if handled, err := s.handleChannelLifecycleEvent(context.Background(), req.Event); handled {
+		return "", err
+	}
 	webhooklog.LogIncomingMessage(webhooklog.IncomingMessage{
 		Provider:      "slack",
 		EventType:     req.Event.Type,
@@ -244,6 +247,57 @@ func (s *WebhookService) ProcessIncoming(body []byte) (string, error) {
 		"",
 	)
 	return "", nil
+}
+
+// handleChannelLifecycleEvent handles bot join/leave events and updates channel lifecycle.
+//
+// 規則：
+// - bot 被邀請進群組/頻道時：建立（或啟用）group channel
+// - bot 離開時：將對應 channel 標記 is_active=false
+func (s *WebhookService) handleChannelLifecycleEvent(ctx context.Context, event *slackEvent) (bool, error) {
+	if s == nil || s.repo == nil || event == nil {
+		return false, nil
+	}
+	eventType := strings.ToLower(strings.TrimSpace(event.Type))
+	channelID := strings.TrimSpace(event.Channel)
+	if channelID == "" {
+		return false, nil
+	}
+
+	botUserID := strings.TrimSpace(config.Slack.BotUserID)
+	switch eventType {
+	case "member_joined_channel":
+		// 只有「加入者是 bot 本身」才視為頻道生命週期事件。
+		if strings.TrimSpace(event.User) != botUserID {
+			return true, nil
+		}
+		channelName, err := GetChannelNameByID(ctx, channelID)
+		if err != nil {
+			return true, err
+		}
+		if _, err := s.repo.GetOrCreateChannel(ctx, "slack", channelID, "group", channelName); err != nil {
+			return true, err
+		}
+		if err := s.repo.SetChannelActiveByPlatformGroupID(ctx, "slack", channelID, true); err != nil {
+			return true, err
+		}
+		return true, nil
+	case "member_left_channel":
+		if strings.TrimSpace(event.User) != botUserID {
+			return true, nil
+		}
+		if err := s.repo.SetChannelActiveByPlatformGroupID(ctx, "slack", channelID, false); err != nil {
+			return true, err
+		}
+		return true, nil
+	case "channel_left":
+		if err := s.repo.SetChannelActiveByPlatformGroupID(ctx, "slack", channelID, false); err != nil {
+			return true, err
+		}
+		return true, nil
+	default:
+		return false, nil
+	}
 }
 
 func resolveSlackChannelDisplayName(ctx context.Context, message *unifiedmessage.Message) (string, error) {

@@ -194,6 +194,8 @@ type webhookMentionee struct {
 	UserID string `json:"userId"`
 }
 
+const lineUnnamedChannelLabel = "(No Name)"
+
 // ProcessIncoming 負責 LINE webhook 的整體流程編排。
 // 它會先解析原始 payload，再對每則 message 事件做三件事：
 // 1. 先把訊息本體印到 console，方便除錯與觀察。
@@ -216,6 +218,19 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 
 	// 第二段：逐筆掃描事件陣列，只處理 message 事件。
 	for _, event := range req.Events {
+		if handled, err := s.handleChannelLifecycleEvent(context.Background(), event); handled {
+			if err != nil {
+				zap.L().Error("line channel lifecycle event failed",
+					zap.String("event_type", strings.TrimSpace(event.Type)),
+					zap.String("source_type", strings.TrimSpace(event.Source.Type)),
+					zap.String("source_group_id", strings.TrimSpace(event.Source.GroupID)),
+					zap.String("source_room_id", strings.TrimSpace(event.Source.RoomID)),
+					zap.Error(err),
+				)
+			}
+			continue
+		}
+
 		// 先把收到的原始事件資訊印出來，避免後續轉換或 command gate 把訊息吃掉。
 		webhooklog.LogIncomingMessage(webhooklog.IncomingMessage{
 			Provider:      "line",
@@ -307,6 +322,81 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 		)
 	}
 
+}
+
+// handleChannelLifecycleEvent handles LINE bot join/leave lifecycle events.
+//
+// 規則：
+// - join（bot 被邀請）時建立/啟用 group channel
+// - leave（bot 離開）時停用 channel（is_active=false）
+func (s *WebhookService) handleChannelLifecycleEvent(ctx context.Context, event webhookEvent) (bool, error) {
+	if s == nil || s.repo == nil {
+		return false, nil
+	}
+	eventType := strings.ToLower(strings.TrimSpace(event.Type))
+	sourceType := strings.ToLower(strings.TrimSpace(event.Source.Type))
+
+	// LINE 的 channel 生命周期只處理 group/room；user 私聊不走邀請/離開語意。
+	if sourceType != "group" && sourceType != "room" {
+		return false, nil
+	}
+
+	channelID, channelType := resolveChannelIdentity(event.Source)
+	if channelID == "" || !strings.EqualFold(channelType, "group") {
+		return true, nil
+	}
+
+	switch eventType {
+	case "join":
+		channelName, err := s.resolveLineJoinChannelName(ctx, event)
+		if err != nil {
+			return true, err
+		}
+		if _, err := s.repo.GetOrCreateChannel(ctx, "line", channelID, "group", channelName); err != nil {
+			return true, err
+		}
+		if err := s.repo.SetChannelActiveByPlatformGroupID(ctx, "line", channelID, true); err != nil {
+			return true, err
+		}
+		return true, nil
+	case "leave":
+		if err := s.repo.SetChannelActiveByPlatformGroupID(ctx, "line", channelID, false); err != nil {
+			return true, err
+		}
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
+func (s *WebhookService) resolveLineJoinChannelName(ctx context.Context, event webhookEvent) (string, error) {
+	if s == nil || s.lineClient == nil {
+		return lineUnnamedChannelLabel, nil
+	}
+	sourceType := strings.ToLower(strings.TrimSpace(event.Source.Type))
+	api := s.lineClient.WithContext(ctx)
+
+	if sourceType == "group" {
+		groupID := strings.TrimSpace(event.Source.GroupID)
+		if groupID == "" {
+			return lineUnnamedChannelLabel, nil
+		}
+		summary, err := api.GetGroupSummary(groupID)
+		if err != nil || summary == nil {
+			return lineUnnamedChannelLabel, nil
+		}
+		name := strings.TrimSpace(summary.GroupName)
+		if name == "" {
+			return lineUnnamedChannelLabel, nil
+		}
+		return name, nil
+	}
+
+	// LINE room 事件沒有可用的 room 名稱查詢 API，依需求使用固定名稱。
+	if sourceType == "room" {
+		return lineUnnamedChannelLabel, nil
+	}
+	return lineUnnamedChannelLabel, nil
 }
 
 func (s *WebhookService) resolveLineChannelDisplayName(ctx context.Context, event webhookEvent, message *unifiedmessage.Message) (string, error) {

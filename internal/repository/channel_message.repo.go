@@ -264,6 +264,53 @@ func (r *ChannelMessageRepo) GetChannelByPlatformGroupID(
 	return item, nil
 }
 
+// SetChannelActiveByPlatformGroupID updates channel active flag by (platform, group_id).
+//
+// 嚴格模式：
+// - platform/group_id 必填
+// - 若 channel 不存在，直接回錯（不做隱式建立）
+func (r *ChannelMessageRepo) SetChannelActiveByPlatformGroupID(
+	ctx context.Context,
+	platform string,
+	groupID string,
+	isActive bool,
+) error {
+	if r == nil || r.db == nil {
+		return fmt.Errorf("channel repository not initialized")
+	}
+
+	platformValue := channel.Platform(strings.ToLower(strings.TrimSpace(platform)))
+	switch platformValue {
+	case channel.PlatformLine, channel.PlatformWhatsapp, channel.PlatformSlack, channel.PlatformTelegram:
+	default:
+		return fmt.Errorf("invalid channel platform: %s", platform)
+	}
+
+	groupID = strings.TrimSpace(groupID)
+	if groupID == "" {
+		return fmt.Errorf("group id is required")
+	}
+
+	item, err := r.db.Channel.Query().
+		Where(channel.PlatformEQ(platformValue), channel.GroupIDEQ(groupID)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return fmt.Errorf("channel not found")
+		}
+		return fmt.Errorf("query channel failed: %w", err)
+	}
+
+	update := r.db.Channel.UpdateOneID(item.ID).SetIsActive(isActive)
+	if isActive {
+		update = update.SetInactiveMessageCount(0)
+	}
+	if _, err := update.Save(ctx); err != nil {
+		return fmt.Errorf("update channel active flag failed: %w", err)
+	}
+	return nil
+}
+
 // UpdateChannelDisplayNameByID updates channel.name by internal channel UUID.
 //
 // 嚴格模式：
