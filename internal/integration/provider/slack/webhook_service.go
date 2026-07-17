@@ -207,6 +207,9 @@ func (s *WebhookService) ProcessIncoming(body []byte) (string, error) {
 		})
 		return "", nil
 	}
+	if resolvedName, nameErr := resolveSlackChannelDisplayName(context.Background(), message); nameErr == nil {
+		message.ChannelName = resolvedName
+	}
 
 	savedMessage := s.persistenceService.PersistUnifiedMessage(context.Background(), message)
 	decision := &commanddecision.Decision{IsMentionedBot: message.MentionsUser(config.Slack.BotUserID)}
@@ -241,6 +244,16 @@ func (s *WebhookService) ProcessIncoming(body []byte) (string, error) {
 		"",
 	)
 	return "", nil
+}
+
+func resolveSlackChannelDisplayName(ctx context.Context, message *unifiedmessage.Message) (string, error) {
+	if message == nil {
+		return "", fmt.Errorf("message is nil")
+	}
+	if strings.EqualFold(strings.TrimSpace(message.ChannelType), "private") {
+		return GetUserDisplayNameByID(ctx, strings.TrimSpace(message.SenderID))
+	}
+	return GetChannelNameByID(ctx, strings.TrimSpace(message.ChannelID))
 }
 
 type slackOutboundMessenger struct {

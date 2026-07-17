@@ -166,6 +166,7 @@ func (r *ChannelMessageRepo) GetOrCreateChannel(
 	platform string,
 	groupID string,
 	channelType string,
+	channelName string,
 ) (*ent.Channel, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("channel repository not initialized")
@@ -183,6 +184,11 @@ func (r *ChannelMessageRepo) GetOrCreateChannel(
 		return nil, fmt.Errorf("group id is required")
 	}
 
+	channelName = strings.TrimSpace(channelName)
+	if channelName == "" {
+		return nil, fmt.Errorf("channel name is required")
+	}
+
 	// channel type 缺值時預設 group，避免寫入非法 enum。
 	typeValue := channel.Type(strings.ToLower(strings.TrimSpace(channelType)))
 	switch typeValue {
@@ -195,13 +201,16 @@ func (r *ChannelMessageRepo) GetOrCreateChannel(
 		Where(channel.PlatformEQ(platformValue), channel.GroupIDEQ(groupID)).
 		Only(ctx)
 	if err == nil {
-		// 既有 channel 若型別與當前期望不同，嘗試對齊更新；
-		// 更新失敗不阻斷流程，回傳既有資料由上層決定是否重試。
-		if ch.Type != typeValue {
-			updated, updateErr := r.db.Channel.UpdateOneID(ch.ID).SetType(typeValue).Save(ctx)
-			if updateErr == nil {
-				ch = updated
+		// 命名規則變更時，既有資料需同步對齊，避免名稱長期停留舊值。
+		if ch.Type != typeValue || strings.TrimSpace(ch.Name) != channelName {
+			updated, updateErr := r.db.Channel.UpdateOneID(ch.ID).
+				SetType(typeValue).
+				SetName(channelName).
+				Save(ctx)
+			if updateErr != nil {
+				return nil, fmt.Errorf("update channel failed: %w", updateErr)
 			}
+			ch = updated
 		}
 		return ch, nil
 	}
@@ -210,7 +219,7 @@ func (r *ChannelMessageRepo) GetOrCreateChannel(
 	}
 
 	return r.db.Channel.Create().
-		SetName(platformValue.String() + " Group: " + groupID).
+		SetName(channelName).
 		SetPlatform(platformValue).
 		SetGroupID(groupID).
 		SetType(typeValue).
@@ -253,6 +262,30 @@ func (r *ChannelMessageRepo) GetChannelByPlatformGroupID(
 		return nil, fmt.Errorf("query channel failed: %w", err)
 	}
 	return item, nil
+}
+
+// UpdateChannelDisplayNameByID updates channel.name by internal channel UUID.
+//
+// 嚴格模式：
+// - channel id 必填
+// - channel name 必填且會 trim
+func (r *ChannelMessageRepo) UpdateChannelDisplayNameByID(ctx context.Context, channelID uuid.UUID, channelName string) error {
+	if r == nil || r.db == nil {
+		return fmt.Errorf("channel repository not initialized")
+	}
+	if channelID == uuid.Nil {
+		return fmt.Errorf("channel id is required")
+	}
+	channelName = strings.TrimSpace(channelName)
+	if channelName == "" {
+		return fmt.Errorf("channel name is required")
+	}
+
+	_, err := r.db.Channel.UpdateOneID(channelID).SetName(channelName).Save(ctx)
+	if err != nil {
+		return fmt.Errorf("update channel display name failed: %w", err)
+	}
+	return nil
 }
 
 // SaveReceivedMessage stores an incoming channel message.

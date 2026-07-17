@@ -15,6 +15,7 @@ import (
 // 只保留跨 provider 共用的 channel/message upsert 行為。
 type ChannelMessageStore interface {
 	GetChannelByPlatformGroupID(ctx context.Context, platform string, groupID string) (*ent.Channel, error)
+	UpdateChannelDisplayNameByID(ctx context.Context, channelID uuid.UUID, channelName string) error
 	SaveReceivedMessage(
 		ctx context.Context,
 		channelID uuid.UUID,
@@ -133,6 +134,25 @@ func (s Service) PersistUnifiedMessage(ctx context.Context, message *unifiedmess
 			zap.String("channel_type", channelType),
 		)
 		return nil
+	}
+
+	resolvedChannelName := strings.TrimSpace(message.ChannelName)
+	if strings.EqualFold(channelType, "private") {
+		// private channel 名稱以使用者顯示名稱為準。
+		if senderNameTrimmed := strings.TrimSpace(senderName); senderNameTrimmed != "" {
+			resolvedChannelName = senderNameTrimmed
+		}
+	}
+	if resolvedChannelName != "" {
+		if err := s.store.UpdateChannelDisplayNameByID(ctx, ch.ID, resolvedChannelName); err != nil {
+			zap.L().Error("persist unified message channel name update failed",
+				zap.String("platform", platform),
+				zap.String("channel_id", channelID),
+				zap.String("channel_name", resolvedChannelName),
+				zap.Error(err),
+			)
+			return nil
+		}
 	}
 
 	// 寫入原始訊息資料。這一步只處理「訊息本體」，不做語意或命令判斷。

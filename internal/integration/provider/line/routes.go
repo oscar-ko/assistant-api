@@ -129,9 +129,14 @@ func oauthCallback(repo lineBindRepository, channelRepo *repository.ChannelMessa
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "line user id is empty"})
 			return
 		}
+		privateChannelName := strings.TrimSpace(u.Name)
+		if privateChannelName == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "bound user name is empty"})
+			return
+		}
 		// 以 line user id 作為 private channel 的 group_id。
 		// 這個決策可讓後續所有 LINE 私訊入站都穩定映射到同一筆 channel。
-		if _, err := channelRepo.GetOrCreateChannel(c.Request.Context(), "line", lineUserID, "private"); err != nil {
+		if _, err := channelRepo.GetOrCreateChannel(c.Request.Context(), "line", lineUserID, "private", privateChannelName); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create line private channel"})
 			return
 		}

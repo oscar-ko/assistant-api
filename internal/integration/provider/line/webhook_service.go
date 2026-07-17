@@ -37,6 +37,7 @@ type WebhookProcessor interface {
 // 僅解析事件並輸出到 console，便於開發階段觀察 webhook 是否正常進站。
 type WebhookService struct {
 	repo                  *repository.ChannelMessageRepo
+	lineClient            *messaging_api.MessagingApiAPI
 	decisionService       commanddecision.Service
 	llmInteractionService llminteraction.InteractionService
 	persistenceService    messagepersist.Service
@@ -119,6 +120,7 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 	})
 	return &WebhookService{
 		repo:                  repo,
+		lineClient:            lineClient,
 		decisionService:       decisionSvc,
 		llmInteractionService: options.LLMInteraction,
 		persistenceService:    persistSvc,
@@ -246,6 +248,10 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 			continue
 		}
 
+		if resolvedChannelName, err := s.resolveLineChannelDisplayName(context.Background(), event, message); err == nil {
+			message.ChannelName = resolvedChannelName
+		}
+
 		// 先落庫，確保訊息資料優先可用，不受後續 AI 延遲影響。
 		savedMessage := s.persistUnifiedMessage(message)
 		decision := &commanddecision.Decision{IsMentionedBot: message.MentionsUser(config.Line.BotUserID)}
@@ -301,6 +307,45 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 		)
 	}
 
+}
+
+func (s *WebhookService) resolveLineChannelDisplayName(ctx context.Context, event webhookEvent, message *unifiedmessage.Message) (string, error) {
+	if s == nil || s.lineClient == nil || message == nil {
+		return "", nil
+	}
+	api := s.lineClient.WithContext(ctx)
+	channelType := strings.ToLower(strings.TrimSpace(message.ChannelType))
+	channelID := strings.TrimSpace(message.ChannelID)
+	if channelID == "" {
+		return "", nil
+	}
+
+	switch channelType {
+	case "private":
+		userID := strings.TrimSpace(event.Source.UserID)
+		if userID == "" {
+			userID = strings.TrimSpace(message.SenderID)
+		}
+		if userID == "" {
+			return "", nil
+		}
+		profile, err := api.GetProfile(userID)
+		if err != nil || profile == nil {
+			return "", err
+		}
+		return strings.TrimSpace(profile.DisplayName), nil
+	case "group":
+		if strings.TrimSpace(event.Source.GroupID) == "" {
+			return "", nil
+		}
+		summary, err := api.GetGroupSummary(strings.TrimSpace(event.Source.GroupID))
+		if err != nil || summary == nil {
+			return "", err
+		}
+		return strings.TrimSpace(summary.GroupName), nil
+	default:
+		return "", nil
+	}
 }
 
 // handleRealtimeNonCommandServices 是非指令訊息的即時服務分派點。

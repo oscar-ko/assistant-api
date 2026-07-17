@@ -7,11 +7,20 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"assistant-api/internal/config"
 )
+
+func slackBotTokenStrict() (string, error) {
+	token := strings.TrimSpace(config.Slack.BotToken)
+	if token == "" {
+		return "", fmt.Errorf("slack bot token is empty")
+	}
+	return token, nil
+}
 
 // PushMessageService 定義 Slack 外送訊息能力。
 type PushMessageService interface {
@@ -140,9 +149,9 @@ type slackOpenDMResponse struct {
 //
 // 嚴格模式：缺 token、缺 user id、或 Slack API 回錯都直接回傳錯誤。
 func OpenDMChannelID(ctx context.Context, userID string) (string, error) {
-	token := strings.TrimSpace(config.Slack.BotToken)
-	if token == "" {
-		return "", fmt.Errorf("slack bot token is empty")
+	token, err := slackBotTokenStrict()
+	if err != nil {
+		return "", err
 	}
 	userID = strings.TrimSpace(userID)
 	if userID == "" {
@@ -196,4 +205,127 @@ func OpenDMChannelID(ctx context.Context, userID string) (string, error) {
 		return "", fmt.Errorf("slack open dm failed: empty channel id")
 	}
 	return dmChannelID, nil
+}
+
+type slackUsersInfoResponse struct {
+	OK    bool   `json:"ok"`
+	Error string `json:"error"`
+	User  struct {
+		Profile struct {
+			DisplayName string `json:"display_name"`
+			RealName    string `json:"real_name"`
+		} `json:"profile"`
+		Name string `json:"name"`
+	} `json:"user"`
+}
+
+// GetUserDisplayNameByID resolves Slack user's display name by user ID.
+func GetUserDisplayNameByID(ctx context.Context, userID string) (string, error) {
+	token, err := slackBotTokenStrict()
+	if err != nil {
+		return "", err
+	}
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return "", fmt.Errorf("slack user id is empty")
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://slack.com/api/users.info?user="+url.QueryEscape(userID), nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := (&http.Client{Timeout: 15 * time.Second}).Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("slack users.info failed: status=%d", resp.StatusCode)
+	}
+
+	var parsed slackUsersInfoResponse
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return "", err
+	}
+	if !parsed.OK {
+		if strings.TrimSpace(parsed.Error) == "" {
+			return "", fmt.Errorf("slack users.info failed")
+		}
+		return "", fmt.Errorf("slack users.info failed: %s", strings.TrimSpace(parsed.Error))
+	}
+
+	if v := strings.TrimSpace(parsed.User.Profile.DisplayName); v != "" {
+		return v, nil
+	}
+	if v := strings.TrimSpace(parsed.User.Profile.RealName); v != "" {
+		return v, nil
+	}
+	if v := strings.TrimSpace(parsed.User.Name); v != "" {
+		return v, nil
+	}
+	return "", fmt.Errorf("slack user display name is empty")
+}
+
+type slackConversationInfoResponse struct {
+	OK      bool   `json:"ok"`
+	Error   string `json:"error"`
+	Channel struct {
+		Name string `json:"name"`
+	} `json:"channel"`
+}
+
+// GetChannelNameByID resolves Slack conversation name by channel ID.
+func GetChannelNameByID(ctx context.Context, channelID string) (string, error) {
+	token, err := slackBotTokenStrict()
+	if err != nil {
+		return "", err
+	}
+	channelID = strings.TrimSpace(channelID)
+	if channelID == "" {
+		return "", fmt.Errorf("slack channel id is empty")
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://slack.com/api/conversations.info?channel="+url.QueryEscape(channelID), nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := (&http.Client{Timeout: 15 * time.Second}).Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("slack conversations.info failed: status=%d", resp.StatusCode)
+	}
+
+	var parsed slackConversationInfoResponse
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return "", err
+	}
+	if !parsed.OK {
+		if strings.TrimSpace(parsed.Error) == "" {
+			return "", fmt.Errorf("slack conversations.info failed")
+		}
+		return "", fmt.Errorf("slack conversations.info failed: %s", strings.TrimSpace(parsed.Error))
+	}
+
+	name := strings.TrimSpace(parsed.Channel.Name)
+	if name == "" {
+		return "", fmt.Errorf("slack channel name is empty")
+	}
+	return name, nil
 }

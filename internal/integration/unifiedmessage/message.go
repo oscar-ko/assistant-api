@@ -14,6 +14,7 @@ type Message struct {
 	SourceType        string
 	ChannelID         string
 	ChannelType       string
+	ChannelName       string
 	SenderID          string
 	SenderName        string
 	PlatformMessageID string

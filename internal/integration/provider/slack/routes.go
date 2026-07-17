@@ -270,6 +270,11 @@ func loginCallback(repo slackBindRepository, channelRepo *repository.ChannelMess
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+		privateChannelName := strings.TrimSpace(u.Name)
+		if privateChannelName == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "bound user name is empty"})
+			return
+		}
 
 		// 嚴格模式：綁定成功後先開 DM，並以 DM channel id 建立 private channel。
 		if channelRepo == nil {
@@ -281,7 +286,7 @@ func loginCallback(repo slackBindRepository, channelRepo *repository.ChannelMess
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		if _, err := channelRepo.GetOrCreateChannel(c.Request.Context(), "slack", dmChannelID, "private"); err != nil {
+		if _, err := channelRepo.GetOrCreateChannel(c.Request.Context(), "slack", dmChannelID, "private", privateChannelName); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create slack private channel"})
 			return
 		}
