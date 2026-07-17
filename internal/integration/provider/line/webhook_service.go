@@ -1,17 +1,14 @@
 package line
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 
 	"assistant-api/internal/config"
 	"assistant-api/internal/ent"
+	"assistant-api/internal/integration/provider/realtime"
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
 	"assistant-api/internal/usecase/actionpost"
@@ -41,15 +38,12 @@ type WebhookService struct {
 	repo                  *repository.ChannelMessageRepo
 	decisionService       commanddecision.Service
 	llmInteractionService llminteraction.InteractionService
-	// llmInteractionClient 專供「即時非指令服務」呼叫 9002 端點。
-	// 目前用於翻譯文本生成（AnswerQuestion + 翻譯 prompt），
-	// 與 command flow 的最終 action 決策流程分離，避免責任耦合。
-	llmInteractionClient llminteraction.InteractionClient
-	persistenceService   messagepersist.Service
-	topKFilterService    topkfilter.Service
-	actionPostDispatcher *actionpost.Dispatcher
-	followUpSender       PushMessageService
-	commandFlow          *conversationflow.Orchestrator
+	persistenceService    messagepersist.Service
+	topKFilterService     topkfilter.Service
+	actionPostDispatcher  *actionpost.Dispatcher
+	followUpSender        PushMessageService
+	nonCommandDispatcher  *realtime.Dispatcher
+	commandFlow           *conversationflow.Orchestrator
 }
 
 // WebhookServiceOptions 提供 webhook service 的擴充設定。
@@ -90,10 +84,20 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 	chainSvc := commandchain.NewService(repo)
 	decisionSvc := commanddecision.NewService(chainSvc)
 	dispatcher := actionpost.NewDefaultDispatcher(repo)
-	llmClient := llminteraction.NewInteractionClient(
+	translateClient := realtime.NewLLMTranslateClient(
 		strings.TrimSpace(config.AI.LLMInteraction.Local.ServiceURL),
 		config.AI.LLMInteraction.Local.ServiceTimeoutSeconds,
 	)
+	autoTranslate := realtime.NewAutoTranslateService(realtime.AutoTranslateServiceOptions{
+		Repo:       repo,
+		Sender:     lineRealtimeSender{sender: options.FollowUpSender},
+		Translator: translateClient,
+		ResolveOwnerUserID: func(ctx context.Context, platformUserID string) (uuid.UUID, error) {
+			return repo.ResolveUserIDByLineUserID(ctx, platformUserID)
+		},
+		BotSenderID:   strings.TrimSpace(config.Line.BotUserID),
+		PlatformLabel: "line",
+	})
 	flow := conversationflow.NewFromFactory(conversationflow.FactoryOptions{
 		PlatformLabel:               "line",
 		BotSenderID:                 strings.TrimSpace(config.Line.BotUserID),
@@ -111,11 +115,11 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 		repo:                  repo,
 		decisionService:       decisionSvc,
 		llmInteractionService: options.LLMInteraction,
-		llmInteractionClient:  llmClient,
 		persistenceService:    persistSvc,
 		topKFilterService:     options.TopKFilter,
 		actionPostDispatcher:  dispatcher,
 		followUpSender:        options.FollowUpSender,
+		nonCommandDispatcher:  realtime.NewDispatcher(autoTranslate),
 		commandFlow:           flow,
 	}
 }
@@ -300,304 +304,27 @@ func (s *WebhookService) handleRealtimeNonCommandServices(message *unifiedmessag
 	if s == nil || message == nil {
 		return
 	}
-	// 非指令訊息可同時觸發多個即時服務；目前先掛翻譯，後續服務可繼續擴充。
-	s.tryRealtimeAutoTranslate(message, savedMessage, lineUserID, quoteToken)
+	if s.nonCommandDispatcher == nil {
+		return
+	}
+	// 非指令訊息可同時觸發多個即時服務；翻譯/未來服務都由共用 dispatcher 管理。
+	s.nonCommandDispatcher.Handle(context.Background(), realtime.MessageContext{
+		Message:        message,
+		SavedMessage:   savedMessage,
+		PlatformUserID: lineUserID,
+		QuoteRef:       quoteToken,
+	})
 }
 
-// tryRealtimeAutoTranslate 在「非指令文字訊息」時嘗試即時翻譯並推送。
-// 觸發條件（全部滿足才執行）：
-// 1) 訊息為 text 且內容非空
-// 2) 送訊者可解析成系統內 user
-// 3) 該 user 在該 channel 啟用了 channel.translation
-// 4) 該 channel.translation 已配置至少一個 target locale
-//
-// 失敗策略：
-// - 任一檢查失敗直接 return（fail-fast，不做 fallback 猜測）
-// - 單一 locale 失敗不影響其他 locale（逐語系容錯）
-// - 推送成功後盡量落庫；落庫失敗僅告警，不中斷後續 locale
-func (s *WebhookService) tryRealtimeAutoTranslate(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, lineUserID string, quoteToken string) {
-	if s == nil || s.repo == nil || s.followUpSender == nil || s.llmInteractionClient == nil || message == nil {
-		return
-	}
-	// 只處理文字：圖片/貼圖/音訊沒有可翻譯語句，直接略過。
-	if !message.IsText() {
-		return
-	}
-	originalText := strings.TrimSpace(message.Text)
-	if originalText == "" {
-		return
-	}
-	lineUserID = strings.TrimSpace(lineUserID)
-	if lineUserID == "" {
-		return
-	}
-
-	ctx := context.Background()
-	// 固定使用 seed 的翻譯技能代碼，避免硬編碼 skill UUID。
-	skillID, err := s.repo.ResolveSkillIDByCode(ctx, "channel.translation")
-	if err != nil || skillID == uuid.Nil {
-		if err != nil {
-			zap.L().Warn("realtime translation skipped: resolve translation skill failed", zap.Error(err))
-		}
-		return
-	}
-
-	// 平台 user id 必須能反查到內部 user，
-	// 才能做「這個人是否有啟用翻譯服務」的權限判斷。
-	ownerUserID, err := s.repo.ResolveUserIDByLineUserID(ctx, lineUserID)
-	if err != nil || ownerUserID == uuid.Nil {
-		if err != nil {
-			zap.L().Warn("realtime translation skipped: resolve sender user failed",
-				zap.String("line_user_id", lineUserID),
-				zap.Error(err),
-			)
-		}
-		return
-	}
-
-	channelID := uuid.Nil
-	if savedMessage != nil {
-		// 有落庫訊息時，優先使用已解析的內部 channel id。
-		channelID = savedMessage.ChannelID
-	}
-	if channelID == uuid.Nil {
-		// 保底路徑：若本次尚未拿到 savedMessage，
-		// 透過平台識別補解析內部 channel。
-		channelNode, chErr := s.repo.GetOrCreateChannel(
-			ctx,
-			strings.TrimSpace(message.Platform),
-			strings.TrimSpace(message.ChannelID),
-			strings.TrimSpace(message.ChannelType),
-		)
-		if chErr != nil || channelNode == nil {
-			if chErr != nil {
-				zap.L().Warn("realtime translation skipped: resolve channel failed",
-					zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-					zap.Error(chErr),
-				)
-			}
-			return
-		}
-		channelID = channelNode.ID
-	}
-
-	// 僅當「此人於此頻道有啟用翻譯技能」才執行翻譯，
-	// 避免把未啟用者的發言也推播翻譯。
-	enabled, err := s.repo.HasChannelServiceMember(ctx, channelID, ownerUserID, skillID)
-	if err != nil {
-		zap.L().Warn("realtime translation skipped: query service member failed",
-			zap.String("channel_id", channelID.String()),
-			zap.String("line_user_id", lineUserID),
-			zap.Error(err),
-		)
-		return
-	}
-	if !enabled {
-		return
-	}
-
-	// 讀取該技能在該頻道下的目標語系設定（可多語系）。
-	targetLocales, err := s.repo.ListChannelSkillTargetLocales(ctx, channelID, skillID)
-	if err != nil {
-		zap.L().Warn("realtime translation skipped: list target locales failed",
-			zap.String("channel_id", channelID.String()),
-			zap.String("line_user_id", lineUserID),
-			zap.Error(err),
-		)
-		return
-	}
-	if len(targetLocales) == 0 {
-		// 有啟用服務但未配置語系時不翻譯；
-		// 不做預設語系推測，避免誤推播。
-		return
-	}
-
-	translations, err := s.translateTextToLocalesWithLLMInteraction(ctx, originalText, targetLocales)
-	if err != nil {
-		zap.L().Warn("realtime translation failed",
-			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-			zap.Strings("target_locales", targetLocales),
-			zap.Error(err),
-		)
-		return
-	}
-
-	translatedSections := make([]string, 0, len(targetLocales))
-	for _, targetLocale := range targetLocales {
-		locale := strings.TrimSpace(targetLocale)
-		if locale == "" {
-			continue
-		}
-		translated := strings.TrimSpace(translations[locale])
-		if translated == "" {
-			continue
-		}
-		translatedSections = append(translatedSections, fmt.Sprintf("[%s]\n%s", locale, translated))
-	}
-
-	if len(translatedSections) == 0 {
-		return
-	}
-
-	outboundText := strings.Join(translatedSections, "\n\n")
-	sentPlatformMessageID, sendErr := s.followUpSender.SendTextToChat(
-		ctx,
-		strings.TrimSpace(message.ChannelID),
-		"",
-		outboundText,
-		"",
-		strings.TrimSpace(quoteToken),
-	)
-	if sendErr != nil {
-		zap.L().Warn("realtime translation push failed",
-			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-			zap.Strings("target_locales", targetLocales),
-			zap.Error(sendErr),
-		)
-		return
-	}
-
-	if s.repo != nil && savedMessage != nil {
-		// 推送成功後落庫，並關聯到原始 inbound 訊息，
-		// 便於後續對話追溯與審計。
-		if _, persistErr := s.repo.SaveSentMessage(
-			ctx,
-			savedMessage.ChannelID,
-			strings.TrimSpace(config.Line.BotUserID),
-			"",
-			sentPlatformMessageID,
-			outboundText,
-			"text",
-			time.Now().UnixMilli(),
-			savedMessage.ID,
-		); persistErr != nil {
-			zap.L().Warn("persist realtime translation message failed",
-				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-				zap.Strings("target_locales", targetLocales),
-				zap.Error(persistErr),
-			)
-		}
-	}
+type lineRealtimeSender struct {
+	sender PushMessageService
 }
 
-// translateTextToLocalesWithLLMInteraction 使用單次 9002 問答呼叫產生多語系翻譯。
-// 回傳 key=locale、value=translated text。
-func (s *WebhookService) translateTextToLocalesWithLLMInteraction(ctx context.Context, text string, targetLocales []string) (map[string]string, error) {
-	// 這個函式是「專用翻譯入口」的 Go 端呼叫封裝：
-	// - 由 webhook 非指令流程呼叫
-	// - 一次請求帶多語系 target_locales
-	// - 回傳 locale -> translation 的 map
-	// 設計重點是把 HTTP 細節關在這裡，讓上層流程只關心業務結果。
-	if s == nil {
-		return nil, fmt.Errorf("webhook service is not initialized")
+func (m lineRealtimeSender) SendText(ctx context.Context, chatID string, userID string, text string, replyRef string, quoteRef string) (string, error) {
+	if m.sender == nil {
+		return "", nil
 	}
-	inputText := strings.TrimSpace(text)
-	if inputText == "" {
-		return nil, fmt.Errorf("text is required")
-	}
-	locales := make([]string, 0, len(targetLocales))
-	seen := make(map[string]struct{}, len(targetLocales))
-	for _, locale := range targetLocales {
-		trimmed := strings.TrimSpace(locale)
-		if trimmed == "" {
-			continue
-		}
-		if _, exists := seen[trimmed]; exists {
-			continue
-		}
-		seen[trimmed] = struct{}{}
-		locales = append(locales, trimmed)
-	}
-	if len(locales) == 0 {
-		return nil, fmt.Errorf("target locales are required")
-	}
-	// translateRequest / translateResponse 採內嵌型別：
-	// 1) 限定只在本函式使用，避免污染 package-level API
-	// 2) 與 Python /translate 契約保持就近可讀
-	type translateRequest struct {
-		Prompt        string   `json:"prompt"`
-		Text          string   `json:"text"`
-		TargetLocales []string `json:"target_locales"`
-	}
-	type translateResponse struct {
-		SchemaVersion string            `json:"schema_version"`
-		Translations  map[string]string `json:"translations"`
-	}
-
-	baseURL := strings.TrimSpace(config.AI.LLMInteraction.Local.ServiceURL)
-	if baseURL == "" {
-		return nil, fmt.Errorf("llm interaction service url is empty")
-	}
-	// 專用翻譯入口固定走 /translate，不再借用 question_answer。
-	endpoint := strings.TrimRight(baseURL, "/") + "/translate"
-
-	// prompt 由 caller 注入，避免在 Python 與 Go 兩邊重複維護同一份規則。
-	// 這樣後續調整翻譯策略只改一處即可。
-	prompt := "You are a translation engine. Translate the message content into all target locales. Return strict JSON only with this schema: {\"schema_version\":\"v1\",\"translations\":{\"<locale>\":\"<translation>\"}}. The translations object keys must exactly match target locales. Do not include extra keys or explanations."
-	payload, err := json.Marshal(translateRequest{Prompt: prompt, Text: inputText, TargetLocales: locales})
-	if err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	timeoutSeconds := config.AI.LLMInteraction.Local.ServiceTimeoutSeconds
-	if timeoutSeconds <= 0 {
-		timeoutSeconds = 90
-	}
-	httpClient := &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 8192))
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		// 失敗時保留 status + body，方便直接從 webhook log 追到上游拒絕原因。
-		return nil, fmt.Errorf("translate endpoint status %d body: %s", resp.StatusCode, strings.TrimSpace(string(bodyBytes)))
-	}
-
-	var decoded translateResponse
-	if err := json.Unmarshal(bodyBytes, &decoded); err != nil {
-		return nil, err
-	}
-	if len(decoded.Translations) == 0 {
-		return nil, fmt.Errorf("translate endpoint returned empty translations")
-	}
-
-	// 回傳 map 允許 key 大小寫差異；這裡用 case-insensitive 對齊到原始 locale。
-	// 目的是兼容上游偶發輸出（例如 en-us / EN-US）但維持下游顯示順序穩定。
-	result := make(map[string]string, len(locales))
-	for _, locale := range locales {
-		if value, ok := decoded.Translations[locale]; ok {
-			if text := strings.TrimSpace(value); text != "" {
-				result[locale] = text
-			}
-			continue
-		}
-		for key, value := range decoded.Translations {
-			if strings.EqualFold(strings.TrimSpace(key), locale) {
-				if text := strings.TrimSpace(value); text != "" {
-					result[locale] = text
-				}
-				break
-			}
-		}
-	}
-	if len(result) == 0 {
-		// 即使上游有回 translations，若都對不到 target locale 也視為失敗，
-		// 避免把語系錯配內容推給使用者。
-		return nil, fmt.Errorf("translate endpoint returned no matching locale translations")
-	}
-	return result, nil
+	return m.sender.SendTextToChat(ctx, chatID, userID, text, replyRef, quoteRef)
 }
 
 type lineOutboundMessenger struct {
