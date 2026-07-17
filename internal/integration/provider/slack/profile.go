@@ -17,6 +17,10 @@ type oauthTokenResponse struct {
 	AccessToken string `json:"access_token"`
 }
 
+// oauthUserInfoResponse 對應 Slack OpenID userInfo API 回傳欄位。
+//
+// 注意：team_id 與 user_id 在 Slack OIDC 回應中不是一般短欄位名稱，
+// 而是使用帶命名空間的 claim key，因此 json tag 需完整對應。
 type oauthUserInfoResponse struct {
 	OK          bool   `json:"ok"`
 	Error       string `json:"error"`
@@ -36,6 +40,14 @@ type profile struct {
 }
 
 // getProfileByAuthCode 以授權碼交換 token，並向 Slack userInfo 端點取得使用者資料。
+//
+// 流程分兩段：
+// 1) openid.connect.token：用授權碼取得 access token。
+// 2) openid.connect.userInfo：用 access token 換取可綁定身份資料。
+//
+// 這裡採嚴格模式：
+// - redirectURI 必須明確配置（不在此處補值）
+// - token/userinfo 任一步驟異常都直接回錯，不做靜默降級
 func getProfileByAuthCode(code string, redirectURI string) (*profile, error) {
 	redirectURI = strings.TrimSpace(redirectURI)
 	if redirectURI == "" {
@@ -105,6 +117,7 @@ func getProfileByAuthCode(code string, redirectURI string) (*profile, error) {
 		return nil, fmt.Errorf("%s", message)
 	}
 
+	// 回傳前統一 trim，避免上游綁定時因前後空白造成查詢 miss。
 	return &profile{
 		TeamID:      strings.TrimSpace(userInfo.TeamID),
 		UserID:      strings.TrimSpace(userInfo.UserID),
