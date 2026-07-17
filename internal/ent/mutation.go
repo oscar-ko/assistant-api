@@ -6364,20 +6364,20 @@ func (m *SkillMutation) ResetEdge(name string) error {
 // SlackMutation represents an operation that mutates the Slack nodes in the graph.
 type SlackMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *uuid.UUID
-	team_id       *string
-	slack_user_id *string
-	display_name  *string
-	email         *string
-	picture       *string
-	clearedFields map[string]struct{}
-	user          *uuid.UUID
-	cleareduser   bool
-	done          bool
-	oldValue      func(context.Context) (*Slack, error)
-	predicates    []predicate.Slack
+	op               Op
+	typ              string
+	id               *uuid.UUID
+	platform_team_id *string
+	platform_user_id *string
+	display_name     *string
+	email            *string
+	picture          *string
+	clearedFields    map[string]struct{}
+	user             *uuid.UUID
+	cleareduser      bool
+	done             bool
+	oldValue         func(context.Context) (*Slack, error)
+	predicates       []predicate.Slack
 }
 
 var _ ent.Mutation = (*SlackMutation)(nil)
@@ -6484,76 +6484,76 @@ func (m *SlackMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
 	}
 }
 
-// SetTeamID sets the "team_id" field.
-func (m *SlackMutation) SetTeamID(s string) {
-	m.team_id = &s
+// SetPlatformTeamID sets the "platform_team_id" field.
+func (m *SlackMutation) SetPlatformTeamID(s string) {
+	m.platform_team_id = &s
 }
 
-// TeamID returns the value of the "team_id" field in the mutation.
-func (m *SlackMutation) TeamID() (r string, exists bool) {
-	v := m.team_id
+// PlatformTeamID returns the value of the "platform_team_id" field in the mutation.
+func (m *SlackMutation) PlatformTeamID() (r string, exists bool) {
+	v := m.platform_team_id
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldTeamID returns the old "team_id" field's value of the Slack entity.
+// OldPlatformTeamID returns the old "platform_team_id" field's value of the Slack entity.
 // If the Slack object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *SlackMutation) OldTeamID(ctx context.Context) (v string, err error) {
+func (m *SlackMutation) OldPlatformTeamID(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldTeamID is only allowed on UpdateOne operations")
+		return v, errors.New("OldPlatformTeamID is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldTeamID requires an ID field in the mutation")
+		return v, errors.New("OldPlatformTeamID requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldTeamID: %w", err)
+		return v, fmt.Errorf("querying old value for OldPlatformTeamID: %w", err)
 	}
-	return oldValue.TeamID, nil
+	return oldValue.PlatformTeamID, nil
 }
 
-// ResetTeamID resets all changes to the "team_id" field.
-func (m *SlackMutation) ResetTeamID() {
-	m.team_id = nil
+// ResetPlatformTeamID resets all changes to the "platform_team_id" field.
+func (m *SlackMutation) ResetPlatformTeamID() {
+	m.platform_team_id = nil
 }
 
-// SetSlackUserID sets the "slack_user_id" field.
-func (m *SlackMutation) SetSlackUserID(s string) {
-	m.slack_user_id = &s
+// SetPlatformUserID sets the "platform_user_id" field.
+func (m *SlackMutation) SetPlatformUserID(s string) {
+	m.platform_user_id = &s
 }
 
-// SlackUserID returns the value of the "slack_user_id" field in the mutation.
-func (m *SlackMutation) SlackUserID() (r string, exists bool) {
-	v := m.slack_user_id
+// PlatformUserID returns the value of the "platform_user_id" field in the mutation.
+func (m *SlackMutation) PlatformUserID() (r string, exists bool) {
+	v := m.platform_user_id
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldSlackUserID returns the old "slack_user_id" field's value of the Slack entity.
+// OldPlatformUserID returns the old "platform_user_id" field's value of the Slack entity.
 // If the Slack object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *SlackMutation) OldSlackUserID(ctx context.Context) (v string, err error) {
+func (m *SlackMutation) OldPlatformUserID(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldSlackUserID is only allowed on UpdateOne operations")
+		return v, errors.New("OldPlatformUserID is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldSlackUserID requires an ID field in the mutation")
+		return v, errors.New("OldPlatformUserID requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldSlackUserID: %w", err)
+		return v, fmt.Errorf("querying old value for OldPlatformUserID: %w", err)
 	}
-	return oldValue.SlackUserID, nil
+	return oldValue.PlatformUserID, nil
 }
 
-// ResetSlackUserID resets all changes to the "slack_user_id" field.
-func (m *SlackMutation) ResetSlackUserID() {
-	m.slack_user_id = nil
+// ResetPlatformUserID resets all changes to the "platform_user_id" field.
+func (m *SlackMutation) ResetPlatformUserID() {
+	m.platform_user_id = nil
 }
 
 // SetDisplayName sets the "display_name" field.
@@ -6777,11 +6777,11 @@ func (m *SlackMutation) Type() string {
 // AddedFields().
 func (m *SlackMutation) Fields() []string {
 	fields := make([]string, 0, 5)
-	if m.team_id != nil {
-		fields = append(fields, slack.FieldTeamID)
+	if m.platform_team_id != nil {
+		fields = append(fields, slack.FieldPlatformTeamID)
 	}
-	if m.slack_user_id != nil {
-		fields = append(fields, slack.FieldSlackUserID)
+	if m.platform_user_id != nil {
+		fields = append(fields, slack.FieldPlatformUserID)
 	}
 	if m.display_name != nil {
 		fields = append(fields, slack.FieldDisplayName)
@@ -6800,10 +6800,10 @@ func (m *SlackMutation) Fields() []string {
 // schema.
 func (m *SlackMutation) Field(name string) (ent.Value, bool) {
 	switch name {
-	case slack.FieldTeamID:
-		return m.TeamID()
-	case slack.FieldSlackUserID:
-		return m.SlackUserID()
+	case slack.FieldPlatformTeamID:
+		return m.PlatformTeamID()
+	case slack.FieldPlatformUserID:
+		return m.PlatformUserID()
 	case slack.FieldDisplayName:
 		return m.DisplayName()
 	case slack.FieldEmail:
@@ -6819,10 +6819,10 @@ func (m *SlackMutation) Field(name string) (ent.Value, bool) {
 // database failed.
 func (m *SlackMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
-	case slack.FieldTeamID:
-		return m.OldTeamID(ctx)
-	case slack.FieldSlackUserID:
-		return m.OldSlackUserID(ctx)
+	case slack.FieldPlatformTeamID:
+		return m.OldPlatformTeamID(ctx)
+	case slack.FieldPlatformUserID:
+		return m.OldPlatformUserID(ctx)
 	case slack.FieldDisplayName:
 		return m.OldDisplayName(ctx)
 	case slack.FieldEmail:
@@ -6838,19 +6838,19 @@ func (m *SlackMutation) OldField(ctx context.Context, name string) (ent.Value, e
 // type.
 func (m *SlackMutation) SetField(name string, value ent.Value) error {
 	switch name {
-	case slack.FieldTeamID:
+	case slack.FieldPlatformTeamID:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetTeamID(v)
+		m.SetPlatformTeamID(v)
 		return nil
-	case slack.FieldSlackUserID:
+	case slack.FieldPlatformUserID:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetSlackUserID(v)
+		m.SetPlatformUserID(v)
 		return nil
 	case slack.FieldDisplayName:
 		v, ok := value.(string)
@@ -6943,11 +6943,11 @@ func (m *SlackMutation) ClearField(name string) error {
 // It returns an error if the field is not defined in the schema.
 func (m *SlackMutation) ResetField(name string) error {
 	switch name {
-	case slack.FieldTeamID:
-		m.ResetTeamID()
+	case slack.FieldPlatformTeamID:
+		m.ResetPlatformTeamID()
 		return nil
-	case slack.FieldSlackUserID:
-		m.ResetSlackUserID()
+	case slack.FieldPlatformUserID:
+		m.ResetPlatformUserID()
 		return nil
 	case slack.FieldDisplayName:
 		m.ResetDisplayName()

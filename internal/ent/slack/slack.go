@@ -13,10 +13,10 @@ const (
 	Label = "slack"
 	// FieldID holds the string denoting the id field in the database.
 	FieldID = "id"
-	// FieldTeamID holds the string denoting the team_id field in the database.
-	FieldTeamID = "team_id"
-	// FieldSlackUserID holds the string denoting the slack_user_id field in the database.
-	FieldSlackUserID = "slack_user_id"
+	// FieldPlatformTeamID holds the string denoting the platform_team_id field in the database.
+	FieldPlatformTeamID = "platform_team_id"
+	// FieldPlatformUserID holds the string denoting the platform_user_id field in the database.
+	FieldPlatformUserID = "platform_user_id"
 	// FieldDisplayName holds the string denoting the display_name field in the database.
 	FieldDisplayName = "display_name"
 	// FieldEmail holds the string denoting the email field in the database.
@@ -39,8 +39,8 @@ const (
 // Columns holds all SQL columns for slack fields.
 var Columns = []string{
 	FieldID,
-	FieldTeamID,
-	FieldSlackUserID,
+	FieldPlatformTeamID,
+	FieldPlatformUserID,
 	FieldDisplayName,
 	FieldEmail,
 	FieldPicture,
@@ -68,10 +68,10 @@ func ValidColumn(column string) bool {
 }
 
 var (
-	// TeamIDValidator is a validator for the "team_id" field. It is called by the builders before save.
-	TeamIDValidator func(string) error
-	// SlackUserIDValidator is a validator for the "slack_user_id" field. It is called by the builders before save.
-	SlackUserIDValidator func(string) error
+	// PlatformTeamIDValidator is a validator for the "platform_team_id" field. It is called by the builders before save.
+	PlatformTeamIDValidator func(string) error
+	// PlatformUserIDValidator is a validator for the "platform_user_id" field. It is called by the builders before save.
+	PlatformUserIDValidator func(string) error
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
@@ -84,14 +84,14 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldID, opts...).ToFunc()
 }
 
-// ByTeamID orders the results by the team_id field.
-func ByTeamID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldTeamID, opts...).ToFunc()
+// ByPlatformTeamID orders the results by the platform_team_id field.
+func ByPlatformTeamID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPlatformTeamID, opts...).ToFunc()
 }
 
-// BySlackUserID orders the results by the slack_user_id field.
-func BySlackUserID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldSlackUserID, opts...).ToFunc()
+// ByPlatformUserID orders the results by the platform_user_id field.
+func ByPlatformUserID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPlatformUserID, opts...).ToFunc()
 }
 
 // ByDisplayName orders the results by the display_name field.

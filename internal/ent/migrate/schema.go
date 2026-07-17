@@ -305,8 +305,8 @@ var (
 	// SlacksColumns holds the columns for the "slacks" table.
 	SlacksColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
-		{Name: "team_id", Type: field.TypeString},
-		{Name: "slack_user_id", Type: field.TypeString},
+		{Name: "platform_team_id", Type: field.TypeString},
+		{Name: "platform_user_id", Type: field.TypeString},
 		{Name: "display_name", Type: field.TypeString, Nullable: true},
 		{Name: "email", Type: field.TypeString, Nullable: true},
 		{Name: "picture", Type: field.TypeString, Nullable: true},
@@ -327,7 +327,7 @@ var (
 		},
 		Indexes: []*schema.Index{
 			{
-				Name:    "slack_team_id_slack_user_id",
+				Name:    "slack_platform_team_id_platform_user_id",
 				Unique:  true,
 				Columns: []*schema.Column{SlacksColumns[1], SlacksColumns[2]},
 			},

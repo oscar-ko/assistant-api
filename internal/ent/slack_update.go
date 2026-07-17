@@ -29,30 +29,30 @@ func (_u *SlackUpdate) Where(ps ...predicate.Slack) *SlackUpdate {
 	return _u
 }
 
-// SetTeamID sets the "team_id" field.
-func (_u *SlackUpdate) SetTeamID(v string) *SlackUpdate {
-	_u.mutation.SetTeamID(v)
+// SetPlatformTeamID sets the "platform_team_id" field.
+func (_u *SlackUpdate) SetPlatformTeamID(v string) *SlackUpdate {
+	_u.mutation.SetPlatformTeamID(v)
 	return _u
 }
 
-// SetNillableTeamID sets the "team_id" field if the given value is not nil.
-func (_u *SlackUpdate) SetNillableTeamID(v *string) *SlackUpdate {
+// SetNillablePlatformTeamID sets the "platform_team_id" field if the given value is not nil.
+func (_u *SlackUpdate) SetNillablePlatformTeamID(v *string) *SlackUpdate {
 	if v != nil {
-		_u.SetTeamID(*v)
+		_u.SetPlatformTeamID(*v)
 	}
 	return _u
 }
 
-// SetSlackUserID sets the "slack_user_id" field.
-func (_u *SlackUpdate) SetSlackUserID(v string) *SlackUpdate {
-	_u.mutation.SetSlackUserID(v)
+// SetPlatformUserID sets the "platform_user_id" field.
+func (_u *SlackUpdate) SetPlatformUserID(v string) *SlackUpdate {
+	_u.mutation.SetPlatformUserID(v)
 	return _u
 }
 
-// SetNillableSlackUserID sets the "slack_user_id" field if the given value is not nil.
-func (_u *SlackUpdate) SetNillableSlackUserID(v *string) *SlackUpdate {
+// SetNillablePlatformUserID sets the "platform_user_id" field if the given value is not nil.
+func (_u *SlackUpdate) SetNillablePlatformUserID(v *string) *SlackUpdate {
 	if v != nil {
-		_u.SetSlackUserID(*v)
+		_u.SetPlatformUserID(*v)
 	}
 	return _u
 }
@@ -168,14 +168,14 @@ func (_u *SlackUpdate) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *SlackUpdate) check() error {
-	if v, ok := _u.mutation.TeamID(); ok {
-		if err := slack.TeamIDValidator(v); err != nil {
-			return &ValidationError{Name: "team_id", err: fmt.Errorf(`ent: validator failed for field "Slack.team_id": %w`, err)}
+	if v, ok := _u.mutation.PlatformTeamID(); ok {
+		if err := slack.PlatformTeamIDValidator(v); err != nil {
+			return &ValidationError{Name: "platform_team_id", err: fmt.Errorf(`ent: validator failed for field "Slack.platform_team_id": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.SlackUserID(); ok {
-		if err := slack.SlackUserIDValidator(v); err != nil {
-			return &ValidationError{Name: "slack_user_id", err: fmt.Errorf(`ent: validator failed for field "Slack.slack_user_id": %w`, err)}
+	if v, ok := _u.mutation.PlatformUserID(); ok {
+		if err := slack.PlatformUserIDValidator(v); err != nil {
+			return &ValidationError{Name: "platform_user_id", err: fmt.Errorf(`ent: validator failed for field "Slack.platform_user_id": %w`, err)}
 		}
 	}
 	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
@@ -196,11 +196,11 @@ func (_u *SlackUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.TeamID(); ok {
-		_spec.SetField(slack.FieldTeamID, field.TypeString, value)
+	if value, ok := _u.mutation.PlatformTeamID(); ok {
+		_spec.SetField(slack.FieldPlatformTeamID, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.SlackUserID(); ok {
-		_spec.SetField(slack.FieldSlackUserID, field.TypeString, value)
+	if value, ok := _u.mutation.PlatformUserID(); ok {
+		_spec.SetField(slack.FieldPlatformUserID, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.DisplayName(); ok {
 		_spec.SetField(slack.FieldDisplayName, field.TypeString, value)
@@ -269,30 +269,30 @@ type SlackUpdateOne struct {
 	mutation *SlackMutation
 }
 
-// SetTeamID sets the "team_id" field.
-func (_u *SlackUpdateOne) SetTeamID(v string) *SlackUpdateOne {
-	_u.mutation.SetTeamID(v)
+// SetPlatformTeamID sets the "platform_team_id" field.
+func (_u *SlackUpdateOne) SetPlatformTeamID(v string) *SlackUpdateOne {
+	_u.mutation.SetPlatformTeamID(v)
 	return _u
 }
 
-// SetNillableTeamID sets the "team_id" field if the given value is not nil.
-func (_u *SlackUpdateOne) SetNillableTeamID(v *string) *SlackUpdateOne {
+// SetNillablePlatformTeamID sets the "platform_team_id" field if the given value is not nil.
+func (_u *SlackUpdateOne) SetNillablePlatformTeamID(v *string) *SlackUpdateOne {
 	if v != nil {
-		_u.SetTeamID(*v)
+		_u.SetPlatformTeamID(*v)
 	}
 	return _u
 }
 
-// SetSlackUserID sets the "slack_user_id" field.
-func (_u *SlackUpdateOne) SetSlackUserID(v string) *SlackUpdateOne {
-	_u.mutation.SetSlackUserID(v)
+// SetPlatformUserID sets the "platform_user_id" field.
+func (_u *SlackUpdateOne) SetPlatformUserID(v string) *SlackUpdateOne {
+	_u.mutation.SetPlatformUserID(v)
 	return _u
 }
 
-// SetNillableSlackUserID sets the "slack_user_id" field if the given value is not nil.
-func (_u *SlackUpdateOne) SetNillableSlackUserID(v *string) *SlackUpdateOne {
+// SetNillablePlatformUserID sets the "platform_user_id" field if the given value is not nil.
+func (_u *SlackUpdateOne) SetNillablePlatformUserID(v *string) *SlackUpdateOne {
 	if v != nil {
-		_u.SetSlackUserID(*v)
+		_u.SetPlatformUserID(*v)
 	}
 	return _u
 }
@@ -421,14 +421,14 @@ func (_u *SlackUpdateOne) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *SlackUpdateOne) check() error {
-	if v, ok := _u.mutation.TeamID(); ok {
-		if err := slack.TeamIDValidator(v); err != nil {
-			return &ValidationError{Name: "team_id", err: fmt.Errorf(`ent: validator failed for field "Slack.team_id": %w`, err)}
+	if v, ok := _u.mutation.PlatformTeamID(); ok {
+		if err := slack.PlatformTeamIDValidator(v); err != nil {
+			return &ValidationError{Name: "platform_team_id", err: fmt.Errorf(`ent: validator failed for field "Slack.platform_team_id": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.SlackUserID(); ok {
-		if err := slack.SlackUserIDValidator(v); err != nil {
-			return &ValidationError{Name: "slack_user_id", err: fmt.Errorf(`ent: validator failed for field "Slack.slack_user_id": %w`, err)}
+	if v, ok := _u.mutation.PlatformUserID(); ok {
+		if err := slack.PlatformUserIDValidator(v); err != nil {
+			return &ValidationError{Name: "platform_user_id", err: fmt.Errorf(`ent: validator failed for field "Slack.platform_user_id": %w`, err)}
 		}
 	}
 	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
@@ -466,11 +466,11 @@ func (_u *SlackUpdateOne) sqlSave(ctx context.Context) (_node *Slack, err error)
 			}
 		}
 	}
-	if value, ok := _u.mutation.TeamID(); ok {
-		_spec.SetField(slack.FieldTeamID, field.TypeString, value)
+	if value, ok := _u.mutation.PlatformTeamID(); ok {
+		_spec.SetField(slack.FieldPlatformTeamID, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.SlackUserID(); ok {
-		_spec.SetField(slack.FieldSlackUserID, field.TypeString, value)
+	if value, ok := _u.mutation.PlatformUserID(); ok {
+		_spec.SetField(slack.FieldPlatformUserID, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.DisplayName(); ok {
 		_spec.SetField(slack.FieldDisplayName, field.TypeString, value)

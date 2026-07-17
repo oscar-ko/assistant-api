@@ -24,8 +24,8 @@ func (Slack) Mixin() []ent.Mixin {
 // Fields of the Slack.
 func (Slack) Fields() []ent.Field {
 	return []ent.Field{
-		field.String("team_id").NotEmpty().Comment("Slack workspace/team ID"),
-		field.String("slack_user_id").NotEmpty().Comment("Slack 平台使用者 ID"),
+		field.String("platform_team_id").NotEmpty().Comment("Slack workspace/team ID"),
+		field.String("platform_user_id").NotEmpty().Comment("Slack 平台使用者 ID"),
 		field.String("display_name").Optional().Nillable().Comment("Slack 顯示名稱"),
 		field.String("email").Optional().Nillable().Comment("Slack 帳號 email"),
 		field.String("picture").Optional().Nillable().Comment("Slack 大頭貼 URL"),
@@ -45,7 +45,7 @@ func (Slack) Edges() []ent.Edge {
 // Indexes of the Slack.
 func (Slack) Indexes() []ent.Index {
 	return []ent.Index{
-		index.Fields("team_id", "slack_user_id").Unique(),
+		index.Fields("platform_team_id", "platform_user_id").Unique(),
 	}
 }
 

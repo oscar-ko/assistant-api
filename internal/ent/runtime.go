@@ -201,14 +201,14 @@ func init() {
 	_ = slackMixinFields0
 	slackFields := schema.Slack{}.Fields()
 	_ = slackFields
-	// slackDescTeamID is the schema descriptor for team_id field.
-	slackDescTeamID := slackFields[0].Descriptor()
-	// slack.TeamIDValidator is a validator for the "team_id" field. It is called by the builders before save.
-	slack.TeamIDValidator = slackDescTeamID.Validators[0].(func(string) error)
-	// slackDescSlackUserID is the schema descriptor for slack_user_id field.
-	slackDescSlackUserID := slackFields[1].Descriptor()
-	// slack.SlackUserIDValidator is a validator for the "slack_user_id" field. It is called by the builders before save.
-	slack.SlackUserIDValidator = slackDescSlackUserID.Validators[0].(func(string) error)
+	// slackDescPlatformTeamID is the schema descriptor for platform_team_id field.
+	slackDescPlatformTeamID := slackFields[0].Descriptor()
+	// slack.PlatformTeamIDValidator is a validator for the "platform_team_id" field. It is called by the builders before save.
+	slack.PlatformTeamIDValidator = slackDescPlatformTeamID.Validators[0].(func(string) error)
+	// slackDescPlatformUserID is the schema descriptor for platform_user_id field.
+	slackDescPlatformUserID := slackFields[1].Descriptor()
+	// slack.PlatformUserIDValidator is a validator for the "platform_user_id" field. It is called by the builders before save.
+	slack.PlatformUserIDValidator = slackDescPlatformUserID.Validators[0].(func(string) error)
 	// slackDescID is the schema descriptor for id field.
 	slackDescID := slackMixinFields0[0].Descriptor()
 	// slack.DefaultID holds the default value on creation for the id field.

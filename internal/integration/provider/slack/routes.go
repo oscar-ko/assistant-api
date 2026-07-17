@@ -7,6 +7,7 @@ package slack
 import (
 	"encoding/json"
 	"fmt"
+
 	// RegisterRoutes 註冊 Slack provider 的所有 HTTP 入口。
 	//
 	// 路由分成兩條主線：
@@ -16,6 +17,7 @@ import (
 	// 兩條線刻意分開，避免把「安裝 bot」與「登入綁定 user」混成同一個 callback。
 	"net/http"
 	"net/url"
+
 	// ChannelMessageRepo 供 webhook 事件落庫與指令流程使用。
 	"strings"
 	// ActionRouteRepo + top-k filter 提供指令候選路由召回能力。
@@ -24,6 +26,7 @@ import (
 	"assistant-api/internal/config"
 	"assistant-api/internal/ent"
 	aillminteraction "assistant-api/internal/integration/ai/llm_interaction"
+
 	// LLM 互動服務供 command flow 決策使用。
 	aitopkfilter "assistant-api/internal/integration/ai/topkfilter"
 	"assistant-api/internal/integration/auth"

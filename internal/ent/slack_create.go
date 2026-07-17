@@ -21,15 +21,15 @@ type SlackCreate struct {
 	hooks    []Hook
 }
 
-// SetTeamID sets the "team_id" field.
-func (_c *SlackCreate) SetTeamID(v string) *SlackCreate {
-	_c.mutation.SetTeamID(v)
+// SetPlatformTeamID sets the "platform_team_id" field.
+func (_c *SlackCreate) SetPlatformTeamID(v string) *SlackCreate {
+	_c.mutation.SetPlatformTeamID(v)
 	return _c
 }
 
-// SetSlackUserID sets the "slack_user_id" field.
-func (_c *SlackCreate) SetSlackUserID(v string) *SlackCreate {
-	_c.mutation.SetSlackUserID(v)
+// SetPlatformUserID sets the "platform_user_id" field.
+func (_c *SlackCreate) SetPlatformUserID(v string) *SlackCreate {
+	_c.mutation.SetPlatformUserID(v)
 	return _c
 }
 
@@ -143,20 +143,20 @@ func (_c *SlackCreate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *SlackCreate) check() error {
-	if _, ok := _c.mutation.TeamID(); !ok {
-		return &ValidationError{Name: "team_id", err: errors.New(`ent: missing required field "Slack.team_id"`)}
+	if _, ok := _c.mutation.PlatformTeamID(); !ok {
+		return &ValidationError{Name: "platform_team_id", err: errors.New(`ent: missing required field "Slack.platform_team_id"`)}
 	}
-	if v, ok := _c.mutation.TeamID(); ok {
-		if err := slack.TeamIDValidator(v); err != nil {
-			return &ValidationError{Name: "team_id", err: fmt.Errorf(`ent: validator failed for field "Slack.team_id": %w`, err)}
+	if v, ok := _c.mutation.PlatformTeamID(); ok {
+		if err := slack.PlatformTeamIDValidator(v); err != nil {
+			return &ValidationError{Name: "platform_team_id", err: fmt.Errorf(`ent: validator failed for field "Slack.platform_team_id": %w`, err)}
 		}
 	}
-	if _, ok := _c.mutation.SlackUserID(); !ok {
-		return &ValidationError{Name: "slack_user_id", err: errors.New(`ent: missing required field "Slack.slack_user_id"`)}
+	if _, ok := _c.mutation.PlatformUserID(); !ok {
+		return &ValidationError{Name: "platform_user_id", err: errors.New(`ent: missing required field "Slack.platform_user_id"`)}
 	}
-	if v, ok := _c.mutation.SlackUserID(); ok {
-		if err := slack.SlackUserIDValidator(v); err != nil {
-			return &ValidationError{Name: "slack_user_id", err: fmt.Errorf(`ent: validator failed for field "Slack.slack_user_id": %w`, err)}
+	if v, ok := _c.mutation.PlatformUserID(); ok {
+		if err := slack.PlatformUserIDValidator(v); err != nil {
+			return &ValidationError{Name: "platform_user_id", err: fmt.Errorf(`ent: validator failed for field "Slack.platform_user_id": %w`, err)}
 		}
 	}
 	if len(_c.mutation.UserIDs()) == 0 {
@@ -197,13 +197,13 @@ func (_c *SlackCreate) createSpec() (*Slack, *sqlgraph.CreateSpec) {
 		_node.ID = id
 		_spec.ID.Value = &id
 	}
-	if value, ok := _c.mutation.TeamID(); ok {
-		_spec.SetField(slack.FieldTeamID, field.TypeString, value)
-		_node.TeamID = value
+	if value, ok := _c.mutation.PlatformTeamID(); ok {
+		_spec.SetField(slack.FieldPlatformTeamID, field.TypeString, value)
+		_node.PlatformTeamID = value
 	}
-	if value, ok := _c.mutation.SlackUserID(); ok {
-		_spec.SetField(slack.FieldSlackUserID, field.TypeString, value)
-		_node.SlackUserID = value
+	if value, ok := _c.mutation.PlatformUserID(); ok {
+		_spec.SetField(slack.FieldPlatformUserID, field.TypeString, value)
+		_node.PlatformUserID = value
 	}
 	if value, ok := _c.mutation.DisplayName(); ok {
 		_spec.SetField(slack.FieldDisplayName, field.TypeString, value)

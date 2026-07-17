@@ -302,12 +302,12 @@ func (_q *SlackQuery) WithUser(opts ...func(*UserQuery)) *SlackQuery {
 // Example:
 //
 //	var v []struct {
-//		TeamID string `json:"team_id,omitempty"`
+//		PlatformTeamID string `json:"platform_team_id,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
 //	client.Slack.Query().
-//		GroupBy(slack.FieldTeamID).
+//		GroupBy(slack.FieldPlatformTeamID).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 func (_q *SlackQuery) GroupBy(field string, fields ...string) *SlackGroupBy {
@@ -325,11 +325,11 @@ func (_q *SlackQuery) GroupBy(field string, fields ...string) *SlackGroupBy {
 // Example:
 //
 //	var v []struct {
-//		TeamID string `json:"team_id,omitempty"`
+//		PlatformTeamID string `json:"platform_team_id,omitempty"`
 //	}
 //
 //	client.Slack.Query().
-//		Select(slack.FieldTeamID).
+//		Select(slack.FieldPlatformTeamID).
 //		Scan(ctx, &v)
 func (_q *SlackQuery) Select(fields ...string) *SlackSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)

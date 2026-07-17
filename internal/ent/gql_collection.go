@@ -1033,15 +1033,15 @@ func (_q *SlackQuery) collectField(ctx context.Context, oneNode bool, opCtx *gra
 				return err
 			}
 			_q.withUser = query
-		case "teamID":
-			if _, ok := fieldSeen[slack.FieldTeamID]; !ok {
-				selectedFields = append(selectedFields, slack.FieldTeamID)
-				fieldSeen[slack.FieldTeamID] = struct{}{}
+		case "platformTeamID":
+			if _, ok := fieldSeen[slack.FieldPlatformTeamID]; !ok {
+				selectedFields = append(selectedFields, slack.FieldPlatformTeamID)
+				fieldSeen[slack.FieldPlatformTeamID] = struct{}{}
 			}
-		case "slackUserID":
-			if _, ok := fieldSeen[slack.FieldSlackUserID]; !ok {
-				selectedFields = append(selectedFields, slack.FieldSlackUserID)
-				fieldSeen[slack.FieldSlackUserID] = struct{}{}
+		case "platformUserID":
+			if _, ok := fieldSeen[slack.FieldPlatformUserID]; !ok {
+				selectedFields = append(selectedFields, slack.FieldPlatformUserID)
+				fieldSeen[slack.FieldPlatformUserID] = struct{}{}
 			}
 		case "displayName":
 			if _, ok := fieldSeen[slack.FieldDisplayName]; !ok {

@@ -55,14 +55,14 @@ func IDLTE(id uuid.UUID) predicate.Slack {
 	return predicate.Slack(sql.FieldLTE(FieldID, id))
 }
 
-// TeamID applies equality check predicate on the "team_id" field. It's identical to TeamIDEQ.
-func TeamID(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldEQ(FieldTeamID, v))
+// PlatformTeamID applies equality check predicate on the "platform_team_id" field. It's identical to PlatformTeamIDEQ.
+func PlatformTeamID(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldEQ(FieldPlatformTeamID, v))
 }
 
-// SlackUserID applies equality check predicate on the "slack_user_id" field. It's identical to SlackUserIDEQ.
-func SlackUserID(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldEQ(FieldSlackUserID, v))
+// PlatformUserID applies equality check predicate on the "platform_user_id" field. It's identical to PlatformUserIDEQ.
+func PlatformUserID(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldEQ(FieldPlatformUserID, v))
 }
 
 // DisplayName applies equality check predicate on the "display_name" field. It's identical to DisplayNameEQ.
@@ -80,134 +80,134 @@ func Picture(v string) predicate.Slack {
 	return predicate.Slack(sql.FieldEQ(FieldPicture, v))
 }
 
-// TeamIDEQ applies the EQ predicate on the "team_id" field.
-func TeamIDEQ(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldEQ(FieldTeamID, v))
+// PlatformTeamIDEQ applies the EQ predicate on the "platform_team_id" field.
+func PlatformTeamIDEQ(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldEQ(FieldPlatformTeamID, v))
 }
 
-// TeamIDNEQ applies the NEQ predicate on the "team_id" field.
-func TeamIDNEQ(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldNEQ(FieldTeamID, v))
+// PlatformTeamIDNEQ applies the NEQ predicate on the "platform_team_id" field.
+func PlatformTeamIDNEQ(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldNEQ(FieldPlatformTeamID, v))
 }
 
-// TeamIDIn applies the In predicate on the "team_id" field.
-func TeamIDIn(vs ...string) predicate.Slack {
-	return predicate.Slack(sql.FieldIn(FieldTeamID, vs...))
+// PlatformTeamIDIn applies the In predicate on the "platform_team_id" field.
+func PlatformTeamIDIn(vs ...string) predicate.Slack {
+	return predicate.Slack(sql.FieldIn(FieldPlatformTeamID, vs...))
 }
 
-// TeamIDNotIn applies the NotIn predicate on the "team_id" field.
-func TeamIDNotIn(vs ...string) predicate.Slack {
-	return predicate.Slack(sql.FieldNotIn(FieldTeamID, vs...))
+// PlatformTeamIDNotIn applies the NotIn predicate on the "platform_team_id" field.
+func PlatformTeamIDNotIn(vs ...string) predicate.Slack {
+	return predicate.Slack(sql.FieldNotIn(FieldPlatformTeamID, vs...))
 }
 
-// TeamIDGT applies the GT predicate on the "team_id" field.
-func TeamIDGT(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldGT(FieldTeamID, v))
+// PlatformTeamIDGT applies the GT predicate on the "platform_team_id" field.
+func PlatformTeamIDGT(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldGT(FieldPlatformTeamID, v))
 }
 
-// TeamIDGTE applies the GTE predicate on the "team_id" field.
-func TeamIDGTE(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldGTE(FieldTeamID, v))
+// PlatformTeamIDGTE applies the GTE predicate on the "platform_team_id" field.
+func PlatformTeamIDGTE(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldGTE(FieldPlatformTeamID, v))
 }
 
-// TeamIDLT applies the LT predicate on the "team_id" field.
-func TeamIDLT(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldLT(FieldTeamID, v))
+// PlatformTeamIDLT applies the LT predicate on the "platform_team_id" field.
+func PlatformTeamIDLT(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldLT(FieldPlatformTeamID, v))
 }
 
-// TeamIDLTE applies the LTE predicate on the "team_id" field.
-func TeamIDLTE(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldLTE(FieldTeamID, v))
+// PlatformTeamIDLTE applies the LTE predicate on the "platform_team_id" field.
+func PlatformTeamIDLTE(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldLTE(FieldPlatformTeamID, v))
 }
 
-// TeamIDContains applies the Contains predicate on the "team_id" field.
-func TeamIDContains(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldContains(FieldTeamID, v))
+// PlatformTeamIDContains applies the Contains predicate on the "platform_team_id" field.
+func PlatformTeamIDContains(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldContains(FieldPlatformTeamID, v))
 }
 
-// TeamIDHasPrefix applies the HasPrefix predicate on the "team_id" field.
-func TeamIDHasPrefix(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldHasPrefix(FieldTeamID, v))
+// PlatformTeamIDHasPrefix applies the HasPrefix predicate on the "platform_team_id" field.
+func PlatformTeamIDHasPrefix(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldHasPrefix(FieldPlatformTeamID, v))
 }
 
-// TeamIDHasSuffix applies the HasSuffix predicate on the "team_id" field.
-func TeamIDHasSuffix(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldHasSuffix(FieldTeamID, v))
+// PlatformTeamIDHasSuffix applies the HasSuffix predicate on the "platform_team_id" field.
+func PlatformTeamIDHasSuffix(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldHasSuffix(FieldPlatformTeamID, v))
 }
 
-// TeamIDEqualFold applies the EqualFold predicate on the "team_id" field.
-func TeamIDEqualFold(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldEqualFold(FieldTeamID, v))
+// PlatformTeamIDEqualFold applies the EqualFold predicate on the "platform_team_id" field.
+func PlatformTeamIDEqualFold(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldEqualFold(FieldPlatformTeamID, v))
 }
 
-// TeamIDContainsFold applies the ContainsFold predicate on the "team_id" field.
-func TeamIDContainsFold(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldContainsFold(FieldTeamID, v))
+// PlatformTeamIDContainsFold applies the ContainsFold predicate on the "platform_team_id" field.
+func PlatformTeamIDContainsFold(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldContainsFold(FieldPlatformTeamID, v))
 }
 
-// SlackUserIDEQ applies the EQ predicate on the "slack_user_id" field.
-func SlackUserIDEQ(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldEQ(FieldSlackUserID, v))
+// PlatformUserIDEQ applies the EQ predicate on the "platform_user_id" field.
+func PlatformUserIDEQ(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldEQ(FieldPlatformUserID, v))
 }
 
-// SlackUserIDNEQ applies the NEQ predicate on the "slack_user_id" field.
-func SlackUserIDNEQ(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldNEQ(FieldSlackUserID, v))
+// PlatformUserIDNEQ applies the NEQ predicate on the "platform_user_id" field.
+func PlatformUserIDNEQ(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldNEQ(FieldPlatformUserID, v))
 }
 
-// SlackUserIDIn applies the In predicate on the "slack_user_id" field.
-func SlackUserIDIn(vs ...string) predicate.Slack {
-	return predicate.Slack(sql.FieldIn(FieldSlackUserID, vs...))
+// PlatformUserIDIn applies the In predicate on the "platform_user_id" field.
+func PlatformUserIDIn(vs ...string) predicate.Slack {
+	return predicate.Slack(sql.FieldIn(FieldPlatformUserID, vs...))
 }
 
-// SlackUserIDNotIn applies the NotIn predicate on the "slack_user_id" field.
-func SlackUserIDNotIn(vs ...string) predicate.Slack {
-	return predicate.Slack(sql.FieldNotIn(FieldSlackUserID, vs...))
+// PlatformUserIDNotIn applies the NotIn predicate on the "platform_user_id" field.
+func PlatformUserIDNotIn(vs ...string) predicate.Slack {
+	return predicate.Slack(sql.FieldNotIn(FieldPlatformUserID, vs...))
 }
 
-// SlackUserIDGT applies the GT predicate on the "slack_user_id" field.
-func SlackUserIDGT(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldGT(FieldSlackUserID, v))
+// PlatformUserIDGT applies the GT predicate on the "platform_user_id" field.
+func PlatformUserIDGT(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldGT(FieldPlatformUserID, v))
 }
 
-// SlackUserIDGTE applies the GTE predicate on the "slack_user_id" field.
-func SlackUserIDGTE(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldGTE(FieldSlackUserID, v))
+// PlatformUserIDGTE applies the GTE predicate on the "platform_user_id" field.
+func PlatformUserIDGTE(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldGTE(FieldPlatformUserID, v))
 }
 
-// SlackUserIDLT applies the LT predicate on the "slack_user_id" field.
-func SlackUserIDLT(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldLT(FieldSlackUserID, v))
+// PlatformUserIDLT applies the LT predicate on the "platform_user_id" field.
+func PlatformUserIDLT(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldLT(FieldPlatformUserID, v))
 }
 
-// SlackUserIDLTE applies the LTE predicate on the "slack_user_id" field.
-func SlackUserIDLTE(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldLTE(FieldSlackUserID, v))
+// PlatformUserIDLTE applies the LTE predicate on the "platform_user_id" field.
+func PlatformUserIDLTE(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldLTE(FieldPlatformUserID, v))
 }
 
-// SlackUserIDContains applies the Contains predicate on the "slack_user_id" field.
-func SlackUserIDContains(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldContains(FieldSlackUserID, v))
+// PlatformUserIDContains applies the Contains predicate on the "platform_user_id" field.
+func PlatformUserIDContains(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldContains(FieldPlatformUserID, v))
 }
 
-// SlackUserIDHasPrefix applies the HasPrefix predicate on the "slack_user_id" field.
-func SlackUserIDHasPrefix(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldHasPrefix(FieldSlackUserID, v))
+// PlatformUserIDHasPrefix applies the HasPrefix predicate on the "platform_user_id" field.
+func PlatformUserIDHasPrefix(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldHasPrefix(FieldPlatformUserID, v))
 }
 
-// SlackUserIDHasSuffix applies the HasSuffix predicate on the "slack_user_id" field.
-func SlackUserIDHasSuffix(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldHasSuffix(FieldSlackUserID, v))
+// PlatformUserIDHasSuffix applies the HasSuffix predicate on the "platform_user_id" field.
+func PlatformUserIDHasSuffix(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldHasSuffix(FieldPlatformUserID, v))
 }
 
-// SlackUserIDEqualFold applies the EqualFold predicate on the "slack_user_id" field.
-func SlackUserIDEqualFold(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldEqualFold(FieldSlackUserID, v))
+// PlatformUserIDEqualFold applies the EqualFold predicate on the "platform_user_id" field.
+func PlatformUserIDEqualFold(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldEqualFold(FieldPlatformUserID, v))
 }
 
-// SlackUserIDContainsFold applies the ContainsFold predicate on the "slack_user_id" field.
-func SlackUserIDContainsFold(v string) predicate.Slack {
-	return predicate.Slack(sql.FieldContainsFold(FieldSlackUserID, v))
+// PlatformUserIDContainsFold applies the ContainsFold predicate on the "platform_user_id" field.
+func PlatformUserIDContainsFold(v string) predicate.Slack {
+	return predicate.Slack(sql.FieldContainsFold(FieldPlatformUserID, v))
 }
 
 // DisplayNameEQ applies the EQ predicate on the "display_name" field.

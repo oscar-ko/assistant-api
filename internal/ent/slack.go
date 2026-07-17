@@ -20,9 +20,9 @@ type Slack struct {
 	// 全域唯一主鍵 UUID
 	ID uuid.UUID `json:"id,omitempty"`
 	// Slack workspace/team ID
-	TeamID string `json:"team_id,omitempty"`
+	PlatformTeamID string `json:"platform_team_id,omitempty"`
 	// Slack 平台使用者 ID
-	SlackUserID string `json:"slack_user_id,omitempty"`
+	PlatformUserID string `json:"platform_user_id,omitempty"`
 	// Slack 顯示名稱
 	DisplayName *string `json:"display_name,omitempty"`
 	// Slack 帳號 email
@@ -63,7 +63,7 @@ func (*Slack) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case slack.FieldTeamID, slack.FieldSlackUserID, slack.FieldDisplayName, slack.FieldEmail, slack.FieldPicture:
+		case slack.FieldPlatformTeamID, slack.FieldPlatformUserID, slack.FieldDisplayName, slack.FieldEmail, slack.FieldPicture:
 			values[i] = new(sql.NullString)
 		case slack.FieldID:
 			values[i] = new(uuid.UUID)
@@ -90,17 +90,17 @@ func (_m *Slack) assignValues(columns []string, values []any) error {
 			} else if value != nil {
 				_m.ID = *value
 			}
-		case slack.FieldTeamID:
+		case slack.FieldPlatformTeamID:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field team_id", values[i])
+				return fmt.Errorf("unexpected type %T for field platform_team_id", values[i])
 			} else if value.Valid {
-				_m.TeamID = value.String
+				_m.PlatformTeamID = value.String
 			}
-		case slack.FieldSlackUserID:
+		case slack.FieldPlatformUserID:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field slack_user_id", values[i])
+				return fmt.Errorf("unexpected type %T for field platform_user_id", values[i])
 			} else if value.Valid {
-				_m.SlackUserID = value.String
+				_m.PlatformUserID = value.String
 			}
 		case slack.FieldDisplayName:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -171,11 +171,11 @@ func (_m *Slack) String() string {
 	var builder strings.Builder
 	builder.WriteString("Slack(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
-	builder.WriteString("team_id=")
-	builder.WriteString(_m.TeamID)
+	builder.WriteString("platform_team_id=")
+	builder.WriteString(_m.PlatformTeamID)
 	builder.WriteString(", ")
-	builder.WriteString("slack_user_id=")
-	builder.WriteString(_m.SlackUserID)
+	builder.WriteString("platform_user_id=")
+	builder.WriteString(_m.PlatformUserID)
 	builder.WriteString(", ")
 	if v := _m.DisplayName; v != nil {
 		builder.WriteString("display_name=")

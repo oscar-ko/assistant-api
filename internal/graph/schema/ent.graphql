@@ -881,37 +881,37 @@ input SlackWhereInput {
   idLT: ID
   idLTE: ID
   """
-  team_id field predicates
+  platform_team_id field predicates
   """
-  teamID: String
-  teamIDNEQ: String
-  teamIDIn: [String!]
-  teamIDNotIn: [String!]
-  teamIDGT: String
-  teamIDGTE: String
-  teamIDLT: String
-  teamIDLTE: String
-  teamIDContains: String
-  teamIDHasPrefix: String
-  teamIDHasSuffix: String
-  teamIDEqualFold: String
-  teamIDContainsFold: String
+  platformTeamID: String
+  platformTeamIDNEQ: String
+  platformTeamIDIn: [String!]
+  platformTeamIDNotIn: [String!]
+  platformTeamIDGT: String
+  platformTeamIDGTE: String
+  platformTeamIDLT: String
+  platformTeamIDLTE: String
+  platformTeamIDContains: String
+  platformTeamIDHasPrefix: String
+  platformTeamIDHasSuffix: String
+  platformTeamIDEqualFold: String
+  platformTeamIDContainsFold: String
   """
-  slack_user_id field predicates
+  platform_user_id field predicates
   """
-  slackUserID: String
-  slackUserIDNEQ: String
-  slackUserIDIn: [String!]
-  slackUserIDNotIn: [String!]
-  slackUserIDGT: String
-  slackUserIDGTE: String
-  slackUserIDLT: String
-  slackUserIDLTE: String
-  slackUserIDContains: String
-  slackUserIDHasPrefix: String
-  slackUserIDHasSuffix: String
-  slackUserIDEqualFold: String
-  slackUserIDContainsFold: String
+  platformUserID: String
+  platformUserIDNEQ: String
+  platformUserIDIn: [String!]
+  platformUserIDNotIn: [String!]
+  platformUserIDGT: String
+  platformUserIDGTE: String
+  platformUserIDLT: String
+  platformUserIDLTE: String
+  platformUserIDContains: String
+  platformUserIDHasPrefix: String
+  platformUserIDHasSuffix: String
+  platformUserIDEqualFold: String
+  platformUserIDContainsFold: String
   """
   display_name field predicates
   """
