@@ -589,10 +589,20 @@ func (_q *ChannelMessageQuery) collectField(ctx context.Context, oneNode bool, o
 				selectedFields = append(selectedFields, channelmessage.FieldRelatedMessageID)
 				fieldSeen[channelmessage.FieldRelatedMessageID] = struct{}{}
 			}
+		case "platformTenantID":
+			if _, ok := fieldSeen[channelmessage.FieldPlatformTenantID]; !ok {
+				selectedFields = append(selectedFields, channelmessage.FieldPlatformTenantID)
+				fieldSeen[channelmessage.FieldPlatformTenantID] = struct{}{}
+			}
 		case "senderID":
 			if _, ok := fieldSeen[channelmessage.FieldSenderID]; !ok {
 				selectedFields = append(selectedFields, channelmessage.FieldSenderID)
 				fieldSeen[channelmessage.FieldSenderID] = struct{}{}
+			}
+		case "senderUserID":
+			if _, ok := fieldSeen[channelmessage.FieldSenderUserID]; !ok {
+				selectedFields = append(selectedFields, channelmessage.FieldSenderUserID)
+				fieldSeen[channelmessage.FieldSenderUserID] = struct{}{}
 			}
 		case "senderName":
 			if _, ok := fieldSeen[channelmessage.FieldSenderName]; !ok {

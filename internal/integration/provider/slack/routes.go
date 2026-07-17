@@ -1,57 +1,46 @@
 package slack
 
-// stateCookieName 用於 Slack 安裝 OAuth（bot install）流程的 CSRF state cookie。
-
-// loginStateCookieName 用於 Slack Login（OpenID 綁定）流程的 CSRF state cookie。
-// 與安裝流程分離，避免兩條 OAuth 流程互相覆蓋 state。
 import (
 	"encoding/json"
 	"fmt"
-
-	// RegisterRoutes 註冊 Slack provider 的所有 HTTP 入口。
-	//
-	// 路由分成兩條主線：
-	// 1) /slack/oauth/*：Slack App 安裝流程（目標是 bot 能力授權）
-	// 2) /slack/login/*：Slack OpenID 登入綁定（目標是使用者身分綁定）
-	//
-	// 兩條線刻意分開，避免把「安裝 bot」與「登入綁定 user」混成同一個 callback。
 	"net/http"
 	"net/url"
-
-	// ChannelMessageRepo 供 webhook 事件落庫與指令流程使用。
 	"strings"
-	// ActionRouteRepo + top-k filter 提供指令候選路由召回能力。
 	"time"
 
 	"assistant-api/internal/config"
 	"assistant-api/internal/ent"
 	aillminteraction "assistant-api/internal/integration/ai/llm_interaction"
-
-	// LLM 互動服務供 command flow 決策使用。
 	aitopkfilter "assistant-api/internal/integration/ai/topkfilter"
 	"assistant-api/internal/integration/auth"
 	"assistant-api/internal/repository"
 
-	// followUpSender 是 webhook 後續回覆能力；初始化失敗時由下游自行處理 nil sender。
 	"github.com/gin-gonic/gin"
 )
 
 const (
-	stateCookieName      = "slack_oauth_state"
+	// stateCookieName 用於 Slack 安裝 OAuth（bot install）流程的 CSRF state cookie。
+	stateCookieName = "slack_oauth_state"
+	// loginStateCookieName 用於 Slack Login（OpenID 綁定）流程的 CSRF state cookie。
 	loginStateCookieName = "slack_login_oauth_state"
 )
 
+// RegisterRoutes 註冊 Slack provider 的 HTTP 路由。
+//
+// 路由分兩條主線：
+// 1) /slack/oauth/*：Slack App 安裝授權
+// 2) /slack/login/*：Slack OpenID 綁定登入
+//
+// 安裝與登入分離的原因：
+// - 安裝流程的主體是 workspace（bot token / app scope）
+// - 登入流程的主體是 user（OpenID 身分）
+// - 分離後可避免 callback 混用造成 state 或資料語意錯亂
 func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 	slackRepo := repository.NewSlackRepo(client)
 	channelMessageRepo := repository.NewChannelMessageRepo(client)
 	actionRouteRepo := repository.NewActionRouteRepo(client)
+
 	filterService, err := aitopkfilter.BuildServiceFromConfig(actionRouteRepo, config.AI)
-	// oauthStart 啟動 Slack App 安裝 OAuth。
-	//
-	// 嚴格模式（fail-fast）：
-	// - client_id/client_secret 缺值直接回錯
-	// - redirect_uri/scopes 缺值直接回錯
-	// - 不做動態推導，不做預設補值
 	if err != nil {
 		panic(fmt.Errorf("failed to initialize top-k filter service: %w", err))
 	}
@@ -64,7 +53,7 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 	r.GET("/slack/oauth/start", oauthStart)
 	r.GET("/slack/oauth/callback", oauthCallback)
 	r.GET("/slack/login/start", loginStart)
-	r.GET("/slack/login/callback", loginCallback(slackRepo))
+	r.GET("/slack/login/callback", loginCallback(slackRepo, channelMessageRepo))
 	r.POST("/slack/events", webhookHandler(NewWebhookServiceWithOptions(channelMessageRepo, WebhookServiceOptions{
 		LLMInteraction: llmInteractionService,
 		TopKFilter:     filterService,
@@ -72,6 +61,10 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 	})))
 }
 
+// oauthStart 啟動 Slack App 安裝 OAuth。
+//
+// 嚴格模式：必要設定缺值直接報錯，不做 fallback。
+// 這裡只做導轉，不寫 DB；資料落地集中在 callback 成功後處理。
 func oauthStart(c *gin.Context) {
 	if strings.TrimSpace(config.Slack.ClientID) == "" || strings.TrimSpace(config.Slack.ClientSecret) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "slack oauth config is incomplete"})
@@ -110,8 +103,9 @@ func oauthStart(c *gin.Context) {
 
 // loginStart 啟動 Slack OpenID Connect 登入流程。
 //
-// 這條路徑專門用於「綁定使用者身份」，與 bot install 分離。
-// 嚴格模式要求 login_redirect_uri 與 login_scopes 都必須明確設定。
+// 與 oauthStart 的差異：
+// - login 用 login_redirect_uri / login_scopes
+// - callback 會進入使用者綁定與 private channel 初始化
 func loginStart(c *gin.Context) {
 	if strings.TrimSpace(config.Slack.ClientID) == "" || strings.TrimSpace(config.Slack.ClientSecret) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "slack oauth config is incomplete"})
@@ -146,8 +140,6 @@ func loginStart(c *gin.Context) {
 	c.Redirect(http.StatusFound, authorizeURL)
 }
 
-// slackOAuthAccessResponse 對應 Slack 安裝 OAuth 的 token exchange 回應。
-// 這裡只保留目前流程會用到的欄位，避免結構過度膨脹。
 type slackOAuthAccessResponse struct {
 	OK          bool   `json:"ok"`
 	Error       string `json:"error"`
@@ -167,11 +159,8 @@ type slackOAuthAccessResponse struct {
 
 // oauthCallback 處理 Slack App 安裝 OAuth callback。
 //
-// 流程：
-// 1) 驗證 state 防止 CSRF
-// 2) 檢查 code 與 redirect_uri
-// 3) 呼叫 oauth.v2.access 交換 token
-// 4) 回傳安裝結果摘要（不直接在此處寫入 config）
+// 本流程只回傳安裝結果摘要，不直接覆寫本地設定檔，
+// 以避免 runtime 修改設定帶來不可預期副作用。
 func oauthCallback(c *gin.Context) {
 	state := c.Query("state")
 	expectedState := auth.GetStateCookie(c, stateCookieName)
@@ -240,12 +229,16 @@ func oauthCallback(c *gin.Context) {
 	})
 }
 
-// loginCallback 處理 Slack Login callback，完成 Slack 身分與系統 user 綁定。
+// loginCallback 處理 Slack Login callback，並在綁定成功後建立 private channel。
 //
-// 這裡只負責 OAuth 入口編排與錯誤回覆：
-// - 取得 profile 與綁定策略由 getProfileByAuthCode / bindUser 負責
-// - 路由層不承擔資料庫細節，維持職責單一
-func loginCallback(repo slackBindRepository) gin.HandlerFunc {
+// 嚴格順序：
+// 1) 驗證 state/code
+// 2) 交換 OpenID profile
+// 3) 綁定本地 user
+// 4) 開 DM conversation 取得 channel id
+// 5) 建立本地 private channel
+// 任何一步失敗都直接回錯，不做隱式降級。
+func loginCallback(repo slackBindRepository, channelRepo *repository.ChannelMessageRepo) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		state := c.Query("state")
 		expectedState := auth.GetStateCookie(c, loginStateCookieName)
@@ -278,10 +271,26 @@ func loginCallback(repo slackBindRepository) gin.HandlerFunc {
 			return
 		}
 
+		// 嚴格模式：綁定成功後先開 DM，並以 DM channel id 建立 private channel。
+		if channelRepo == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "channel repository not initialized"})
+			return
+		}
+		dmChannelID, err := OpenDMChannelID(c.Request.Context(), strings.TrimSpace(profile.UserID))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if _, err := channelRepo.GetOrCreateChannel(c.Request.Context(), "slack", dmChannelID, "private"); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create slack private channel"})
+			return
+		}
+
 		c.JSON(http.StatusOK, gin.H{
-			"status":        "bound",
-			"slack_team_id": strings.TrimSpace(profile.TeamID),
-			"slack_user_id": strings.TrimSpace(profile.UserID),
+			"status":           "bound",
+			"slack_team_id":    strings.TrimSpace(profile.TeamID),
+			"slack_user_id":    strings.TrimSpace(profile.UserID),
+			"slack_dm_channel": dmChannelID,
 			"user": gin.H{
 				"id":    u.ID,
 				"name":  u.Name,
@@ -291,7 +300,7 @@ func loginCallback(repo slackBindRepository) gin.HandlerFunc {
 	}
 }
 
-// maskToken 將敏感 token 做遮罩後回傳，避免完整 token 外洩到 API 回應。
+// maskToken 將敏感 token 做遮罩後回傳。
 func maskToken(raw string) string {
 	v := strings.TrimSpace(raw)
 	if v == "" {

@@ -3139,7 +3139,9 @@ type ChannelMessageMutation struct {
 	created_at             *time.Time
 	updated_at             *time.Time
 	content                *string
+	platform_tenant_id     *string
 	sender_id              *string
+	sender_user_id         *uuid.UUID
 	sender_name            *string
 	platform_message_id    *string
 	reply_to_msg_id        *string
@@ -3456,6 +3458,55 @@ func (m *ChannelMessageMutation) ResetRelatedMessageID() {
 	delete(m.clearedFields, channelmessage.FieldRelatedMessageID)
 }
 
+// SetPlatformTenantID sets the "platform_tenant_id" field.
+func (m *ChannelMessageMutation) SetPlatformTenantID(s string) {
+	m.platform_tenant_id = &s
+}
+
+// PlatformTenantID returns the value of the "platform_tenant_id" field in the mutation.
+func (m *ChannelMessageMutation) PlatformTenantID() (r string, exists bool) {
+	v := m.platform_tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlatformTenantID returns the old "platform_tenant_id" field's value of the ChannelMessage entity.
+// If the ChannelMessage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMessageMutation) OldPlatformTenantID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlatformTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlatformTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlatformTenantID: %w", err)
+	}
+	return oldValue.PlatformTenantID, nil
+}
+
+// ClearPlatformTenantID clears the value of the "platform_tenant_id" field.
+func (m *ChannelMessageMutation) ClearPlatformTenantID() {
+	m.platform_tenant_id = nil
+	m.clearedFields[channelmessage.FieldPlatformTenantID] = struct{}{}
+}
+
+// PlatformTenantIDCleared returns if the "platform_tenant_id" field was cleared in this mutation.
+func (m *ChannelMessageMutation) PlatformTenantIDCleared() bool {
+	_, ok := m.clearedFields[channelmessage.FieldPlatformTenantID]
+	return ok
+}
+
+// ResetPlatformTenantID resets all changes to the "platform_tenant_id" field.
+func (m *ChannelMessageMutation) ResetPlatformTenantID() {
+	m.platform_tenant_id = nil
+	delete(m.clearedFields, channelmessage.FieldPlatformTenantID)
+}
+
 // SetSenderID sets the "sender_id" field.
 func (m *ChannelMessageMutation) SetSenderID(s string) {
 	m.sender_id = &s
@@ -3490,6 +3541,55 @@ func (m *ChannelMessageMutation) OldSenderID(ctx context.Context) (v string, err
 // ResetSenderID resets all changes to the "sender_id" field.
 func (m *ChannelMessageMutation) ResetSenderID() {
 	m.sender_id = nil
+}
+
+// SetSenderUserID sets the "sender_user_id" field.
+func (m *ChannelMessageMutation) SetSenderUserID(u uuid.UUID) {
+	m.sender_user_id = &u
+}
+
+// SenderUserID returns the value of the "sender_user_id" field in the mutation.
+func (m *ChannelMessageMutation) SenderUserID() (r uuid.UUID, exists bool) {
+	v := m.sender_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSenderUserID returns the old "sender_user_id" field's value of the ChannelMessage entity.
+// If the ChannelMessage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMessageMutation) OldSenderUserID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSenderUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSenderUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSenderUserID: %w", err)
+	}
+	return oldValue.SenderUserID, nil
+}
+
+// ClearSenderUserID clears the value of the "sender_user_id" field.
+func (m *ChannelMessageMutation) ClearSenderUserID() {
+	m.sender_user_id = nil
+	m.clearedFields[channelmessage.FieldSenderUserID] = struct{}{}
+}
+
+// SenderUserIDCleared returns if the "sender_user_id" field was cleared in this mutation.
+func (m *ChannelMessageMutation) SenderUserIDCleared() bool {
+	_, ok := m.clearedFields[channelmessage.FieldSenderUserID]
+	return ok
+}
+
+// ResetSenderUserID resets all changes to the "sender_user_id" field.
+func (m *ChannelMessageMutation) ResetSenderUserID() {
+	m.sender_user_id = nil
+	delete(m.clearedFields, channelmessage.FieldSenderUserID)
 }
 
 // SetSenderName sets the "sender_name" field.
@@ -3887,7 +3987,7 @@ func (m *ChannelMessageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelMessageMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 13)
 	if m.created_at != nil {
 		fields = append(fields, channelmessage.FieldCreatedAt)
 	}
@@ -3903,8 +4003,14 @@ func (m *ChannelMessageMutation) Fields() []string {
 	if m.related_message != nil {
 		fields = append(fields, channelmessage.FieldRelatedMessageID)
 	}
+	if m.platform_tenant_id != nil {
+		fields = append(fields, channelmessage.FieldPlatformTenantID)
+	}
 	if m.sender_id != nil {
 		fields = append(fields, channelmessage.FieldSenderID)
+	}
+	if m.sender_user_id != nil {
+		fields = append(fields, channelmessage.FieldSenderUserID)
 	}
 	if m.sender_name != nil {
 		fields = append(fields, channelmessage.FieldSenderName)
@@ -3939,8 +4045,12 @@ func (m *ChannelMessageMutation) Field(name string) (ent.Value, bool) {
 		return m.ChannelID()
 	case channelmessage.FieldRelatedMessageID:
 		return m.RelatedMessageID()
+	case channelmessage.FieldPlatformTenantID:
+		return m.PlatformTenantID()
 	case channelmessage.FieldSenderID:
 		return m.SenderID()
+	case channelmessage.FieldSenderUserID:
+		return m.SenderUserID()
 	case channelmessage.FieldSenderName:
 		return m.SenderName()
 	case channelmessage.FieldPlatformMessageID:
@@ -3970,8 +4080,12 @@ func (m *ChannelMessageMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldChannelID(ctx)
 	case channelmessage.FieldRelatedMessageID:
 		return m.OldRelatedMessageID(ctx)
+	case channelmessage.FieldPlatformTenantID:
+		return m.OldPlatformTenantID(ctx)
 	case channelmessage.FieldSenderID:
 		return m.OldSenderID(ctx)
+	case channelmessage.FieldSenderUserID:
+		return m.OldSenderUserID(ctx)
 	case channelmessage.FieldSenderName:
 		return m.OldSenderName(ctx)
 	case channelmessage.FieldPlatformMessageID:
@@ -4026,12 +4140,26 @@ func (m *ChannelMessageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRelatedMessageID(v)
 		return nil
+	case channelmessage.FieldPlatformTenantID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlatformTenantID(v)
+		return nil
 	case channelmessage.FieldSenderID:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetSenderID(v)
+		return nil
+	case channelmessage.FieldSenderUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSenderUserID(v)
 		return nil
 	case channelmessage.FieldSenderName:
 		v, ok := value.(string)
@@ -4116,6 +4244,12 @@ func (m *ChannelMessageMutation) ClearedFields() []string {
 	if m.FieldCleared(channelmessage.FieldRelatedMessageID) {
 		fields = append(fields, channelmessage.FieldRelatedMessageID)
 	}
+	if m.FieldCleared(channelmessage.FieldPlatformTenantID) {
+		fields = append(fields, channelmessage.FieldPlatformTenantID)
+	}
+	if m.FieldCleared(channelmessage.FieldSenderUserID) {
+		fields = append(fields, channelmessage.FieldSenderUserID)
+	}
 	if m.FieldCleared(channelmessage.FieldSenderName) {
 		fields = append(fields, channelmessage.FieldSenderName)
 	}
@@ -4144,6 +4278,12 @@ func (m *ChannelMessageMutation) ClearField(name string) error {
 	switch name {
 	case channelmessage.FieldRelatedMessageID:
 		m.ClearRelatedMessageID()
+		return nil
+	case channelmessage.FieldPlatformTenantID:
+		m.ClearPlatformTenantID()
+		return nil
+	case channelmessage.FieldSenderUserID:
+		m.ClearSenderUserID()
 		return nil
 	case channelmessage.FieldSenderName:
 		m.ClearSenderName()
@@ -4180,8 +4320,14 @@ func (m *ChannelMessageMutation) ResetField(name string) error {
 	case channelmessage.FieldRelatedMessageID:
 		m.ResetRelatedMessageID()
 		return nil
+	case channelmessage.FieldPlatformTenantID:
+		m.ResetPlatformTenantID()
+		return nil
 	case channelmessage.FieldSenderID:
 		m.ResetSenderID()
+		return nil
+	case channelmessage.FieldSenderUserID:
+		m.ResetSenderUserID()
 		return nil
 	case channelmessage.FieldSenderName:
 		m.ResetSenderName()

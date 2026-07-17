@@ -21,6 +21,13 @@ import (
 const stateCookieName = "line_oauth_state"
 
 // RegisterRoutes 註冊 LINE OAuth 與綁定路由。
+//
+// 角色分工：
+// - /line/oauth/*：處理 LINE 使用者綁定授權
+// - /line/webhook：處理入站事件與共用 AI 流程
+//
+// 注意：private channel 會在綁定 callback 內建立，
+// 入站持久化流程不再負責補建 channel。
 func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 	// 基礎 repository：處理 LINE 綁定與訊息持久化。
 	lineRepo := repository.NewLineRepo(client)
@@ -41,7 +48,7 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 	// OAuth 相關端點。
 	r.GET("/line/bind", bindPage)
 	r.GET("/line/oauth/start", oauthStart)
-	r.GET("/line/oauth/callback", oauthCallback(lineRepo))
+	r.GET("/line/oauth/callback", oauthCallback(lineRepo, channelMessageRepo))
 	// Webhook 採 handler -> service 分層，便於後續替換 queue/worker 實作。
 	r.POST("/line/webhook", webhookHandler(NewWebhookServiceWithOptions(channelMessageRepo, WebhookServiceOptions{LLMInteraction: llmInteractionService, TopKFilter: filterService, FollowUpSender: followUpSender})))
 }
@@ -81,7 +88,7 @@ func oauthStart(c *gin.Context) {
 }
 
 // oauthCallback 處理 LINE OAuth callback，完成綁定或建立使用者。
-func oauthCallback(repo lineBindRepository) gin.HandlerFunc {
+func oauthCallback(repo lineBindRepository, channelRepo *repository.ChannelMessageRepo) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 先驗證 state，阻擋 CSRF。
 		state := c.Query("state")
@@ -108,6 +115,24 @@ func oauthCallback(repo lineBindRepository) gin.HandlerFunc {
 		u, err := bindUser(c.Request.Context(), repo, profile)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		// 嚴格模式：LINE 綁定成功後立即建立 private channel。
+		// 之後入站訊息只允許寫入既有 channel，不在入站流程補建。
+		if channelRepo == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "channel repository not initialized"})
+			return
+		}
+		lineUserID := strings.TrimSpace(profile.UserID)
+		if lineUserID == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "line user id is empty"})
+			return
+		}
+		// 以 line user id 作為 private channel 的 group_id。
+		// 這個決策可讓後續所有 LINE 私訊入站都穩定映射到同一筆 channel。
+		if _, err := channelRepo.GetOrCreateChannel(c.Request.Context(), "line", lineUserID, "private"); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create line private channel"})
 			return
 		}
 

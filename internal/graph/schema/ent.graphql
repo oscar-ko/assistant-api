@@ -352,6 +352,24 @@ input ChannelMessageWhereInput {
   relatedMessageIDIsNil: Boolean
   relatedMessageIDNotNil: Boolean
   """
+  platform_tenant_id field predicates
+  """
+  platformTenantID: String
+  platformTenantIDNEQ: String
+  platformTenantIDIn: [String!]
+  platformTenantIDNotIn: [String!]
+  platformTenantIDGT: String
+  platformTenantIDGTE: String
+  platformTenantIDLT: String
+  platformTenantIDLTE: String
+  platformTenantIDContains: String
+  platformTenantIDHasPrefix: String
+  platformTenantIDHasSuffix: String
+  platformTenantIDIsNil: Boolean
+  platformTenantIDNotNil: Boolean
+  platformTenantIDEqualFold: String
+  platformTenantIDContainsFold: String
+  """
   sender_id field predicates
   """
   senderID: String
@@ -367,6 +385,19 @@ input ChannelMessageWhereInput {
   senderIDHasSuffix: String
   senderIDEqualFold: String
   senderIDContainsFold: String
+  """
+  sender_user_id field predicates
+  """
+  senderUserID: UUID
+  senderUserIDNEQ: UUID
+  senderUserIDIn: [UUID!]
+  senderUserIDNotIn: [UUID!]
+  senderUserIDGT: UUID
+  senderUserIDGTE: UUID
+  senderUserIDLT: UUID
+  senderUserIDLTE: UUID
+  senderUserIDIsNil: Boolean
+  senderUserIDNotNil: Boolean
   """
   sender_name field predicates
   """

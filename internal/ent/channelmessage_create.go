@@ -76,9 +76,37 @@ func (_c *ChannelMessageCreate) SetNillableRelatedMessageID(v *uuid.UUID) *Chann
 	return _c
 }
 
+// SetPlatformTenantID sets the "platform_tenant_id" field.
+func (_c *ChannelMessageCreate) SetPlatformTenantID(v string) *ChannelMessageCreate {
+	_c.mutation.SetPlatformTenantID(v)
+	return _c
+}
+
+// SetNillablePlatformTenantID sets the "platform_tenant_id" field if the given value is not nil.
+func (_c *ChannelMessageCreate) SetNillablePlatformTenantID(v *string) *ChannelMessageCreate {
+	if v != nil {
+		_c.SetPlatformTenantID(*v)
+	}
+	return _c
+}
+
 // SetSenderID sets the "sender_id" field.
 func (_c *ChannelMessageCreate) SetSenderID(v string) *ChannelMessageCreate {
 	_c.mutation.SetSenderID(v)
+	return _c
+}
+
+// SetSenderUserID sets the "sender_user_id" field.
+func (_c *ChannelMessageCreate) SetSenderUserID(v uuid.UUID) *ChannelMessageCreate {
+	_c.mutation.SetSenderUserID(v)
+	return _c
+}
+
+// SetNillableSenderUserID sets the "sender_user_id" field if the given value is not nil.
+func (_c *ChannelMessageCreate) SetNillableSenderUserID(v *uuid.UUID) *ChannelMessageCreate {
+	if v != nil {
+		_c.SetSenderUserID(*v)
+	}
 	return _c
 }
 
@@ -319,9 +347,17 @@ func (_c *ChannelMessageCreate) createSpec() (*ChannelMessage, *sqlgraph.CreateS
 		_spec.SetField(channelmessage.FieldContent, field.TypeString, value)
 		_node.Content = value
 	}
+	if value, ok := _c.mutation.PlatformTenantID(); ok {
+		_spec.SetField(channelmessage.FieldPlatformTenantID, field.TypeString, value)
+		_node.PlatformTenantID = value
+	}
 	if value, ok := _c.mutation.SenderID(); ok {
 		_spec.SetField(channelmessage.FieldSenderID, field.TypeString, value)
 		_node.SenderID = value
+	}
+	if value, ok := _c.mutation.SenderUserID(); ok {
+		_spec.SetField(channelmessage.FieldSenderUserID, field.TypeUUID, value)
+		_node.SenderUserID = &value
 	}
 	if value, ok := _c.mutation.SenderName(); ok {
 		_spec.SetField(channelmessage.FieldSenderName, field.TypeString, value)

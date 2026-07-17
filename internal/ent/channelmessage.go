@@ -30,8 +30,12 @@ type ChannelMessage struct {
 	ChannelID uuid.UUID `json:"channel_id,omitempty"`
 	// 關聯上一則訊息 ID
 	RelatedMessageID *uuid.UUID `json:"related_message_id,omitempty"`
+	// 平台租戶/工作區識別（例如 Slack team ID、Teams tenant ID）
+	PlatformTenantID string `json:"platform_tenant_id,omitempty"`
 	// 訊息發送者平台 ID
 	SenderID string `json:"sender_id,omitempty"`
+	// 映射後的系統內 user ID
+	SenderUserID *uuid.UUID `json:"sender_user_id,omitempty"`
 	// 訊息發送者顯示名稱
 	SenderName string `json:"sender_name,omitempty"`
 	// 平台原始訊息 ID
@@ -101,11 +105,11 @@ func (*ChannelMessage) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case channelmessage.FieldRelatedMessageID:
+		case channelmessage.FieldRelatedMessageID, channelmessage.FieldSenderUserID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case channelmessage.FieldPlatformTimestamp:
 			values[i] = new(sql.NullInt64)
-		case channelmessage.FieldContent, channelmessage.FieldSenderID, channelmessage.FieldSenderName, channelmessage.FieldPlatformMessageID, channelmessage.FieldReplyToMsgID, channelmessage.FieldMessageType:
+		case channelmessage.FieldContent, channelmessage.FieldPlatformTenantID, channelmessage.FieldSenderID, channelmessage.FieldSenderName, channelmessage.FieldPlatformMessageID, channelmessage.FieldReplyToMsgID, channelmessage.FieldMessageType:
 			values[i] = new(sql.NullString)
 		case channelmessage.FieldCreatedAt, channelmessage.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -163,11 +167,24 @@ func (_m *ChannelMessage) assignValues(columns []string, values []any) error {
 				_m.RelatedMessageID = new(uuid.UUID)
 				*_m.RelatedMessageID = *value.S.(*uuid.UUID)
 			}
+		case channelmessage.FieldPlatformTenantID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field platform_tenant_id", values[i])
+			} else if value.Valid {
+				_m.PlatformTenantID = value.String
+			}
 		case channelmessage.FieldSenderID:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field sender_id", values[i])
 			} else if value.Valid {
 				_m.SenderID = value.String
+			}
+		case channelmessage.FieldSenderUserID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field sender_user_id", values[i])
+			} else if value.Valid {
+				_m.SenderUserID = new(uuid.UUID)
+				*_m.SenderUserID = *value.S.(*uuid.UUID)
 			}
 		case channelmessage.FieldSenderName:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -267,8 +284,16 @@ func (_m *ChannelMessage) String() string {
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
+	builder.WriteString("platform_tenant_id=")
+	builder.WriteString(_m.PlatformTenantID)
+	builder.WriteString(", ")
 	builder.WriteString("sender_id=")
 	builder.WriteString(_m.SenderID)
+	builder.WriteString(", ")
+	if v := _m.SenderUserID; v != nil {
+		builder.WriteString("sender_user_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("sender_name=")
 	builder.WriteString(_m.SenderName)

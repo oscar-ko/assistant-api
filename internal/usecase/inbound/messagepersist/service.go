@@ -14,7 +14,7 @@ import (
 // ChannelMessageStore 定義持久化統一訊息所需的最小資料存取能力。
 // 只保留跨 provider 共用的 channel/message upsert 行為。
 type ChannelMessageStore interface {
-	GetOrCreateChannel(ctx context.Context, platform string, groupID string, channelType string) (*ent.Channel, error)
+	GetChannelByPlatformGroupID(ctx context.Context, platform string, groupID string) (*ent.Channel, error)
 	SaveReceivedMessage(
 		ctx context.Context,
 		channelID uuid.UUID,
@@ -61,6 +61,12 @@ type Service struct {
 	resolver SenderNameResolver
 }
 
+// NewService 建立入站訊息持久化服務。
+//
+// 設計說明：
+//   - resolver 允許各平台自行補齊 sender 顯示名稱（例如 LINE profile、Slack profile）。
+//   - 當 resolver 未提供時，回退到 Noop 以維持流程可執行；
+//     這裡的回退僅限「顯示名稱附加資訊」，不影響綁定/權限等核心約束。
 func NewService(store ChannelMessageStore, resolver SenderNameResolver) Service {
 	if resolver == nil {
 		resolver = NoopSenderNameResolver{}
@@ -106,15 +112,25 @@ func (s Service) PersistUnifiedMessage(ctx context.Context, message *unifiedmess
 		)
 	}
 
-	// 先確保 channel 存在，再寫入 message。
-	// 這可避免 message 出現孤兒資料，且把 channel 建立責任集中在 store。
-	ch, err := s.store.GetOrCreateChannel(ctx, platform, channelID, channelType)
+	// 嚴格模式：入站訊息只允許寫入既有 channel，不可在此自動建立。
+	// channel 必須由綁定流程先建立，才能避免未綁定來源汙染資料。
+	ch, err := s.store.GetChannelByPlatformGroupID(ctx, platform, channelID)
 	if err != nil {
 		zap.L().Error("persist unified message channel failed",
 			zap.String("platform", platform),
 			zap.String("channel_id", channelID),
 			zap.String("channel_type", channelType),
 			zap.Error(err),
+		)
+		return nil
+	}
+	if ch == nil || ch.ID == uuid.Nil {
+		// 找不到 channel 代表此來源尚未完成綁定初始化。
+		// 依需求此處必須直接略過，不得偷建 channel。
+		zap.L().Warn("persist unified message skipped: channel not bound",
+			zap.String("platform", platform),
+			zap.String("channel_id", channelID),
+			zap.String("channel_type", channelType),
 		)
 		return nil
 	}

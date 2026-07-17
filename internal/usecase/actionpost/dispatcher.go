@@ -142,13 +142,15 @@ func NewPersistTranslationCommandStateHandler(repo *repository.ChannelMessageRep
 
 		// unified message 的 ChannelID 是平台外部識別（例如 LINE group/user id），
 		// 不是資料庫 channel 主鍵；這裡必須先解析/查回內部 channel UUID。
-		channel, err := repo.GetOrCreateChannel(
+		channel, err := repo.GetChannelByPlatformGroupID(
 			context.Background(),
 			strings.TrimSpace(message.Platform),
 			strings.TrimSpace(message.ChannelID),
-			strings.TrimSpace(message.ChannelType),
 		)
 		if err != nil || channel == nil || channel.ID == uuid.Nil {
+			// 此處不允許補建 channel：
+			// 若 channel 不存在，代表來源尚未完成綁定初始化，
+			// 持久化 action_result 會失去正確歸屬，故直接失敗返回。
 			zap.L().Error("translation command persistence failed: resolve internal channel failed",
 				zap.String("platform", strings.TrimSpace(message.Platform)),
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),

@@ -232,12 +232,13 @@ func (s *AutoTranslateService) resolveChannelID(ctx context.Context, message *un
 	if savedMessage != nil && savedMessage.ChannelID != uuid.Nil {
 		return savedMessage.ChannelID, true
 	}
-	// 保底路徑：用平台欄位反查/建立 channel。
-	channelNode, err := s.repo.GetOrCreateChannel(
+	// 保底路徑：只做查詢，不在即時流程自動建立 channel。
+	// 理由：channel 的生命週期由綁定流程負責，
+	// 即時翻譯屬於訊息副作用，不可越權初始化 channel。
+	channelNode, err := s.repo.GetChannelByPlatformGroupID(
 		ctx,
 		strings.TrimSpace(message.Platform),
 		strings.TrimSpace(message.ChannelID),
-		strings.TrimSpace(message.ChannelType),
 	)
 	if err != nil || channelNode == nil {
 		if err != nil {
@@ -247,6 +248,7 @@ func (s *AutoTranslateService) resolveChannelID(ctx context.Context, message *un
 				zap.Error(err),
 			)
 		}
+		// 無 channel 時直接略過，避免產生「翻譯訊息存在但主訊息未綁定」的不一致資料。
 		return uuid.Nil, false
 	}
 	return channelNode.ID, true

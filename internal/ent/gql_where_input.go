@@ -1637,6 +1637,23 @@ type ChannelMessageWhereInput struct {
 	RelatedMessageIDIsNil  bool        `json:"relatedMessageIDIsNil,omitempty"`
 	RelatedMessageIDNotNil bool        `json:"relatedMessageIDNotNil,omitempty"`
 
+	// "platform_tenant_id" field predicates.
+	PlatformTenantID             *string  `json:"platformTenantID,omitempty"`
+	PlatformTenantIDNEQ          *string  `json:"platformTenantIDNEQ,omitempty"`
+	PlatformTenantIDIn           []string `json:"platformTenantIDIn,omitempty"`
+	PlatformTenantIDNotIn        []string `json:"platformTenantIDNotIn,omitempty"`
+	PlatformTenantIDGT           *string  `json:"platformTenantIDGT,omitempty"`
+	PlatformTenantIDGTE          *string  `json:"platformTenantIDGTE,omitempty"`
+	PlatformTenantIDLT           *string  `json:"platformTenantIDLT,omitempty"`
+	PlatformTenantIDLTE          *string  `json:"platformTenantIDLTE,omitempty"`
+	PlatformTenantIDContains     *string  `json:"platformTenantIDContains,omitempty"`
+	PlatformTenantIDHasPrefix    *string  `json:"platformTenantIDHasPrefix,omitempty"`
+	PlatformTenantIDHasSuffix    *string  `json:"platformTenantIDHasSuffix,omitempty"`
+	PlatformTenantIDIsNil        bool     `json:"platformTenantIDIsNil,omitempty"`
+	PlatformTenantIDNotNil       bool     `json:"platformTenantIDNotNil,omitempty"`
+	PlatformTenantIDEqualFold    *string  `json:"platformTenantIDEqualFold,omitempty"`
+	PlatformTenantIDContainsFold *string  `json:"platformTenantIDContainsFold,omitempty"`
+
 	// "sender_id" field predicates.
 	SenderID             *string  `json:"senderID,omitempty"`
 	SenderIDNEQ          *string  `json:"senderIDNEQ,omitempty"`
@@ -1651,6 +1668,18 @@ type ChannelMessageWhereInput struct {
 	SenderIDHasSuffix    *string  `json:"senderIDHasSuffix,omitempty"`
 	SenderIDEqualFold    *string  `json:"senderIDEqualFold,omitempty"`
 	SenderIDContainsFold *string  `json:"senderIDContainsFold,omitempty"`
+
+	// "sender_user_id" field predicates.
+	SenderUserID       *uuid.UUID  `json:"senderUserID,omitempty"`
+	SenderUserIDNEQ    *uuid.UUID  `json:"senderUserIDNEQ,omitempty"`
+	SenderUserIDIn     []uuid.UUID `json:"senderUserIDIn,omitempty"`
+	SenderUserIDNotIn  []uuid.UUID `json:"senderUserIDNotIn,omitempty"`
+	SenderUserIDGT     *uuid.UUID  `json:"senderUserIDGT,omitempty"`
+	SenderUserIDGTE    *uuid.UUID  `json:"senderUserIDGTE,omitempty"`
+	SenderUserIDLT     *uuid.UUID  `json:"senderUserIDLT,omitempty"`
+	SenderUserIDLTE    *uuid.UUID  `json:"senderUserIDLTE,omitempty"`
+	SenderUserIDIsNil  bool        `json:"senderUserIDIsNil,omitempty"`
+	SenderUserIDNotNil bool        `json:"senderUserIDNotNil,omitempty"`
 
 	// "sender_name" field predicates.
 	SenderName             *string  `json:"senderName,omitempty"`
@@ -1955,6 +1984,51 @@ func (i *ChannelMessageWhereInput) P() (predicate.ChannelMessage, error) {
 	if i.RelatedMessageIDNotNil {
 		predicates = append(predicates, channelmessage.RelatedMessageIDNotNil())
 	}
+	if i.PlatformTenantID != nil {
+		predicates = append(predicates, channelmessage.PlatformTenantIDEQ(*i.PlatformTenantID))
+	}
+	if i.PlatformTenantIDNEQ != nil {
+		predicates = append(predicates, channelmessage.PlatformTenantIDNEQ(*i.PlatformTenantIDNEQ))
+	}
+	if len(i.PlatformTenantIDIn) > 0 {
+		predicates = append(predicates, channelmessage.PlatformTenantIDIn(i.PlatformTenantIDIn...))
+	}
+	if len(i.PlatformTenantIDNotIn) > 0 {
+		predicates = append(predicates, channelmessage.PlatformTenantIDNotIn(i.PlatformTenantIDNotIn...))
+	}
+	if i.PlatformTenantIDGT != nil {
+		predicates = append(predicates, channelmessage.PlatformTenantIDGT(*i.PlatformTenantIDGT))
+	}
+	if i.PlatformTenantIDGTE != nil {
+		predicates = append(predicates, channelmessage.PlatformTenantIDGTE(*i.PlatformTenantIDGTE))
+	}
+	if i.PlatformTenantIDLT != nil {
+		predicates = append(predicates, channelmessage.PlatformTenantIDLT(*i.PlatformTenantIDLT))
+	}
+	if i.PlatformTenantIDLTE != nil {
+		predicates = append(predicates, channelmessage.PlatformTenantIDLTE(*i.PlatformTenantIDLTE))
+	}
+	if i.PlatformTenantIDContains != nil {
+		predicates = append(predicates, channelmessage.PlatformTenantIDContains(*i.PlatformTenantIDContains))
+	}
+	if i.PlatformTenantIDHasPrefix != nil {
+		predicates = append(predicates, channelmessage.PlatformTenantIDHasPrefix(*i.PlatformTenantIDHasPrefix))
+	}
+	if i.PlatformTenantIDHasSuffix != nil {
+		predicates = append(predicates, channelmessage.PlatformTenantIDHasSuffix(*i.PlatformTenantIDHasSuffix))
+	}
+	if i.PlatformTenantIDIsNil {
+		predicates = append(predicates, channelmessage.PlatformTenantIDIsNil())
+	}
+	if i.PlatformTenantIDNotNil {
+		predicates = append(predicates, channelmessage.PlatformTenantIDNotNil())
+	}
+	if i.PlatformTenantIDEqualFold != nil {
+		predicates = append(predicates, channelmessage.PlatformTenantIDEqualFold(*i.PlatformTenantIDEqualFold))
+	}
+	if i.PlatformTenantIDContainsFold != nil {
+		predicates = append(predicates, channelmessage.PlatformTenantIDContainsFold(*i.PlatformTenantIDContainsFold))
+	}
 	if i.SenderID != nil {
 		predicates = append(predicates, channelmessage.SenderIDEQ(*i.SenderID))
 	}
@@ -1993,6 +2067,36 @@ func (i *ChannelMessageWhereInput) P() (predicate.ChannelMessage, error) {
 	}
 	if i.SenderIDContainsFold != nil {
 		predicates = append(predicates, channelmessage.SenderIDContainsFold(*i.SenderIDContainsFold))
+	}
+	if i.SenderUserID != nil {
+		predicates = append(predicates, channelmessage.SenderUserIDEQ(*i.SenderUserID))
+	}
+	if i.SenderUserIDNEQ != nil {
+		predicates = append(predicates, channelmessage.SenderUserIDNEQ(*i.SenderUserIDNEQ))
+	}
+	if len(i.SenderUserIDIn) > 0 {
+		predicates = append(predicates, channelmessage.SenderUserIDIn(i.SenderUserIDIn...))
+	}
+	if len(i.SenderUserIDNotIn) > 0 {
+		predicates = append(predicates, channelmessage.SenderUserIDNotIn(i.SenderUserIDNotIn...))
+	}
+	if i.SenderUserIDGT != nil {
+		predicates = append(predicates, channelmessage.SenderUserIDGT(*i.SenderUserIDGT))
+	}
+	if i.SenderUserIDGTE != nil {
+		predicates = append(predicates, channelmessage.SenderUserIDGTE(*i.SenderUserIDGTE))
+	}
+	if i.SenderUserIDLT != nil {
+		predicates = append(predicates, channelmessage.SenderUserIDLT(*i.SenderUserIDLT))
+	}
+	if i.SenderUserIDLTE != nil {
+		predicates = append(predicates, channelmessage.SenderUserIDLTE(*i.SenderUserIDLTE))
+	}
+	if i.SenderUserIDIsNil {
+		predicates = append(predicates, channelmessage.SenderUserIDIsNil())
+	}
+	if i.SenderUserIDNotNil {
+		predicates = append(predicates, channelmessage.SenderUserIDNotNil())
 	}
 	if i.SenderName != nil {
 		predicates = append(predicates, channelmessage.SenderNameEQ(*i.SenderName))

@@ -153,7 +153,14 @@ func (r *ChannelMessageRepo) ResolveSkillIDByCode(ctx context.Context, skillCode
 	return skillItem.ID, nil
 }
 
-// GetOrCreateChannel finds existing channel by platform/group_id or creates one.
+// GetOrCreateChannel 依 (platform, group_id) 取得 channel；不存在則建立。
+//
+// 使用時機：
+// - 綁定流程初始化 private channel
+// - 系統明確允許建立新 channel 的管理流程
+//
+// 禁止使用時機：
+// - 入站 webhook/message persist 主流程（避免未綁定來源自動落地）
 func (r *ChannelMessageRepo) GetOrCreateChannel(
 	ctx context.Context,
 	platform string,
@@ -176,6 +183,7 @@ func (r *ChannelMessageRepo) GetOrCreateChannel(
 		return nil, fmt.Errorf("group id is required")
 	}
 
+	// channel type 缺值時預設 group，避免寫入非法 enum。
 	typeValue := channel.Type(strings.ToLower(strings.TrimSpace(channelType)))
 	switch typeValue {
 	case channel.TypeGroup, channel.TypePrivate:
@@ -187,6 +195,8 @@ func (r *ChannelMessageRepo) GetOrCreateChannel(
 		Where(channel.PlatformEQ(platformValue), channel.GroupIDEQ(groupID)).
 		Only(ctx)
 	if err == nil {
+		// 既有 channel 若型別與當前期望不同，嘗試對齊更新；
+		// 更新失敗不阻斷流程，回傳既有資料由上層決定是否重試。
 		if ch.Type != typeValue {
 			updated, updateErr := r.db.Channel.UpdateOneID(ch.ID).SetType(typeValue).Save(ctx)
 			if updateErr == nil {
@@ -205,6 +215,44 @@ func (r *ChannelMessageRepo) GetOrCreateChannel(
 		SetGroupID(groupID).
 		SetType(typeValue).
 		Save(ctx)
+}
+
+// GetChannelByPlatformGroupID 只查詢 (platform, group_id) 對應 channel。
+//
+// 與 GetOrCreateChannel 的差異：
+// - 這個方法只查詢，不會自動建立 channel。
+// - 找不到時回傳 nil, nil，讓上層決定是否中止流程。
+func (r *ChannelMessageRepo) GetChannelByPlatformGroupID(
+	ctx context.Context,
+	platform string,
+	groupID string,
+) (*ent.Channel, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("channel repository not initialized")
+	}
+
+	platformValue := channel.Platform(strings.ToLower(strings.TrimSpace(platform)))
+	switch platformValue {
+	case channel.PlatformLine, channel.PlatformWhatsapp, channel.PlatformSlack, channel.PlatformTelegram:
+	default:
+		return nil, fmt.Errorf("invalid channel platform: %s", platform)
+	}
+
+	groupID = strings.TrimSpace(groupID)
+	if groupID == "" {
+		return nil, fmt.Errorf("group id is required")
+	}
+
+	item, err := r.db.Channel.Query().
+		Where(channel.PlatformEQ(platformValue), channel.GroupIDEQ(groupID)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("query channel failed: %w", err)
+	}
+	return item, nil
 }
 
 // SaveReceivedMessage stores an incoming channel message.

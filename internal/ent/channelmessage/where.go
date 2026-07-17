@@ -81,9 +81,19 @@ func RelatedMessageID(v uuid.UUID) predicate.ChannelMessage {
 	return predicate.ChannelMessage(sql.FieldEQ(FieldRelatedMessageID, v))
 }
 
+// PlatformTenantID applies equality check predicate on the "platform_tenant_id" field. It's identical to PlatformTenantIDEQ.
+func PlatformTenantID(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldEQ(FieldPlatformTenantID, v))
+}
+
 // SenderID applies equality check predicate on the "sender_id" field. It's identical to SenderIDEQ.
 func SenderID(v string) predicate.ChannelMessage {
 	return predicate.ChannelMessage(sql.FieldEQ(FieldSenderID, v))
+}
+
+// SenderUserID applies equality check predicate on the "sender_user_id" field. It's identical to SenderUserIDEQ.
+func SenderUserID(v uuid.UUID) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldEQ(FieldSenderUserID, v))
 }
 
 // SenderName applies equality check predicate on the "sender_name" field. It's identical to SenderNameEQ.
@@ -306,6 +316,81 @@ func RelatedMessageIDNotNil() predicate.ChannelMessage {
 	return predicate.ChannelMessage(sql.FieldNotNull(FieldRelatedMessageID))
 }
 
+// PlatformTenantIDEQ applies the EQ predicate on the "platform_tenant_id" field.
+func PlatformTenantIDEQ(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldEQ(FieldPlatformTenantID, v))
+}
+
+// PlatformTenantIDNEQ applies the NEQ predicate on the "platform_tenant_id" field.
+func PlatformTenantIDNEQ(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldNEQ(FieldPlatformTenantID, v))
+}
+
+// PlatformTenantIDIn applies the In predicate on the "platform_tenant_id" field.
+func PlatformTenantIDIn(vs ...string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldIn(FieldPlatformTenantID, vs...))
+}
+
+// PlatformTenantIDNotIn applies the NotIn predicate on the "platform_tenant_id" field.
+func PlatformTenantIDNotIn(vs ...string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldNotIn(FieldPlatformTenantID, vs...))
+}
+
+// PlatformTenantIDGT applies the GT predicate on the "platform_tenant_id" field.
+func PlatformTenantIDGT(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldGT(FieldPlatformTenantID, v))
+}
+
+// PlatformTenantIDGTE applies the GTE predicate on the "platform_tenant_id" field.
+func PlatformTenantIDGTE(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldGTE(FieldPlatformTenantID, v))
+}
+
+// PlatformTenantIDLT applies the LT predicate on the "platform_tenant_id" field.
+func PlatformTenantIDLT(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldLT(FieldPlatformTenantID, v))
+}
+
+// PlatformTenantIDLTE applies the LTE predicate on the "platform_tenant_id" field.
+func PlatformTenantIDLTE(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldLTE(FieldPlatformTenantID, v))
+}
+
+// PlatformTenantIDContains applies the Contains predicate on the "platform_tenant_id" field.
+func PlatformTenantIDContains(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldContains(FieldPlatformTenantID, v))
+}
+
+// PlatformTenantIDHasPrefix applies the HasPrefix predicate on the "platform_tenant_id" field.
+func PlatformTenantIDHasPrefix(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldHasPrefix(FieldPlatformTenantID, v))
+}
+
+// PlatformTenantIDHasSuffix applies the HasSuffix predicate on the "platform_tenant_id" field.
+func PlatformTenantIDHasSuffix(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldHasSuffix(FieldPlatformTenantID, v))
+}
+
+// PlatformTenantIDIsNil applies the IsNil predicate on the "platform_tenant_id" field.
+func PlatformTenantIDIsNil() predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldIsNull(FieldPlatformTenantID))
+}
+
+// PlatformTenantIDNotNil applies the NotNil predicate on the "platform_tenant_id" field.
+func PlatformTenantIDNotNil() predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldNotNull(FieldPlatformTenantID))
+}
+
+// PlatformTenantIDEqualFold applies the EqualFold predicate on the "platform_tenant_id" field.
+func PlatformTenantIDEqualFold(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldEqualFold(FieldPlatformTenantID, v))
+}
+
+// PlatformTenantIDContainsFold applies the ContainsFold predicate on the "platform_tenant_id" field.
+func PlatformTenantIDContainsFold(v string) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldContainsFold(FieldPlatformTenantID, v))
+}
+
 // SenderIDEQ applies the EQ predicate on the "sender_id" field.
 func SenderIDEQ(v string) predicate.ChannelMessage {
 	return predicate.ChannelMessage(sql.FieldEQ(FieldSenderID, v))
@@ -369,6 +454,56 @@ func SenderIDEqualFold(v string) predicate.ChannelMessage {
 // SenderIDContainsFold applies the ContainsFold predicate on the "sender_id" field.
 func SenderIDContainsFold(v string) predicate.ChannelMessage {
 	return predicate.ChannelMessage(sql.FieldContainsFold(FieldSenderID, v))
+}
+
+// SenderUserIDEQ applies the EQ predicate on the "sender_user_id" field.
+func SenderUserIDEQ(v uuid.UUID) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldEQ(FieldSenderUserID, v))
+}
+
+// SenderUserIDNEQ applies the NEQ predicate on the "sender_user_id" field.
+func SenderUserIDNEQ(v uuid.UUID) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldNEQ(FieldSenderUserID, v))
+}
+
+// SenderUserIDIn applies the In predicate on the "sender_user_id" field.
+func SenderUserIDIn(vs ...uuid.UUID) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldIn(FieldSenderUserID, vs...))
+}
+
+// SenderUserIDNotIn applies the NotIn predicate on the "sender_user_id" field.
+func SenderUserIDNotIn(vs ...uuid.UUID) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldNotIn(FieldSenderUserID, vs...))
+}
+
+// SenderUserIDGT applies the GT predicate on the "sender_user_id" field.
+func SenderUserIDGT(v uuid.UUID) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldGT(FieldSenderUserID, v))
+}
+
+// SenderUserIDGTE applies the GTE predicate on the "sender_user_id" field.
+func SenderUserIDGTE(v uuid.UUID) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldGTE(FieldSenderUserID, v))
+}
+
+// SenderUserIDLT applies the LT predicate on the "sender_user_id" field.
+func SenderUserIDLT(v uuid.UUID) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldLT(FieldSenderUserID, v))
+}
+
+// SenderUserIDLTE applies the LTE predicate on the "sender_user_id" field.
+func SenderUserIDLTE(v uuid.UUID) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldLTE(FieldSenderUserID, v))
+}
+
+// SenderUserIDIsNil applies the IsNil predicate on the "sender_user_id" field.
+func SenderUserIDIsNil() predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldIsNull(FieldSenderUserID))
+}
+
+// SenderUserIDNotNil applies the NotNil predicate on the "sender_user_id" field.
+func SenderUserIDNotNil() predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldNotNull(FieldSenderUserID))
 }
 
 // SenderNameEQ applies the EQ predicate on the "sender_name" field.

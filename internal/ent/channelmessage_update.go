@@ -69,6 +69,26 @@ func (_u *ChannelMessageUpdate) ClearRelatedMessageID() *ChannelMessageUpdate {
 	return _u
 }
 
+// SetPlatformTenantID sets the "platform_tenant_id" field.
+func (_u *ChannelMessageUpdate) SetPlatformTenantID(v string) *ChannelMessageUpdate {
+	_u.mutation.SetPlatformTenantID(v)
+	return _u
+}
+
+// SetNillablePlatformTenantID sets the "platform_tenant_id" field if the given value is not nil.
+func (_u *ChannelMessageUpdate) SetNillablePlatformTenantID(v *string) *ChannelMessageUpdate {
+	if v != nil {
+		_u.SetPlatformTenantID(*v)
+	}
+	return _u
+}
+
+// ClearPlatformTenantID clears the value of the "platform_tenant_id" field.
+func (_u *ChannelMessageUpdate) ClearPlatformTenantID() *ChannelMessageUpdate {
+	_u.mutation.ClearPlatformTenantID()
+	return _u
+}
+
 // SetSenderID sets the "sender_id" field.
 func (_u *ChannelMessageUpdate) SetSenderID(v string) *ChannelMessageUpdate {
 	_u.mutation.SetSenderID(v)
@@ -80,6 +100,26 @@ func (_u *ChannelMessageUpdate) SetNillableSenderID(v *string) *ChannelMessageUp
 	if v != nil {
 		_u.SetSenderID(*v)
 	}
+	return _u
+}
+
+// SetSenderUserID sets the "sender_user_id" field.
+func (_u *ChannelMessageUpdate) SetSenderUserID(v uuid.UUID) *ChannelMessageUpdate {
+	_u.mutation.SetSenderUserID(v)
+	return _u
+}
+
+// SetNillableSenderUserID sets the "sender_user_id" field if the given value is not nil.
+func (_u *ChannelMessageUpdate) SetNillableSenderUserID(v *uuid.UUID) *ChannelMessageUpdate {
+	if v != nil {
+		_u.SetSenderUserID(*v)
+	}
+	return _u
+}
+
+// ClearSenderUserID clears the value of the "sender_user_id" field.
+func (_u *ChannelMessageUpdate) ClearSenderUserID() *ChannelMessageUpdate {
+	_u.mutation.ClearSenderUserID()
 	return _u
 }
 
@@ -303,8 +343,20 @@ func (_u *ChannelMessageUpdate) sqlSave(ctx context.Context) (_node int, err err
 	if value, ok := _u.mutation.Content(); ok {
 		_spec.SetField(channelmessage.FieldContent, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.PlatformTenantID(); ok {
+		_spec.SetField(channelmessage.FieldPlatformTenantID, field.TypeString, value)
+	}
+	if _u.mutation.PlatformTenantIDCleared() {
+		_spec.ClearField(channelmessage.FieldPlatformTenantID, field.TypeString)
+	}
 	if value, ok := _u.mutation.SenderID(); ok {
 		_spec.SetField(channelmessage.FieldSenderID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SenderUserID(); ok {
+		_spec.SetField(channelmessage.FieldSenderUserID, field.TypeUUID, value)
+	}
+	if _u.mutation.SenderUserIDCleared() {
+		_spec.ClearField(channelmessage.FieldSenderUserID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.SenderName(); ok {
 		_spec.SetField(channelmessage.FieldSenderName, field.TypeString, value)
@@ -470,6 +522,26 @@ func (_u *ChannelMessageUpdateOne) ClearRelatedMessageID() *ChannelMessageUpdate
 	return _u
 }
 
+// SetPlatformTenantID sets the "platform_tenant_id" field.
+func (_u *ChannelMessageUpdateOne) SetPlatformTenantID(v string) *ChannelMessageUpdateOne {
+	_u.mutation.SetPlatformTenantID(v)
+	return _u
+}
+
+// SetNillablePlatformTenantID sets the "platform_tenant_id" field if the given value is not nil.
+func (_u *ChannelMessageUpdateOne) SetNillablePlatformTenantID(v *string) *ChannelMessageUpdateOne {
+	if v != nil {
+		_u.SetPlatformTenantID(*v)
+	}
+	return _u
+}
+
+// ClearPlatformTenantID clears the value of the "platform_tenant_id" field.
+func (_u *ChannelMessageUpdateOne) ClearPlatformTenantID() *ChannelMessageUpdateOne {
+	_u.mutation.ClearPlatformTenantID()
+	return _u
+}
+
 // SetSenderID sets the "sender_id" field.
 func (_u *ChannelMessageUpdateOne) SetSenderID(v string) *ChannelMessageUpdateOne {
 	_u.mutation.SetSenderID(v)
@@ -481,6 +553,26 @@ func (_u *ChannelMessageUpdateOne) SetNillableSenderID(v *string) *ChannelMessag
 	if v != nil {
 		_u.SetSenderID(*v)
 	}
+	return _u
+}
+
+// SetSenderUserID sets the "sender_user_id" field.
+func (_u *ChannelMessageUpdateOne) SetSenderUserID(v uuid.UUID) *ChannelMessageUpdateOne {
+	_u.mutation.SetSenderUserID(v)
+	return _u
+}
+
+// SetNillableSenderUserID sets the "sender_user_id" field if the given value is not nil.
+func (_u *ChannelMessageUpdateOne) SetNillableSenderUserID(v *uuid.UUID) *ChannelMessageUpdateOne {
+	if v != nil {
+		_u.SetSenderUserID(*v)
+	}
+	return _u
+}
+
+// ClearSenderUserID clears the value of the "sender_user_id" field.
+func (_u *ChannelMessageUpdateOne) ClearSenderUserID() *ChannelMessageUpdateOne {
+	_u.mutation.ClearSenderUserID()
 	return _u
 }
 
@@ -734,8 +826,20 @@ func (_u *ChannelMessageUpdateOne) sqlSave(ctx context.Context) (_node *ChannelM
 	if value, ok := _u.mutation.Content(); ok {
 		_spec.SetField(channelmessage.FieldContent, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.PlatformTenantID(); ok {
+		_spec.SetField(channelmessage.FieldPlatformTenantID, field.TypeString, value)
+	}
+	if _u.mutation.PlatformTenantIDCleared() {
+		_spec.ClearField(channelmessage.FieldPlatformTenantID, field.TypeString)
+	}
 	if value, ok := _u.mutation.SenderID(); ok {
 		_spec.SetField(channelmessage.FieldSenderID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SenderUserID(); ok {
+		_spec.SetField(channelmessage.FieldSenderUserID, field.TypeUUID, value)
+	}
+	if _u.mutation.SenderUserIDCleared() {
+		_spec.ClearField(channelmessage.FieldSenderUserID, field.TypeUUID)
 	}
 	if value, ok := _u.mutation.SenderName(); ok {
 		_spec.SetField(channelmessage.FieldSenderName, field.TypeString, value)

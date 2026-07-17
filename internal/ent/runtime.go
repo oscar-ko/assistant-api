@@ -138,7 +138,7 @@ func init() {
 	// channelmessage.ContentValidator is a validator for the "content" field. It is called by the builders before save.
 	channelmessage.ContentValidator = channelmessageDescContent.Validators[0].(func(string) error)
 	// channelmessageDescMessageType is the schema descriptor for message_type field.
-	channelmessageDescMessageType := channelmessageFields[7].Descriptor()
+	channelmessageDescMessageType := channelmessageFields[9].Descriptor()
 	// channelmessage.DefaultMessageType holds the default value on creation for the message_type field.
 	channelmessage.DefaultMessageType = channelmessageDescMessageType.Default.(string)
 	// channelmessageDescID is the schema descriptor for id field.

@@ -161,7 +161,9 @@ var (
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "content", Type: field.TypeString},
+		{Name: "platform_tenant_id", Type: field.TypeString, Nullable: true},
 		{Name: "sender_id", Type: field.TypeString},
+		{Name: "sender_user_id", Type: field.TypeUUID, Nullable: true},
 		{Name: "sender_name", Type: field.TypeString, Nullable: true},
 		{Name: "platform_message_id", Type: field.TypeString, Nullable: true},
 		{Name: "reply_to_msg_id", Type: field.TypeString, Nullable: true},
@@ -178,13 +180,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "channel_messages_channels_messages",
-				Columns:    []*schema.Column{ChannelMessagesColumns[10]},
+				Columns:    []*schema.Column{ChannelMessagesColumns[12]},
 				RefColumns: []*schema.Column{ChannelsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "channel_messages_channel_messages_related_message",
-				Columns:    []*schema.Column{ChannelMessagesColumns[11]},
+				Columns:    []*schema.Column{ChannelMessagesColumns[13]},
 				RefColumns: []*schema.Column{ChannelMessagesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -193,7 +195,7 @@ var (
 			{
 				Name:    "channelmessage_channel_id_platform_message_id",
 				Unique:  false,
-				Columns: []*schema.Column{ChannelMessagesColumns[10], ChannelMessagesColumns[6]},
+				Columns: []*schema.Column{ChannelMessagesColumns[12], ChannelMessagesColumns[8]},
 			},
 		},
 	}

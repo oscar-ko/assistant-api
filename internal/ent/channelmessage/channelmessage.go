@@ -25,8 +25,12 @@ const (
 	FieldChannelID = "channel_id"
 	// FieldRelatedMessageID holds the string denoting the related_message_id field in the database.
 	FieldRelatedMessageID = "related_message_id"
+	// FieldPlatformTenantID holds the string denoting the platform_tenant_id field in the database.
+	FieldPlatformTenantID = "platform_tenant_id"
 	// FieldSenderID holds the string denoting the sender_id field in the database.
 	FieldSenderID = "sender_id"
+	// FieldSenderUserID holds the string denoting the sender_user_id field in the database.
+	FieldSenderUserID = "sender_user_id"
 	// FieldSenderName holds the string denoting the sender_name field in the database.
 	FieldSenderName = "sender_name"
 	// FieldPlatformMessageID holds the string denoting the platform_message_id field in the database.
@@ -70,7 +74,9 @@ var Columns = []string{
 	FieldContent,
 	FieldChannelID,
 	FieldRelatedMessageID,
+	FieldPlatformTenantID,
 	FieldSenderID,
+	FieldSenderUserID,
 	FieldSenderName,
 	FieldPlatformMessageID,
 	FieldReplyToMsgID,
@@ -136,9 +142,19 @@ func ByRelatedMessageID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRelatedMessageID, opts...).ToFunc()
 }
 
+// ByPlatformTenantID orders the results by the platform_tenant_id field.
+func ByPlatformTenantID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPlatformTenantID, opts...).ToFunc()
+}
+
 // BySenderID orders the results by the sender_id field.
 func BySenderID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSenderID, opts...).ToFunc()
+}
+
+// BySenderUserID orders the results by the sender_user_id field.
+func BySenderUserID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSenderUserID, opts...).ToFunc()
 }
 
 // BySenderName orders the results by the sender_name field.
