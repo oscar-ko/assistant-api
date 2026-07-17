@@ -13,6 +13,7 @@ import (
 	aillminteraction "assistant-api/internal/integration/ai/llm_interaction"
 	aitopkfilter "assistant-api/internal/integration/ai/topkfilter"
 	"assistant-api/internal/integration/auth"
+	"assistant-api/internal/integration/provider/oauthredirect"
 	"assistant-api/internal/repository"
 
 	"github.com/gin-gonic/gin"
@@ -55,14 +56,7 @@ func oauthStart(c *gin.Context) {
 	}
 	auth.SetStateCookie(c, stateCookieName, state, 600)
 
-	redirectURI := strings.TrimSpace(config.Slack.RedirectURI)
-	if redirectURI == "" {
-		scheme := "http"
-		if c.Request.TLS != nil {
-			scheme = "https"
-		}
-		redirectURI = fmt.Sprintf("%s://%s/slack/oauth/callback", scheme, c.Request.Host)
-	}
+	redirectURI := oauthredirect.Resolve(c.Request, config.Slack.RedirectURI, "/slack/oauth/callback")
 
 	values := url.Values{}
 	values.Set("client_id", strings.TrimSpace(config.Slack.ClientID))
@@ -109,14 +103,7 @@ func oauthCallback(c *gin.Context) {
 		return
 	}
 
-	redirectURI := strings.TrimSpace(config.Slack.RedirectURI)
-	if redirectURI == "" {
-		scheme := "http"
-		if c.Request.TLS != nil {
-			scheme = "https"
-		}
-		redirectURI = fmt.Sprintf("%s://%s/slack/oauth/callback", scheme, c.Request.Host)
-	}
+	redirectURI := oauthredirect.Resolve(c.Request, config.Slack.RedirectURI, "/slack/oauth/callback")
 
 	form := url.Values{}
 	form.Set("client_id", strings.TrimSpace(config.Slack.ClientID))

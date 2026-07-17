@@ -13,6 +13,8 @@ import (
 	"assistant-api/internal/integration/auth"
 	"assistant-api/internal/repository"
 
+	"assistant-api/internal/integration/provider/oauthredirect"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -64,15 +66,7 @@ func oauthStart(c *gin.Context) {
 	}
 	auth.SetStateCookie(c, stateCookieName, state, 600)
 
-	// 若未明確配置 redirect_uri，動態按目前請求協議與 host 推導。
-	redirectURI := strings.TrimSpace(config.Line.RedirectURI)
-	if redirectURI == "" {
-		scheme := "http"
-		if c.Request.TLS != nil {
-			scheme = "https"
-		}
-		redirectURI = fmt.Sprintf("%s://%s/line/oauth/callback", scheme, c.Request.Host)
-	}
+	redirectURI := oauthredirect.Resolve(c.Request, config.Line.RedirectURI, "/line/oauth/callback")
 
 	authorizeURL := "https://access.line.me/oauth2/v2.1/authorize?" + url.Values{
 		"response_type": {"code"},
