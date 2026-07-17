@@ -89,12 +89,17 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 	if err != nil {
 		panic(err)
 	}
+	// 這裡把翻譯能力包成共用 realtime service，而不是直接寫在 LINE webhook 裡。
+	// 這樣 Slack 也可以用同一套「非指令訊息 -> 翻譯 side-effect」流程，
+	// 差別只剩底層 sender 與平台使用者識別來源。
 	autoTranslate := realtime.NewAutoTranslateService(realtime.AutoTranslateServiceOptions{
 		Repo:       repo,
 		Sender:     lineRealtimeSender{sender: options.FollowUpSender},
 		Translator: translateClient,
+		// 這裡用平台中立的 user id 來反查內部 owner，
+		// 讓翻譯流程不需要知道來源是 LINE 還是 Slack。
 		ResolveOwnerUserID: func(ctx context.Context, platformUserID string) (uuid.UUID, error) {
-			return repo.ResolveUserIDByLineUserID(ctx, platformUserID)
+			return repo.ResolveUserIDByPlatformUserID(ctx, platformUserID)
 		},
 		BotSenderID:   strings.TrimSpace(config.Line.BotUserID),
 		PlatformLabel: "line:" + strings.TrimSpace(translateProfile),
@@ -311,6 +316,8 @@ func (s *WebhookService) handleRealtimeNonCommandServices(message *unifiedmessag
 		return
 	}
 	// 非指令訊息可同時觸發多個即時服務；翻譯/未來服務都由共用 dispatcher 管理。
+	// 這裡只做資料轉交，不在 webhook service 裡直接判斷翻譯條件或執行任何額外邏輯，
+	// 讓 command flow 與 realtime side-effect 兩條路徑明確分離。
 	s.nonCommandDispatcher.Handle(context.Background(), realtime.MessageContext{
 		Message:        message,
 		SavedMessage:   savedMessage,
@@ -319,6 +326,10 @@ func (s *WebhookService) handleRealtimeNonCommandServices(message *unifiedmessag
 	})
 }
 
+// lineRealtimeSender 將 LINE 的送訊息能力包成共用 realtime sender 介面。
+//
+// 讓 auto-translate 只依賴 SendText 介面，不需要關心實際是 LINE SDK、Slack SDK，
+// 或其他未來平台的發送實作。
 type lineRealtimeSender struct {
 	sender PushMessageService
 }

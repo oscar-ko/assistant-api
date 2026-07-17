@@ -12,15 +12,20 @@ import (
 	"time"
 
 	"assistant-api/internal/config"
+	"assistant-api/internal/ent"
 	aillminteraction "assistant-api/internal/integration/ai/llm_interaction"
 	aitopkfilter "assistant-api/internal/integration/ai/topkfilter"
+	"assistant-api/internal/integration/provider/realtime"
 	webhooklog "assistant-api/internal/integration/provider/webhooklog"
+	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
 	"assistant-api/internal/usecase/actionpost"
 	"assistant-api/internal/usecase/inbound/commandchain"
 	"assistant-api/internal/usecase/inbound/commanddecision"
 	"assistant-api/internal/usecase/inbound/conversationflow"
 	"assistant-api/internal/usecase/inbound/messagepersist"
+
+	"github.com/google/uuid"
 )
 
 type WebhookProcessor interface {
@@ -36,6 +41,7 @@ type WebhookService struct {
 	topKFilterService     aitopkfilter.Service
 	actionPostDispatcher  *actionpost.Dispatcher
 	followUpSender        PushMessageService
+	nonCommandDispatcher  *realtime.Dispatcher
 	commandFlow           *conversationflow.Orchestrator
 }
 
@@ -74,6 +80,23 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 	chainSvc := commandchain.NewService(repo)
 	decisionSvc := commanddecision.NewService(chainSvc)
 	dispatcher := actionpost.NewDefaultDispatcher(repo)
+	translateClient, translateProfile, err := realtime.BuildTranslatorFromConfig(config.AI, config.LLMProviders)
+	if err != nil {
+		panic(err)
+	}
+	// Slack 也直接掛到共用 realtime 翻譯流程上，避免跟 LINE 各自維護一套非指令處理邏輯。
+	// 這裡只提供 Slack 專用的 sender 與 platform user id 來源，核心翻譯行為仍由共用模組執行。
+	autoTranslate := realtime.NewAutoTranslateService(realtime.AutoTranslateServiceOptions{
+		Repo:       repo,
+		Sender:     slackRealtimeSender{sender: options.FollowUpSender},
+		Translator: translateClient,
+		// 翻譯服務只看平台 user id，不關心它來自哪一種事件格式。
+		ResolveOwnerUserID: func(ctx context.Context, platformUserID string) (uuid.UUID, error) {
+			return repo.ResolveUserIDByPlatformUserID(ctx, platformUserID)
+		},
+		BotSenderID:   strings.TrimSpace(config.Slack.BotUserID),
+		PlatformLabel: "slack:" + strings.TrimSpace(translateProfile),
+	})
 	flow := conversationflow.NewFromFactory(conversationflow.FactoryOptions{
 		PlatformLabel:               "slack",
 		BotSenderID:                 strings.TrimSpace(config.Slack.BotUserID),
@@ -95,6 +118,7 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 		topKFilterService:     options.TopKFilter,
 		actionPostDispatcher:  dispatcher,
 		followUpSender:        options.FollowUpSender,
+		nonCommandDispatcher:  realtime.NewDispatcher(autoTranslate),
 		commandFlow:           flow,
 	}
 }
@@ -197,6 +221,12 @@ func (s *WebhookService) ProcessIncoming(body []byte) (string, error) {
 		}
 	}
 	if decision == nil || !decision.IsCommand() {
+		s.handleRealtimeNonCommandServices(
+			message,
+			savedMessage,
+			strings.TrimSpace(req.Event.User),
+			resolveSlackReplyRef(*req.Event),
+		)
 		return "", nil
 	}
 
@@ -218,6 +248,37 @@ type slackOutboundMessenger struct {
 }
 
 func (m slackOutboundMessenger) SendText(ctx context.Context, chatID string, userID string, text string, replyRef string, quoteRef string) (string, error) {
+	if m.sender == nil {
+		return "", nil
+	}
+	return m.sender.SendTextToChat(ctx, chatID, userID, text, replyRef, quoteRef)
+}
+
+func (s *WebhookService) handleRealtimeNonCommandServices(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, slackUserID string, quoteRef string) {
+	if s == nil || message == nil {
+		return
+	}
+	if s.nonCommandDispatcher == nil {
+		return
+	}
+	// 這裡只負責把 Slack 事件轉成共用 realtime context，避免 webhook 入口塞進太多 side-effect。
+	// 如果未來再加其他非指令服務，也應該掛在 dispatcher 內，而不是在這裡分支擴張。
+	s.nonCommandDispatcher.Handle(context.Background(), realtime.MessageContext{
+		Message:        message,
+		SavedMessage:   savedMessage,
+		PlatformUserID: slackUserID,
+		QuoteRef:       quoteRef,
+	})
+}
+
+// slackRealtimeSender 將 Slack 的送訊息能力包成共用 realtime sender 介面。
+//
+// 這樣 auto-translate 只需要一個統一的發送契約，不必直接依賴 Slack 的 webhook service。
+type slackRealtimeSender struct {
+	sender PushMessageService
+}
+
+func (m slackRealtimeSender) SendText(ctx context.Context, chatID string, userID string, text string, replyRef string, quoteRef string) (string, error) {
 	if m.sender == nil {
 		return "", nil
 	}

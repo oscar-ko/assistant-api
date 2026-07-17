@@ -54,7 +54,12 @@ func (r *ChannelMessageRepo) ResolveLineDisplayNameByLineUserID(ctx context.Cont
 	return strings.TrimSpace(*item.DisplayName), nil
 }
 
-// ResolveUserIDByLineUserID resolves internal user UUID from LINE user id binding.
+// ResolveUserIDByLineUserID 依 LINE 綁定表反查系統內部使用者 UUID。
+//
+// 這個方法保留給 LINE 專用流程使用，原因是 LINE 的顯示名稱與綁定資訊
+// 仍然是從獨立的 line edge 讀取，而不是從 channel_service_members 反查。
+// 當上層流程需要的是「LINE 綁定關係」而非「跨平台服務啟用關係」時，
+// 就應該走這個入口，避免把兩種不同資料來源混在一起。
 func (r *ChannelMessageRepo) ResolveUserIDByLineUserID(ctx context.Context, lineUserID string) (uuid.UUID, error) {
 	if r == nil || r.db == nil {
 		return uuid.Nil, fmt.Errorf("channel repository not initialized")
@@ -83,6 +88,38 @@ func (r *ChannelMessageRepo) ResolveUserIDByLineUserID(ctx context.Context, line
 		return uuid.Nil, nil
 	}
 	return boundUser.ID, nil
+}
+
+// ResolveUserIDByPlatformUserID 依 channel_service_members 的 platform_user_id 反查系統內部使用者 UUID。
+//
+// 這是跨平台共用入口，適合 LINE、Slack 以及未來會共用同一張
+// channel_service_members 表的 provider 使用。它和 ResolveUserIDByLineUserID
+// 的差異在於：前者走 LINE 專屬綁定表，後者走跨平台服務成員表。
+//
+// 這個設計的目的，是讓即時服務（例如翻譯）只依賴一個平台中立的識別欄位，
+// 不需要為每個 provider 各寫一套查詢路徑。
+func (r *ChannelMessageRepo) ResolveUserIDByPlatformUserID(ctx context.Context, platformUserID string) (uuid.UUID, error) {
+	if r == nil || r.db == nil {
+		return uuid.Nil, fmt.Errorf("channel repository not initialized")
+	}
+	platformUserID = strings.TrimSpace(platformUserID)
+	if platformUserID == "" {
+		return uuid.Nil, nil
+	}
+
+	member, err := r.db.ChannelServiceMember.Query().
+		Where(channelservicemember.PlatformUserIDEQ(platformUserID)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return uuid.Nil, nil
+		}
+		return uuid.Nil, fmt.Errorf("query user by platform user id failed: %w", err)
+	}
+	if member == nil {
+		return uuid.Nil, nil
+	}
+	return member.UserID, nil
 }
 
 // ResolveSkillIDByCode resolves skill UUID from skill_code.
@@ -595,6 +632,11 @@ func (r *ChannelMessageRepo) UpsertActionResult(ctx context.Context, apiOperatio
 
 // AddServiceMemberToChannel adds a user into channel_service_members.
 // The operation is idempotent and ignored if (channel_id, user_id, skill_id) already exists.
+//
+// 注意：這個寫入點目前只建立 channel / user / skill 的關聯，並不會同步填入
+// platform_user_id。也就是說，若上層流程要依 platform_user_id 做共用查詢，
+// 仍需確認該欄位是否已由其他寫入流程補齊，否則無法直接拿這個方法當作
+// 跨平台識別資料的唯一來源。
 func (r *ChannelMessageRepo) AddServiceMemberToChannel(ctx context.Context, channelID uuid.UUID, ownerID uuid.UUID, skillID uuid.UUID) error {
 	if channelID == uuid.Nil {
 		return fmt.Errorf("channel id is required")
