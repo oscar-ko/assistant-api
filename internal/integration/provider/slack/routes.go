@@ -210,10 +210,29 @@ func slackOAuthStartURL() string {
 	}).String()
 }
 
+// slackLoginStartURL 產生 Slack login/start 的導向網址。
+//
+// 這個 helper 與 slackOAuthStartURL 對稱，讓 install 完成後可以直接接續進入 OpenID 綁定流程。
+func slackLoginStartURL() string {
+	loginRedirectURI := strings.TrimSpace(config.Slack.LoginRedirectURI)
+	parsed, err := url.Parse(loginRedirectURI)
+	if err != nil || strings.TrimSpace(parsed.Scheme) == "" || strings.TrimSpace(parsed.Host) == "" {
+		return "/slack/login/start"
+	}
+	return (&url.URL{
+		Scheme:   parsed.Scheme,
+		Host:     parsed.Host,
+		Path:     "/slack/login/start",
+		RawQuery: "public=1",
+	}).String()
+}
+
 // oauthCallback 處理 Slack App 安裝 OAuth callback。
 //
-// 本流程只回傳安裝結果摘要，不直接覆寫本地設定檔，
-// 以避免 runtime 修改設定帶來不可預期副作用。
+// 流程設計：
+// 1) 先完成 workspace install，取得 bot token 與 team id
+// 2) install 成功後直接導向 login/start，讓使用者接著做 OpenID 綁定
+// 3) login 的 state / callback 與 install 完全分開，避免混用
 func oauthCallback(repo *repository.SlackRepo) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		state := c.Query("state")
@@ -288,17 +307,9 @@ func oauthCallback(repo *repository.SlackRepo) gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{
-			"status":            "installed",
-			"app_id":            strings.TrimSpace(payload.AppID),
-			"team_id":           teamID,
-			"team_name":         strings.TrimSpace(payload.Team.Name),
-			"bot_user_id":       strings.TrimSpace(payload.BotUserID),
-			"bot_scope":         strings.TrimSpace(payload.Scope),
-			"authed_user_id":    strings.TrimSpace(payload.AuthedUser.ID),
-			"authed_user_scope": strings.TrimSpace(payload.AuthedUser.Scope),
-			"bot_token_preview": maskToken(payload.AccessToken),
-		})
+		// 安裝成功後直接進入 login/start，讓使用者接續完成綁定流程。
+		// 這裡只做導向，不把 install 與 login 的語意混在同一個 callback 回應中。
+		c.Redirect(http.StatusFound, slackLoginStartURL())
 	}
 }
 
@@ -358,11 +369,11 @@ func loginCallback(repo slackBindRepository, channelRepo *repository.ChannelMess
 		if err != nil {
 			if errors.Is(err, repository.ErrSlackWorkspaceInstallNotFound) {
 				c.JSON(http.StatusConflict, gin.H{
-					"error":        "slack workspace install required",
-					"team_id":      strings.TrimSpace(profile.TeamID),
-					"install_url":  slackOAuthStartURL(),
-					"next_action":  "install_slack_app",
-					"detail":       err.Error(),
+					"error":       "slack workspace install required",
+					"team_id":     strings.TrimSpace(profile.TeamID),
+					"install_url": slackOAuthStartURL(),
+					"next_action": "install_slack_app",
+					"detail":      err.Error(),
 				})
 				return
 			}
