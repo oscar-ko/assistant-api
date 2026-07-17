@@ -1,0 +1,3 @@
+llm_providers:
+    openai:
+        token: "your-local-openai-api-key"

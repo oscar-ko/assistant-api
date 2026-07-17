@@ -1,10 +1,12 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -12,6 +14,7 @@ import (
 )
 
 const defaultConfigPath = "configs/app.yml"
+const localOverrideConfigName = "app.local.yml"
 
 // configuration 對應設定檔結構，透過指標綁定到 package-level 全域變數。
 type configuration struct {
@@ -355,6 +358,9 @@ func MustLoad() {
 			// APP_CONFIG 有指定時，回報完整路徑方便排錯。
 			log.Fatalf("failed to read config file %q: %v", path, err)
 		}
+		if err := mergeOptionalLocalOverride(path); err != nil {
+			log.Fatalf("failed to merge local config override: %v", err)
+		}
 
 		// 重要欄位缺失時直接中止，避免服務以不完整設定啟動。
 		requiredKeys := []string{
@@ -380,4 +386,38 @@ func MustLoad() {
 			Line.Scopes = "openid profile email"
 		}
 	})
+}
+
+func mergeOptionalLocalOverride(basePath string) error {
+	var candidates []string
+	if strings.TrimSpace(basePath) != "" {
+		candidates = append(candidates, filepath.Join(filepath.Dir(basePath), localOverrideConfigName))
+	} else {
+		candidates = append(candidates,
+			localOverrideConfigName,
+			filepath.Join("configs", localOverrideConfigName),
+			filepath.Join("..", "..", localOverrideConfigName),
+			filepath.Join("..", "..", "configs", localOverrideConfigName),
+		)
+	}
+	seen := map[string]struct{}{}
+	for _, candidate := range candidates {
+		cleaned := filepath.Clean(candidate)
+		if _, ok := seen[cleaned]; ok {
+			continue
+		}
+		seen[cleaned] = struct{}{}
+		content, err := os.ReadFile(cleaned)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return fmt.Errorf("read %s: %w", cleaned, err)
+		}
+		if err := viper.MergeConfig(bytes.NewReader(content)); err != nil {
+			return fmt.Errorf("merge %s: %w", cleaned, err)
+		}
+		return nil
+	}
+	return nil
 }

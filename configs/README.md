@@ -11,6 +11,13 @@ Suggested future layout:
 
 Current loader reads `configs/app.yml` by default.
 Set `APP_CONFIG` environment variable to override config file path.
+If `configs/app.local.yml` exists, it is merged after the main config and is intended for local-only secrets such as API tokens.
+
+Recommended local override for secrets:
+
+- Copy `configs/app.local.yml.example` to `configs/app.local.yml`
+- Put local-only values such as `llm_providers.openai.token` there
+- Keep `configs/app.local.yml` out of git
 
 Database setup:
 
@@ -21,3 +28,4 @@ LINE bind setup:
 
 - Configure `line.channel_id`, `line.client_secret`, and `line.redirect_uri`.
 - Open `/line/bind` to start OAuth bind flow.
+
