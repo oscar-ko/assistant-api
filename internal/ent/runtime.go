@@ -13,6 +13,7 @@ import (
 	"assistant-api/internal/ent/schema"
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/slack"
+	"assistant-api/internal/ent/slackworkspace"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"time"
@@ -209,6 +210,35 @@ func init() {
 	slackDescID := slackMixinFields0[0].Descriptor()
 	// slack.DefaultID holds the default value on creation for the id field.
 	slack.DefaultID = slackDescID.Default.(func() uuid.UUID)
+	slackworkspaceMixin := schema.SlackWorkspace{}.Mixin()
+	slackworkspaceMixinFields0 := slackworkspaceMixin[0].Fields()
+	_ = slackworkspaceMixinFields0
+	slackworkspaceMixinFields1 := slackworkspaceMixin[1].Fields()
+	_ = slackworkspaceMixinFields1
+	slackworkspaceFields := schema.SlackWorkspace{}.Fields()
+	_ = slackworkspaceFields
+	// slackworkspaceDescCreatedAt is the schema descriptor for created_at field.
+	slackworkspaceDescCreatedAt := slackworkspaceMixinFields1[0].Descriptor()
+	// slackworkspace.DefaultCreatedAt holds the default value on creation for the created_at field.
+	slackworkspace.DefaultCreatedAt = slackworkspaceDescCreatedAt.Default.(func() time.Time)
+	// slackworkspaceDescUpdatedAt is the schema descriptor for updated_at field.
+	slackworkspaceDescUpdatedAt := slackworkspaceMixinFields1[1].Descriptor()
+	// slackworkspace.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	slackworkspace.DefaultUpdatedAt = slackworkspaceDescUpdatedAt.Default.(func() time.Time)
+	// slackworkspace.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	slackworkspace.UpdateDefaultUpdatedAt = slackworkspaceDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// slackworkspaceDescPlatformTeamID is the schema descriptor for platform_team_id field.
+	slackworkspaceDescPlatformTeamID := slackworkspaceFields[0].Descriptor()
+	// slackworkspace.PlatformTeamIDValidator is a validator for the "platform_team_id" field. It is called by the builders before save.
+	slackworkspace.PlatformTeamIDValidator = slackworkspaceDescPlatformTeamID.Validators[0].(func(string) error)
+	// slackworkspaceDescBotToken is the schema descriptor for bot_token field.
+	slackworkspaceDescBotToken := slackworkspaceFields[2].Descriptor()
+	// slackworkspace.BotTokenValidator is a validator for the "bot_token" field. It is called by the builders before save.
+	slackworkspace.BotTokenValidator = slackworkspaceDescBotToken.Validators[0].(func(string) error)
+	// slackworkspaceDescID is the schema descriptor for id field.
+	slackworkspaceDescID := slackworkspaceMixinFields0[0].Descriptor()
+	// slackworkspace.DefaultID holds the default value on creation for the id field.
+	slackworkspace.DefaultID = slackworkspaceDescID.Default.(func() uuid.UUID)
 	translationlocaleMixin := schema.TranslationLocale{}.Mixin()
 	translationlocaleMixinFields0 := translationlocaleMixin[0].Fields()
 	_ = translationlocaleMixinFields0

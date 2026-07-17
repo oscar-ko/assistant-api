@@ -12,6 +12,7 @@ import (
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/slack"
+	"assistant-api/internal/ent/slackworkspace"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -2345,6 +2346,255 @@ func (_m *Slack) ToEdge(order *SlackOrder) *SlackEdge {
 		order = DefaultSlackOrder
 	}
 	return &SlackEdge{
+		Node:   _m,
+		Cursor: order.Field.toCursor(_m),
+	}
+}
+
+// SlackWorkspaceEdge is the edge representation of SlackWorkspace.
+type SlackWorkspaceEdge struct {
+	Node   *SlackWorkspace `json:"node"`
+	Cursor Cursor          `json:"cursor"`
+}
+
+// SlackWorkspaceConnection is the connection containing edges to SlackWorkspace.
+type SlackWorkspaceConnection struct {
+	Edges      []*SlackWorkspaceEdge `json:"edges"`
+	PageInfo   PageInfo              `json:"pageInfo"`
+	TotalCount int                   `json:"totalCount"`
+}
+
+func (c *SlackWorkspaceConnection) build(nodes []*SlackWorkspace, pager *slackworkspacePager, after *Cursor, first *int, before *Cursor, last *int) {
+	c.PageInfo.HasNextPage = before != nil
+	c.PageInfo.HasPreviousPage = after != nil
+	if first != nil && *first+1 == len(nodes) {
+		c.PageInfo.HasNextPage = true
+		nodes = nodes[:len(nodes)-1]
+	} else if last != nil && *last+1 == len(nodes) {
+		c.PageInfo.HasPreviousPage = true
+		nodes = nodes[:len(nodes)-1]
+	}
+	var nodeAt func(int) *SlackWorkspace
+	if last != nil {
+		n := len(nodes) - 1
+		nodeAt = func(i int) *SlackWorkspace {
+			return nodes[n-i]
+		}
+	} else {
+		nodeAt = func(i int) *SlackWorkspace {
+			return nodes[i]
+		}
+	}
+	c.Edges = make([]*SlackWorkspaceEdge, len(nodes))
+	for i := range nodes {
+		node := nodeAt(i)
+		c.Edges[i] = &SlackWorkspaceEdge{
+			Node:   node,
+			Cursor: pager.toCursor(node),
+		}
+	}
+	if l := len(c.Edges); l > 0 {
+		c.PageInfo.StartCursor = &c.Edges[0].Cursor
+		c.PageInfo.EndCursor = &c.Edges[l-1].Cursor
+	}
+	if c.TotalCount == 0 {
+		c.TotalCount = len(nodes)
+	}
+}
+
+// SlackWorkspacePaginateOption enables pagination customization.
+type SlackWorkspacePaginateOption func(*slackworkspacePager) error
+
+// WithSlackWorkspaceOrder configures pagination ordering.
+func WithSlackWorkspaceOrder(order *SlackWorkspaceOrder) SlackWorkspacePaginateOption {
+	if order == nil {
+		order = DefaultSlackWorkspaceOrder
+	}
+	o := *order
+	return func(pager *slackworkspacePager) error {
+		if err := o.Direction.Validate(); err != nil {
+			return err
+		}
+		if o.Field == nil {
+			o.Field = DefaultSlackWorkspaceOrder.Field
+		}
+		pager.order = &o
+		return nil
+	}
+}
+
+// WithSlackWorkspaceFilter configures pagination filter.
+func WithSlackWorkspaceFilter(filter func(*SlackWorkspaceQuery) (*SlackWorkspaceQuery, error)) SlackWorkspacePaginateOption {
+	return func(pager *slackworkspacePager) error {
+		if filter == nil {
+			return errors.New("SlackWorkspaceQuery filter cannot be nil")
+		}
+		pager.filter = filter
+		return nil
+	}
+}
+
+type slackworkspacePager struct {
+	reverse bool
+	order   *SlackWorkspaceOrder
+	filter  func(*SlackWorkspaceQuery) (*SlackWorkspaceQuery, error)
+}
+
+func newSlackWorkspacePager(opts []SlackWorkspacePaginateOption, reverse bool) (*slackworkspacePager, error) {
+	pager := &slackworkspacePager{reverse: reverse}
+	for _, opt := range opts {
+		if err := opt(pager); err != nil {
+			return nil, err
+		}
+	}
+	if pager.order == nil {
+		pager.order = DefaultSlackWorkspaceOrder
+	}
+	return pager, nil
+}
+
+func (p *slackworkspacePager) applyFilter(query *SlackWorkspaceQuery) (*SlackWorkspaceQuery, error) {
+	if p.filter != nil {
+		return p.filter(query)
+	}
+	return query, nil
+}
+
+func (p *slackworkspacePager) toCursor(_m *SlackWorkspace) Cursor {
+	return p.order.Field.toCursor(_m)
+}
+
+func (p *slackworkspacePager) applyCursors(query *SlackWorkspaceQuery, after, before *Cursor) (*SlackWorkspaceQuery, error) {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	for _, predicate := range entgql.CursorsPredicate(after, before, DefaultSlackWorkspaceOrder.Field.column, p.order.Field.column, direction) {
+		query = query.Where(predicate)
+	}
+	return query, nil
+}
+
+func (p *slackworkspacePager) applyOrder(query *SlackWorkspaceQuery) *SlackWorkspaceQuery {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	query = query.Order(p.order.Field.toTerm(direction.OrderTermOption()))
+	if p.order.Field != DefaultSlackWorkspaceOrder.Field {
+		query = query.Order(DefaultSlackWorkspaceOrder.Field.toTerm(direction.OrderTermOption()))
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return query
+}
+
+func (p *slackworkspacePager) orderExpr(query *SlackWorkspaceQuery) sql.Querier {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return sql.ExprFunc(func(b *sql.Builder) {
+		b.Ident(p.order.Field.column).Pad().WriteString(string(direction))
+		if p.order.Field != DefaultSlackWorkspaceOrder.Field {
+			b.Comma().Ident(DefaultSlackWorkspaceOrder.Field.column).Pad().WriteString(string(direction))
+		}
+	})
+}
+
+// Paginate executes the query and returns a relay based cursor connection to SlackWorkspace.
+func (_m *SlackWorkspaceQuery) Paginate(
+	ctx context.Context, after *Cursor, first *int,
+	before *Cursor, last *int, opts ...SlackWorkspacePaginateOption,
+) (*SlackWorkspaceConnection, error) {
+	if err := validateFirstLast(first, last); err != nil {
+		return nil, err
+	}
+	pager, err := newSlackWorkspacePager(opts, last != nil)
+	if err != nil {
+		return nil, err
+	}
+	if _m, err = pager.applyFilter(_m); err != nil {
+		return nil, err
+	}
+	conn := &SlackWorkspaceConnection{Edges: []*SlackWorkspaceEdge{}}
+	ignoredEdges := !hasCollectedField(ctx, edgesField)
+	if hasCollectedField(ctx, totalCountField) || hasCollectedField(ctx, pageInfoField) {
+		hasPagination := after != nil || first != nil || before != nil || last != nil
+		if hasPagination || ignoredEdges {
+			c := _m.Clone()
+			c.ctx.Fields = nil
+			if conn.TotalCount, err = c.Count(ctx); err != nil {
+				return nil, err
+			}
+			conn.PageInfo.HasNextPage = first != nil && conn.TotalCount > 0
+			conn.PageInfo.HasPreviousPage = last != nil && conn.TotalCount > 0
+		}
+	}
+	if ignoredEdges || (first != nil && *first == 0) || (last != nil && *last == 0) {
+		return conn, nil
+	}
+	if _m, err = pager.applyCursors(_m, after, before); err != nil {
+		return nil, err
+	}
+	limit := paginateLimit(first, last)
+	if limit != 0 {
+		_m.Limit(limit)
+	}
+	if field := collectedField(ctx, edgesField, nodeField); field != nil {
+		if err := _m.collectField(ctx, limit == 1, graphql.GetOperationContext(ctx), *field, []string{edgesField, nodeField}); err != nil {
+			return nil, err
+		}
+	}
+	_m = pager.applyOrder(_m)
+	nodes, err := _m.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	conn.build(nodes, pager, after, first, before, last)
+	return conn, nil
+}
+
+// SlackWorkspaceOrderField defines the ordering field of SlackWorkspace.
+type SlackWorkspaceOrderField struct {
+	// Value extracts the ordering value from the given SlackWorkspace.
+	Value    func(*SlackWorkspace) (ent.Value, error)
+	column   string // field or computed.
+	toTerm   func(...sql.OrderTermOption) slackworkspace.OrderOption
+	toCursor func(*SlackWorkspace) Cursor
+}
+
+// SlackWorkspaceOrder defines the ordering of SlackWorkspace.
+type SlackWorkspaceOrder struct {
+	Direction OrderDirection            `json:"direction"`
+	Field     *SlackWorkspaceOrderField `json:"field"`
+}
+
+// DefaultSlackWorkspaceOrder is the default ordering of SlackWorkspace.
+var DefaultSlackWorkspaceOrder = &SlackWorkspaceOrder{
+	Direction: entgql.OrderDirectionAsc,
+	Field: &SlackWorkspaceOrderField{
+		Value: func(_m *SlackWorkspace) (ent.Value, error) {
+			return _m.ID, nil
+		},
+		column: slackworkspace.FieldID,
+		toTerm: slackworkspace.ByID,
+		toCursor: func(_m *SlackWorkspace) Cursor {
+			return Cursor{ID: _m.ID}
+		},
+	},
+}
+
+// ToEdge converts SlackWorkspace into SlackWorkspaceEdge.
+func (_m *SlackWorkspace) ToEdge(order *SlackWorkspaceOrder) *SlackWorkspaceEdge {
+	if order == nil {
+		order = DefaultSlackWorkspaceOrder
+	}
+	return &SlackWorkspaceEdge{
 		Node:   _m,
 		Cursor: order.Field.toCursor(_m),
 	}

@@ -155,7 +155,6 @@ type SlackConfig struct {
 	ClientSecret      string `mapstructure:"client_secret" yaml:"client_secret"`
 	SigningSecret     string `mapstructure:"signing_secret" yaml:"signing_secret"`
 	VerificationToken string `mapstructure:"verification_token" yaml:"verification_token"`
-	BotToken          string `mapstructure:"bot_token" yaml:"bot_token"`
 	BotUserID         string `mapstructure:"bot_user_id" yaml:"bot_user_id"`
 	RedirectURI       string `mapstructure:"redirect_uri" yaml:"redirect_uri"`
 	LoginRedirectURI  string `mapstructure:"login_redirect_uri" yaml:"login_redirect_uri"`
@@ -175,15 +174,18 @@ type LLMProviderConfig struct {
 
 // LLMProfileConfig 描述單一 provider profile 的連線資訊。
 type LLMProfileConfig struct {
-	URL                string   `mapstructure:"url" yaml:"url"`
-	ModelName          string   `mapstructure:"model_name" yaml:"model_name"`
-	TimeoutSeconds     int      `mapstructure:"timeout_seconds" yaml:"timeout_seconds"`
-	MaxTokens          *int     `mapstructure:"max_tokens" yaml:"max_tokens"`
-	Temperature        *float64 `mapstructure:"temperature" yaml:"temperature"`
-	Path               string   `mapstructure:"path" yaml:"path"`
-	ActionDecisionPath string   `mapstructure:"action_decision_path" yaml:"action_decision_path"`
-	QuestionAnswerPath string   `mapstructure:"question_answer_path" yaml:"question_answer_path"`
-	TranslatePath      string   `mapstructure:"translate_path" yaml:"translate_path"`
+	URL            string   `mapstructure:"url" yaml:"url"`
+	ModelName      string   `mapstructure:"model_name" yaml:"model_name"`
+	TimeoutSeconds int      `mapstructure:"timeout_seconds" yaml:"timeout_seconds"`
+	MaxTokens      *int     `mapstructure:"max_tokens" yaml:"max_tokens"`
+	Temperature    *float64 `mapstructure:"temperature" yaml:"temperature"`
+	// UseJSONResponseFmt 控制 OpenAI 類 chat completion 是否主動送出 response_format=json_object。
+	// 針對 search-style model 這類不相容的 profile，應在設定檔關閉此開關，避免 API 直接回 400。
+	UseJSONResponseFmt *bool  `mapstructure:"use_json_response_format" yaml:"use_json_response_format"`
+	Path               string `mapstructure:"path" yaml:"path"`
+	ActionDecisionPath string `mapstructure:"action_decision_path" yaml:"action_decision_path"`
+	QuestionAnswerPath string `mapstructure:"question_answer_path" yaml:"question_answer_path"`
+	TranslatePath      string `mapstructure:"translate_path" yaml:"translate_path"`
 }
 
 // PostgreSQLConfig 參照 backend 風格，集中管理 PostgreSQL 連線參數。
@@ -280,9 +282,9 @@ func MustLoad() {
 		viper.SetDefault("postgresql.user_name", "")
 		viper.SetDefault("postgresql.password", "")
 		viper.SetDefault("postgresql.parameters", "sslmode=disable")
-		viper.SetDefault("ai.llm_interaction.decision.profile", "aistant.llm")
-		viper.SetDefault("ai.llm_interaction.chat.profile", "aistant.llm")
-		viper.SetDefault("ai.llm_interaction.translate.profile", "aistant.llm")
+		viper.SetDefault("ai.llm_interaction.decision.profile", "local")
+		viper.SetDefault("ai.llm_interaction.chat.profile", "local")
+		viper.SetDefault("ai.llm_interaction.translate.profile", "local")
 		viper.SetDefault("ai.llm_interaction.chatgpt.url", "https://api.openai.com/v1")
 		viper.SetDefault("ai.llm_interaction.chatgpt.token", "")
 		viper.SetDefault("ai.llm_interaction.chatgpt.profiles.default.model_name", "gpt-4o-mini")
@@ -338,7 +340,6 @@ func MustLoad() {
 		viper.SetDefault("slack.client_secret", "")
 		viper.SetDefault("slack.signing_secret", "")
 		viper.SetDefault("slack.verification_token", "")
-		viper.SetDefault("slack.bot_token", "")
 		viper.SetDefault("slack.bot_user_id", "")
 		viper.SetDefault("slack.redirect_uri", "")
 		viper.SetDefault("slack.login_redirect_uri", "")

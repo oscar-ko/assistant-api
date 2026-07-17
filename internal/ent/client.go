@@ -20,6 +20,7 @@ import (
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/slack"
+	"assistant-api/internal/ent/slackworkspace"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 
@@ -53,6 +54,8 @@ type Client struct {
 	Skill *SkillClient
 	// Slack is the client for interacting with the Slack builders.
 	Slack *SlackClient
+	// SlackWorkspace is the client for interacting with the SlackWorkspace builders.
+	SlackWorkspace *SlackWorkspaceClient
 	// TranslationLocale is the client for interacting with the TranslationLocale builders.
 	TranslationLocale *TranslationLocaleClient
 	// User is the client for interacting with the User builders.
@@ -77,6 +80,7 @@ func (c *Client) init() {
 	c.Line = NewLineClient(c.config)
 	c.Skill = NewSkillClient(c.config)
 	c.Slack = NewSlackClient(c.config)
+	c.SlackWorkspace = NewSlackWorkspaceClient(c.config)
 	c.TranslationLocale = NewTranslationLocaleClient(c.config)
 	c.User = NewUserClient(c.config)
 }
@@ -180,6 +184,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Line:                 NewLineClient(cfg),
 		Skill:                NewSkillClient(cfg),
 		Slack:                NewSlackClient(cfg),
+		SlackWorkspace:       NewSlackWorkspaceClient(cfg),
 		TranslationLocale:    NewTranslationLocaleClient(cfg),
 		User:                 NewUserClient(cfg),
 	}, nil
@@ -210,6 +215,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Line:                 NewLineClient(cfg),
 		Skill:                NewSkillClient(cfg),
 		Slack:                NewSlackClient(cfg),
+		SlackWorkspace:       NewSlackWorkspaceClient(cfg),
 		TranslationLocale:    NewTranslationLocaleClient(cfg),
 		User:                 NewUserClient(cfg),
 	}, nil
@@ -242,7 +248,8 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Action, c.ActionResult, c.ActionRoute, c.Channel, c.ChannelMessage,
-		c.ChannelServiceMember, c.Line, c.Skill, c.Slack, c.TranslationLocale, c.User,
+		c.ChannelServiceMember, c.Line, c.Skill, c.Slack, c.SlackWorkspace,
+		c.TranslationLocale, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -253,7 +260,8 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Action, c.ActionResult, c.ActionRoute, c.Channel, c.ChannelMessage,
-		c.ChannelServiceMember, c.Line, c.Skill, c.Slack, c.TranslationLocale, c.User,
+		c.ChannelServiceMember, c.Line, c.Skill, c.Slack, c.SlackWorkspace,
+		c.TranslationLocale, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -280,6 +288,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Skill.mutate(ctx, m)
 	case *SlackMutation:
 		return c.Slack.mutate(ctx, m)
+	case *SlackWorkspaceMutation:
+		return c.SlackWorkspace.mutate(ctx, m)
 	case *TranslationLocaleMutation:
 		return c.TranslationLocale.mutate(ctx, m)
 	case *UserMutation:
@@ -1790,6 +1800,139 @@ func (c *SlackClient) mutate(ctx context.Context, m *SlackMutation) (Value, erro
 	}
 }
 
+// SlackWorkspaceClient is a client for the SlackWorkspace schema.
+type SlackWorkspaceClient struct {
+	config
+}
+
+// NewSlackWorkspaceClient returns a client for the SlackWorkspace from the given config.
+func NewSlackWorkspaceClient(c config) *SlackWorkspaceClient {
+	return &SlackWorkspaceClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `slackworkspace.Hooks(f(g(h())))`.
+func (c *SlackWorkspaceClient) Use(hooks ...Hook) {
+	c.hooks.SlackWorkspace = append(c.hooks.SlackWorkspace, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `slackworkspace.Intercept(f(g(h())))`.
+func (c *SlackWorkspaceClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SlackWorkspace = append(c.inters.SlackWorkspace, interceptors...)
+}
+
+// Create returns a builder for creating a SlackWorkspace entity.
+func (c *SlackWorkspaceClient) Create() *SlackWorkspaceCreate {
+	mutation := newSlackWorkspaceMutation(c.config, OpCreate)
+	return &SlackWorkspaceCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SlackWorkspace entities.
+func (c *SlackWorkspaceClient) CreateBulk(builders ...*SlackWorkspaceCreate) *SlackWorkspaceCreateBulk {
+	return &SlackWorkspaceCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SlackWorkspaceClient) MapCreateBulk(slice any, setFunc func(*SlackWorkspaceCreate, int)) *SlackWorkspaceCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SlackWorkspaceCreateBulk{err: fmt.Errorf("calling to SlackWorkspaceClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SlackWorkspaceCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SlackWorkspaceCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SlackWorkspace.
+func (c *SlackWorkspaceClient) Update() *SlackWorkspaceUpdate {
+	mutation := newSlackWorkspaceMutation(c.config, OpUpdate)
+	return &SlackWorkspaceUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SlackWorkspaceClient) UpdateOne(_m *SlackWorkspace) *SlackWorkspaceUpdateOne {
+	mutation := newSlackWorkspaceMutation(c.config, OpUpdateOne, withSlackWorkspace(_m))
+	return &SlackWorkspaceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SlackWorkspaceClient) UpdateOneID(id uuid.UUID) *SlackWorkspaceUpdateOne {
+	mutation := newSlackWorkspaceMutation(c.config, OpUpdateOne, withSlackWorkspaceID(id))
+	return &SlackWorkspaceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SlackWorkspace.
+func (c *SlackWorkspaceClient) Delete() *SlackWorkspaceDelete {
+	mutation := newSlackWorkspaceMutation(c.config, OpDelete)
+	return &SlackWorkspaceDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SlackWorkspaceClient) DeleteOne(_m *SlackWorkspace) *SlackWorkspaceDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SlackWorkspaceClient) DeleteOneID(id uuid.UUID) *SlackWorkspaceDeleteOne {
+	builder := c.Delete().Where(slackworkspace.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SlackWorkspaceDeleteOne{builder}
+}
+
+// Query returns a query builder for SlackWorkspace.
+func (c *SlackWorkspaceClient) Query() *SlackWorkspaceQuery {
+	return &SlackWorkspaceQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSlackWorkspace},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SlackWorkspace entity by its id.
+func (c *SlackWorkspaceClient) Get(ctx context.Context, id uuid.UUID) (*SlackWorkspace, error) {
+	return c.Query().Where(slackworkspace.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SlackWorkspaceClient) GetX(ctx context.Context, id uuid.UUID) *SlackWorkspace {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *SlackWorkspaceClient) Hooks() []Hook {
+	return c.hooks.SlackWorkspace
+}
+
+// Interceptors returns the client interceptors.
+func (c *SlackWorkspaceClient) Interceptors() []Interceptor {
+	return c.inters.SlackWorkspace
+}
+
+func (c *SlackWorkspaceClient) mutate(ctx context.Context, m *SlackWorkspaceMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SlackWorkspaceCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SlackWorkspaceUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SlackWorkspaceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SlackWorkspaceDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SlackWorkspace mutation op: %q", m.Op())
+	}
+}
+
 // TranslationLocaleClient is a client for the TranslationLocale schema.
 type TranslationLocaleClient struct {
 	config
@@ -2172,11 +2315,12 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 type (
 	hooks struct {
 		Action, ActionResult, ActionRoute, Channel, ChannelMessage,
-		ChannelServiceMember, Line, Skill, Slack, TranslationLocale, User []ent.Hook
+		ChannelServiceMember, Line, Skill, Slack, SlackWorkspace, TranslationLocale,
+		User []ent.Hook
 	}
 	inters struct {
 		Action, ActionResult, ActionRoute, Channel, ChannelMessage,
-		ChannelServiceMember, Line, Skill, Slack, TranslationLocale,
+		ChannelServiceMember, Line, Skill, Slack, SlackWorkspace, TranslationLocale,
 		User []ent.Interceptor
 	}
 )

@@ -12,6 +12,7 @@ import (
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/slack"
+	"assistant-api/internal/ent/slackworkspace"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -1118,6 +1119,93 @@ func newSlackPaginateArgs(rv map[string]any) *slackPaginateArgs {
 	}
 	if v, ok := rv[whereField].(*SlackWhereInput); ok {
 		args.opts = append(args.opts, WithSlackFilter(v.Filter))
+	}
+	return args
+}
+
+// CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
+func (_q *SlackWorkspaceQuery) CollectFields(ctx context.Context, satisfies ...string) (*SlackWorkspaceQuery, error) {
+	fc := graphql.GetFieldContext(ctx)
+	if fc == nil {
+		return _q, nil
+	}
+	if err := _q.collectField(ctx, false, graphql.GetOperationContext(ctx), fc.Field, nil, satisfies...); err != nil {
+		return nil, err
+	}
+	return _q, nil
+}
+
+func (_q *SlackWorkspaceQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
+	path = append([]string(nil), path...)
+	var (
+		unknownSeen    bool
+		fieldSeen      = make(map[string]struct{}, len(slackworkspace.Columns))
+		selectedFields = []string{slackworkspace.FieldID}
+	)
+	for _, field := range graphql.CollectFields(opCtx, collected.Selections, satisfies) {
+		switch field.Name {
+		case "createdAt":
+			if _, ok := fieldSeen[slackworkspace.FieldCreatedAt]; !ok {
+				selectedFields = append(selectedFields, slackworkspace.FieldCreatedAt)
+				fieldSeen[slackworkspace.FieldCreatedAt] = struct{}{}
+			}
+		case "updatedAt":
+			if _, ok := fieldSeen[slackworkspace.FieldUpdatedAt]; !ok {
+				selectedFields = append(selectedFields, slackworkspace.FieldUpdatedAt)
+				fieldSeen[slackworkspace.FieldUpdatedAt] = struct{}{}
+			}
+		case "platformTeamID":
+			if _, ok := fieldSeen[slackworkspace.FieldPlatformTeamID]; !ok {
+				selectedFields = append(selectedFields, slackworkspace.FieldPlatformTeamID)
+				fieldSeen[slackworkspace.FieldPlatformTeamID] = struct{}{}
+			}
+		case "teamName":
+			if _, ok := fieldSeen[slackworkspace.FieldTeamName]; !ok {
+				selectedFields = append(selectedFields, slackworkspace.FieldTeamName)
+				fieldSeen[slackworkspace.FieldTeamName] = struct{}{}
+			}
+		case "botUserID":
+			if _, ok := fieldSeen[slackworkspace.FieldBotUserID]; !ok {
+				selectedFields = append(selectedFields, slackworkspace.FieldBotUserID)
+				fieldSeen[slackworkspace.FieldBotUserID] = struct{}{}
+			}
+		case "id":
+		case "__typename":
+		default:
+			unknownSeen = true
+		}
+	}
+	if !unknownSeen {
+		_q.Select(selectedFields...)
+	}
+	return nil
+}
+
+type slackworkspacePaginateArgs struct {
+	first, last   *int
+	after, before *Cursor
+	opts          []SlackWorkspacePaginateOption
+}
+
+func newSlackWorkspacePaginateArgs(rv map[string]any) *slackworkspacePaginateArgs {
+	args := &slackworkspacePaginateArgs{}
+	if rv == nil {
+		return args
+	}
+	if v := rv[firstField]; v != nil {
+		args.first = v.(*int)
+	}
+	if v := rv[lastField]; v != nil {
+		args.last = v.(*int)
+	}
+	if v := rv[afterField]; v != nil {
+		args.after = v.(*Cursor)
+	}
+	if v := rv[beforeField]; v != nil {
+		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[whereField].(*SlackWorkspaceWhereInput); ok {
+		args.opts = append(args.opts, WithSlackWorkspaceFilter(v.Filter))
 	}
 	return args
 }

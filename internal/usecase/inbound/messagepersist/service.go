@@ -19,6 +19,7 @@ type ChannelMessageStore interface {
 	SaveReceivedMessage(
 		ctx context.Context,
 		channelID uuid.UUID,
+		platformTenantID string,
 		senderID string,
 		senderName string,
 		platformMessageID string,
@@ -35,24 +36,24 @@ type ChannelMessageStore interface {
 // SenderNameResolver 定義不同 provider 解析 sender 顯示名稱的擴充點。
 // LINE/Slack/WhatsApp 都可以注入各自策略；未提供時會使用 Noop。
 type SenderNameResolver interface {
-	ResolveSenderName(ctx context.Context, platform string, channelID string, channelType string, senderID string) (string, error)
+	ResolveSenderName(ctx context.Context, platform string, platformTenantID string, channelID string, channelType string, senderID string) (string, error)
 }
 
 // SenderNameResolverFunc 讓函式可直接作為 resolver 使用。
-type SenderNameResolverFunc func(ctx context.Context, platform string, channelID string, channelType string, senderID string) (string, error)
+type SenderNameResolverFunc func(ctx context.Context, platform string, platformTenantID string, channelID string, channelType string, senderID string) (string, error)
 
-func (f SenderNameResolverFunc) ResolveSenderName(ctx context.Context, platform string, channelID string, channelType string, senderID string) (string, error) {
+func (f SenderNameResolverFunc) ResolveSenderName(ctx context.Context, platform string, platformTenantID string, channelID string, channelType string, senderID string) (string, error) {
 	if f == nil {
 		return "", nil
 	}
-	return f(ctx, platform, channelID, channelType, senderID)
+	return f(ctx, platform, platformTenantID, channelID, channelType, senderID)
 }
 
 // NoopSenderNameResolver 是預設 resolver，不做任何名稱反查。
 // 適合 Slack/WhatsApp 尚未接 profile 查詢前先共用持久化主流程。
 type NoopSenderNameResolver struct{}
 
-func (NoopSenderNameResolver) ResolveSenderName(ctx context.Context, platform string, channelID string, channelType string, senderID string) (string, error) {
+func (NoopSenderNameResolver) ResolveSenderName(ctx context.Context, platform string, platformTenantID string, channelID string, channelType string, senderID string) (string, error) {
 	return "", nil
 }
 
@@ -96,6 +97,7 @@ func (s Service) PersistUnifiedMessage(ctx context.Context, message *unifiedmess
 	}
 
 	platform := strings.TrimSpace(message.Platform)
+	platformTenantID := strings.TrimSpace(message.PlatformTenantID)
 	channelType := strings.TrimSpace(message.ChannelType)
 
 	resolver := s.resolver
@@ -104,10 +106,11 @@ func (s Service) PersistUnifiedMessage(ctx context.Context, message *unifiedmess
 	}
 
 	// 名稱解析是附加資訊，不應影響主流程；失敗僅記警告。
-	senderName, err := resolver.ResolveSenderName(ctx, platform, channelID, channelType, senderID)
+	senderName, err := resolver.ResolveSenderName(ctx, platform, platformTenantID, channelID, channelType, senderID)
 	if err != nil {
 		zap.L().Warn("resolve sender name failed",
 			zap.String("platform", platform),
+			zap.String("platform_tenant_id", platformTenantID),
 			zap.String("sender", senderID),
 			zap.Error(err),
 		)
@@ -159,6 +162,7 @@ func (s Service) PersistUnifiedMessage(ctx context.Context, message *unifiedmess
 	item, err := s.store.SaveReceivedMessage(
 		ctx,
 		ch.ID,
+		platformTenantID,
 		senderID,
 		strings.TrimSpace(senderName),
 		strings.TrimSpace(message.PlatformMessageID),

@@ -57,7 +57,7 @@ func (d *slackWebhookRetryDeduperStore) mark(body []byte) bool {
 
 func webhookHandler(svc WebhookProcessor) gin.HandlerFunc {
 	if svc == nil {
-		svc = NewWebhookService(nil)
+		svc = NewWebhookService(nil, nil)
 	}
 
 	return func(c *gin.Context) {

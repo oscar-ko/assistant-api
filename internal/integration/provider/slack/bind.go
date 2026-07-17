@@ -6,8 +6,6 @@ import (
 	"strings"
 
 	"assistant-api/internal/ent"
-
-	"github.com/google/uuid"
 )
 
 // slackBindRepository 定義 Slack 綁定流程所需的資料操作。
@@ -18,9 +16,10 @@ import (
 type slackBindRepository interface {
 	GetUserBySlackIdentity(ctx context.Context, teamID string, slackUserID string) (*ent.User, error)
 	GetUserByEmail(ctx context.Context, email string) (*ent.User, error)
-	HasSlackBindingForUser(ctx context.Context, userID uuid.UUID) (bool, error)
 	CreateSlackBinding(ctx context.Context, u *ent.User, teamID string, slackUserID string, displayName string, email *string, picture *string) error
 	CreateUser(ctx context.Context, name, email string) (*ent.User, error)
+	ResolveWorkspaceBotToken(ctx context.Context, teamID string) (string, error)
+	ResolveWorkspaceBotUserID(ctx context.Context, teamID string) (string, error)
 }
 
 // bindUser 將 Slack 帳號綁定到現有使用者，或建立新使用者與綁定資料。
@@ -28,7 +27,7 @@ type slackBindRepository interface {
 // 決策順序：
 // 1) 先以 teamID + slackUserID 查詢：若已綁定，直接回既有 user。
 // 2) 若尚未綁定，改以 email 查詢：
-//   - 找到同 email user：檢查是否已綁定其他 Slack，避免一人多綁衝突。
+//   - 找到同 email user：直接新增該 workspace 的 Slack 綁定。
 //   - 找不到同 email user：建立新 user，再建立 Slack 綁定。
 //
 // 嚴格模式：
@@ -62,15 +61,6 @@ func bindUser(ctx context.Context, repo slackBindRepository, p *profile) (*ent.U
 
 	uByEmail, e := repo.GetUserByEmail(ctx, email)
 	if e == nil {
-		// 同一位系統 user 僅允許綁定一個 Slack 身份，避免身份覆蓋衝突。
-		hasSlack, he := repo.HasSlackBindingForUser(ctx, uByEmail.ID)
-		if he != nil {
-			return nil, he
-		}
-		if hasSlack {
-			return nil, fmt.Errorf("user already bound to another slack account")
-		}
-
 		if ce := repo.CreateSlackBinding(ctx, uByEmail, teamID, slackUserID, name, nullable(email), nullable(picture)); ce != nil {
 			return nil, ce
 		}

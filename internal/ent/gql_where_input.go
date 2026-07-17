@@ -13,6 +13,7 @@ import (
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/slack"
+	"assistant-api/internal/ent/slackworkspace"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"errors"
@@ -3864,6 +3865,430 @@ func (i *SlackWhereInput) P() (predicate.Slack, error) {
 		return predicates[0], nil
 	default:
 		return slack.And(predicates...), nil
+	}
+}
+
+// SlackWorkspaceWhereInput represents a where input for filtering SlackWorkspace queries.
+type SlackWorkspaceWhereInput struct {
+	Predicates []predicate.SlackWorkspace  `json:"-"`
+	Not        *SlackWorkspaceWhereInput   `json:"not,omitempty"`
+	Or         []*SlackWorkspaceWhereInput `json:"or,omitempty"`
+	And        []*SlackWorkspaceWhereInput `json:"and,omitempty"`
+
+	// "id" field predicates.
+	ID      *uuid.UUID  `json:"id,omitempty"`
+	IDNEQ   *uuid.UUID  `json:"idNEQ,omitempty"`
+	IDIn    []uuid.UUID `json:"idIn,omitempty"`
+	IDNotIn []uuid.UUID `json:"idNotIn,omitempty"`
+	IDGT    *uuid.UUID  `json:"idGT,omitempty"`
+	IDGTE   *uuid.UUID  `json:"idGTE,omitempty"`
+	IDLT    *uuid.UUID  `json:"idLT,omitempty"`
+	IDLTE   *uuid.UUID  `json:"idLTE,omitempty"`
+
+	// "created_at" field predicates.
+	CreatedAt      *time.Time  `json:"createdAt,omitempty"`
+	CreatedAtNEQ   *time.Time  `json:"createdAtNEQ,omitempty"`
+	CreatedAtIn    []time.Time `json:"createdAtIn,omitempty"`
+	CreatedAtNotIn []time.Time `json:"createdAtNotIn,omitempty"`
+	CreatedAtGT    *time.Time  `json:"createdAtGT,omitempty"`
+	CreatedAtGTE   *time.Time  `json:"createdAtGTE,omitempty"`
+	CreatedAtLT    *time.Time  `json:"createdAtLT,omitempty"`
+	CreatedAtLTE   *time.Time  `json:"createdAtLTE,omitempty"`
+
+	// "updated_at" field predicates.
+	UpdatedAt      *time.Time  `json:"updatedAt,omitempty"`
+	UpdatedAtNEQ   *time.Time  `json:"updatedAtNEQ,omitempty"`
+	UpdatedAtIn    []time.Time `json:"updatedAtIn,omitempty"`
+	UpdatedAtNotIn []time.Time `json:"updatedAtNotIn,omitempty"`
+	UpdatedAtGT    *time.Time  `json:"updatedAtGT,omitempty"`
+	UpdatedAtGTE   *time.Time  `json:"updatedAtGTE,omitempty"`
+	UpdatedAtLT    *time.Time  `json:"updatedAtLT,omitempty"`
+	UpdatedAtLTE   *time.Time  `json:"updatedAtLTE,omitempty"`
+
+	// "platform_team_id" field predicates.
+	PlatformTeamID             *string  `json:"platformTeamID,omitempty"`
+	PlatformTeamIDNEQ          *string  `json:"platformTeamIDNEQ,omitempty"`
+	PlatformTeamIDIn           []string `json:"platformTeamIDIn,omitempty"`
+	PlatformTeamIDNotIn        []string `json:"platformTeamIDNotIn,omitempty"`
+	PlatformTeamIDGT           *string  `json:"platformTeamIDGT,omitempty"`
+	PlatformTeamIDGTE          *string  `json:"platformTeamIDGTE,omitempty"`
+	PlatformTeamIDLT           *string  `json:"platformTeamIDLT,omitempty"`
+	PlatformTeamIDLTE          *string  `json:"platformTeamIDLTE,omitempty"`
+	PlatformTeamIDContains     *string  `json:"platformTeamIDContains,omitempty"`
+	PlatformTeamIDHasPrefix    *string  `json:"platformTeamIDHasPrefix,omitempty"`
+	PlatformTeamIDHasSuffix    *string  `json:"platformTeamIDHasSuffix,omitempty"`
+	PlatformTeamIDEqualFold    *string  `json:"platformTeamIDEqualFold,omitempty"`
+	PlatformTeamIDContainsFold *string  `json:"platformTeamIDContainsFold,omitempty"`
+
+	// "team_name" field predicates.
+	TeamName             *string  `json:"teamName,omitempty"`
+	TeamNameNEQ          *string  `json:"teamNameNEQ,omitempty"`
+	TeamNameIn           []string `json:"teamNameIn,omitempty"`
+	TeamNameNotIn        []string `json:"teamNameNotIn,omitempty"`
+	TeamNameGT           *string  `json:"teamNameGT,omitempty"`
+	TeamNameGTE          *string  `json:"teamNameGTE,omitempty"`
+	TeamNameLT           *string  `json:"teamNameLT,omitempty"`
+	TeamNameLTE          *string  `json:"teamNameLTE,omitempty"`
+	TeamNameContains     *string  `json:"teamNameContains,omitempty"`
+	TeamNameHasPrefix    *string  `json:"teamNameHasPrefix,omitempty"`
+	TeamNameHasSuffix    *string  `json:"teamNameHasSuffix,omitempty"`
+	TeamNameIsNil        bool     `json:"teamNameIsNil,omitempty"`
+	TeamNameNotNil       bool     `json:"teamNameNotNil,omitempty"`
+	TeamNameEqualFold    *string  `json:"teamNameEqualFold,omitempty"`
+	TeamNameContainsFold *string  `json:"teamNameContainsFold,omitempty"`
+
+	// "bot_token" field predicates.
+	BotToken             *string  `json:"botToken,omitempty"`
+	BotTokenNEQ          *string  `json:"botTokenNEQ,omitempty"`
+	BotTokenIn           []string `json:"botTokenIn,omitempty"`
+	BotTokenNotIn        []string `json:"botTokenNotIn,omitempty"`
+	BotTokenGT           *string  `json:"botTokenGT,omitempty"`
+	BotTokenGTE          *string  `json:"botTokenGTE,omitempty"`
+	BotTokenLT           *string  `json:"botTokenLT,omitempty"`
+	BotTokenLTE          *string  `json:"botTokenLTE,omitempty"`
+	BotTokenContains     *string  `json:"botTokenContains,omitempty"`
+	BotTokenHasPrefix    *string  `json:"botTokenHasPrefix,omitempty"`
+	BotTokenHasSuffix    *string  `json:"botTokenHasSuffix,omitempty"`
+	BotTokenEqualFold    *string  `json:"botTokenEqualFold,omitempty"`
+	BotTokenContainsFold *string  `json:"botTokenContainsFold,omitempty"`
+
+	// "bot_user_id" field predicates.
+	BotUserID             *string  `json:"botUserID,omitempty"`
+	BotUserIDNEQ          *string  `json:"botUserIDNEQ,omitempty"`
+	BotUserIDIn           []string `json:"botUserIDIn,omitempty"`
+	BotUserIDNotIn        []string `json:"botUserIDNotIn,omitempty"`
+	BotUserIDGT           *string  `json:"botUserIDGT,omitempty"`
+	BotUserIDGTE          *string  `json:"botUserIDGTE,omitempty"`
+	BotUserIDLT           *string  `json:"botUserIDLT,omitempty"`
+	BotUserIDLTE          *string  `json:"botUserIDLTE,omitempty"`
+	BotUserIDContains     *string  `json:"botUserIDContains,omitempty"`
+	BotUserIDHasPrefix    *string  `json:"botUserIDHasPrefix,omitempty"`
+	BotUserIDHasSuffix    *string  `json:"botUserIDHasSuffix,omitempty"`
+	BotUserIDIsNil        bool     `json:"botUserIDIsNil,omitempty"`
+	BotUserIDNotNil       bool     `json:"botUserIDNotNil,omitempty"`
+	BotUserIDEqualFold    *string  `json:"botUserIDEqualFold,omitempty"`
+	BotUserIDContainsFold *string  `json:"botUserIDContainsFold,omitempty"`
+}
+
+// AddPredicates adds custom predicates to the where input to be used during the filtering phase.
+func (i *SlackWorkspaceWhereInput) AddPredicates(predicates ...predicate.SlackWorkspace) {
+	i.Predicates = append(i.Predicates, predicates...)
+}
+
+// Filter applies the SlackWorkspaceWhereInput filter on the SlackWorkspaceQuery builder.
+func (i *SlackWorkspaceWhereInput) Filter(q *SlackWorkspaceQuery) (*SlackWorkspaceQuery, error) {
+	if i == nil {
+		return q, nil
+	}
+	p, err := i.P()
+	if err != nil {
+		if err == ErrEmptySlackWorkspaceWhereInput {
+			return q, nil
+		}
+		return nil, err
+	}
+	return q.Where(p), nil
+}
+
+// ErrEmptySlackWorkspaceWhereInput is returned in case the SlackWorkspaceWhereInput is empty.
+var ErrEmptySlackWorkspaceWhereInput = errors.New("ent: empty predicate SlackWorkspaceWhereInput")
+
+// P returns a predicate for filtering slackworkspaces.
+// An error is returned if the input is empty or invalid.
+func (i *SlackWorkspaceWhereInput) P() (predicate.SlackWorkspace, error) {
+	var predicates []predicate.SlackWorkspace
+	if i.Not != nil {
+		p, err := i.Not.P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'not'", err)
+		}
+		predicates = append(predicates, slackworkspace.Not(p))
+	}
+	switch n := len(i.Or); {
+	case n == 1:
+		p, err := i.Or[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'or'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		or := make([]predicate.SlackWorkspace, 0, n)
+		for _, w := range i.Or {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'or'", err)
+			}
+			or = append(or, p)
+		}
+		predicates = append(predicates, slackworkspace.Or(or...))
+	}
+	switch n := len(i.And); {
+	case n == 1:
+		p, err := i.And[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'and'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		and := make([]predicate.SlackWorkspace, 0, n)
+		for _, w := range i.And {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'and'", err)
+			}
+			and = append(and, p)
+		}
+		predicates = append(predicates, slackworkspace.And(and...))
+	}
+	predicates = append(predicates, i.Predicates...)
+	if i.ID != nil {
+		predicates = append(predicates, slackworkspace.IDEQ(*i.ID))
+	}
+	if i.IDNEQ != nil {
+		predicates = append(predicates, slackworkspace.IDNEQ(*i.IDNEQ))
+	}
+	if len(i.IDIn) > 0 {
+		predicates = append(predicates, slackworkspace.IDIn(i.IDIn...))
+	}
+	if len(i.IDNotIn) > 0 {
+		predicates = append(predicates, slackworkspace.IDNotIn(i.IDNotIn...))
+	}
+	if i.IDGT != nil {
+		predicates = append(predicates, slackworkspace.IDGT(*i.IDGT))
+	}
+	if i.IDGTE != nil {
+		predicates = append(predicates, slackworkspace.IDGTE(*i.IDGTE))
+	}
+	if i.IDLT != nil {
+		predicates = append(predicates, slackworkspace.IDLT(*i.IDLT))
+	}
+	if i.IDLTE != nil {
+		predicates = append(predicates, slackworkspace.IDLTE(*i.IDLTE))
+	}
+	if i.CreatedAt != nil {
+		predicates = append(predicates, slackworkspace.CreatedAtEQ(*i.CreatedAt))
+	}
+	if i.CreatedAtNEQ != nil {
+		predicates = append(predicates, slackworkspace.CreatedAtNEQ(*i.CreatedAtNEQ))
+	}
+	if len(i.CreatedAtIn) > 0 {
+		predicates = append(predicates, slackworkspace.CreatedAtIn(i.CreatedAtIn...))
+	}
+	if len(i.CreatedAtNotIn) > 0 {
+		predicates = append(predicates, slackworkspace.CreatedAtNotIn(i.CreatedAtNotIn...))
+	}
+	if i.CreatedAtGT != nil {
+		predicates = append(predicates, slackworkspace.CreatedAtGT(*i.CreatedAtGT))
+	}
+	if i.CreatedAtGTE != nil {
+		predicates = append(predicates, slackworkspace.CreatedAtGTE(*i.CreatedAtGTE))
+	}
+	if i.CreatedAtLT != nil {
+		predicates = append(predicates, slackworkspace.CreatedAtLT(*i.CreatedAtLT))
+	}
+	if i.CreatedAtLTE != nil {
+		predicates = append(predicates, slackworkspace.CreatedAtLTE(*i.CreatedAtLTE))
+	}
+	if i.UpdatedAt != nil {
+		predicates = append(predicates, slackworkspace.UpdatedAtEQ(*i.UpdatedAt))
+	}
+	if i.UpdatedAtNEQ != nil {
+		predicates = append(predicates, slackworkspace.UpdatedAtNEQ(*i.UpdatedAtNEQ))
+	}
+	if len(i.UpdatedAtIn) > 0 {
+		predicates = append(predicates, slackworkspace.UpdatedAtIn(i.UpdatedAtIn...))
+	}
+	if len(i.UpdatedAtNotIn) > 0 {
+		predicates = append(predicates, slackworkspace.UpdatedAtNotIn(i.UpdatedAtNotIn...))
+	}
+	if i.UpdatedAtGT != nil {
+		predicates = append(predicates, slackworkspace.UpdatedAtGT(*i.UpdatedAtGT))
+	}
+	if i.UpdatedAtGTE != nil {
+		predicates = append(predicates, slackworkspace.UpdatedAtGTE(*i.UpdatedAtGTE))
+	}
+	if i.UpdatedAtLT != nil {
+		predicates = append(predicates, slackworkspace.UpdatedAtLT(*i.UpdatedAtLT))
+	}
+	if i.UpdatedAtLTE != nil {
+		predicates = append(predicates, slackworkspace.UpdatedAtLTE(*i.UpdatedAtLTE))
+	}
+	if i.PlatformTeamID != nil {
+		predicates = append(predicates, slackworkspace.PlatformTeamIDEQ(*i.PlatformTeamID))
+	}
+	if i.PlatformTeamIDNEQ != nil {
+		predicates = append(predicates, slackworkspace.PlatformTeamIDNEQ(*i.PlatformTeamIDNEQ))
+	}
+	if len(i.PlatformTeamIDIn) > 0 {
+		predicates = append(predicates, slackworkspace.PlatformTeamIDIn(i.PlatformTeamIDIn...))
+	}
+	if len(i.PlatformTeamIDNotIn) > 0 {
+		predicates = append(predicates, slackworkspace.PlatformTeamIDNotIn(i.PlatformTeamIDNotIn...))
+	}
+	if i.PlatformTeamIDGT != nil {
+		predicates = append(predicates, slackworkspace.PlatformTeamIDGT(*i.PlatformTeamIDGT))
+	}
+	if i.PlatformTeamIDGTE != nil {
+		predicates = append(predicates, slackworkspace.PlatformTeamIDGTE(*i.PlatformTeamIDGTE))
+	}
+	if i.PlatformTeamIDLT != nil {
+		predicates = append(predicates, slackworkspace.PlatformTeamIDLT(*i.PlatformTeamIDLT))
+	}
+	if i.PlatformTeamIDLTE != nil {
+		predicates = append(predicates, slackworkspace.PlatformTeamIDLTE(*i.PlatformTeamIDLTE))
+	}
+	if i.PlatformTeamIDContains != nil {
+		predicates = append(predicates, slackworkspace.PlatformTeamIDContains(*i.PlatformTeamIDContains))
+	}
+	if i.PlatformTeamIDHasPrefix != nil {
+		predicates = append(predicates, slackworkspace.PlatformTeamIDHasPrefix(*i.PlatformTeamIDHasPrefix))
+	}
+	if i.PlatformTeamIDHasSuffix != nil {
+		predicates = append(predicates, slackworkspace.PlatformTeamIDHasSuffix(*i.PlatformTeamIDHasSuffix))
+	}
+	if i.PlatformTeamIDEqualFold != nil {
+		predicates = append(predicates, slackworkspace.PlatformTeamIDEqualFold(*i.PlatformTeamIDEqualFold))
+	}
+	if i.PlatformTeamIDContainsFold != nil {
+		predicates = append(predicates, slackworkspace.PlatformTeamIDContainsFold(*i.PlatformTeamIDContainsFold))
+	}
+	if i.TeamName != nil {
+		predicates = append(predicates, slackworkspace.TeamNameEQ(*i.TeamName))
+	}
+	if i.TeamNameNEQ != nil {
+		predicates = append(predicates, slackworkspace.TeamNameNEQ(*i.TeamNameNEQ))
+	}
+	if len(i.TeamNameIn) > 0 {
+		predicates = append(predicates, slackworkspace.TeamNameIn(i.TeamNameIn...))
+	}
+	if len(i.TeamNameNotIn) > 0 {
+		predicates = append(predicates, slackworkspace.TeamNameNotIn(i.TeamNameNotIn...))
+	}
+	if i.TeamNameGT != nil {
+		predicates = append(predicates, slackworkspace.TeamNameGT(*i.TeamNameGT))
+	}
+	if i.TeamNameGTE != nil {
+		predicates = append(predicates, slackworkspace.TeamNameGTE(*i.TeamNameGTE))
+	}
+	if i.TeamNameLT != nil {
+		predicates = append(predicates, slackworkspace.TeamNameLT(*i.TeamNameLT))
+	}
+	if i.TeamNameLTE != nil {
+		predicates = append(predicates, slackworkspace.TeamNameLTE(*i.TeamNameLTE))
+	}
+	if i.TeamNameContains != nil {
+		predicates = append(predicates, slackworkspace.TeamNameContains(*i.TeamNameContains))
+	}
+	if i.TeamNameHasPrefix != nil {
+		predicates = append(predicates, slackworkspace.TeamNameHasPrefix(*i.TeamNameHasPrefix))
+	}
+	if i.TeamNameHasSuffix != nil {
+		predicates = append(predicates, slackworkspace.TeamNameHasSuffix(*i.TeamNameHasSuffix))
+	}
+	if i.TeamNameIsNil {
+		predicates = append(predicates, slackworkspace.TeamNameIsNil())
+	}
+	if i.TeamNameNotNil {
+		predicates = append(predicates, slackworkspace.TeamNameNotNil())
+	}
+	if i.TeamNameEqualFold != nil {
+		predicates = append(predicates, slackworkspace.TeamNameEqualFold(*i.TeamNameEqualFold))
+	}
+	if i.TeamNameContainsFold != nil {
+		predicates = append(predicates, slackworkspace.TeamNameContainsFold(*i.TeamNameContainsFold))
+	}
+	if i.BotToken != nil {
+		predicates = append(predicates, slackworkspace.BotTokenEQ(*i.BotToken))
+	}
+	if i.BotTokenNEQ != nil {
+		predicates = append(predicates, slackworkspace.BotTokenNEQ(*i.BotTokenNEQ))
+	}
+	if len(i.BotTokenIn) > 0 {
+		predicates = append(predicates, slackworkspace.BotTokenIn(i.BotTokenIn...))
+	}
+	if len(i.BotTokenNotIn) > 0 {
+		predicates = append(predicates, slackworkspace.BotTokenNotIn(i.BotTokenNotIn...))
+	}
+	if i.BotTokenGT != nil {
+		predicates = append(predicates, slackworkspace.BotTokenGT(*i.BotTokenGT))
+	}
+	if i.BotTokenGTE != nil {
+		predicates = append(predicates, slackworkspace.BotTokenGTE(*i.BotTokenGTE))
+	}
+	if i.BotTokenLT != nil {
+		predicates = append(predicates, slackworkspace.BotTokenLT(*i.BotTokenLT))
+	}
+	if i.BotTokenLTE != nil {
+		predicates = append(predicates, slackworkspace.BotTokenLTE(*i.BotTokenLTE))
+	}
+	if i.BotTokenContains != nil {
+		predicates = append(predicates, slackworkspace.BotTokenContains(*i.BotTokenContains))
+	}
+	if i.BotTokenHasPrefix != nil {
+		predicates = append(predicates, slackworkspace.BotTokenHasPrefix(*i.BotTokenHasPrefix))
+	}
+	if i.BotTokenHasSuffix != nil {
+		predicates = append(predicates, slackworkspace.BotTokenHasSuffix(*i.BotTokenHasSuffix))
+	}
+	if i.BotTokenEqualFold != nil {
+		predicates = append(predicates, slackworkspace.BotTokenEqualFold(*i.BotTokenEqualFold))
+	}
+	if i.BotTokenContainsFold != nil {
+		predicates = append(predicates, slackworkspace.BotTokenContainsFold(*i.BotTokenContainsFold))
+	}
+	if i.BotUserID != nil {
+		predicates = append(predicates, slackworkspace.BotUserIDEQ(*i.BotUserID))
+	}
+	if i.BotUserIDNEQ != nil {
+		predicates = append(predicates, slackworkspace.BotUserIDNEQ(*i.BotUserIDNEQ))
+	}
+	if len(i.BotUserIDIn) > 0 {
+		predicates = append(predicates, slackworkspace.BotUserIDIn(i.BotUserIDIn...))
+	}
+	if len(i.BotUserIDNotIn) > 0 {
+		predicates = append(predicates, slackworkspace.BotUserIDNotIn(i.BotUserIDNotIn...))
+	}
+	if i.BotUserIDGT != nil {
+		predicates = append(predicates, slackworkspace.BotUserIDGT(*i.BotUserIDGT))
+	}
+	if i.BotUserIDGTE != nil {
+		predicates = append(predicates, slackworkspace.BotUserIDGTE(*i.BotUserIDGTE))
+	}
+	if i.BotUserIDLT != nil {
+		predicates = append(predicates, slackworkspace.BotUserIDLT(*i.BotUserIDLT))
+	}
+	if i.BotUserIDLTE != nil {
+		predicates = append(predicates, slackworkspace.BotUserIDLTE(*i.BotUserIDLTE))
+	}
+	if i.BotUserIDContains != nil {
+		predicates = append(predicates, slackworkspace.BotUserIDContains(*i.BotUserIDContains))
+	}
+	if i.BotUserIDHasPrefix != nil {
+		predicates = append(predicates, slackworkspace.BotUserIDHasPrefix(*i.BotUserIDHasPrefix))
+	}
+	if i.BotUserIDHasSuffix != nil {
+		predicates = append(predicates, slackworkspace.BotUserIDHasSuffix(*i.BotUserIDHasSuffix))
+	}
+	if i.BotUserIDIsNil {
+		predicates = append(predicates, slackworkspace.BotUserIDIsNil())
+	}
+	if i.BotUserIDNotNil {
+		predicates = append(predicates, slackworkspace.BotUserIDNotNil())
+	}
+	if i.BotUserIDEqualFold != nil {
+		predicates = append(predicates, slackworkspace.BotUserIDEqualFold(*i.BotUserIDEqualFold))
+	}
+	if i.BotUserIDContainsFold != nil {
+		predicates = append(predicates, slackworkspace.BotUserIDContainsFold(*i.BotUserIDContainsFold))
+	}
+
+	switch len(predicates) {
+	case 0:
+		return nil, ErrEmptySlackWorkspaceWhereInput
+	case 1:
+		return predicates[0], nil
+	default:
+		return slackworkspace.And(predicates...), nil
 	}
 }
 

@@ -25,8 +25,8 @@ func NewLocalContractInteractionClient(baseURL string, timeoutSeconds int, actio
 }
 
 // NewOpenAIInteractionClient 建立直接呼叫 OpenAI 的 interaction client。
-func NewOpenAIInteractionClient(baseURL string, token string, decisionModel string, chatModel string, timeoutSeconds int, maxTokens *int, temperature *float64) (InteractionClient, error) {
-	return usecasellminteraction.NewOpenAIInteractionClient(baseURL, token, decisionModel, chatModel, timeoutSeconds, maxTokens, temperature)
+func NewOpenAIInteractionClient(baseURL string, token string, decisionModel string, chatModel string, timeoutSeconds int, maxTokens *int, temperature *float64, useJSONResponseFmt *bool) (InteractionClient, error) {
+	return usecasellminteraction.NewOpenAIInteractionClient(baseURL, token, decisionModel, chatModel, timeoutSeconds, maxTokens, temperature, useJSONResponseFmt)
 }
 
 // BuildFinalActionPrompt 依 reranker 精排後的候選清單組出最終決策提示詞。

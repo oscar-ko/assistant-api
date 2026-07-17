@@ -13,7 +13,7 @@ import (
 
 // NewOpenAIInteractionClient 建立可直接呼叫 OpenAI Chat Completions 的 interaction client。
 // 這個 client 會把 OpenAI 回應轉成既有 ActionDecision / QuestionAnswer 契約。
-func NewOpenAIInteractionClient(baseURL string, token string, decisionModel string, chatModel string, timeoutSeconds int, maxTokens *int, temperature *float64) (InteractionClient, error) {
+func NewOpenAIInteractionClient(baseURL string, token string, decisionModel string, chatModel string, timeoutSeconds int, maxTokens *int, temperature *float64, useJSONResponseFmt *bool) (InteractionClient, error) {
 	trimmedBaseURL := strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if trimmedBaseURL == "" {
 		return nil, fmt.Errorf("openai base url is empty")
@@ -47,13 +47,14 @@ func NewOpenAIInteractionClient(baseURL string, token string, decisionModel stri
 		normalizedTemperature = &value
 	}
 	return &openAIInteractionClient{
-		baseURL:       trimmedBaseURL,
-		token:         trimmedToken,
-		decisionModel: trimmedDecisionModel,
-		chatModel:     trimmedChatModel,
-		maxTokens:     normalizedMaxTokens,
-		temperature:   normalizedTemperature,
-		httpClient:    &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second},
+		baseURL:            trimmedBaseURL,
+		token:              trimmedToken,
+		decisionModel:      trimmedDecisionModel,
+		chatModel:          trimmedChatModel,
+		maxTokens:          normalizedMaxTokens,
+		temperature:        normalizedTemperature,
+		useJSONResponseFmt: useJSONResponseFormatOrDefault(useJSONResponseFmt),
+		httpClient:         &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second},
 	}, nil
 }
 
@@ -64,7 +65,9 @@ type openAIInteractionClient struct {
 	chatModel     string
 	maxTokens     *int
 	temperature   *float64
-	httpClient    *http.Client
+	// useJSONResponseFmt 預設為 true；若設定檔明確關閉，則不送 response_format。
+	useJSONResponseFmt bool
+	httpClient         *http.Client
 }
 
 type openAIChatCompletionRequest struct {
@@ -143,12 +146,15 @@ func (c *openAIInteractionClient) completeJSON(ctx context.Context, model string
 	includeMaxTokens := c.maxTokens != nil
 
 	for {
+		// 這裡只處理參數相容性；prompt 與輸出契約不做替代或降級。
 		payload := openAIChatCompletionRequest{
 			Model: trimmedModel,
 			Messages: []openAIChatCompletionMessage{
 				{Role: "user", Content: fullPrompt},
 			},
-			ResponseFmt: &openAIResponseFormat{Type: "json_object"},
+		}
+		if c.useJSONResponseFmt {
+			payload.ResponseFmt = &openAIResponseFormat{Type: "json_object"}
 		}
 		if includeTemperature {
 			payload.Temperature = c.temperature
@@ -175,6 +181,14 @@ func (c *openAIInteractionClient) completeJSON(ctx context.Context, model string
 
 		return "", err
 	}
+}
+
+func useJSONResponseFormatOrDefault(value *bool) bool {
+	// 設定未指定時維持舊行為：預設啟用 JSON response format。
+	if value == nil {
+		return true
+	}
+	return *value
 }
 
 func (c *openAIInteractionClient) completeJSONWithPayload(ctx context.Context, payload openAIChatCompletionRequest) (string, int, string, error) {
@@ -229,6 +243,8 @@ func isIncompatibleRequestArgument(responseBody string, argName string) bool {
 }
 
 func normalizeJSONLikeContent(content string) string {
+	// 先清掉 code fence / BOM，再從同一段 content 中抽出第一個完整 JSON object。
+	// 這不是換欄位 fallback，只是容忍模型在 JSON 前後補一句說明文字。
 	trimmed := strings.TrimSpace(content)
 	if strings.HasPrefix(trimmed, "```") {
 		trimmed = strings.TrimPrefix(trimmed, "```json")
@@ -236,7 +252,53 @@ func normalizeJSONLikeContent(content string) string {
 		trimmed = strings.TrimSuffix(trimmed, "```")
 		trimmed = strings.TrimSpace(trimmed)
 	}
+	trimmed = strings.TrimPrefix(trimmed, "\ufeff")
+	if jsonOnly, ok := extractJSONObject(trimmed); ok {
+		return jsonOnly
+	}
 	return trimmed
+}
+
+func extractJSONObject(content string) (string, bool) {
+	// 透過括號深度掃描抓出第一個完整 JSON object，避免前後自然語言干擾。
+	// 若內容根本沒有 JSON，仍會回 false，保持 fail-fast。
+	start := strings.Index(content, "{")
+	if start < 0 {
+		return "", false
+	}
+
+	depth := 0
+	inString := false
+	escaped := false
+	for idx := start; idx < len(content); idx++ {
+		ch := content[idx]
+		if escaped {
+			escaped = false
+			continue
+		}
+		if ch == '\\' && inString {
+			escaped = true
+			continue
+		}
+		if ch == '"' {
+			inString = !inString
+			continue
+		}
+		if inString {
+			continue
+		}
+		switch ch {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return strings.TrimSpace(content[start : idx+1]), true
+			}
+		}
+	}
+
+	return "", false
 }
 
 func parseActionDecisionContent(content string) (*ActionDecision, error) {

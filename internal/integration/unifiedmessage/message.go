@@ -11,6 +11,7 @@ type Mention struct {
 // 後續 AI 分析、規則判斷、訊息鏈查詢都應以這個格式為輸入。
 type Message struct {
 	Platform          string
+	PlatformTenantID  string
 	SourceType        string
 	ChannelID         string
 	ChannelType       string

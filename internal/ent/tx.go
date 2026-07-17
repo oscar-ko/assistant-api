@@ -30,6 +30,8 @@ type Tx struct {
 	Skill *SkillClient
 	// Slack is the client for interacting with the Slack builders.
 	Slack *SlackClient
+	// SlackWorkspace is the client for interacting with the SlackWorkspace builders.
+	SlackWorkspace *SlackWorkspaceClient
 	// TranslationLocale is the client for interacting with the TranslationLocale builders.
 	TranslationLocale *TranslationLocaleClient
 	// User is the client for interacting with the User builders.
@@ -174,6 +176,7 @@ func (tx *Tx) init() {
 	tx.Line = NewLineClient(tx.config)
 	tx.Skill = NewSkillClient(tx.config)
 	tx.Slack = NewSlackClient(tx.config)
+	tx.SlackWorkspace = NewSlackWorkspaceClient(tx.config)
 	tx.TranslationLocale = NewTranslationLocaleClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 }

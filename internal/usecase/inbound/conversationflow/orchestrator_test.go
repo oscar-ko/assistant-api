@@ -1,11 +1,53 @@
 package conversationflow
 
 import (
+	"context"
 	"strings"
 	"testing"
 
+	"assistant-api/internal/integration/unifiedmessage"
 	llminteraction "assistant-api/internal/usecase/ai/llm_interaction"
 )
+
+type stubConversationLLM struct {
+	answer        *llminteraction.QuestionAnswer
+	clarify       *llminteraction.QuestionAnswer
+	answerCalled  bool
+	clarifyCalled bool
+}
+
+func (s *stubConversationLLM) DecideFinalAction(ctx context.Context, text string, candidates []llminteraction.ActionCandidate) (*llminteraction.ActionDecision, error) {
+	return nil, nil
+}
+
+func (s *stubConversationLLM) AnswerQuestion(ctx context.Context, text string) (*llminteraction.QuestionAnswer, error) {
+	s.answerCalled = true
+	return s.answer, nil
+}
+
+func (s *stubConversationLLM) AskClarifyingQuestion(ctx context.Context, text string, reason string) (*llminteraction.QuestionAnswer, error) {
+	s.clarifyCalled = true
+	return s.clarify, nil
+}
+
+type stubOutboundMessenger struct {
+	sendCalled bool
+	chatID     string
+	userID     string
+	text       string
+	replyRef   string
+	quoteRef   string
+}
+
+func (s *stubOutboundMessenger) SendText(ctx context.Context, chatID string, userID string, text string, replyRef string, quoteRef string) (string, error) {
+	s.sendCalled = true
+	s.chatID = chatID
+	s.userID = userID
+	s.text = text
+	s.replyRef = replyRef
+	s.quoteRef = quoteRef
+	return "sent-123", nil
+}
 
 // TestBuildFixedChainOperationCandidatesCarriesPrompt 驗證指令鍊固定候選會帶入 seed 動態 prompt。
 func TestBuildFixedChainOperationCandidatesCarriesPrompt(t *testing.T) {
@@ -91,7 +133,7 @@ func TestInferClarifyingOperation(t *testing.T) {
 	}{
 		{name: "prefer current decision operation", current: "start_translation_locale", want: "start_translation_locale"},
 		{name: "fallback to chain operation", current: "", chainCtx: &chainCommandContext{APIOperation: "stop_translation_locale"}, want: "stop_translation_locale"},
-		{name: "fallback to first candidate operation", current: "", candidates: []llminteraction.ActionCandidate{{Operation: "start_translation_locale"}}, want: "start_translation_locale"},
+		{name: "do not infer from unrelated candidates", current: "", candidates: []llminteraction.ActionCandidate{{Operation: "start_translation_locale"}}, want: ""},
 		{name: "empty when no source available", current: "", candidates: nil, chainCtx: nil, want: ""},
 	}
 
@@ -102,5 +144,44 @@ func TestInferClarifyingOperation(t *testing.T) {
 				t.Fatalf("unexpected inferred operation: got=%q want=%q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestRouteMessageToQuestionAnswerSendsAnswerToUser(t *testing.T) {
+	// 驗證 shared conversationflow 的一般問答結果真的會發送給使用者，
+	// 而不是只停在內部 log 或模型回傳物件。
+	llmStub := &stubConversationLLM{
+		answer: &llminteraction.QuestionAnswer{SchemaVersion: "v1", Answer: "你可以看《F1電影》。", Confidence: 0.82},
+	}
+	messengerStub := &stubOutboundMessenger{}
+	o := New(Dependencies{
+		PlatformLabel: "slack",
+		LLM:           llmStub,
+		Messenger:     messengerStub,
+	})
+
+	o.routeMessageToQuestionAnswer(context.Background(), &unifiedmessage.Message{
+		ChannelID:         "D123",
+		PlatformMessageID: "1784306143.602749",
+		Text:              "推薦幾部現在最新的電影吧",
+	}, nil, "U123", 0, 0.7, "answer_question", "一般問答", nil)
+
+	if !llmStub.answerCalled {
+		t.Fatal("expected AnswerQuestion to be called")
+	}
+	if llmStub.clarifyCalled {
+		t.Fatal("did not expect AskClarifyingQuestion to be called")
+	}
+	if !messengerStub.sendCalled {
+		t.Fatal("expected answer to be sent to user")
+	}
+	if messengerStub.chatID != "D123" || messengerStub.userID != "U123" {
+		t.Fatalf("unexpected send target: chatID=%q userID=%q", messengerStub.chatID, messengerStub.userID)
+	}
+	if messengerStub.text != "你可以看《F1電影》。" {
+		t.Fatalf("unexpected outbound text: %q", messengerStub.text)
+	}
+	if messengerStub.replyRef != "" || messengerStub.quoteRef != "" {
+		t.Fatalf("expected non-reply answer send, got replyRef=%q quoteRef=%q", messengerStub.replyRef, messengerStub.quoteRef)
 	}
 }

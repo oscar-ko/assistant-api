@@ -336,6 +336,7 @@ func (r *ChannelMessageRepo) UpdateChannelDisplayNameByID(ctx context.Context, c
 func (r *ChannelMessageRepo) SaveReceivedMessage(
 	ctx context.Context,
 	channelID uuid.UUID,
+	platformTenantID string,
 	senderID string,
 	senderName string,
 	platformMessageID string,
@@ -369,6 +370,9 @@ func (r *ChannelMessageRepo) SaveReceivedMessage(
 		SetSenderID(senderID).
 		SetMessageType(messageType).
 		SetContent(content)
+	if value := strings.TrimSpace(platformTenantID); value != "" {
+		builder = builder.SetPlatformTenantID(value)
+	}
 	if value := strings.TrimSpace(senderName); value != "" {
 		builder = builder.SetSenderName(value)
 	}

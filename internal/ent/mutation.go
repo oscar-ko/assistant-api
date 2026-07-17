@@ -13,6 +13,7 @@ import (
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/slack"
+	"assistant-api/internal/ent/slackworkspace"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -45,6 +46,7 @@ const (
 	TypeLine                 = "Line"
 	TypeSkill                = "Skill"
 	TypeSlack                = "Slack"
+	TypeSlackWorkspace       = "SlackWorkspace"
 	TypeTranslationLocale    = "TranslationLocale"
 	TypeUser                 = "User"
 )
@@ -7172,6 +7174,649 @@ func (m *SlackMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown Slack edge %s", name)
+}
+
+// SlackWorkspaceMutation represents an operation that mutates the SlackWorkspace nodes in the graph.
+type SlackWorkspaceMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *uuid.UUID
+	created_at       *time.Time
+	updated_at       *time.Time
+	platform_team_id *string
+	team_name        *string
+	bot_token        *string
+	bot_user_id      *string
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*SlackWorkspace, error)
+	predicates       []predicate.SlackWorkspace
+}
+
+var _ ent.Mutation = (*SlackWorkspaceMutation)(nil)
+
+// slackworkspaceOption allows management of the mutation configuration using functional options.
+type slackworkspaceOption func(*SlackWorkspaceMutation)
+
+// newSlackWorkspaceMutation creates new mutation for the SlackWorkspace entity.
+func newSlackWorkspaceMutation(c config, op Op, opts ...slackworkspaceOption) *SlackWorkspaceMutation {
+	m := &SlackWorkspaceMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSlackWorkspace,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSlackWorkspaceID sets the ID field of the mutation.
+func withSlackWorkspaceID(id uuid.UUID) slackworkspaceOption {
+	return func(m *SlackWorkspaceMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SlackWorkspace
+		)
+		m.oldValue = func(ctx context.Context) (*SlackWorkspace, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SlackWorkspace.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSlackWorkspace sets the old SlackWorkspace of the mutation.
+func withSlackWorkspace(node *SlackWorkspace) slackworkspaceOption {
+	return func(m *SlackWorkspaceMutation) {
+		m.oldValue = func(context.Context) (*SlackWorkspace, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SlackWorkspaceMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SlackWorkspaceMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of SlackWorkspace entities.
+func (m *SlackWorkspaceMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SlackWorkspaceMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SlackWorkspaceMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SlackWorkspace.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *SlackWorkspaceMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *SlackWorkspaceMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the SlackWorkspace entity.
+// If the SlackWorkspace object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SlackWorkspaceMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *SlackWorkspaceMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *SlackWorkspaceMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *SlackWorkspaceMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the SlackWorkspace entity.
+// If the SlackWorkspace object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SlackWorkspaceMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *SlackWorkspaceMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetPlatformTeamID sets the "platform_team_id" field.
+func (m *SlackWorkspaceMutation) SetPlatformTeamID(s string) {
+	m.platform_team_id = &s
+}
+
+// PlatformTeamID returns the value of the "platform_team_id" field in the mutation.
+func (m *SlackWorkspaceMutation) PlatformTeamID() (r string, exists bool) {
+	v := m.platform_team_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlatformTeamID returns the old "platform_team_id" field's value of the SlackWorkspace entity.
+// If the SlackWorkspace object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SlackWorkspaceMutation) OldPlatformTeamID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlatformTeamID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlatformTeamID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlatformTeamID: %w", err)
+	}
+	return oldValue.PlatformTeamID, nil
+}
+
+// ResetPlatformTeamID resets all changes to the "platform_team_id" field.
+func (m *SlackWorkspaceMutation) ResetPlatformTeamID() {
+	m.platform_team_id = nil
+}
+
+// SetTeamName sets the "team_name" field.
+func (m *SlackWorkspaceMutation) SetTeamName(s string) {
+	m.team_name = &s
+}
+
+// TeamName returns the value of the "team_name" field in the mutation.
+func (m *SlackWorkspaceMutation) TeamName() (r string, exists bool) {
+	v := m.team_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTeamName returns the old "team_name" field's value of the SlackWorkspace entity.
+// If the SlackWorkspace object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SlackWorkspaceMutation) OldTeamName(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTeamName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTeamName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTeamName: %w", err)
+	}
+	return oldValue.TeamName, nil
+}
+
+// ClearTeamName clears the value of the "team_name" field.
+func (m *SlackWorkspaceMutation) ClearTeamName() {
+	m.team_name = nil
+	m.clearedFields[slackworkspace.FieldTeamName] = struct{}{}
+}
+
+// TeamNameCleared returns if the "team_name" field was cleared in this mutation.
+func (m *SlackWorkspaceMutation) TeamNameCleared() bool {
+	_, ok := m.clearedFields[slackworkspace.FieldTeamName]
+	return ok
+}
+
+// ResetTeamName resets all changes to the "team_name" field.
+func (m *SlackWorkspaceMutation) ResetTeamName() {
+	m.team_name = nil
+	delete(m.clearedFields, slackworkspace.FieldTeamName)
+}
+
+// SetBotToken sets the "bot_token" field.
+func (m *SlackWorkspaceMutation) SetBotToken(s string) {
+	m.bot_token = &s
+}
+
+// BotToken returns the value of the "bot_token" field in the mutation.
+func (m *SlackWorkspaceMutation) BotToken() (r string, exists bool) {
+	v := m.bot_token
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBotToken returns the old "bot_token" field's value of the SlackWorkspace entity.
+// If the SlackWorkspace object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SlackWorkspaceMutation) OldBotToken(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBotToken is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBotToken requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBotToken: %w", err)
+	}
+	return oldValue.BotToken, nil
+}
+
+// ResetBotToken resets all changes to the "bot_token" field.
+func (m *SlackWorkspaceMutation) ResetBotToken() {
+	m.bot_token = nil
+}
+
+// SetBotUserID sets the "bot_user_id" field.
+func (m *SlackWorkspaceMutation) SetBotUserID(s string) {
+	m.bot_user_id = &s
+}
+
+// BotUserID returns the value of the "bot_user_id" field in the mutation.
+func (m *SlackWorkspaceMutation) BotUserID() (r string, exists bool) {
+	v := m.bot_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBotUserID returns the old "bot_user_id" field's value of the SlackWorkspace entity.
+// If the SlackWorkspace object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SlackWorkspaceMutation) OldBotUserID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBotUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBotUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBotUserID: %w", err)
+	}
+	return oldValue.BotUserID, nil
+}
+
+// ClearBotUserID clears the value of the "bot_user_id" field.
+func (m *SlackWorkspaceMutation) ClearBotUserID() {
+	m.bot_user_id = nil
+	m.clearedFields[slackworkspace.FieldBotUserID] = struct{}{}
+}
+
+// BotUserIDCleared returns if the "bot_user_id" field was cleared in this mutation.
+func (m *SlackWorkspaceMutation) BotUserIDCleared() bool {
+	_, ok := m.clearedFields[slackworkspace.FieldBotUserID]
+	return ok
+}
+
+// ResetBotUserID resets all changes to the "bot_user_id" field.
+func (m *SlackWorkspaceMutation) ResetBotUserID() {
+	m.bot_user_id = nil
+	delete(m.clearedFields, slackworkspace.FieldBotUserID)
+}
+
+// Where appends a list predicates to the SlackWorkspaceMutation builder.
+func (m *SlackWorkspaceMutation) Where(ps ...predicate.SlackWorkspace) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SlackWorkspaceMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SlackWorkspaceMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SlackWorkspace, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SlackWorkspaceMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SlackWorkspaceMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SlackWorkspace).
+func (m *SlackWorkspaceMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SlackWorkspaceMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.created_at != nil {
+		fields = append(fields, slackworkspace.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, slackworkspace.FieldUpdatedAt)
+	}
+	if m.platform_team_id != nil {
+		fields = append(fields, slackworkspace.FieldPlatformTeamID)
+	}
+	if m.team_name != nil {
+		fields = append(fields, slackworkspace.FieldTeamName)
+	}
+	if m.bot_token != nil {
+		fields = append(fields, slackworkspace.FieldBotToken)
+	}
+	if m.bot_user_id != nil {
+		fields = append(fields, slackworkspace.FieldBotUserID)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SlackWorkspaceMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case slackworkspace.FieldCreatedAt:
+		return m.CreatedAt()
+	case slackworkspace.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case slackworkspace.FieldPlatformTeamID:
+		return m.PlatformTeamID()
+	case slackworkspace.FieldTeamName:
+		return m.TeamName()
+	case slackworkspace.FieldBotToken:
+		return m.BotToken()
+	case slackworkspace.FieldBotUserID:
+		return m.BotUserID()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SlackWorkspaceMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case slackworkspace.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case slackworkspace.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case slackworkspace.FieldPlatformTeamID:
+		return m.OldPlatformTeamID(ctx)
+	case slackworkspace.FieldTeamName:
+		return m.OldTeamName(ctx)
+	case slackworkspace.FieldBotToken:
+		return m.OldBotToken(ctx)
+	case slackworkspace.FieldBotUserID:
+		return m.OldBotUserID(ctx)
+	}
+	return nil, fmt.Errorf("unknown SlackWorkspace field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SlackWorkspaceMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case slackworkspace.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case slackworkspace.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case slackworkspace.FieldPlatformTeamID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlatformTeamID(v)
+		return nil
+	case slackworkspace.FieldTeamName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTeamName(v)
+		return nil
+	case slackworkspace.FieldBotToken:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBotToken(v)
+		return nil
+	case slackworkspace.FieldBotUserID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBotUserID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SlackWorkspace field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SlackWorkspaceMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SlackWorkspaceMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SlackWorkspaceMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown SlackWorkspace numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SlackWorkspaceMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(slackworkspace.FieldTeamName) {
+		fields = append(fields, slackworkspace.FieldTeamName)
+	}
+	if m.FieldCleared(slackworkspace.FieldBotUserID) {
+		fields = append(fields, slackworkspace.FieldBotUserID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SlackWorkspaceMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SlackWorkspaceMutation) ClearField(name string) error {
+	switch name {
+	case slackworkspace.FieldTeamName:
+		m.ClearTeamName()
+		return nil
+	case slackworkspace.FieldBotUserID:
+		m.ClearBotUserID()
+		return nil
+	}
+	return fmt.Errorf("unknown SlackWorkspace nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SlackWorkspaceMutation) ResetField(name string) error {
+	switch name {
+	case slackworkspace.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case slackworkspace.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case slackworkspace.FieldPlatformTeamID:
+		m.ResetPlatformTeamID()
+		return nil
+	case slackworkspace.FieldTeamName:
+		m.ResetTeamName()
+		return nil
+	case slackworkspace.FieldBotToken:
+		m.ResetBotToken()
+		return nil
+	case slackworkspace.FieldBotUserID:
+		m.ResetBotUserID()
+		return nil
+	}
+	return fmt.Errorf("unknown SlackWorkspace field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SlackWorkspaceMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SlackWorkspaceMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SlackWorkspaceMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SlackWorkspaceMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SlackWorkspaceMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SlackWorkspaceMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SlackWorkspaceMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown SlackWorkspace unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SlackWorkspaceMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown SlackWorkspace edge %s", name)
 }
 
 // TranslationLocaleMutation represents an operation that mutates the TranslationLocale nodes in the graph.

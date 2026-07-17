@@ -18,14 +18,16 @@ type builtRoleClient struct {
 }
 
 type resolvedProviderProfile struct {
-	providerKey        string
-	providerType       string
-	url                string
-	token              string
-	headers            map[string]string
-	model              string
-	isLocal            bool
-	timeoutSeconds     int
+	providerKey    string
+	providerType   string
+	url            string
+	token          string
+	headers        map[string]string
+	model          string
+	isLocal        bool
+	timeoutSeconds int
+	// useJSONResponseFmt 完全由設定檔控制，不應用 model 名稱或 profile 名稱硬編碼判斷。
+	useJSONResponseFmt *bool
 	actionDecisionPath string
 	questionAnswerPath string
 }
@@ -100,6 +102,7 @@ func buildRoleClient(cfg config.AIConfig, llmProviders map[string]config.LLMProv
 		options.Timeout,
 		options.MaxToken,
 		options.Temperature,
+		resolved.useJSONResponseFmt,
 	)
 	if err != nil {
 		return nil, err
@@ -125,6 +128,7 @@ func mergeProfile(profile config.LLMProfileConfig, providerType string) (resolve
 	return resolvedProviderProfile{
 		model:              model,
 		timeoutSeconds:     profile.TimeoutSeconds,
+		useJSONResponseFmt: profile.UseJSONResponseFmt,
 		actionDecisionPath: strings.TrimSpace(profile.ActionDecisionPath),
 		questionAnswerPath: strings.TrimSpace(profile.QuestionAnswerPath),
 	}, nil

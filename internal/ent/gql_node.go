@@ -12,6 +12,7 @@ import (
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/slack"
+	"assistant-api/internal/ent/slackworkspace"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -72,6 +73,11 @@ var slackImplementors = []string{"Slack", "Node"}
 
 // IsNode implements the Node interface check for GQLGen.
 func (*Slack) IsNode() {}
+
+var slackworkspaceImplementors = []string{"SlackWorkspace", "Node"}
+
+// IsNode implements the Node interface check for GQLGen.
+func (*SlackWorkspace) IsNode() {}
 
 var translationlocaleImplementors = []string{"TranslationLocale", "Node"}
 
@@ -218,6 +224,15 @@ func (c *Client) noder(ctx context.Context, table string, id uuid.UUID) (Noder, 
 			Where(slack.ID(id))
 		if fc := graphql.GetFieldContext(ctx); fc != nil {
 			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, slackImplementors...); err != nil {
+				return nil, err
+			}
+		}
+		return query.Only(ctx)
+	case slackworkspace.Table:
+		query := c.SlackWorkspace.Query().
+			Where(slackworkspace.ID(id))
+		if fc := graphql.GetFieldContext(ctx); fc != nil {
+			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, slackworkspaceImplementors...); err != nil {
 				return nil, err
 			}
 		}
@@ -445,6 +460,22 @@ func (c *Client) noders(ctx context.Context, table string, ids []uuid.UUID) ([]N
 		query := c.Slack.Query().
 			Where(slack.IDIn(ids...))
 		query, err := query.CollectFields(ctx, slackImplementors...)
+		if err != nil {
+			return nil, err
+		}
+		nodes, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, node := range nodes {
+			for _, noder := range idmap[node.ID] {
+				*noder = node
+			}
+		}
+	case slackworkspace.Table:
+		query := c.SlackWorkspace.Query().
+			Where(slackworkspace.IDIn(ids...))
+		query, err := query.CollectFields(ctx, slackworkspaceImplementors...)
 		if err != nil {
 			return nil, err
 		}

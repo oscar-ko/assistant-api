@@ -2,7 +2,6 @@ package line
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	"assistant-api/internal/config"
@@ -15,13 +14,6 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 )
-
-// rawJSON 是測試輔助函式：
-// 用來快速建立 action_params 所需的 RawMessage，避免每個 case 重覆 marshal 樣板。
-func rawJSON(value any) json.RawMessage {
-	data, _ := json.Marshal(value)
-	return data
-}
 
 type stubTopKFilter struct {
 	called     bool
@@ -287,8 +279,11 @@ func TestWebhookService_ProcessIncoming_LowConfidenceTreatedAsChat(t *testing.T)
 	if !decisionStub.answerCalled {
 		t.Fatalf("expected generic AnswerQuestion to be called on low action confidence without missing parameters")
 	}
-	if pushStub.sendCalled {
-		t.Fatalf("expected no clarifying push when mode is question_answer")
+	if !pushStub.sendCalled {
+		t.Fatalf("expected shared question-answer flow to send reply")
+	}
+	if pushStub.text != "我推薦《星際效應》。" {
+		t.Fatalf("unexpected outbound answer text: %q", pushStub.text)
 	}
 	answerEntries := observed.FilterMessage("line message semantic question answered").All()
 	if len(answerEntries) == 0 {
@@ -310,6 +305,8 @@ func TestWebhookService_ProcessIncoming_LowConfidenceTreatedAsChat(t *testing.T)
 }
 
 func TestWebhookService_ProcessIncoming_ZeroConfidenceNoMatchRoutesToQuestionAnswer(t *testing.T) {
+	// 共用流程已將 no-match 的 ask_clarifying_question 降為一般問答，
+	// 這裡確認 LINE 也會跟著 shared behavior 發送回覆。
 	core, observed := observer.New(zapcore.DebugLevel)
 	oldLogger := zap.L()
 	zap.ReplaceGlobals(zap.New(core))
@@ -334,8 +331,9 @@ func TestWebhookService_ProcessIncoming_ZeroConfidenceNoMatchRoutesToQuestionAns
 		decision: &llminteraction.ActionDecision{NextStep: llminteraction.NextStepAskClarifyingQuestion, APIOperation: "", Confidence: 0.0, Reason: "no candidate matched"},
 		answer:   &llminteraction.QuestionAnswer{SchemaVersion: "v1", Answer: "你可以看《星際效應》。", Confidence: 0.88},
 	}
+	pushStub := &stubPushMessageService{sentPlatformMessageID: "sent-123"}
 
-	(&WebhookService{topKFilterService: filterStub, llmInteractionService: decisionStub}).ProcessIncoming(body, "sig")
+	(&WebhookService{topKFilterService: filterStub, llmInteractionService: decisionStub, followUpSender: pushStub}).ProcessIncoming(body, "sig")
 
 	// no_match 且無缺參數時，應直接走一般問答，避免追問迴圈。
 	if decisionStub.clarifyCalled {
@@ -344,12 +342,15 @@ func TestWebhookService_ProcessIncoming_ZeroConfidenceNoMatchRoutesToQuestionAns
 	if !decisionStub.answerCalled {
 		t.Fatalf("expected generic AnswerQuestion to be called when action decision confidence is 0")
 	}
+	if !pushStub.sendCalled {
+		t.Fatalf("expected shared question-answer flow to send reply")
+	}
 	entries := observed.FilterMessage("line message semantic question answered").All()
 	if len(entries) == 0 {
 		t.Fatalf("expected semantic question answered log")
 	}
-	if entries[0].ContextMap()["cause"] != "ask_clarifying_question" {
-		t.Fatalf("expected cause=ask_clarifying_question, got %v", entries[0].ContextMap()["cause"])
+	if entries[0].ContextMap()["cause"] != "answer_question" {
+		t.Fatalf("expected cause=answer_question after shared downgrade, got %v", entries[0].ContextMap()["cause"])
 	}
 	if entries[0].ContextMap()["mode"] != "question_answer" {
 		t.Fatalf("expected mode=question_answer, got %v", entries[0].ContextMap()["mode"])
@@ -360,6 +361,7 @@ func TestWebhookService_ProcessIncoming_ZeroConfidenceNoMatchRoutesToQuestionAns
 }
 
 func TestWebhookService_ProcessIncoming_AnswerQuestionNextStepUsesGenericQA(t *testing.T) {
+	// next_step=answer_question 時，不應再走追問分支，而是直接送出一般回答。
 	core, observed := observer.New(zapcore.DebugLevel)
 	oldLogger := zap.L()
 	zap.ReplaceGlobals(zap.New(core))
@@ -375,14 +377,18 @@ func TestWebhookService_ProcessIncoming_AnswerQuestionNextStepUsesGenericQA(t *t
 		decision: &llminteraction.ActionDecision{NextStep: llminteraction.NextStepAnswerQuestion, APIOperation: "", Confidence: 0.88, Reason: "user is asking a general question"},
 		answer:   &llminteraction.QuestionAnswer{SchemaVersion: "v1", Answer: "你可以看《星際效應》。", Confidence: 0.88},
 	}
+	pushStub := &stubPushMessageService{sentPlatformMessageID: "sent-123"}
 
-	(&WebhookService{topKFilterService: filterStub, llmInteractionService: decisionStub}).ProcessIncoming(body, "sig")
+	(&WebhookService{topKFilterService: filterStub, llmInteractionService: decisionStub, followUpSender: pushStub}).ProcessIncoming(body, "sig")
 
 	if !decisionStub.answerCalled {
 		t.Fatalf("expected generic AnswerQuestion to be called when next_step=answer_question")
 	}
 	if decisionStub.clarifyCalled {
 		t.Fatalf("expected AskClarifyingQuestion not to be called when next_step=answer_question")
+	}
+	if !pushStub.sendCalled {
+		t.Fatalf("expected shared question-answer flow to send reply")
 	}
 	entries := observed.FilterMessage("line message semantic question answered").All()
 	if len(entries) == 0 {
@@ -396,52 +402,5 @@ func TestWebhookService_ProcessIncoming_AnswerQuestionNextStepUsesGenericQA(t *t
 	}
 	if observed.FilterMessage("line message final action decided").Len() != 0 {
 		t.Fatalf("expected no final action log when next_step=answer_question")
-	}
-}
-
-func TestTranslationTargetLocalesFromDecision(t *testing.T) {
-	// 這組測試覆蓋通用 action_params 在翻譯情境下的 locale 抽取策略：
-	// - 僅使用 target_locales
-	// - 大小寫去重
-	// - 空輸入回 nil
-	tests := []struct {
-		name     string
-		decision *llminteraction.ActionDecision
-		want     []string
-	}{
-		{
-			name:     "nil decision",
-			decision: nil,
-			want:     nil,
-		},
-		{
-			name: "target_locales with dedupe",
-			decision: &llminteraction.ActionDecision{ActionParams: map[string]json.RawMessage{
-				"target_locales": rawJSON([]string{"ja-JP", "en-us", "zh-TW"}),
-			}},
-			want: []string{"ja-JP", "en-us", "zh-TW"},
-		},
-		{
-			name: "single string target_locales is ignored",
-			decision: &llminteraction.ActionDecision{ActionParams: map[string]json.RawMessage{
-				"target_locales": rawJSON("fr-FR"),
-			}},
-			want: nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// 逐項比對以確保去重後仍維持可預期順序（保留第一個出現值）。
-			got := translationTargetLocalesFromDecision(tt.decision)
-			if len(got) != len(tt.want) {
-				t.Fatalf("locale length mismatch: got=%v want=%v", got, tt.want)
-			}
-			for i := range got {
-				if got[i] != tt.want[i] {
-					t.Fatalf("locale mismatch at %d: got=%v want=%v", i, got, tt.want)
-				}
-			}
-		})
 	}
 }

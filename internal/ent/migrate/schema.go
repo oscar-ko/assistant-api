@@ -334,6 +334,29 @@ var (
 			},
 		},
 	}
+	// SlackWorkspacesColumns holds the columns for the "slack_workspaces" table.
+	SlackWorkspacesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "platform_team_id", Type: field.TypeString},
+		{Name: "team_name", Type: field.TypeString, Nullable: true},
+		{Name: "bot_token", Type: field.TypeString},
+		{Name: "bot_user_id", Type: field.TypeString, Nullable: true},
+	}
+	// SlackWorkspacesTable holds the schema information for the "slack_workspaces" table.
+	SlackWorkspacesTable = &schema.Table{
+		Name:       "slack_workspaces",
+		Columns:    SlackWorkspacesColumns,
+		PrimaryKey: []*schema.Column{SlackWorkspacesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "slackworkspace_platform_team_id",
+				Unique:  true,
+				Columns: []*schema.Column{SlackWorkspacesColumns[3]},
+			},
+		},
+	}
 	// TranslationLocalesColumns holds the columns for the "translation_locales" table.
 	TranslationLocalesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -420,6 +443,7 @@ var (
 		LinesTable,
 		SkillsTable,
 		SlacksTable,
+		SlackWorkspacesTable,
 		TranslationLocalesTable,
 		UsersTable,
 	}

@@ -11,13 +11,33 @@ import (
 	"strings"
 	"time"
 
-	"assistant-api/internal/config"
+	"assistant-api/internal/integration/runtimecontext"
 )
 
-func slackBotTokenStrict() (string, error) {
-	token := strings.TrimSpace(config.Slack.BotToken)
-	if token == "" {
-		return "", fmt.Errorf("slack bot token is empty")
+type slackBotTokenStore interface {
+	ResolveWorkspaceBotToken(ctx context.Context, teamID string) (string, error)
+	ResolveWorkspaceBotUserID(ctx context.Context, teamID string) (string, error)
+}
+
+func WithWorkspaceTeamID(ctx context.Context, teamID string) context.Context {
+	return runtimecontext.WithWorkspaceTeamID(ctx, strings.TrimSpace(teamID))
+}
+
+func workspaceTeamIDFromContext(ctx context.Context) string {
+	return strings.TrimSpace(runtimecontext.WorkspaceTeamIDFromContext(ctx))
+}
+
+func slackBotTokenByTeamStrict(ctx context.Context, tokenStore slackBotTokenStore, teamID string) (string, error) {
+	if tokenStore == nil {
+		return "", fmt.Errorf("slack bot token store is not initialized")
+	}
+	teamID = strings.TrimSpace(teamID)
+	if teamID == "" {
+		return "", fmt.Errorf("slack team id is empty")
+	}
+	token, err := tokenStore.ResolveWorkspaceBotToken(ctx, teamID)
+	if err != nil {
+		return "", err
 	}
 	if !strings.HasPrefix(token, "xoxb-") {
 		return "", fmt.Errorf("slack bot token is invalid format (expected xoxb-)")
@@ -31,18 +51,18 @@ type PushMessageService interface {
 }
 
 type pushMessageService struct {
-	token      string
+	tokenStore slackBotTokenStore
 	httpClient *http.Client
 }
 
-// NewPushMessageService 依設定建立 Slack chat.postMessage client。
-func NewPushMessageService() (PushMessageService, error) {
-	token := strings.TrimSpace(config.Slack.BotToken)
-	if token == "" {
-		return nil, fmt.Errorf("slack bot token is empty")
+
+// NewPushMessageService 依 workspace token store 建立 Slack chat.postMessage client。
+func NewPushMessageService(tokenStore slackBotTokenStore) (PushMessageService, error) {
+	if tokenStore == nil {
+		return nil, fmt.Errorf("slack bot token store is not initialized")
 	}
 	return &pushMessageService{
-		token:      token,
+		tokenStore: tokenStore,
 		httpClient: &http.Client{Timeout: 15 * time.Second},
 	}, nil
 }
@@ -63,7 +83,7 @@ type slackPostMessageResponse struct {
 }
 
 func (s *pushMessageService) SendTextToChat(ctx context.Context, chatID string, userID string, text string, replyRef string, quoteRef string) (string, error) {
-	if s == nil || s.httpClient == nil {
+	if s == nil || s.httpClient == nil || s.tokenStore == nil {
 		return "", fmt.Errorf("slack message client not initialized")
 	}
 	chatID = strings.TrimSpace(chatID)
@@ -75,6 +95,10 @@ func (s *pushMessageService) SendTextToChat(ctx context.Context, chatID string, 
 	}
 	if text == "" {
 		return "", nil
+	}
+	token, err := slackBotTokenByTeamStrict(ctx, s.tokenStore, workspaceTeamIDFromContext(ctx))
+	if err != nil {
+		return "", err
 	}
 
 	// 群組場景下若提供 userID，會補 mention 前綴，
@@ -102,7 +126,7 @@ func (s *pushMessageService) SendTextToChat(ctx context.Context, chatID string, 
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("Authorization", "Bearer "+s.token)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 
 	resp, err := s.httpClient.Do(req)
@@ -151,8 +175,8 @@ type slackOpenDMResponse struct {
 // OpenDMChannelID opens a Slack DM with the target user and returns DM channel id.
 //
 // 嚴格模式：缺 token、缺 user id、或 Slack API 回錯都直接回傳錯誤。
-func OpenDMChannelID(ctx context.Context, userID string) (string, error) {
-	token, err := slackBotTokenStrict()
+func OpenDMChannelID(ctx context.Context, tokenStore slackBotTokenStore, teamID string, userID string) (string, error) {
+	token, err := slackBotTokenByTeamStrict(ctx, tokenStore, teamID)
 	if err != nil {
 		return "", err
 	}
@@ -223,8 +247,8 @@ type slackUsersInfoResponse struct {
 }
 
 // GetUserDisplayNameByID resolves Slack user's display name by user ID.
-func GetUserDisplayNameByID(ctx context.Context, userID string) (string, error) {
-	token, err := slackBotTokenStrict()
+func GetUserDisplayNameByID(ctx context.Context, tokenStore slackBotTokenStore, teamID string, userID string) (string, error) {
+	token, err := slackBotTokenByTeamStrict(ctx, tokenStore, teamID)
 	if err != nil {
 		return "", err
 	}
@@ -263,7 +287,7 @@ func GetUserDisplayNameByID(ctx context.Context, userID string) (string, error) 
 		}
 		errCode := strings.TrimSpace(parsed.Error)
 		if strings.EqualFold(errCode, "invalid_auth") {
-			return "", fmt.Errorf("slack users.info failed: invalid_auth (check active config slack.bot_token)")
+			return "", fmt.Errorf("slack users.info failed: invalid_auth for team %s", strings.TrimSpace(teamID))
 		}
 		return "", fmt.Errorf("slack users.info failed: %s", errCode)
 	}
@@ -289,8 +313,8 @@ type slackConversationInfoResponse struct {
 }
 
 // GetChannelNameByID resolves Slack conversation name by channel ID.
-func GetChannelNameByID(ctx context.Context, channelID string) (string, error) {
-	token, err := slackBotTokenStrict()
+func GetChannelNameByID(ctx context.Context, tokenStore slackBotTokenStore, teamID string, channelID string) (string, error) {
+	token, err := slackBotTokenByTeamStrict(ctx, tokenStore, teamID)
 	if err != nil {
 		return "", err
 	}

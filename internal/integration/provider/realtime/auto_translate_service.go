@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"assistant-api/internal/ent"
+	"assistant-api/internal/integration/runtimecontext"
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
 
@@ -280,10 +281,14 @@ func (s *AutoTranslateService) persistSentMessage(ctx context.Context, savedMess
 	if s.repo == nil || savedMessage == nil {
 		return
 	}
+	botSenderID := strings.TrimSpace(runtimecontext.BotSenderIDFromContext(ctx))
+	if botSenderID == "" {
+		botSenderID = s.botSenderID
+	}
 	_, err := s.repo.SaveSentMessage(
 		ctx,
 		savedMessage.ChannelID,
-		s.botSenderID,
+		botSenderID,
 		"",
 		sentPlatformMessageID,
 		text,

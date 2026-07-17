@@ -2,9 +2,13 @@ package repository
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"strings"
 
 	"assistant-api/internal/ent"
 	"assistant-api/internal/ent/slack"
+	"assistant-api/internal/ent/slackworkspace"
 	"assistant-api/internal/ent/user"
 
 	"github.com/google/uuid"
@@ -17,6 +21,8 @@ import (
 type SlackRepo struct {
 	db *ent.Client
 }
+
+var ErrSlackWorkspaceInstallNotFound = errors.New("slack workspace install not found")
 
 func NewSlackRepo(db *ent.Client) *SlackRepo {
 	return &SlackRepo{db: db}
@@ -65,4 +71,125 @@ func (r *SlackRepo) CreateSlackBinding(ctx context.Context, u *ent.User, teamID 
 // CreateUser 建立新使用者。
 func (r *SlackRepo) CreateUser(ctx context.Context, name, email string) (*ent.User, error) {
 	return r.db.User.Create().SetName(name).SetEmail(email).Save(ctx)
+}
+
+// UpsertWorkspaceInstall stores the bot installation credentials for a Slack workspace.
+func (r *SlackRepo) UpsertWorkspaceInstall(ctx context.Context, teamID string, teamName string, botToken string, botUserID string) error {
+	if r == nil || r.db == nil {
+		return fmt.Errorf("slack repository not initialized")
+	}
+	teamID = strings.TrimSpace(teamID)
+	teamName = strings.TrimSpace(teamName)
+	botToken = strings.TrimSpace(botToken)
+	botUserID = strings.TrimSpace(botUserID)
+	if teamID == "" {
+		return fmt.Errorf("slack team id is required")
+	}
+	if botToken == "" {
+		return fmt.Errorf("slack bot token is required")
+	}
+
+	existing, err := r.db.SlackWorkspace.Query().
+		Where(slackworkspace.PlatformTeamIDEQ(teamID)).
+		Only(ctx)
+	if err == nil {
+		update := r.db.SlackWorkspace.UpdateOneID(existing.ID).
+			SetBotToken(botToken)
+		if teamName != "" {
+			update = update.SetTeamName(teamName)
+		} else {
+			update = update.ClearTeamName()
+		}
+		if botUserID != "" {
+			update = update.SetBotUserID(botUserID)
+		} else {
+			update = update.ClearBotUserID()
+		}
+		_, err = update.Save(ctx)
+		return err
+	}
+	if !ent.IsNotFound(err) {
+		return err
+	}
+
+	create := r.db.SlackWorkspace.Create().
+		SetPlatformTeamID(teamID).
+		SetBotToken(botToken)
+	if teamName != "" {
+		create = create.SetTeamName(teamName)
+	}
+	if botUserID != "" {
+		create = create.SetBotUserID(botUserID)
+	}
+	_, err = create.Save(ctx)
+	return err
+}
+
+// ResolveWorkspaceBotToken returns the installed bot token for the Slack workspace.
+func (r *SlackRepo) ResolveWorkspaceBotToken(ctx context.Context, teamID string) (string, error) {
+	if r == nil || r.db == nil {
+		return "", fmt.Errorf("slack repository not initialized")
+	}
+	teamID = strings.TrimSpace(teamID)
+	if teamID == "" {
+		return "", fmt.Errorf("slack team id is empty")
+	}
+
+	item, err := r.db.SlackWorkspace.Query().
+		Where(slackworkspace.PlatformTeamIDEQ(teamID)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return "", fmt.Errorf("%w for team %s", ErrSlackWorkspaceInstallNotFound, teamID)
+		}
+		return "", err
+	}
+	token := strings.TrimSpace(item.BotToken)
+	if token == "" {
+		return "", fmt.Errorf("slack workspace bot token is empty for team %s", teamID)
+	}
+	return token, nil
+}
+
+// ResolveWorkspaceBotUserID returns the installed bot user id for the Slack workspace.
+func (r *SlackRepo) ResolveWorkspaceBotUserID(ctx context.Context, teamID string) (string, error) {
+	if r == nil || r.db == nil {
+		return "", fmt.Errorf("slack repository not initialized")
+	}
+	teamID = strings.TrimSpace(teamID)
+	if teamID == "" {
+		return "", fmt.Errorf("slack team id is empty")
+	}
+
+	item, err := r.db.SlackWorkspace.Query().
+		Where(slackworkspace.PlatformTeamIDEQ(teamID)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return "", fmt.Errorf("%w for team %s", ErrSlackWorkspaceInstallNotFound, teamID)
+		}
+		return "", err
+	}
+	if item.BotUserID == nil {
+		return "", fmt.Errorf("slack workspace bot user id is empty for team %s", teamID)
+	}
+	botUserID := strings.TrimSpace(*item.BotUserID)
+	if botUserID == "" {
+		return "", fmt.Errorf("slack workspace bot user id is empty for team %s", teamID)
+	}
+	return botUserID, nil
+}
+
+// HasWorkspaceInstall reports whether a Slack workspace install record already exists.
+func (r *SlackRepo) HasWorkspaceInstall(ctx context.Context, teamID string) (bool, error) {
+	if r == nil || r.db == nil {
+		return false, fmt.Errorf("slack repository not initialized")
+	}
+	teamID = strings.TrimSpace(teamID)
+	if teamID == "" {
+		return false, fmt.Errorf("slack team id is empty")
+	}
+	return r.db.SlackWorkspace.Query().
+		Where(slackworkspace.PlatformTeamIDEQ(teamID)).
+		Exist(ctx)
 }
