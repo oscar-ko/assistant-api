@@ -184,6 +184,14 @@ func (_m *Skill) TranslationLocales(ctx context.Context) (result []*TranslationL
 	return result, err
 }
 
+func (_m *Slack) User(ctx context.Context) (*User, error) {
+	result, err := _m.Edges.UserOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryUser().Only(ctx)
+	}
+	return result, err
+}
+
 func (_m *TranslationLocale) Channel(ctx context.Context) (*Channel, error) {
 	result, err := _m.Edges.ChannelOrErr()
 	if IsNotLoaded(err) {
@@ -216,6 +224,18 @@ func (_m *User) Line(ctx context.Context) (result []*Line, err error) {
 	}
 	if IsNotLoaded(err) {
 		result, err = _m.QueryLine().All(ctx)
+	}
+	return result, err
+}
+
+func (_m *User) Slack(ctx context.Context) (result []*Slack, err error) {
+	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
+		result, err = _m.NamedSlack(graphql.GetFieldContext(ctx).Field.Alias)
+	} else {
+		result, err = _m.Edges.SlackOrErr()
+	}
+	if IsNotLoaded(err) {
+		result, err = _m.QuerySlack().All(ctx)
 	}
 	return result, err
 }

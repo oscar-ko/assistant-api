@@ -19,6 +19,8 @@ const (
 	FieldEmail = "email"
 	// EdgeLine holds the string denoting the line edge name in mutations.
 	EdgeLine = "line"
+	// EdgeSlack holds the string denoting the slack edge name in mutations.
+	EdgeSlack = "slack"
 	// EdgeChannelServiceMembers holds the string denoting the channel_service_members edge name in mutations.
 	EdgeChannelServiceMembers = "channel_service_members"
 	// EdgeOwnedTranslationLocales holds the string denoting the owned_translation_locales edge name in mutations.
@@ -32,6 +34,13 @@ const (
 	LineInverseTable = "lines"
 	// LineColumn is the table column denoting the line relation/edge.
 	LineColumn = "line_user"
+	// SlackTable is the table that holds the slack relation/edge.
+	SlackTable = "slacks"
+	// SlackInverseTable is the table name for the Slack entity.
+	// It exists in this package in order to avoid circular dependency with the "slack" package.
+	SlackInverseTable = "slacks"
+	// SlackColumn is the table column denoting the slack relation/edge.
+	SlackColumn = "slack_user"
 	// ChannelServiceMembersTable is the table that holds the channel_service_members relation/edge.
 	ChannelServiceMembersTable = "channel_service_members"
 	// ChannelServiceMembersInverseTable is the table name for the ChannelServiceMember entity.
@@ -106,6 +115,20 @@ func ByLine(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// BySlackCount orders the results by slack count.
+func BySlackCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newSlackStep(), opts...)
+	}
+}
+
+// BySlack orders the results by slack terms.
+func BySlack(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSlackStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByChannelServiceMembersCount orders the results by channel_service_members count.
 func ByChannelServiceMembersCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -138,6 +161,13 @@ func newLineStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(LineInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, true, LineTable, LineColumn),
+	)
+}
+func newSlackStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SlackInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, true, SlackTable, SlackColumn),
 	)
 }
 func newChannelServiceMembersStep() *sqlgraph.Step {

@@ -30,6 +30,9 @@ type Line func(*sql.Selector)
 // Skill is the predicate function for skill builders.
 type Skill func(*sql.Selector)
 
+// Slack is the predicate function for slack builders.
+type Slack func(*sql.Selector)
+
 // TranslationLocale is the predicate function for translationlocale builders.
 type TranslationLocale func(*sql.Selector)
 

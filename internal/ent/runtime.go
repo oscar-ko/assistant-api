@@ -12,6 +12,7 @@ import (
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/schema"
 	"assistant-api/internal/ent/skill"
+	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"time"
@@ -195,6 +196,23 @@ func init() {
 	skillDescID := skillMixinFields0[0].Descriptor()
 	// skill.DefaultID holds the default value on creation for the id field.
 	skill.DefaultID = skillDescID.Default.(func() uuid.UUID)
+	slackMixin := schema.Slack{}.Mixin()
+	slackMixinFields0 := slackMixin[0].Fields()
+	_ = slackMixinFields0
+	slackFields := schema.Slack{}.Fields()
+	_ = slackFields
+	// slackDescTeamID is the schema descriptor for team_id field.
+	slackDescTeamID := slackFields[0].Descriptor()
+	// slack.TeamIDValidator is a validator for the "team_id" field. It is called by the builders before save.
+	slack.TeamIDValidator = slackDescTeamID.Validators[0].(func(string) error)
+	// slackDescSlackUserID is the schema descriptor for slack_user_id field.
+	slackDescSlackUserID := slackFields[1].Descriptor()
+	// slack.SlackUserIDValidator is a validator for the "slack_user_id" field. It is called by the builders before save.
+	slack.SlackUserIDValidator = slackDescSlackUserID.Validators[0].(func(string) error)
+	// slackDescID is the schema descriptor for id field.
+	slackDescID := slackMixinFields0[0].Descriptor()
+	// slack.DefaultID holds the default value on creation for the id field.
+	slack.DefaultID = slackDescID.Default.(func() uuid.UUID)
 	translationlocaleMixin := schema.TranslationLocale{}.Mixin()
 	translationlocaleMixinFields0 := translationlocaleMixin[0].Fields()
 	_ = translationlocaleMixinFields0

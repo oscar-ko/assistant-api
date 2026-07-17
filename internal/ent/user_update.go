@@ -6,6 +6,7 @@ import (
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
+	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -74,6 +75,21 @@ func (_u *UserUpdate) AddLine(v ...*Line) *UserUpdate {
 	return _u.AddLineIDs(ids...)
 }
 
+// AddSlackIDs adds the "slack" edge to the Slack entity by IDs.
+func (_u *UserUpdate) AddSlackIDs(ids ...uuid.UUID) *UserUpdate {
+	_u.mutation.AddSlackIDs(ids...)
+	return _u
+}
+
+// AddSlack adds the "slack" edges to the Slack entity.
+func (_u *UserUpdate) AddSlack(v ...*Slack) *UserUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddSlackIDs(ids...)
+}
+
 // AddChannelServiceMemberIDs adds the "channel_service_members" edge to the ChannelServiceMember entity by IDs.
 func (_u *UserUpdate) AddChannelServiceMemberIDs(ids ...uuid.UUID) *UserUpdate {
 	_u.mutation.AddChannelServiceMemberIDs(ids...)
@@ -128,6 +144,27 @@ func (_u *UserUpdate) RemoveLine(v ...*Line) *UserUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveLineIDs(ids...)
+}
+
+// ClearSlack clears all "slack" edges to the Slack entity.
+func (_u *UserUpdate) ClearSlack() *UserUpdate {
+	_u.mutation.ClearSlack()
+	return _u
+}
+
+// RemoveSlackIDs removes the "slack" edge to Slack entities by IDs.
+func (_u *UserUpdate) RemoveSlackIDs(ids ...uuid.UUID) *UserUpdate {
+	_u.mutation.RemoveSlackIDs(ids...)
+	return _u
+}
+
+// RemoveSlack removes "slack" edges to Slack entities.
+func (_u *UserUpdate) RemoveSlack(v ...*Slack) *UserUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveSlackIDs(ids...)
 }
 
 // ClearChannelServiceMembers clears all "channel_service_members" edges to the ChannelServiceMember entity.
@@ -270,6 +307,51 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(line.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.SlackCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.SlackTable,
+			Columns: []string{user.SlackColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(slack.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedSlackIDs(); len(nodes) > 0 && !_u.mutation.SlackCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.SlackTable,
+			Columns: []string{user.SlackColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(slack.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SlackIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.SlackTable,
+			Columns: []string{user.SlackColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(slack.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -430,6 +512,21 @@ func (_u *UserUpdateOne) AddLine(v ...*Line) *UserUpdateOne {
 	return _u.AddLineIDs(ids...)
 }
 
+// AddSlackIDs adds the "slack" edge to the Slack entity by IDs.
+func (_u *UserUpdateOne) AddSlackIDs(ids ...uuid.UUID) *UserUpdateOne {
+	_u.mutation.AddSlackIDs(ids...)
+	return _u
+}
+
+// AddSlack adds the "slack" edges to the Slack entity.
+func (_u *UserUpdateOne) AddSlack(v ...*Slack) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddSlackIDs(ids...)
+}
+
 // AddChannelServiceMemberIDs adds the "channel_service_members" edge to the ChannelServiceMember entity by IDs.
 func (_u *UserUpdateOne) AddChannelServiceMemberIDs(ids ...uuid.UUID) *UserUpdateOne {
 	_u.mutation.AddChannelServiceMemberIDs(ids...)
@@ -484,6 +581,27 @@ func (_u *UserUpdateOne) RemoveLine(v ...*Line) *UserUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveLineIDs(ids...)
+}
+
+// ClearSlack clears all "slack" edges to the Slack entity.
+func (_u *UserUpdateOne) ClearSlack() *UserUpdateOne {
+	_u.mutation.ClearSlack()
+	return _u
+}
+
+// RemoveSlackIDs removes the "slack" edge to Slack entities by IDs.
+func (_u *UserUpdateOne) RemoveSlackIDs(ids ...uuid.UUID) *UserUpdateOne {
+	_u.mutation.RemoveSlackIDs(ids...)
+	return _u
+}
+
+// RemoveSlack removes "slack" edges to Slack entities.
+func (_u *UserUpdateOne) RemoveSlack(v ...*Slack) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveSlackIDs(ids...)
 }
 
 // ClearChannelServiceMembers clears all "channel_service_members" edges to the ChannelServiceMember entity.
@@ -656,6 +774,51 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(line.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.SlackCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.SlackTable,
+			Columns: []string{user.SlackColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(slack.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedSlackIDs(); len(nodes) > 0 && !_u.mutation.SlackCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.SlackTable,
+			Columns: []string{user.SlackColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(slack.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SlackIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.SlackTable,
+			Columns: []string{user.SlackColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(slack.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

@@ -5,6 +5,7 @@ package ent
 import (
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
+	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -62,6 +63,21 @@ func (_c *UserCreate) AddLine(v ...*Line) *UserCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddLineIDs(ids...)
+}
+
+// AddSlackIDs adds the "slack" edge to the Slack entity by IDs.
+func (_c *UserCreate) AddSlackIDs(ids ...uuid.UUID) *UserCreate {
+	_c.mutation.AddSlackIDs(ids...)
+	return _c
+}
+
+// AddSlack adds the "slack" edges to the Slack entity.
+func (_c *UserCreate) AddSlack(v ...*Slack) *UserCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddSlackIDs(ids...)
 }
 
 // AddChannelServiceMemberIDs adds the "channel_service_members" edge to the ChannelServiceMember entity by IDs.
@@ -205,6 +221,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(line.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.SlackIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.SlackTable,
+			Columns: []string{user.SlackColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(slack.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

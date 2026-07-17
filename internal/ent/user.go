@@ -32,17 +32,20 @@ type User struct {
 type UserEdges struct {
 	// 使用者綁定的 LINE 帳號清單（可多筆）
 	Line []*Line `json:"line,omitempty"`
+	// 使用者綁定的 Slack 帳號清單（可多筆）
+	Slack []*Slack `json:"slack,omitempty"`
 	// 使用者啟用服務的頻道成員設定
 	ChannelServiceMembers []*ChannelServiceMember `json:"channel_service_members,omitempty"`
 	// 使用者新增的翻譯目標語言設定
 	OwnedTranslationLocales []*TranslationLocale `json:"owned_translation_locales,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [4]bool
 	// totalCount holds the count of the edges above.
-	totalCount [3]map[string]int
+	totalCount [4]map[string]int
 
 	namedLine                    map[string][]*Line
+	namedSlack                   map[string][]*Slack
 	namedChannelServiceMembers   map[string][]*ChannelServiceMember
 	namedOwnedTranslationLocales map[string][]*TranslationLocale
 }
@@ -56,10 +59,19 @@ func (e UserEdges) LineOrErr() ([]*Line, error) {
 	return nil, &NotLoadedError{edge: "line"}
 }
 
+// SlackOrErr returns the Slack value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) SlackOrErr() ([]*Slack, error) {
+	if e.loadedTypes[1] {
+		return e.Slack, nil
+	}
+	return nil, &NotLoadedError{edge: "slack"}
+}
+
 // ChannelServiceMembersOrErr returns the ChannelServiceMembers value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) ChannelServiceMembersOrErr() ([]*ChannelServiceMember, error) {
-	if e.loadedTypes[1] {
+	if e.loadedTypes[2] {
 		return e.ChannelServiceMembers, nil
 	}
 	return nil, &NotLoadedError{edge: "channel_service_members"}
@@ -68,7 +80,7 @@ func (e UserEdges) ChannelServiceMembersOrErr() ([]*ChannelServiceMember, error)
 // OwnedTranslationLocalesOrErr returns the OwnedTranslationLocales value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) OwnedTranslationLocalesOrErr() ([]*TranslationLocale, error) {
-	if e.loadedTypes[2] {
+	if e.loadedTypes[3] {
 		return e.OwnedTranslationLocales, nil
 	}
 	return nil, &NotLoadedError{edge: "owned_translation_locales"}
@@ -134,6 +146,11 @@ func (_m *User) QueryLine() *LineQuery {
 	return NewUserClient(_m.config).QueryLine(_m)
 }
 
+// QuerySlack queries the "slack" edge of the User entity.
+func (_m *User) QuerySlack() *SlackQuery {
+	return NewUserClient(_m.config).QuerySlack(_m)
+}
+
 // QueryChannelServiceMembers queries the "channel_service_members" edge of the User entity.
 func (_m *User) QueryChannelServiceMembers() *ChannelServiceMemberQuery {
 	return NewUserClient(_m.config).QueryChannelServiceMembers(_m)
@@ -197,6 +214,30 @@ func (_m *User) appendNamedLine(name string, edges ...*Line) {
 		_m.Edges.namedLine[name] = []*Line{}
 	} else {
 		_m.Edges.namedLine[name] = append(_m.Edges.namedLine[name], edges...)
+	}
+}
+
+// NamedSlack returns the Slack named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *User) NamedSlack(name string) ([]*Slack, error) {
+	if _m.Edges.namedSlack == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedSlack[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *User) appendNamedSlack(name string, edges ...*Slack) {
+	if _m.Edges.namedSlack == nil {
+		_m.Edges.namedSlack = make(map[string][]*Slack)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedSlack[name] = []*Slack{}
+	} else {
+		_m.Edges.namedSlack[name] = append(_m.Edges.namedSlack[name], edges...)
 	}
 }
 

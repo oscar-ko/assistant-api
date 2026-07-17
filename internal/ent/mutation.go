@@ -12,6 +12,7 @@ import (
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/skill"
+	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -43,6 +44,7 @@ const (
 	TypeChannelServiceMember = "ChannelServiceMember"
 	TypeLine                 = "Line"
 	TypeSkill                = "Skill"
+	TypeSlack                = "Slack"
 	TypeTranslationLocale    = "TranslationLocale"
 	TypeUser                 = "User"
 )
@@ -6359,6 +6361,681 @@ func (m *SkillMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Skill edge %s", name)
 }
 
+// SlackMutation represents an operation that mutates the Slack nodes in the graph.
+type SlackMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *uuid.UUID
+	team_id       *string
+	slack_user_id *string
+	display_name  *string
+	email         *string
+	picture       *string
+	clearedFields map[string]struct{}
+	user          *uuid.UUID
+	cleareduser   bool
+	done          bool
+	oldValue      func(context.Context) (*Slack, error)
+	predicates    []predicate.Slack
+}
+
+var _ ent.Mutation = (*SlackMutation)(nil)
+
+// slackOption allows management of the mutation configuration using functional options.
+type slackOption func(*SlackMutation)
+
+// newSlackMutation creates new mutation for the Slack entity.
+func newSlackMutation(c config, op Op, opts ...slackOption) *SlackMutation {
+	m := &SlackMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSlack,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSlackID sets the ID field of the mutation.
+func withSlackID(id uuid.UUID) slackOption {
+	return func(m *SlackMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Slack
+		)
+		m.oldValue = func(ctx context.Context) (*Slack, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Slack.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSlack sets the old Slack of the mutation.
+func withSlack(node *Slack) slackOption {
+	return func(m *SlackMutation) {
+		m.oldValue = func(context.Context) (*Slack, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SlackMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SlackMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of Slack entities.
+func (m *SlackMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SlackMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SlackMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Slack.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTeamID sets the "team_id" field.
+func (m *SlackMutation) SetTeamID(s string) {
+	m.team_id = &s
+}
+
+// TeamID returns the value of the "team_id" field in the mutation.
+func (m *SlackMutation) TeamID() (r string, exists bool) {
+	v := m.team_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTeamID returns the old "team_id" field's value of the Slack entity.
+// If the Slack object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SlackMutation) OldTeamID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTeamID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTeamID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTeamID: %w", err)
+	}
+	return oldValue.TeamID, nil
+}
+
+// ResetTeamID resets all changes to the "team_id" field.
+func (m *SlackMutation) ResetTeamID() {
+	m.team_id = nil
+}
+
+// SetSlackUserID sets the "slack_user_id" field.
+func (m *SlackMutation) SetSlackUserID(s string) {
+	m.slack_user_id = &s
+}
+
+// SlackUserID returns the value of the "slack_user_id" field in the mutation.
+func (m *SlackMutation) SlackUserID() (r string, exists bool) {
+	v := m.slack_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSlackUserID returns the old "slack_user_id" field's value of the Slack entity.
+// If the Slack object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SlackMutation) OldSlackUserID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSlackUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSlackUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSlackUserID: %w", err)
+	}
+	return oldValue.SlackUserID, nil
+}
+
+// ResetSlackUserID resets all changes to the "slack_user_id" field.
+func (m *SlackMutation) ResetSlackUserID() {
+	m.slack_user_id = nil
+}
+
+// SetDisplayName sets the "display_name" field.
+func (m *SlackMutation) SetDisplayName(s string) {
+	m.display_name = &s
+}
+
+// DisplayName returns the value of the "display_name" field in the mutation.
+func (m *SlackMutation) DisplayName() (r string, exists bool) {
+	v := m.display_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisplayName returns the old "display_name" field's value of the Slack entity.
+// If the Slack object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SlackMutation) OldDisplayName(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisplayName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisplayName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisplayName: %w", err)
+	}
+	return oldValue.DisplayName, nil
+}
+
+// ClearDisplayName clears the value of the "display_name" field.
+func (m *SlackMutation) ClearDisplayName() {
+	m.display_name = nil
+	m.clearedFields[slack.FieldDisplayName] = struct{}{}
+}
+
+// DisplayNameCleared returns if the "display_name" field was cleared in this mutation.
+func (m *SlackMutation) DisplayNameCleared() bool {
+	_, ok := m.clearedFields[slack.FieldDisplayName]
+	return ok
+}
+
+// ResetDisplayName resets all changes to the "display_name" field.
+func (m *SlackMutation) ResetDisplayName() {
+	m.display_name = nil
+	delete(m.clearedFields, slack.FieldDisplayName)
+}
+
+// SetEmail sets the "email" field.
+func (m *SlackMutation) SetEmail(s string) {
+	m.email = &s
+}
+
+// Email returns the value of the "email" field in the mutation.
+func (m *SlackMutation) Email() (r string, exists bool) {
+	v := m.email
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEmail returns the old "email" field's value of the Slack entity.
+// If the Slack object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SlackMutation) OldEmail(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEmail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEmail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEmail: %w", err)
+	}
+	return oldValue.Email, nil
+}
+
+// ClearEmail clears the value of the "email" field.
+func (m *SlackMutation) ClearEmail() {
+	m.email = nil
+	m.clearedFields[slack.FieldEmail] = struct{}{}
+}
+
+// EmailCleared returns if the "email" field was cleared in this mutation.
+func (m *SlackMutation) EmailCleared() bool {
+	_, ok := m.clearedFields[slack.FieldEmail]
+	return ok
+}
+
+// ResetEmail resets all changes to the "email" field.
+func (m *SlackMutation) ResetEmail() {
+	m.email = nil
+	delete(m.clearedFields, slack.FieldEmail)
+}
+
+// SetPicture sets the "picture" field.
+func (m *SlackMutation) SetPicture(s string) {
+	m.picture = &s
+}
+
+// Picture returns the value of the "picture" field in the mutation.
+func (m *SlackMutation) Picture() (r string, exists bool) {
+	v := m.picture
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPicture returns the old "picture" field's value of the Slack entity.
+// If the Slack object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SlackMutation) OldPicture(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPicture is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPicture requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPicture: %w", err)
+	}
+	return oldValue.Picture, nil
+}
+
+// ClearPicture clears the value of the "picture" field.
+func (m *SlackMutation) ClearPicture() {
+	m.picture = nil
+	m.clearedFields[slack.FieldPicture] = struct{}{}
+}
+
+// PictureCleared returns if the "picture" field was cleared in this mutation.
+func (m *SlackMutation) PictureCleared() bool {
+	_, ok := m.clearedFields[slack.FieldPicture]
+	return ok
+}
+
+// ResetPicture resets all changes to the "picture" field.
+func (m *SlackMutation) ResetPicture() {
+	m.picture = nil
+	delete(m.clearedFields, slack.FieldPicture)
+}
+
+// SetUserID sets the "user" edge to the User entity by id.
+func (m *SlackMutation) SetUserID(id uuid.UUID) {
+	m.user = &id
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *SlackMutation) ClearUser() {
+	m.cleareduser = true
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *SlackMutation) UserCleared() bool {
+	return m.cleareduser
+}
+
+// UserID returns the "user" edge ID in the mutation.
+func (m *SlackMutation) UserID() (id uuid.UUID, exists bool) {
+	if m.user != nil {
+		return *m.user, true
+	}
+	return
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *SlackMutation) UserIDs() (ids []uuid.UUID) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *SlackMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// Where appends a list predicates to the SlackMutation builder.
+func (m *SlackMutation) Where(ps ...predicate.Slack) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SlackMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SlackMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Slack, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SlackMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SlackMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Slack).
+func (m *SlackMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SlackMutation) Fields() []string {
+	fields := make([]string, 0, 5)
+	if m.team_id != nil {
+		fields = append(fields, slack.FieldTeamID)
+	}
+	if m.slack_user_id != nil {
+		fields = append(fields, slack.FieldSlackUserID)
+	}
+	if m.display_name != nil {
+		fields = append(fields, slack.FieldDisplayName)
+	}
+	if m.email != nil {
+		fields = append(fields, slack.FieldEmail)
+	}
+	if m.picture != nil {
+		fields = append(fields, slack.FieldPicture)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SlackMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case slack.FieldTeamID:
+		return m.TeamID()
+	case slack.FieldSlackUserID:
+		return m.SlackUserID()
+	case slack.FieldDisplayName:
+		return m.DisplayName()
+	case slack.FieldEmail:
+		return m.Email()
+	case slack.FieldPicture:
+		return m.Picture()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SlackMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case slack.FieldTeamID:
+		return m.OldTeamID(ctx)
+	case slack.FieldSlackUserID:
+		return m.OldSlackUserID(ctx)
+	case slack.FieldDisplayName:
+		return m.OldDisplayName(ctx)
+	case slack.FieldEmail:
+		return m.OldEmail(ctx)
+	case slack.FieldPicture:
+		return m.OldPicture(ctx)
+	}
+	return nil, fmt.Errorf("unknown Slack field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SlackMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case slack.FieldTeamID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTeamID(v)
+		return nil
+	case slack.FieldSlackUserID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSlackUserID(v)
+		return nil
+	case slack.FieldDisplayName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisplayName(v)
+		return nil
+	case slack.FieldEmail:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEmail(v)
+		return nil
+	case slack.FieldPicture:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPicture(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Slack field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SlackMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SlackMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SlackMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Slack numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SlackMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(slack.FieldDisplayName) {
+		fields = append(fields, slack.FieldDisplayName)
+	}
+	if m.FieldCleared(slack.FieldEmail) {
+		fields = append(fields, slack.FieldEmail)
+	}
+	if m.FieldCleared(slack.FieldPicture) {
+		fields = append(fields, slack.FieldPicture)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SlackMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SlackMutation) ClearField(name string) error {
+	switch name {
+	case slack.FieldDisplayName:
+		m.ClearDisplayName()
+		return nil
+	case slack.FieldEmail:
+		m.ClearEmail()
+		return nil
+	case slack.FieldPicture:
+		m.ClearPicture()
+		return nil
+	}
+	return fmt.Errorf("unknown Slack nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SlackMutation) ResetField(name string) error {
+	switch name {
+	case slack.FieldTeamID:
+		m.ResetTeamID()
+		return nil
+	case slack.FieldSlackUserID:
+		m.ResetSlackUserID()
+		return nil
+	case slack.FieldDisplayName:
+		m.ResetDisplayName()
+		return nil
+	case slack.FieldEmail:
+		m.ResetEmail()
+		return nil
+	case slack.FieldPicture:
+		m.ResetPicture()
+		return nil
+	}
+	return fmt.Errorf("unknown Slack field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SlackMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.user != nil {
+		edges = append(edges, slack.EdgeUser)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SlackMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case slack.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SlackMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SlackMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SlackMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.cleareduser {
+		edges = append(edges, slack.EdgeUser)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SlackMutation) EdgeCleared(name string) bool {
+	switch name {
+	case slack.EdgeUser:
+		return m.cleareduser
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SlackMutation) ClearEdge(name string) error {
+	switch name {
+	case slack.EdgeUser:
+		m.ClearUser()
+		return nil
+	}
+	return fmt.Errorf("unknown Slack unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SlackMutation) ResetEdge(name string) error {
+	switch name {
+	case slack.EdgeUser:
+		m.ResetUser()
+		return nil
+	}
+	return fmt.Errorf("unknown Slack edge %s", name)
+}
+
 // TranslationLocaleMutation represents an operation that mutates the TranslationLocale nodes in the graph.
 type TranslationLocaleMutation struct {
 	config
@@ -7132,6 +7809,9 @@ type UserMutation struct {
 	line                             map[uuid.UUID]struct{}
 	removedline                      map[uuid.UUID]struct{}
 	clearedline                      bool
+	slack                            map[uuid.UUID]struct{}
+	removedslack                     map[uuid.UUID]struct{}
+	clearedslack                     bool
 	channel_service_members          map[uuid.UUID]struct{}
 	removedchannel_service_members   map[uuid.UUID]struct{}
 	clearedchannel_service_members   bool
@@ -7371,6 +8051,60 @@ func (m *UserMutation) ResetLine() {
 	m.line = nil
 	m.clearedline = false
 	m.removedline = nil
+}
+
+// AddSlackIDs adds the "slack" edge to the Slack entity by ids.
+func (m *UserMutation) AddSlackIDs(ids ...uuid.UUID) {
+	if m.slack == nil {
+		m.slack = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.slack[ids[i]] = struct{}{}
+	}
+}
+
+// ClearSlack clears the "slack" edge to the Slack entity.
+func (m *UserMutation) ClearSlack() {
+	m.clearedslack = true
+}
+
+// SlackCleared reports if the "slack" edge to the Slack entity was cleared.
+func (m *UserMutation) SlackCleared() bool {
+	return m.clearedslack
+}
+
+// RemoveSlackIDs removes the "slack" edge to the Slack entity by IDs.
+func (m *UserMutation) RemoveSlackIDs(ids ...uuid.UUID) {
+	if m.removedslack == nil {
+		m.removedslack = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.slack, ids[i])
+		m.removedslack[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedSlack returns the removed IDs of the "slack" edge to the Slack entity.
+func (m *UserMutation) RemovedSlackIDs() (ids []uuid.UUID) {
+	for id := range m.removedslack {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// SlackIDs returns the "slack" edge IDs in the mutation.
+func (m *UserMutation) SlackIDs() (ids []uuid.UUID) {
+	for id := range m.slack {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetSlack resets all changes to the "slack" edge.
+func (m *UserMutation) ResetSlack() {
+	m.slack = nil
+	m.clearedslack = false
+	m.removedslack = nil
 }
 
 // AddChannelServiceMemberIDs adds the "channel_service_members" edge to the ChannelServiceMember entity by ids.
@@ -7631,9 +8365,12 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.line != nil {
 		edges = append(edges, user.EdgeLine)
+	}
+	if m.slack != nil {
+		edges = append(edges, user.EdgeSlack)
 	}
 	if m.channel_service_members != nil {
 		edges = append(edges, user.EdgeChannelServiceMembers)
@@ -7651,6 +8388,12 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 	case user.EdgeLine:
 		ids := make([]ent.Value, 0, len(m.line))
 		for id := range m.line {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeSlack:
+		ids := make([]ent.Value, 0, len(m.slack))
+		for id := range m.slack {
 			ids = append(ids, id)
 		}
 		return ids
@@ -7672,9 +8415,12 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.removedline != nil {
 		edges = append(edges, user.EdgeLine)
+	}
+	if m.removedslack != nil {
+		edges = append(edges, user.EdgeSlack)
 	}
 	if m.removedchannel_service_members != nil {
 		edges = append(edges, user.EdgeChannelServiceMembers)
@@ -7692,6 +8438,12 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 	case user.EdgeLine:
 		ids := make([]ent.Value, 0, len(m.removedline))
 		for id := range m.removedline {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeSlack:
+		ids := make([]ent.Value, 0, len(m.removedslack))
+		for id := range m.removedslack {
 			ids = append(ids, id)
 		}
 		return ids
@@ -7713,9 +8465,12 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.clearedline {
 		edges = append(edges, user.EdgeLine)
+	}
+	if m.clearedslack {
+		edges = append(edges, user.EdgeSlack)
 	}
 	if m.clearedchannel_service_members {
 		edges = append(edges, user.EdgeChannelServiceMembers)
@@ -7732,6 +8487,8 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 	switch name {
 	case user.EdgeLine:
 		return m.clearedline
+	case user.EdgeSlack:
+		return m.clearedslack
 	case user.EdgeChannelServiceMembers:
 		return m.clearedchannel_service_members
 	case user.EdgeOwnedTranslationLocales:
@@ -7754,6 +8511,9 @@ func (m *UserMutation) ResetEdge(name string) error {
 	switch name {
 	case user.EdgeLine:
 		m.ResetLine()
+		return nil
+	case user.EdgeSlack:
+		m.ResetSlack()
 		return nil
 	case user.EdgeChannelServiceMembers:
 		m.ResetChannelServiceMembers()

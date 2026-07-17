@@ -212,8 +212,10 @@ type SlackConfig struct {
 	BotToken          string `mapstructure:"bot_token" yaml:"bot_token"`
 	BotUserID         string `mapstructure:"bot_user_id" yaml:"bot_user_id"`
 	RedirectURI       string `mapstructure:"redirect_uri" yaml:"redirect_uri"`
+	LoginRedirectURI  string `mapstructure:"login_redirect_uri" yaml:"login_redirect_uri"`
 	Scopes            string `mapstructure:"scopes" yaml:"scopes"`
 	UserScopes        string `mapstructure:"user_scopes" yaml:"user_scopes"`
+	LoginScopes       string `mapstructure:"login_scopes" yaml:"login_scopes"`
 }
 
 // PostgreSQLConfig 參照 backend 風格，集中管理 PostgreSQL 連線參數。
@@ -372,8 +374,10 @@ func MustLoad() {
 		viper.SetDefault("slack.bot_token", "")
 		viper.SetDefault("slack.bot_user_id", "")
 		viper.SetDefault("slack.redirect_uri", "")
-		viper.SetDefault("slack.scopes", "app_mentions:read,channels:history,chat:write,groups:history,im:history,mpim:history")
+		viper.SetDefault("slack.login_redirect_uri", "")
+		viper.SetDefault("slack.scopes", "")
 		viper.SetDefault("slack.user_scopes", "")
+		viper.SetDefault("slack.login_scopes", "")
 		viper.SetDefault("graphql.query_path", "/query")
 		viper.SetDefault("graphql.playground_path", "/playground")
 

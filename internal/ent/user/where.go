@@ -218,6 +218,29 @@ func HasLineWith(preds ...predicate.Line) predicate.User {
 	})
 }
 
+// HasSlack applies the HasEdge predicate on the "slack" edge.
+func HasSlack() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, SlackTable, SlackColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSlackWith applies the HasEdge predicate on the "slack" edge with a given conditions (other predicates).
+func HasSlackWith(preds ...predicate.Slack) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newSlackStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasChannelServiceMembers applies the HasEdge predicate on the "channel_service_members" edge.
 func HasChannelServiceMembers() predicate.User {
 	return predicate.User(func(s *sql.Selector) {

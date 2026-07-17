@@ -6,6 +6,7 @@ import (
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
+	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -28,11 +29,13 @@ type UserQuery struct {
 	inters                           []Interceptor
 	predicates                       []predicate.User
 	withLine                         *LineQuery
+	withSlack                        *SlackQuery
 	withChannelServiceMembers        *ChannelServiceMemberQuery
 	withOwnedTranslationLocales      *TranslationLocaleQuery
 	modifiers                        []func(*sql.Selector)
 	loadTotal                        []func(context.Context, []*User) error
 	withNamedLine                    map[string]*LineQuery
+	withNamedSlack                   map[string]*SlackQuery
 	withNamedChannelServiceMembers   map[string]*ChannelServiceMemberQuery
 	withNamedOwnedTranslationLocales map[string]*TranslationLocaleQuery
 	// intermediate query (i.e. traversal path).
@@ -86,6 +89,28 @@ func (_q *UserQuery) QueryLine() *LineQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(line.Table, line.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, true, user.LineTable, user.LineColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QuerySlack chains the current query on the "slack" edge.
+func (_q *UserQuery) QuerySlack() *SlackQuery {
+	query := (&SlackClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(slack.Table, slack.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, user.SlackTable, user.SlackColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -330,6 +355,7 @@ func (_q *UserQuery) Clone() *UserQuery {
 		inters:                      append([]Interceptor{}, _q.inters...),
 		predicates:                  append([]predicate.User{}, _q.predicates...),
 		withLine:                    _q.withLine.Clone(),
+		withSlack:                   _q.withSlack.Clone(),
 		withChannelServiceMembers:   _q.withChannelServiceMembers.Clone(),
 		withOwnedTranslationLocales: _q.withOwnedTranslationLocales.Clone(),
 		// clone intermediate query.
@@ -346,6 +372,17 @@ func (_q *UserQuery) WithLine(opts ...func(*LineQuery)) *UserQuery {
 		opt(query)
 	}
 	_q.withLine = query
+	return _q
+}
+
+// WithSlack tells the query-builder to eager-load the nodes that are connected to
+// the "slack" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithSlack(opts ...func(*SlackQuery)) *UserQuery {
+	query := (&SlackClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withSlack = query
 	return _q
 }
 
@@ -449,8 +486,9 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [3]bool{
+		loadedTypes = [4]bool{
 			_q.withLine != nil,
+			_q.withSlack != nil,
 			_q.withChannelServiceMembers != nil,
 			_q.withOwnedTranslationLocales != nil,
 		}
@@ -483,6 +521,13 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 			return nil, err
 		}
 	}
+	if query := _q.withSlack; query != nil {
+		if err := _q.loadSlack(ctx, query, nodes,
+			func(n *User) { n.Edges.Slack = []*Slack{} },
+			func(n *User, e *Slack) { n.Edges.Slack = append(n.Edges.Slack, e) }); err != nil {
+			return nil, err
+		}
+	}
 	if query := _q.withChannelServiceMembers; query != nil {
 		if err := _q.loadChannelServiceMembers(ctx, query, nodes,
 			func(n *User) { n.Edges.ChannelServiceMembers = []*ChannelServiceMember{} },
@@ -505,6 +550,13 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := _q.loadLine(ctx, query, nodes,
 			func(n *User) { n.appendNamedLine(name) },
 			func(n *User, e *Line) { n.appendNamedLine(name, e) }); err != nil {
+			return nil, err
+		}
+	}
+	for name, query := range _q.withNamedSlack {
+		if err := _q.loadSlack(ctx, query, nodes,
+			func(n *User) { n.appendNamedSlack(name) },
+			func(n *User, e *Slack) { n.appendNamedSlack(name, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -556,6 +608,37 @@ func (_q *UserQuery) loadLine(ctx context.Context, query *LineQuery, nodes []*Us
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "line_user" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadSlack(ctx context.Context, query *SlackQuery, nodes []*User, init func(*User), assign func(*User, *Slack)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.Slack(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.SlackColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.slack_user
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "slack_user" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "slack_user" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}
@@ -717,6 +800,20 @@ func (_q *UserQuery) WithNamedLine(name string, opts ...func(*LineQuery)) *UserQ
 		_q.withNamedLine = make(map[string]*LineQuery)
 	}
 	_q.withNamedLine[name] = query
+	return _q
+}
+
+// WithNamedSlack tells the query-builder to eager-load the nodes that are connected to the "slack"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithNamedSlack(name string, opts ...func(*SlackQuery)) *UserQuery {
+	query := (&SlackClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if _q.withNamedSlack == nil {
+		_q.withNamedSlack = make(map[string]*SlackQuery)
+	}
+	_q.withNamedSlack[name] = query
 	return _q
 }
 

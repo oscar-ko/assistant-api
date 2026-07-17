@@ -11,6 +11,7 @@ import (
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
+	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -2095,6 +2096,255 @@ func (_m *Skill) ToEdge(order *SkillOrder) *SkillEdge {
 		order = DefaultSkillOrder
 	}
 	return &SkillEdge{
+		Node:   _m,
+		Cursor: order.Field.toCursor(_m),
+	}
+}
+
+// SlackEdge is the edge representation of Slack.
+type SlackEdge struct {
+	Node   *Slack `json:"node"`
+	Cursor Cursor `json:"cursor"`
+}
+
+// SlackConnection is the connection containing edges to Slack.
+type SlackConnection struct {
+	Edges      []*SlackEdge `json:"edges"`
+	PageInfo   PageInfo     `json:"pageInfo"`
+	TotalCount int          `json:"totalCount"`
+}
+
+func (c *SlackConnection) build(nodes []*Slack, pager *slackPager, after *Cursor, first *int, before *Cursor, last *int) {
+	c.PageInfo.HasNextPage = before != nil
+	c.PageInfo.HasPreviousPage = after != nil
+	if first != nil && *first+1 == len(nodes) {
+		c.PageInfo.HasNextPage = true
+		nodes = nodes[:len(nodes)-1]
+	} else if last != nil && *last+1 == len(nodes) {
+		c.PageInfo.HasPreviousPage = true
+		nodes = nodes[:len(nodes)-1]
+	}
+	var nodeAt func(int) *Slack
+	if last != nil {
+		n := len(nodes) - 1
+		nodeAt = func(i int) *Slack {
+			return nodes[n-i]
+		}
+	} else {
+		nodeAt = func(i int) *Slack {
+			return nodes[i]
+		}
+	}
+	c.Edges = make([]*SlackEdge, len(nodes))
+	for i := range nodes {
+		node := nodeAt(i)
+		c.Edges[i] = &SlackEdge{
+			Node:   node,
+			Cursor: pager.toCursor(node),
+		}
+	}
+	if l := len(c.Edges); l > 0 {
+		c.PageInfo.StartCursor = &c.Edges[0].Cursor
+		c.PageInfo.EndCursor = &c.Edges[l-1].Cursor
+	}
+	if c.TotalCount == 0 {
+		c.TotalCount = len(nodes)
+	}
+}
+
+// SlackPaginateOption enables pagination customization.
+type SlackPaginateOption func(*slackPager) error
+
+// WithSlackOrder configures pagination ordering.
+func WithSlackOrder(order *SlackOrder) SlackPaginateOption {
+	if order == nil {
+		order = DefaultSlackOrder
+	}
+	o := *order
+	return func(pager *slackPager) error {
+		if err := o.Direction.Validate(); err != nil {
+			return err
+		}
+		if o.Field == nil {
+			o.Field = DefaultSlackOrder.Field
+		}
+		pager.order = &o
+		return nil
+	}
+}
+
+// WithSlackFilter configures pagination filter.
+func WithSlackFilter(filter func(*SlackQuery) (*SlackQuery, error)) SlackPaginateOption {
+	return func(pager *slackPager) error {
+		if filter == nil {
+			return errors.New("SlackQuery filter cannot be nil")
+		}
+		pager.filter = filter
+		return nil
+	}
+}
+
+type slackPager struct {
+	reverse bool
+	order   *SlackOrder
+	filter  func(*SlackQuery) (*SlackQuery, error)
+}
+
+func newSlackPager(opts []SlackPaginateOption, reverse bool) (*slackPager, error) {
+	pager := &slackPager{reverse: reverse}
+	for _, opt := range opts {
+		if err := opt(pager); err != nil {
+			return nil, err
+		}
+	}
+	if pager.order == nil {
+		pager.order = DefaultSlackOrder
+	}
+	return pager, nil
+}
+
+func (p *slackPager) applyFilter(query *SlackQuery) (*SlackQuery, error) {
+	if p.filter != nil {
+		return p.filter(query)
+	}
+	return query, nil
+}
+
+func (p *slackPager) toCursor(_m *Slack) Cursor {
+	return p.order.Field.toCursor(_m)
+}
+
+func (p *slackPager) applyCursors(query *SlackQuery, after, before *Cursor) (*SlackQuery, error) {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	for _, predicate := range entgql.CursorsPredicate(after, before, DefaultSlackOrder.Field.column, p.order.Field.column, direction) {
+		query = query.Where(predicate)
+	}
+	return query, nil
+}
+
+func (p *slackPager) applyOrder(query *SlackQuery) *SlackQuery {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	query = query.Order(p.order.Field.toTerm(direction.OrderTermOption()))
+	if p.order.Field != DefaultSlackOrder.Field {
+		query = query.Order(DefaultSlackOrder.Field.toTerm(direction.OrderTermOption()))
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return query
+}
+
+func (p *slackPager) orderExpr(query *SlackQuery) sql.Querier {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return sql.ExprFunc(func(b *sql.Builder) {
+		b.Ident(p.order.Field.column).Pad().WriteString(string(direction))
+		if p.order.Field != DefaultSlackOrder.Field {
+			b.Comma().Ident(DefaultSlackOrder.Field.column).Pad().WriteString(string(direction))
+		}
+	})
+}
+
+// Paginate executes the query and returns a relay based cursor connection to Slack.
+func (_m *SlackQuery) Paginate(
+	ctx context.Context, after *Cursor, first *int,
+	before *Cursor, last *int, opts ...SlackPaginateOption,
+) (*SlackConnection, error) {
+	if err := validateFirstLast(first, last); err != nil {
+		return nil, err
+	}
+	pager, err := newSlackPager(opts, last != nil)
+	if err != nil {
+		return nil, err
+	}
+	if _m, err = pager.applyFilter(_m); err != nil {
+		return nil, err
+	}
+	conn := &SlackConnection{Edges: []*SlackEdge{}}
+	ignoredEdges := !hasCollectedField(ctx, edgesField)
+	if hasCollectedField(ctx, totalCountField) || hasCollectedField(ctx, pageInfoField) {
+		hasPagination := after != nil || first != nil || before != nil || last != nil
+		if hasPagination || ignoredEdges {
+			c := _m.Clone()
+			c.ctx.Fields = nil
+			if conn.TotalCount, err = c.Count(ctx); err != nil {
+				return nil, err
+			}
+			conn.PageInfo.HasNextPage = first != nil && conn.TotalCount > 0
+			conn.PageInfo.HasPreviousPage = last != nil && conn.TotalCount > 0
+		}
+	}
+	if ignoredEdges || (first != nil && *first == 0) || (last != nil && *last == 0) {
+		return conn, nil
+	}
+	if _m, err = pager.applyCursors(_m, after, before); err != nil {
+		return nil, err
+	}
+	limit := paginateLimit(first, last)
+	if limit != 0 {
+		_m.Limit(limit)
+	}
+	if field := collectedField(ctx, edgesField, nodeField); field != nil {
+		if err := _m.collectField(ctx, limit == 1, graphql.GetOperationContext(ctx), *field, []string{edgesField, nodeField}); err != nil {
+			return nil, err
+		}
+	}
+	_m = pager.applyOrder(_m)
+	nodes, err := _m.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	conn.build(nodes, pager, after, first, before, last)
+	return conn, nil
+}
+
+// SlackOrderField defines the ordering field of Slack.
+type SlackOrderField struct {
+	// Value extracts the ordering value from the given Slack.
+	Value    func(*Slack) (ent.Value, error)
+	column   string // field or computed.
+	toTerm   func(...sql.OrderTermOption) slack.OrderOption
+	toCursor func(*Slack) Cursor
+}
+
+// SlackOrder defines the ordering of Slack.
+type SlackOrder struct {
+	Direction OrderDirection   `json:"direction"`
+	Field     *SlackOrderField `json:"field"`
+}
+
+// DefaultSlackOrder is the default ordering of Slack.
+var DefaultSlackOrder = &SlackOrder{
+	Direction: entgql.OrderDirectionAsc,
+	Field: &SlackOrderField{
+		Value: func(_m *Slack) (ent.Value, error) {
+			return _m.ID, nil
+		},
+		column: slack.FieldID,
+		toTerm: slack.ByID,
+		toCursor: func(_m *Slack) Cursor {
+			return Cursor{ID: _m.ID}
+		},
+	},
+}
+
+// ToEdge converts Slack into SlackEdge.
+func (_m *Slack) ToEdge(order *SlackOrder) *SlackEdge {
+	if order == nil {
+		order = DefaultSlackOrder
+	}
+	return &SlackEdge{
 		Node:   _m,
 		Cursor: order.Field.toCursor(_m),
 	}

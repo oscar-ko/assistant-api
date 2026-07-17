@@ -11,6 +11,7 @@ import (
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
+	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -90,6 +91,7 @@ func checkColumn(t, c string) error {
 			channelservicemember.Table: channelservicemember.ValidColumn,
 			line.Table:                 line.ValidColumn,
 			skill.Table:                skill.ValidColumn,
+			slack.Table:                slack.ValidColumn,
 			translationlocale.Table:    translationlocale.ValidColumn,
 			user.Table:                 user.ValidColumn,
 		})

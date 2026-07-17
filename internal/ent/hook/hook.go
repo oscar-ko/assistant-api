@@ -104,6 +104,18 @@ func (f SkillFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SkillMutation", m)
 }
 
+// The SlackFunc type is an adapter to allow the use of ordinary
+// function as Slack mutator.
+type SlackFunc func(context.Context, *ent.SlackMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SlackFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SlackMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SlackMutation", m)
+}
+
 // The TranslationLocaleFunc type is an adapter to allow the use of ordinary
 // function as TranslationLocale mutator.
 type TranslationLocaleFunc func(context.Context, *ent.TranslationLocaleMutation) (ent.Value, error)

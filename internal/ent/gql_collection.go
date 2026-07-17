@@ -11,6 +11,7 @@ import (
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
+	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -1001,6 +1002,104 @@ func newSkillPaginateArgs(rv map[string]any) *skillPaginateArgs {
 }
 
 // CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
+func (_q *SlackQuery) CollectFields(ctx context.Context, satisfies ...string) (*SlackQuery, error) {
+	fc := graphql.GetFieldContext(ctx)
+	if fc == nil {
+		return _q, nil
+	}
+	if err := _q.collectField(ctx, false, graphql.GetOperationContext(ctx), fc.Field, nil, satisfies...); err != nil {
+		return nil, err
+	}
+	return _q, nil
+}
+
+func (_q *SlackQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
+	path = append([]string(nil), path...)
+	var (
+		unknownSeen    bool
+		fieldSeen      = make(map[string]struct{}, len(slack.Columns))
+		selectedFields = []string{slack.FieldID}
+	)
+	for _, field := range graphql.CollectFields(opCtx, collected.Selections, satisfies) {
+		switch field.Name {
+
+		case "user":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&UserClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, userImplementors)...); err != nil {
+				return err
+			}
+			_q.withUser = query
+		case "teamID":
+			if _, ok := fieldSeen[slack.FieldTeamID]; !ok {
+				selectedFields = append(selectedFields, slack.FieldTeamID)
+				fieldSeen[slack.FieldTeamID] = struct{}{}
+			}
+		case "slackUserID":
+			if _, ok := fieldSeen[slack.FieldSlackUserID]; !ok {
+				selectedFields = append(selectedFields, slack.FieldSlackUserID)
+				fieldSeen[slack.FieldSlackUserID] = struct{}{}
+			}
+		case "displayName":
+			if _, ok := fieldSeen[slack.FieldDisplayName]; !ok {
+				selectedFields = append(selectedFields, slack.FieldDisplayName)
+				fieldSeen[slack.FieldDisplayName] = struct{}{}
+			}
+		case "email":
+			if _, ok := fieldSeen[slack.FieldEmail]; !ok {
+				selectedFields = append(selectedFields, slack.FieldEmail)
+				fieldSeen[slack.FieldEmail] = struct{}{}
+			}
+		case "picture":
+			if _, ok := fieldSeen[slack.FieldPicture]; !ok {
+				selectedFields = append(selectedFields, slack.FieldPicture)
+				fieldSeen[slack.FieldPicture] = struct{}{}
+			}
+		case "id":
+		case "__typename":
+		default:
+			unknownSeen = true
+		}
+	}
+	if !unknownSeen {
+		_q.Select(selectedFields...)
+	}
+	return nil
+}
+
+type slackPaginateArgs struct {
+	first, last   *int
+	after, before *Cursor
+	opts          []SlackPaginateOption
+}
+
+func newSlackPaginateArgs(rv map[string]any) *slackPaginateArgs {
+	args := &slackPaginateArgs{}
+	if rv == nil {
+		return args
+	}
+	if v := rv[firstField]; v != nil {
+		args.first = v.(*int)
+	}
+	if v := rv[lastField]; v != nil {
+		args.last = v.(*int)
+	}
+	if v := rv[afterField]; v != nil {
+		args.after = v.(*Cursor)
+	}
+	if v := rv[beforeField]; v != nil {
+		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[whereField].(*SlackWhereInput); ok {
+		args.opts = append(args.opts, WithSlackFilter(v.Filter))
+	}
+	return args
+}
+
+// CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
 func (_q *TranslationLocaleQuery) CollectFields(ctx context.Context, satisfies ...string) (*TranslationLocaleQuery, error) {
 	fc := graphql.GetFieldContext(ctx)
 	if fc == nil {
@@ -1169,6 +1268,19 @@ func (_q *UserQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 				return err
 			}
 			_q.WithNamedLine(alias, func(wq *LineQuery) {
+				*wq = *query
+			})
+
+		case "slack":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&SlackClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, slackImplementors)...); err != nil {
+				return err
+			}
+			_q.WithNamedSlack(alias, func(wq *SlackQuery) {
 				*wq = *query
 			})
 

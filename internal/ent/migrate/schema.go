@@ -302,6 +302,37 @@ var (
 			},
 		},
 	}
+	// SlacksColumns holds the columns for the "slacks" table.
+	SlacksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "team_id", Type: field.TypeString},
+		{Name: "slack_user_id", Type: field.TypeString},
+		{Name: "display_name", Type: field.TypeString, Nullable: true},
+		{Name: "email", Type: field.TypeString, Nullable: true},
+		{Name: "picture", Type: field.TypeString, Nullable: true},
+		{Name: "slack_user", Type: field.TypeUUID},
+	}
+	// SlacksTable holds the schema information for the "slacks" table.
+	SlacksTable = &schema.Table{
+		Name:       "slacks",
+		Columns:    SlacksColumns,
+		PrimaryKey: []*schema.Column{SlacksColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "slacks_users_user",
+				Columns:    []*schema.Column{SlacksColumns[6]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "slack_team_id_slack_user_id",
+				Unique:  true,
+				Columns: []*schema.Column{SlacksColumns[1], SlacksColumns[2]},
+			},
+		},
+	}
 	// TranslationLocalesColumns holds the columns for the "translation_locales" table.
 	TranslationLocalesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -387,6 +418,7 @@ var (
 		ChannelServiceMembersTable,
 		LinesTable,
 		SkillsTable,
+		SlacksTable,
 		TranslationLocalesTable,
 		UsersTable,
 	}
@@ -403,6 +435,7 @@ func init() {
 	ChannelServiceMembersTable.ForeignKeys[1].RefTable = UsersTable
 	ChannelServiceMembersTable.ForeignKeys[2].RefTable = SkillsTable
 	LinesTable.ForeignKeys[0].RefTable = UsersTable
+	SlacksTable.ForeignKeys[0].RefTable = UsersTable
 	TranslationLocalesTable.ForeignKeys[0].RefTable = ChannelsTable
 	TranslationLocalesTable.ForeignKeys[1].RefTable = SkillsTable
 	TranslationLocalesTable.ForeignKeys[2].RefTable = UsersTable

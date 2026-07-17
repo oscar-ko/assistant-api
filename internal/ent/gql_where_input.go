@@ -12,6 +12,7 @@ import (
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/skill"
+	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"errors"
@@ -3320,6 +3321,446 @@ func (i *SkillWhereInput) P() (predicate.Skill, error) {
 	}
 }
 
+// SlackWhereInput represents a where input for filtering Slack queries.
+type SlackWhereInput struct {
+	Predicates []predicate.Slack  `json:"-"`
+	Not        *SlackWhereInput   `json:"not,omitempty"`
+	Or         []*SlackWhereInput `json:"or,omitempty"`
+	And        []*SlackWhereInput `json:"and,omitempty"`
+
+	// "id" field predicates.
+	ID      *uuid.UUID  `json:"id,omitempty"`
+	IDNEQ   *uuid.UUID  `json:"idNEQ,omitempty"`
+	IDIn    []uuid.UUID `json:"idIn,omitempty"`
+	IDNotIn []uuid.UUID `json:"idNotIn,omitempty"`
+	IDGT    *uuid.UUID  `json:"idGT,omitempty"`
+	IDGTE   *uuid.UUID  `json:"idGTE,omitempty"`
+	IDLT    *uuid.UUID  `json:"idLT,omitempty"`
+	IDLTE   *uuid.UUID  `json:"idLTE,omitempty"`
+
+	// "team_id" field predicates.
+	TeamID             *string  `json:"teamID,omitempty"`
+	TeamIDNEQ          *string  `json:"teamIDNEQ,omitempty"`
+	TeamIDIn           []string `json:"teamIDIn,omitempty"`
+	TeamIDNotIn        []string `json:"teamIDNotIn,omitempty"`
+	TeamIDGT           *string  `json:"teamIDGT,omitempty"`
+	TeamIDGTE          *string  `json:"teamIDGTE,omitempty"`
+	TeamIDLT           *string  `json:"teamIDLT,omitempty"`
+	TeamIDLTE          *string  `json:"teamIDLTE,omitempty"`
+	TeamIDContains     *string  `json:"teamIDContains,omitempty"`
+	TeamIDHasPrefix    *string  `json:"teamIDHasPrefix,omitempty"`
+	TeamIDHasSuffix    *string  `json:"teamIDHasSuffix,omitempty"`
+	TeamIDEqualFold    *string  `json:"teamIDEqualFold,omitempty"`
+	TeamIDContainsFold *string  `json:"teamIDContainsFold,omitempty"`
+
+	// "slack_user_id" field predicates.
+	SlackUserID             *string  `json:"slackUserID,omitempty"`
+	SlackUserIDNEQ          *string  `json:"slackUserIDNEQ,omitempty"`
+	SlackUserIDIn           []string `json:"slackUserIDIn,omitempty"`
+	SlackUserIDNotIn        []string `json:"slackUserIDNotIn,omitempty"`
+	SlackUserIDGT           *string  `json:"slackUserIDGT,omitempty"`
+	SlackUserIDGTE          *string  `json:"slackUserIDGTE,omitempty"`
+	SlackUserIDLT           *string  `json:"slackUserIDLT,omitempty"`
+	SlackUserIDLTE          *string  `json:"slackUserIDLTE,omitempty"`
+	SlackUserIDContains     *string  `json:"slackUserIDContains,omitempty"`
+	SlackUserIDHasPrefix    *string  `json:"slackUserIDHasPrefix,omitempty"`
+	SlackUserIDHasSuffix    *string  `json:"slackUserIDHasSuffix,omitempty"`
+	SlackUserIDEqualFold    *string  `json:"slackUserIDEqualFold,omitempty"`
+	SlackUserIDContainsFold *string  `json:"slackUserIDContainsFold,omitempty"`
+
+	// "display_name" field predicates.
+	DisplayName             *string  `json:"displayName,omitempty"`
+	DisplayNameNEQ          *string  `json:"displayNameNEQ,omitempty"`
+	DisplayNameIn           []string `json:"displayNameIn,omitempty"`
+	DisplayNameNotIn        []string `json:"displayNameNotIn,omitempty"`
+	DisplayNameGT           *string  `json:"displayNameGT,omitempty"`
+	DisplayNameGTE          *string  `json:"displayNameGTE,omitempty"`
+	DisplayNameLT           *string  `json:"displayNameLT,omitempty"`
+	DisplayNameLTE          *string  `json:"displayNameLTE,omitempty"`
+	DisplayNameContains     *string  `json:"displayNameContains,omitempty"`
+	DisplayNameHasPrefix    *string  `json:"displayNameHasPrefix,omitempty"`
+	DisplayNameHasSuffix    *string  `json:"displayNameHasSuffix,omitempty"`
+	DisplayNameIsNil        bool     `json:"displayNameIsNil,omitempty"`
+	DisplayNameNotNil       bool     `json:"displayNameNotNil,omitempty"`
+	DisplayNameEqualFold    *string  `json:"displayNameEqualFold,omitempty"`
+	DisplayNameContainsFold *string  `json:"displayNameContainsFold,omitempty"`
+
+	// "email" field predicates.
+	Email             *string  `json:"email,omitempty"`
+	EmailNEQ          *string  `json:"emailNEQ,omitempty"`
+	EmailIn           []string `json:"emailIn,omitempty"`
+	EmailNotIn        []string `json:"emailNotIn,omitempty"`
+	EmailGT           *string  `json:"emailGT,omitempty"`
+	EmailGTE          *string  `json:"emailGTE,omitempty"`
+	EmailLT           *string  `json:"emailLT,omitempty"`
+	EmailLTE          *string  `json:"emailLTE,omitempty"`
+	EmailContains     *string  `json:"emailContains,omitempty"`
+	EmailHasPrefix    *string  `json:"emailHasPrefix,omitempty"`
+	EmailHasSuffix    *string  `json:"emailHasSuffix,omitempty"`
+	EmailIsNil        bool     `json:"emailIsNil,omitempty"`
+	EmailNotNil       bool     `json:"emailNotNil,omitempty"`
+	EmailEqualFold    *string  `json:"emailEqualFold,omitempty"`
+	EmailContainsFold *string  `json:"emailContainsFold,omitempty"`
+
+	// "picture" field predicates.
+	Picture             *string  `json:"picture,omitempty"`
+	PictureNEQ          *string  `json:"pictureNEQ,omitempty"`
+	PictureIn           []string `json:"pictureIn,omitempty"`
+	PictureNotIn        []string `json:"pictureNotIn,omitempty"`
+	PictureGT           *string  `json:"pictureGT,omitempty"`
+	PictureGTE          *string  `json:"pictureGTE,omitempty"`
+	PictureLT           *string  `json:"pictureLT,omitempty"`
+	PictureLTE          *string  `json:"pictureLTE,omitempty"`
+	PictureContains     *string  `json:"pictureContains,omitempty"`
+	PictureHasPrefix    *string  `json:"pictureHasPrefix,omitempty"`
+	PictureHasSuffix    *string  `json:"pictureHasSuffix,omitempty"`
+	PictureIsNil        bool     `json:"pictureIsNil,omitempty"`
+	PictureNotNil       bool     `json:"pictureNotNil,omitempty"`
+	PictureEqualFold    *string  `json:"pictureEqualFold,omitempty"`
+	PictureContainsFold *string  `json:"pictureContainsFold,omitempty"`
+
+	// "user" edge predicates.
+	HasUser     *bool             `json:"hasUser,omitempty"`
+	HasUserWith []*UserWhereInput `json:"hasUserWith,omitempty"`
+}
+
+// AddPredicates adds custom predicates to the where input to be used during the filtering phase.
+func (i *SlackWhereInput) AddPredicates(predicates ...predicate.Slack) {
+	i.Predicates = append(i.Predicates, predicates...)
+}
+
+// Filter applies the SlackWhereInput filter on the SlackQuery builder.
+func (i *SlackWhereInput) Filter(q *SlackQuery) (*SlackQuery, error) {
+	if i == nil {
+		return q, nil
+	}
+	p, err := i.P()
+	if err != nil {
+		if err == ErrEmptySlackWhereInput {
+			return q, nil
+		}
+		return nil, err
+	}
+	return q.Where(p), nil
+}
+
+// ErrEmptySlackWhereInput is returned in case the SlackWhereInput is empty.
+var ErrEmptySlackWhereInput = errors.New("ent: empty predicate SlackWhereInput")
+
+// P returns a predicate for filtering slacks.
+// An error is returned if the input is empty or invalid.
+func (i *SlackWhereInput) P() (predicate.Slack, error) {
+	var predicates []predicate.Slack
+	if i.Not != nil {
+		p, err := i.Not.P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'not'", err)
+		}
+		predicates = append(predicates, slack.Not(p))
+	}
+	switch n := len(i.Or); {
+	case n == 1:
+		p, err := i.Or[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'or'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		or := make([]predicate.Slack, 0, n)
+		for _, w := range i.Or {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'or'", err)
+			}
+			or = append(or, p)
+		}
+		predicates = append(predicates, slack.Or(or...))
+	}
+	switch n := len(i.And); {
+	case n == 1:
+		p, err := i.And[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'and'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		and := make([]predicate.Slack, 0, n)
+		for _, w := range i.And {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'and'", err)
+			}
+			and = append(and, p)
+		}
+		predicates = append(predicates, slack.And(and...))
+	}
+	predicates = append(predicates, i.Predicates...)
+	if i.ID != nil {
+		predicates = append(predicates, slack.IDEQ(*i.ID))
+	}
+	if i.IDNEQ != nil {
+		predicates = append(predicates, slack.IDNEQ(*i.IDNEQ))
+	}
+	if len(i.IDIn) > 0 {
+		predicates = append(predicates, slack.IDIn(i.IDIn...))
+	}
+	if len(i.IDNotIn) > 0 {
+		predicates = append(predicates, slack.IDNotIn(i.IDNotIn...))
+	}
+	if i.IDGT != nil {
+		predicates = append(predicates, slack.IDGT(*i.IDGT))
+	}
+	if i.IDGTE != nil {
+		predicates = append(predicates, slack.IDGTE(*i.IDGTE))
+	}
+	if i.IDLT != nil {
+		predicates = append(predicates, slack.IDLT(*i.IDLT))
+	}
+	if i.IDLTE != nil {
+		predicates = append(predicates, slack.IDLTE(*i.IDLTE))
+	}
+	if i.TeamID != nil {
+		predicates = append(predicates, slack.TeamIDEQ(*i.TeamID))
+	}
+	if i.TeamIDNEQ != nil {
+		predicates = append(predicates, slack.TeamIDNEQ(*i.TeamIDNEQ))
+	}
+	if len(i.TeamIDIn) > 0 {
+		predicates = append(predicates, slack.TeamIDIn(i.TeamIDIn...))
+	}
+	if len(i.TeamIDNotIn) > 0 {
+		predicates = append(predicates, slack.TeamIDNotIn(i.TeamIDNotIn...))
+	}
+	if i.TeamIDGT != nil {
+		predicates = append(predicates, slack.TeamIDGT(*i.TeamIDGT))
+	}
+	if i.TeamIDGTE != nil {
+		predicates = append(predicates, slack.TeamIDGTE(*i.TeamIDGTE))
+	}
+	if i.TeamIDLT != nil {
+		predicates = append(predicates, slack.TeamIDLT(*i.TeamIDLT))
+	}
+	if i.TeamIDLTE != nil {
+		predicates = append(predicates, slack.TeamIDLTE(*i.TeamIDLTE))
+	}
+	if i.TeamIDContains != nil {
+		predicates = append(predicates, slack.TeamIDContains(*i.TeamIDContains))
+	}
+	if i.TeamIDHasPrefix != nil {
+		predicates = append(predicates, slack.TeamIDHasPrefix(*i.TeamIDHasPrefix))
+	}
+	if i.TeamIDHasSuffix != nil {
+		predicates = append(predicates, slack.TeamIDHasSuffix(*i.TeamIDHasSuffix))
+	}
+	if i.TeamIDEqualFold != nil {
+		predicates = append(predicates, slack.TeamIDEqualFold(*i.TeamIDEqualFold))
+	}
+	if i.TeamIDContainsFold != nil {
+		predicates = append(predicates, slack.TeamIDContainsFold(*i.TeamIDContainsFold))
+	}
+	if i.SlackUserID != nil {
+		predicates = append(predicates, slack.SlackUserIDEQ(*i.SlackUserID))
+	}
+	if i.SlackUserIDNEQ != nil {
+		predicates = append(predicates, slack.SlackUserIDNEQ(*i.SlackUserIDNEQ))
+	}
+	if len(i.SlackUserIDIn) > 0 {
+		predicates = append(predicates, slack.SlackUserIDIn(i.SlackUserIDIn...))
+	}
+	if len(i.SlackUserIDNotIn) > 0 {
+		predicates = append(predicates, slack.SlackUserIDNotIn(i.SlackUserIDNotIn...))
+	}
+	if i.SlackUserIDGT != nil {
+		predicates = append(predicates, slack.SlackUserIDGT(*i.SlackUserIDGT))
+	}
+	if i.SlackUserIDGTE != nil {
+		predicates = append(predicates, slack.SlackUserIDGTE(*i.SlackUserIDGTE))
+	}
+	if i.SlackUserIDLT != nil {
+		predicates = append(predicates, slack.SlackUserIDLT(*i.SlackUserIDLT))
+	}
+	if i.SlackUserIDLTE != nil {
+		predicates = append(predicates, slack.SlackUserIDLTE(*i.SlackUserIDLTE))
+	}
+	if i.SlackUserIDContains != nil {
+		predicates = append(predicates, slack.SlackUserIDContains(*i.SlackUserIDContains))
+	}
+	if i.SlackUserIDHasPrefix != nil {
+		predicates = append(predicates, slack.SlackUserIDHasPrefix(*i.SlackUserIDHasPrefix))
+	}
+	if i.SlackUserIDHasSuffix != nil {
+		predicates = append(predicates, slack.SlackUserIDHasSuffix(*i.SlackUserIDHasSuffix))
+	}
+	if i.SlackUserIDEqualFold != nil {
+		predicates = append(predicates, slack.SlackUserIDEqualFold(*i.SlackUserIDEqualFold))
+	}
+	if i.SlackUserIDContainsFold != nil {
+		predicates = append(predicates, slack.SlackUserIDContainsFold(*i.SlackUserIDContainsFold))
+	}
+	if i.DisplayName != nil {
+		predicates = append(predicates, slack.DisplayNameEQ(*i.DisplayName))
+	}
+	if i.DisplayNameNEQ != nil {
+		predicates = append(predicates, slack.DisplayNameNEQ(*i.DisplayNameNEQ))
+	}
+	if len(i.DisplayNameIn) > 0 {
+		predicates = append(predicates, slack.DisplayNameIn(i.DisplayNameIn...))
+	}
+	if len(i.DisplayNameNotIn) > 0 {
+		predicates = append(predicates, slack.DisplayNameNotIn(i.DisplayNameNotIn...))
+	}
+	if i.DisplayNameGT != nil {
+		predicates = append(predicates, slack.DisplayNameGT(*i.DisplayNameGT))
+	}
+	if i.DisplayNameGTE != nil {
+		predicates = append(predicates, slack.DisplayNameGTE(*i.DisplayNameGTE))
+	}
+	if i.DisplayNameLT != nil {
+		predicates = append(predicates, slack.DisplayNameLT(*i.DisplayNameLT))
+	}
+	if i.DisplayNameLTE != nil {
+		predicates = append(predicates, slack.DisplayNameLTE(*i.DisplayNameLTE))
+	}
+	if i.DisplayNameContains != nil {
+		predicates = append(predicates, slack.DisplayNameContains(*i.DisplayNameContains))
+	}
+	if i.DisplayNameHasPrefix != nil {
+		predicates = append(predicates, slack.DisplayNameHasPrefix(*i.DisplayNameHasPrefix))
+	}
+	if i.DisplayNameHasSuffix != nil {
+		predicates = append(predicates, slack.DisplayNameHasSuffix(*i.DisplayNameHasSuffix))
+	}
+	if i.DisplayNameIsNil {
+		predicates = append(predicates, slack.DisplayNameIsNil())
+	}
+	if i.DisplayNameNotNil {
+		predicates = append(predicates, slack.DisplayNameNotNil())
+	}
+	if i.DisplayNameEqualFold != nil {
+		predicates = append(predicates, slack.DisplayNameEqualFold(*i.DisplayNameEqualFold))
+	}
+	if i.DisplayNameContainsFold != nil {
+		predicates = append(predicates, slack.DisplayNameContainsFold(*i.DisplayNameContainsFold))
+	}
+	if i.Email != nil {
+		predicates = append(predicates, slack.EmailEQ(*i.Email))
+	}
+	if i.EmailNEQ != nil {
+		predicates = append(predicates, slack.EmailNEQ(*i.EmailNEQ))
+	}
+	if len(i.EmailIn) > 0 {
+		predicates = append(predicates, slack.EmailIn(i.EmailIn...))
+	}
+	if len(i.EmailNotIn) > 0 {
+		predicates = append(predicates, slack.EmailNotIn(i.EmailNotIn...))
+	}
+	if i.EmailGT != nil {
+		predicates = append(predicates, slack.EmailGT(*i.EmailGT))
+	}
+	if i.EmailGTE != nil {
+		predicates = append(predicates, slack.EmailGTE(*i.EmailGTE))
+	}
+	if i.EmailLT != nil {
+		predicates = append(predicates, slack.EmailLT(*i.EmailLT))
+	}
+	if i.EmailLTE != nil {
+		predicates = append(predicates, slack.EmailLTE(*i.EmailLTE))
+	}
+	if i.EmailContains != nil {
+		predicates = append(predicates, slack.EmailContains(*i.EmailContains))
+	}
+	if i.EmailHasPrefix != nil {
+		predicates = append(predicates, slack.EmailHasPrefix(*i.EmailHasPrefix))
+	}
+	if i.EmailHasSuffix != nil {
+		predicates = append(predicates, slack.EmailHasSuffix(*i.EmailHasSuffix))
+	}
+	if i.EmailIsNil {
+		predicates = append(predicates, slack.EmailIsNil())
+	}
+	if i.EmailNotNil {
+		predicates = append(predicates, slack.EmailNotNil())
+	}
+	if i.EmailEqualFold != nil {
+		predicates = append(predicates, slack.EmailEqualFold(*i.EmailEqualFold))
+	}
+	if i.EmailContainsFold != nil {
+		predicates = append(predicates, slack.EmailContainsFold(*i.EmailContainsFold))
+	}
+	if i.Picture != nil {
+		predicates = append(predicates, slack.PictureEQ(*i.Picture))
+	}
+	if i.PictureNEQ != nil {
+		predicates = append(predicates, slack.PictureNEQ(*i.PictureNEQ))
+	}
+	if len(i.PictureIn) > 0 {
+		predicates = append(predicates, slack.PictureIn(i.PictureIn...))
+	}
+	if len(i.PictureNotIn) > 0 {
+		predicates = append(predicates, slack.PictureNotIn(i.PictureNotIn...))
+	}
+	if i.PictureGT != nil {
+		predicates = append(predicates, slack.PictureGT(*i.PictureGT))
+	}
+	if i.PictureGTE != nil {
+		predicates = append(predicates, slack.PictureGTE(*i.PictureGTE))
+	}
+	if i.PictureLT != nil {
+		predicates = append(predicates, slack.PictureLT(*i.PictureLT))
+	}
+	if i.PictureLTE != nil {
+		predicates = append(predicates, slack.PictureLTE(*i.PictureLTE))
+	}
+	if i.PictureContains != nil {
+		predicates = append(predicates, slack.PictureContains(*i.PictureContains))
+	}
+	if i.PictureHasPrefix != nil {
+		predicates = append(predicates, slack.PictureHasPrefix(*i.PictureHasPrefix))
+	}
+	if i.PictureHasSuffix != nil {
+		predicates = append(predicates, slack.PictureHasSuffix(*i.PictureHasSuffix))
+	}
+	if i.PictureIsNil {
+		predicates = append(predicates, slack.PictureIsNil())
+	}
+	if i.PictureNotNil {
+		predicates = append(predicates, slack.PictureNotNil())
+	}
+	if i.PictureEqualFold != nil {
+		predicates = append(predicates, slack.PictureEqualFold(*i.PictureEqualFold))
+	}
+	if i.PictureContainsFold != nil {
+		predicates = append(predicates, slack.PictureContainsFold(*i.PictureContainsFold))
+	}
+
+	if i.HasUser != nil {
+		p := slack.HasUser()
+		if !*i.HasUser {
+			p = slack.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasUserWith) > 0 {
+		with := make([]predicate.User, 0, len(i.HasUserWith))
+		for _, w := range i.HasUserWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasUserWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, slack.HasUserWith(with...))
+	}
+	switch len(predicates) {
+	case 0:
+		return nil, ErrEmptySlackWhereInput
+	case 1:
+		return predicates[0], nil
+	default:
+		return slack.And(predicates...), nil
+	}
+}
+
 // TranslationLocaleWhereInput represents a where input for filtering TranslationLocale queries.
 type TranslationLocaleWhereInput struct {
 	Predicates []predicate.TranslationLocale  `json:"-"`
@@ -3737,6 +4178,10 @@ type UserWhereInput struct {
 	HasLine     *bool             `json:"hasLine,omitempty"`
 	HasLineWith []*LineWhereInput `json:"hasLineWith,omitempty"`
 
+	// "slack" edge predicates.
+	HasSlack     *bool              `json:"hasSlack,omitempty"`
+	HasSlackWith []*SlackWhereInput `json:"hasSlackWith,omitempty"`
+
 	// "channel_service_members" edge predicates.
 	HasChannelServiceMembers     *bool                             `json:"hasChannelServiceMembers,omitempty"`
 	HasChannelServiceMembersWith []*ChannelServiceMemberWhereInput `json:"hasChannelServiceMembersWith,omitempty"`
@@ -3937,6 +4382,24 @@ func (i *UserWhereInput) P() (predicate.User, error) {
 			with = append(with, p)
 		}
 		predicates = append(predicates, user.HasLineWith(with...))
+	}
+	if i.HasSlack != nil {
+		p := user.HasSlack()
+		if !*i.HasSlack {
+			p = user.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasSlackWith) > 0 {
+		with := make([]predicate.Slack, 0, len(i.HasSlackWith))
+		for _, w := range i.HasSlackWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasSlackWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, user.HasSlackWith(with...))
 	}
 	if i.HasChannelServiceMembers != nil {
 		p := user.HasChannelServiceMembers()

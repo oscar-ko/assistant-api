@@ -11,6 +11,7 @@ type CreateUserInput struct {
 	Name                      string
 	Email                     string
 	LineIDs                   []uuid.UUID
+	SlackIDs                  []uuid.UUID
 	ChannelServiceMemberIDs   []uuid.UUID
 	OwnedTranslationLocaleIDs []uuid.UUID
 }
@@ -21,6 +22,9 @@ func (i *CreateUserInput) Mutate(m *UserMutation) {
 	m.SetEmail(i.Email)
 	if v := i.LineIDs; len(v) > 0 {
 		m.AddLineIDs(v...)
+	}
+	if v := i.SlackIDs; len(v) > 0 {
+		m.AddSlackIDs(v...)
 	}
 	if v := i.ChannelServiceMemberIDs; len(v) > 0 {
 		m.AddChannelServiceMemberIDs(v...)
@@ -43,6 +47,9 @@ type UpdateUserInput struct {
 	ClearLine                       bool
 	AddLineIDs                      []uuid.UUID
 	RemoveLineIDs                   []uuid.UUID
+	ClearSlack                      bool
+	AddSlackIDs                     []uuid.UUID
+	RemoveSlackIDs                  []uuid.UUID
 	ClearChannelServiceMembers      bool
 	AddChannelServiceMemberIDs      []uuid.UUID
 	RemoveChannelServiceMemberIDs   []uuid.UUID
@@ -67,6 +74,15 @@ func (i *UpdateUserInput) Mutate(m *UserMutation) {
 	}
 	if v := i.RemoveLineIDs; len(v) > 0 {
 		m.RemoveLineIDs(v...)
+	}
+	if i.ClearSlack {
+		m.ClearSlack()
+	}
+	if v := i.AddSlackIDs; len(v) > 0 {
+		m.AddSlackIDs(v...)
+	}
+	if v := i.RemoveSlackIDs; len(v) > 0 {
+		m.RemoveSlackIDs(v...)
 	}
 	if i.ClearChannelServiceMembers {
 		m.ClearChannelServiceMembers()
