@@ -29,7 +29,7 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 	if err != nil {
 		panic(fmt.Errorf("failed to initialize top-k filter service: %w", err))
 	}
-	llmInteractionService, err := aillminteraction.BuildServiceFromConfig(config.AI.LLMInteraction)
+	llmInteractionService, err := aillminteraction.BuildServiceFromConfig(config.AI, config.LLMProviders)
 	if err != nil {
 		panic(fmt.Errorf("failed to initialize llm interaction service: %w", err))
 	}

@@ -112,7 +112,7 @@ func TestDecodeQuestionAnswerResponseRejectsInvalidContract(t *testing.T) {
 		Body:       io.NopCloser(strings.NewReader(`{"schema_version":"v1","answer":"","confidence":0.6}`)),
 	}
 
-	decoded, err := decodeQuestionAnswerResponse(resp)
+	decoded, err := decodeQuestionAnswerResponse(resp, "/predict/question_answer")
 	if err == nil {
 		t.Fatalf("expected contract validation error, got decoded=%+v", decoded)
 	}

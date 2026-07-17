@@ -8,13 +8,13 @@ import (
 )
 
 const (
-	providerLocal   = "local"
-	providerChatGPT = "chatgpt"
+	providerLocal = "local"
 )
 
 type roleTarget struct {
 	provider string
 	profile  string
+	isLocal  bool
 }
 
 type builtRoleClient struct {
@@ -22,30 +22,35 @@ type builtRoleClient struct {
 	label  string
 }
 
-type chatGPTResolvedModel struct {
-	model          string
-	timeoutSeconds int
-	maxTokens      *int
-	temperature    *float64
+type resolvedProviderProfile struct {
+	providerKey        string
+	url                string
+	token              string
+	headers            map[string]string
+	model              string
+	isLocal            bool
+	timeoutSeconds     int
+	actionDecisionPath string
+	questionAnswerPath string
 }
 
 // BuildClientFromConfig 依目前設定建立單一可重用的 LLM interaction client。
 // 所有通訊平台（LINE/Slack/WhatsApp）都應共用這條建構路徑，避免重複 wiring。
-func BuildClientFromConfig(cfg config.LLMInteractionConfig) (InteractionClient, error) {
-	decisionTarget, err := parseRoleTarget(strings.TrimSpace(cfg.Decision))
+func BuildClientFromConfig(cfg config.AIConfig, llmProviders map[string]config.LLMProviderConfig) (InteractionClient, error) {
+	decisionTarget, err := parseRoleTarget(strings.TrimSpace(cfg.LLMInteraction.Decision.Profile))
 	if err != nil {
 		return nil, fmt.Errorf("invalid ai.llm_interaction.decision: %w", err)
 	}
-	chatTarget, err := parseRoleTarget(strings.TrimSpace(cfg.Chat))
+	chatTarget, err := parseRoleTarget(strings.TrimSpace(cfg.LLMInteraction.Chat.Profile))
 	if err != nil {
 		return nil, fmt.Errorf("invalid ai.llm_interaction.chat: %w", err)
 	}
 
-	decisionClient, err := buildRoleClient(cfg, decisionTarget)
+	decisionClient, err := buildRoleClient(cfg, llmProviders, decisionTarget, cfg.LLMInteraction.Decision)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build decision client: %w", err)
 	}
-	chatClient, err := buildRoleClient(cfg, chatTarget)
+	chatClient, err := buildRoleClient(cfg, llmProviders, chatTarget, cfg.LLMInteraction.Chat)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build chat client: %w", err)
 	}
@@ -59,17 +64,24 @@ func parseRoleTarget(raw string) (roleTarget, error) {
 		return roleTarget{}, fmt.Errorf("target is required")
 	}
 	if strings.EqualFold(trimmed, providerLocal) {
-		return roleTarget{provider: providerLocal}, nil
+		return roleTarget{isLocal: true}, nil
 	}
-	// decision/chat 非 local 時，一律視為 chatgpt profile key。
-	return roleTarget{provider: providerChatGPT, profile: trimmed}, nil
+	parts := strings.Split(trimmed, ".")
+	if len(parts) != 2 {
+		return roleTarget{}, fmt.Errorf("target must be local or <provider>.<profile>")
+	}
+	provider := strings.TrimSpace(parts[0])
+	profile := strings.TrimSpace(parts[1])
+	if provider == "" || profile == "" {
+		return roleTarget{}, fmt.Errorf("target must be local or <provider>.<profile>")
+	}
+	return roleTarget{provider: provider, profile: profile}, nil
 }
 
-func buildRoleClient(cfg config.LLMInteractionConfig, target roleTarget) (*builtRoleClient, error) {
-	switch strings.ToLower(strings.TrimSpace(target.provider)) {
-	case providerLocal:
-		serviceURL := strings.TrimSpace(cfg.Local.ServiceURL)
-		timeout := cfg.Local.ServiceTimeoutSeconds
+func buildRoleClient(cfg config.AIConfig, llmProviders map[string]config.LLMProviderConfig, target roleTarget, options config.LLMRoleConfig) (*builtRoleClient, error) {
+	if target.isLocal {
+		serviceURL := strings.TrimSpace(cfg.LLMInteraction.Local.ServiceURL)
+		timeout := cfg.LLMInteraction.Local.ServiceTimeoutSeconds
 		if serviceURL == "" {
 			return nil, fmt.Errorf("ai.llm_interaction.local.service_url is required when provider=local")
 		}
@@ -81,82 +93,108 @@ func buildRoleClient(cfg config.LLMInteractionConfig, target roleTarget) (*built
 			return nil, fmt.Errorf("failed to initialize local interaction client")
 		}
 		return &builtRoleClient{client: client, label: "local"}, nil
-	case providerChatGPT:
-		resolved, err := resolveChatGPTProfile(cfg.ChatGPT, strings.TrimSpace(target.profile))
-		if err != nil {
-			return nil, err
+	}
+	resolved, err := resolveProviderProfile(llmProviders, target.provider, target.profile)
+	if err != nil {
+		return nil, err
+	}
+	if resolved.isLocal {
+		timeout := resolved.timeoutSeconds
+		if options.Timeout > 0 {
+			timeout = options.Timeout
 		}
-		client, err := NewOpenAIInteractionClient(
-			cfg.ChatGPT.URL,
-			cfg.ChatGPT.Token,
-			resolved.model,
-			resolved.model,
-			resolved.timeoutSeconds,
-			resolved.maxTokens,
-			resolved.temperature,
+		client := NewLocalContractInteractionClient(
+			resolved.url,
+			timeout,
+			resolved.actionDecisionPath,
+			resolved.questionAnswerPath,
 		)
-		if err != nil {
-			return nil, err
+		if client == nil {
+			return nil, fmt.Errorf("failed to initialize local interaction client for provider %s", resolved.providerKey)
 		}
-		return &builtRoleClient{client: client, label: "chatgpt:" + strings.TrimSpace(target.profile) + " model=" + resolved.model}, nil
-	default:
-		return nil, fmt.Errorf("unsupported provider: %s", strings.TrimSpace(target.provider))
+		label := resolved.providerKey + "." + strings.TrimSpace(target.profile) + " local"
+		return &builtRoleClient{client: client, label: label}, nil
 	}
+	if options.Timeout <= 0 {
+		return nil, fmt.Errorf("llm_interaction cloud timeout_seconds is required for target %s.%s", resolved.providerKey, strings.TrimSpace(target.profile))
+	}
+	client, err := NewOpenAIInteractionClient(
+		resolved.url,
+		resolved.token,
+		resolved.model,
+		resolved.model,
+		options.Timeout,
+		options.MaxToken,
+		options.Temperature,
+	)
+	if err != nil {
+		return nil, err
+	}
+	label := resolved.providerKey + "." + strings.TrimSpace(target.profile) + " model=" + resolved.model
+	return &builtRoleClient{client: client, label: label}, nil
 }
 
-func resolveChatGPTProfile(cfg config.ChatGPTConfig, profileKey string) (chatGPTResolvedModel, error) {
-	profileKey = strings.TrimSpace(profileKey)
-	profiles := cfg.Profiles
-	if profiles == nil {
-		profiles = map[string]config.ChatGPTModelConfig{}
-	}
-	if profileKey == "" {
-		return chatGPTResolvedModel{}, fmt.Errorf("chatgpt profile is required")
-	}
-	profile, ok := profiles[profileKey]
-	if !ok {
-		return chatGPTResolvedModel{}, fmt.Errorf("unknown chatgpt profile: %s", profileKey)
-	}
-
-	return mergeChatGPTModel(profile, cfg)
-}
-
-func mergeChatGPTModel(profile config.ChatGPTModelConfig, root config.ChatGPTConfig) (chatGPTResolvedModel, error) {
+func mergeProfile(profile config.LLMProfileConfig) (resolvedProviderProfile, error) {
 	model := strings.TrimSpace(profile.ModelName)
-	if model == "" {
-		return chatGPTResolvedModel{}, fmt.Errorf("chatgpt model is required")
-	}
-
 	timeout := profile.TimeoutSeconds
-	if timeout <= 0 {
-		return chatGPTResolvedModel{}, fmt.Errorf("chatgpt profile timeout_seconds is required")
+	if model == "" && timeout <= 0 {
+		return resolvedProviderProfile{}, fmt.Errorf("profile timeout_seconds is required")
 	}
 
-	var maxTokens *int
-	if profile.MaxTokens != nil {
-		value := *profile.MaxTokens
-		if value > 0 {
-			maxTokens = &value
-		}
-	}
-
-	var temperature *float64
-	if profile.Temperature != nil {
-		value := *profile.Temperature
-		temperature = &value
-	}
-
-	return chatGPTResolvedModel{
-		model:          model,
-		timeoutSeconds: timeout,
-		maxTokens:      maxTokens,
-		temperature:    temperature,
+	return resolvedProviderProfile{
+		model:              model,
+		isLocal:            model == "",
+		timeoutSeconds:     timeout,
+		actionDecisionPath: strings.TrimSpace(profile.ActionDecisionPath),
+		questionAnswerPath: strings.TrimSpace(profile.QuestionAnswerPath),
 	}, nil
 }
 
+func resolveProviderProfile(llmProviders map[string]config.LLMProviderConfig, providerKey string, profileKey string) (resolvedProviderProfile, error) {
+	providerKey = strings.TrimSpace(providerKey)
+	profileKey = strings.TrimSpace(profileKey)
+	if providerKey == "" || profileKey == "" {
+		return resolvedProviderProfile{}, fmt.Errorf("provider/profile are required")
+	}
+	providers := llmProviders
+	if providers == nil {
+		providers = map[string]config.LLMProviderConfig{}
+	}
+	provider, ok := providers[providerKey]
+	if !ok {
+		return resolvedProviderProfile{}, fmt.Errorf("unknown provider: %s", providerKey)
+	}
+	profiles := provider.Profiles
+	if profiles == nil {
+		profiles = map[string]config.LLMProfileConfig{}
+	}
+	profile, ok := profiles[profileKey]
+	if !ok {
+		return resolvedProviderProfile{}, fmt.Errorf("unknown profile %s for provider %s", profileKey, providerKey)
+	}
+	resolved, err := mergeProfile(profile)
+	if err != nil {
+		return resolvedProviderProfile{}, fmt.Errorf("provider %s profile %s invalid: %w", providerKey, profileKey, err)
+	}
+	resolved.providerKey = providerKey
+	resolved.url = strings.TrimSpace(profile.URL)
+	if resolved.url == "" {
+		resolved.url = strings.TrimSpace(provider.URL)
+	}
+	resolved.token = strings.TrimSpace(provider.Token)
+	resolved.headers = provider.Headers
+	if resolved.url == "" {
+		return resolvedProviderProfile{}, fmt.Errorf("provider %s url is required", providerKey)
+	}
+	if !resolved.isLocal && resolved.token == "" {
+		return resolvedProviderProfile{}, fmt.Errorf("provider %s token is required for cloud provider", providerKey)
+	}
+	return resolved, nil
+}
+
 // BuildServiceFromConfig 建立可跨平台共用的 LLM interaction service。
-func BuildServiceFromConfig(cfg config.LLMInteractionConfig) (InteractionService, error) {
-	client, err := BuildClientFromConfig(cfg)
+func BuildServiceFromConfig(cfg config.AIConfig, llmProviders map[string]config.LLMProviderConfig) (InteractionService, error) {
+	client, err := BuildClientFromConfig(cfg, llmProviders)
 	if err != nil {
 		return nil, err
 	}

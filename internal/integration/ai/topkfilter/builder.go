@@ -17,10 +17,14 @@ type Service = usecasetopkfilter.Service
 // BuildServiceFromConfig 由集中設定一次組裝 embedding + reranker + top-k filter。
 // 所有通道（LINE/Slack/WhatsApp）都應共用這個建構入口，避免重複 wiring。
 func BuildServiceFromConfig(searcher usecasetopkfilter.Searcher, cfg config.AIConfig) (Service, error) {
+	embeddingProfile, err := config.ResolveLocalProviderProfile(config.LLMProviders, cfg.Embedding.Target)
+	if err != nil {
+		return nil, fmt.Errorf("invalid ai.embedding.target: %w", err)
+	}
 	embeddingClient := aiembedding.NewClient(
-		cfg.Embedding.URL,
+		embeddingProfile.URL,
 		cfg.Embedding.TimeoutSeconds,
-		cfg.Embedding.Path,
+		embeddingProfile.Path,
 		cfg.Embedding.MaxAttempts,
 		cfg.Embedding.RetryBackoffMS,
 		cfg.Embedding.AliveProbeIntervalMS,
@@ -33,10 +37,14 @@ func BuildServiceFromConfig(searcher usecasetopkfilter.Searcher, cfg config.AICo
 	}
 
 	if cfg.Reranker.Enabled {
+		rerankerProfile, err := config.ResolveLocalProviderProfile(config.LLMProviders, cfg.Reranker.Target)
+		if err != nil {
+			return nil, fmt.Errorf("invalid ai.reranker.target: %w", err)
+		}
 		rerankerClient := aireranker.NewClient(
-			cfg.Reranker.URL,
+			rerankerProfile.URL,
 			cfg.Reranker.TimeoutSeconds,
-			cfg.Reranker.Path,
+			rerankerProfile.Path,
 			cfg.Reranker.MaxAttempts,
 			cfg.Reranker.RetryBackoffMS,
 			cfg.Reranker.AliveProbeIntervalMS,

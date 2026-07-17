@@ -8,7 +8,7 @@ import (
 	openaiprovider "assistant-api/internal/integration/provider/openai"
 )
 
-// Service 定義可直接對外提供的 ChatGPT 互動流程。
+// Service 定義可直接對外提供的 OpenAI 相容互動流程。
 // 這層只做 prompt 入口與輸入正規化，不處理網路請求細節。
 type Service interface {
 	Ask(ctx context.Context, prompt string) (string, error)

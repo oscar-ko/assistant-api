@@ -156,8 +156,10 @@ type InteractionClient interface {
 }
 
 type interactionClient struct {
-	baseURL string
-	client  *http.Client
+	baseURL            string
+	actionDecisionPath string
+	questionAnswerPath string
+	client             *http.Client
 }
 
 type classificationRequest struct {
@@ -191,23 +193,44 @@ func (e *UpstreamError) Error() string {
 	return fmt.Sprintf("llm interaction upstream %s returned status %d", e.Path, e.StatusCode)
 }
 
-// actionDecisionPath 是獨立於 command/message 分類的端點，
+// defaultActionDecisionPath 是獨立於 command/message 分類的端點，
 // 服務端會接受 api_operation 欄位。
-const actionDecisionPath = "/predict/action_decision"
+const defaultActionDecisionPath = "/predict/action_decision"
 
-// questionAnswerPath 負責把訊息當作一般問題回答，
+// defaultQuestionAnswerPath 負責把訊息當作一般問題回答，
 // 服務端會回覆 answer 與 confidence。
-const questionAnswerPath = "/predict/question_answer"
+const defaultQuestionAnswerPath = "/predict/question_answer"
 
 // NewInteractionClient 建立通用 LLM 互動 client。
 func NewInteractionClient(baseURL string, timeoutSeconds int) InteractionClient {
+	return NewInteractionClientWithPaths(baseURL, timeoutSeconds, defaultActionDecisionPath, defaultQuestionAnswerPath)
+}
+
+// NewInteractionClientWithPaths 建立可指定本地 endpoint path 的通用 LLM 互動 client。
+func NewInteractionClientWithPaths(baseURL string, timeoutSeconds int, actionDecisionPath string, questionAnswerPath string) InteractionClient {
 	trimmed := strings.TrimSpace(baseURL)
 	if trimmed == "" {
 		return nil
 	}
+	actionPath := strings.TrimSpace(actionDecisionPath)
+	if actionPath == "" {
+		actionPath = defaultActionDecisionPath
+	}
+	if !strings.HasPrefix(actionPath, "/") {
+		actionPath = "/" + actionPath
+	}
+	questionPath := strings.TrimSpace(questionAnswerPath)
+	if questionPath == "" {
+		questionPath = defaultQuestionAnswerPath
+	}
+	if !strings.HasPrefix(questionPath, "/") {
+		questionPath = "/" + questionPath
+	}
 	return &interactionClient{
-		baseURL: strings.TrimRight(trimmed, "/"),
-		client:  &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second},
+		baseURL:            strings.TrimRight(trimmed, "/"),
+		actionDecisionPath: actionPath,
+		questionAnswerPath: questionPath,
+		client:             &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second},
 	}
 }
 
@@ -399,7 +422,7 @@ func (c *interactionClient) ClassifyAction(ctx context.Context, prompt string, t
 		return nil, fmt.Errorf("semantic decision client url is empty")
 	}
 
-	req, err := c.buildRequest(ctx, actionDecisionPath, prompt, text)
+	req, err := c.buildRequest(ctx, c.actionDecisionPath, prompt, text)
 	if err != nil {
 		return nil, err
 	}
@@ -410,13 +433,13 @@ func (c *interactionClient) ClassifyAction(ctx context.Context, prompt string, t
 	}
 	defer resp.Body.Close()
 
-	return decodeActionDecisionResponse(resp)
+	return decodeActionDecisionResponse(resp, c.actionDecisionPath)
 }
 
-func decodeActionDecisionResponse(resp *http.Response) (*ActionDecision, error) {
+func decodeActionDecisionResponse(resp *http.Response, path string) (*ActionDecision, error) {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		// 非 2xx 改成結構化錯誤，保留 status/detail 供上層精準處理。
-		return nil, decodeUpstreamError(resp, actionDecisionPath)
+		return nil, decodeUpstreamError(resp, path)
 	}
 
 	data, err := io.ReadAll(resp.Body)
@@ -454,7 +477,7 @@ func (c *interactionClient) AnswerQuestion(ctx context.Context, prompt string, t
 		return nil, fmt.Errorf("semantic decision client url is empty")
 	}
 
-	req, err := c.buildRequest(ctx, questionAnswerPath, prompt, text)
+	req, err := c.buildRequest(ctx, c.questionAnswerPath, prompt, text)
 	if err != nil {
 		return nil, err
 	}
@@ -465,13 +488,13 @@ func (c *interactionClient) AnswerQuestion(ctx context.Context, prompt string, t
 	}
 	defer resp.Body.Close()
 
-	return decodeQuestionAnswerResponse(resp)
+	return decodeQuestionAnswerResponse(resp, c.questionAnswerPath)
 }
 
-func decodeQuestionAnswerResponse(resp *http.Response) (*QuestionAnswer, error) {
+func decodeQuestionAnswerResponse(resp *http.Response, path string) (*QuestionAnswer, error) {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		// 問答端點也統一回傳結構化上游錯誤，便於上層判斷是否改走 cloud LLM。
-		return nil, decodeUpstreamError(resp, questionAnswerPath)
+		return nil, decodeUpstreamError(resp, path)
 	}
 
 	data, err := io.ReadAll(resp.Body)

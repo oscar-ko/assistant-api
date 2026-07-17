@@ -84,10 +84,10 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 	chainSvc := commandchain.NewService(repo)
 	decisionSvc := commanddecision.NewService(chainSvc)
 	dispatcher := actionpost.NewDefaultDispatcher(repo)
-	translateClient := realtime.NewLLMTranslateClient(
-		strings.TrimSpace(config.AI.LLMInteraction.Local.ServiceURL),
-		config.AI.LLMInteraction.Local.ServiceTimeoutSeconds,
-	)
+	translateClient, translateProfile, err := realtime.BuildTranslatorFromConfig(config.AI, config.LLMProviders)
+	if err != nil {
+		panic(err)
+	}
 	autoTranslate := realtime.NewAutoTranslateService(realtime.AutoTranslateServiceOptions{
 		Repo:       repo,
 		Sender:     lineRealtimeSender{sender: options.FollowUpSender},
@@ -96,7 +96,7 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 			return repo.ResolveUserIDByLineUserID(ctx, platformUserID)
 		},
 		BotSenderID:   strings.TrimSpace(config.Line.BotUserID),
-		PlatformLabel: "line",
+		PlatformLabel: "line:" + strings.TrimSpace(translateProfile),
 	})
 	flow := conversationflow.NewFromFactory(conversationflow.FactoryOptions{
 		PlatformLabel:               "line",

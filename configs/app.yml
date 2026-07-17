@@ -12,39 +12,32 @@ server:
     # API 服務對外監聽埠。
     port: "8080"
 
-# AI 相關設定：包含本地/雲端 LLM 互動、召回 embedding 與 reranker 精排。
 ai:
     # 第一階段：embedding 向量服務（用於 top-k 候選召回）。
     embedding:
-        url: "http://127.0.0.1:9000"
+        target: "aistant.embedding"
         timeout_seconds: 60
         max_attempts: 4
         retry_backoff_ms: 500
-        path: "/embed"
         # 第一階段向量召回（top-k）最多取回幾筆候選。
-        # 這一步要取得够多，確保正確候選不會在這階段就被漏掉，再交給 reranker 精排縮減。
         retrieval_top_k: 10
         # embedding 探活策略（毫秒）：
-        # - alive_probe_interval_ms: 背景主動探活週期
-        # - alive_probe_timeout_ms: 單次探活最長等待
-        # - alive_success_ttl_ms: 成功後快取多久不再探活
-        # - alive_failure_cooldown_ms: 失敗後多久內直接快回錯
+        #背景主動探活週期
         alive_probe_interval_ms: 2000
+        #單次探活最長等待
         alive_probe_timeout_ms: 1500
+        #成功後快取多久不再探活
         alive_success_ttl_ms: 10000
+        #失敗後多久內直接快回錯
         alive_failure_cooldown_ms: 3000
-    # cross-encoder reranker (第二階段精排)
-    # 用法：先由 embedding/pgvector 召回候選，再用 reranker 重排候選順序。
-    # 調整方向：品質優先可拉高 timeout/attempts，延遲優先則反向調整。
+
     reranker:
         enabled: true
-        url: "http://127.0.0.1:9001"
+        target: "aistant.reranker"
         timeout_seconds: 60
         max_attempts: 3
         retry_backoff_ms: 300
-        path: "/rerank"
-        # 第二階段精排後最終保留幾筆候選，這筆數會小於 retrieval_top_k，
-        # 代表從較大候選集中縮減到最終要交給 semantic decision 判斷的筆數。
+        # 第二階段精排後最終保留幾筆候選，這筆數會小於 retrieval_top_k，代表從較大候選集中縮減到最終要交給 semantic decision 判斷的筆數。
         top_k: 3
         # reranker 探活策略（毫秒），用途同 embedding。
         alive_probe_interval_ms: 2000
@@ -53,49 +46,59 @@ ai:
         alive_failure_cooldown_ms: 3000
 
     # LLM 互動服務（第三階段）
-    # 職責：接收「原始訊息 + rerank 後候選」並產生單一最終 api_operation。
-    # 注意：這裡的 API 契約是 action decision（api_operation），
-    # 不再使用舊的 intent_label 分類格式。
     llm_interaction:
-        # 角色路由設定（放最上層）：
-        # - local（走本地 interaction service）
-        # - profile_key（走 chatgpt.profiles.<profile_key>）
-        # 範例（決策 local、聊天 chatgpt）：
-        # decision: "local"
-        # chat: "chat_search"
-        decision: "local"
-        chat: "chat_search"
-        local:
-            service_url: "http://127.0.0.1:9002"
-            service_timeout_seconds: 120
-        # ChatGPT/OpenAI 供應商設定（provider=chatgpt 時使用）。
-        chatgpt:
-            url: "https://api.openai.com/v1"
-            token: ""
-            profiles:
-                # profile key = default
-                action_decision:
-                    model_name: "gpt-4o-mini"
-                    timeout_seconds: 120
-                    max_tokens: 1024
-                    temperature: 0.2
-                # profile key = search（不接受 temperature 的模型）
-                chat_search:
-                    model_name: "gpt-5-search-api-2025-10-14"
-                    timeout_seconds: 120
-                    max_tokens: 1024
-                    # 不支援的參數可直接省略或設為 null（都不會送出）。
-                    temperature: null
-        # 最終 action decision 若低於此信心值，視為「對話問題」而非可執行指令。
-        # 0 代表關閉此門檻機制。
-        # 例如 no_match 或低匹配語意時，會改走 question_answer。
+        decision:
+            profile: "aistant.llm"
+            timeout: 120
+            max_token: 1024
+            temperature: 0.2
+        chat:
+            profile: "openai.chat_search"
+            timeout: 120
+            max_token: 1024
+            temperature: null
+        translate:
+            profile: "aistant.llm"
+            timeout: 120
+            max_token: 1024
+            temperature: 0.2
+
+        # 最終 action decision 若低於此信心值，視為「對話問題」而非可執行指令。 0 代表關閉此門檻機制。例如 no_match 或低匹配語意時，會改走 question_answer。
         command_confidence_threshold: 0.7
-        # 問答模式回覆若低於此信心值，表示更適合交給 cloud LLM 回答。
-        # 0 代表關閉此門檻機制。
-        # 此值只影響是否標記 recommend_cloud_llm，不改變問答本身是否執行。
+        # 問答模式回覆若低於此信心值，表示更適合交給 cloud LLM 回答。0 代表關閉此門檻機制。此值只影響是否標記 recommend_cloud_llm，不改變問答本身是否執行。
         question_confidence_threshold: 0.6
         # action decision JSON 格式錯誤時，最多重送幾次（不含第一次）。
         decision_json_retry_count: 2
+
+# LLM provider 分組設定：每個 provider 底下可放多個 profile。
+llm_providers:
+    # Aistant 自家 provider，本地契約端點以 profile 區分。
+    aistant:
+        profiles:
+            embedding:
+                url: "http://127.0.0.1:9000"
+                path: "/embed"
+            reranker:
+                url: "http://127.0.0.1:9001"
+                path: "/rerank"
+            llm:
+                url: "http://127.0.0.1:9002"
+                timeout_seconds: 120
+                action_decision_path: "/predict/action_decision"
+                question_answer_path: "/predict/question_answer"
+                translate_path: "/translate"
+
+    # OpenAI provider 設定。
+    openai:
+        url: "https://api.openai.com/v1"
+        token: "${OPENAI_API_KEY}"
+        profiles:
+            action_decision:
+                model_name: "gpt-4o-mini"
+            chat_search:
+                model_name: "gpt-5-search-api-2025-10-14"
+            translate_default:
+                model_name: "gpt-4o-mini"
 
 # 資料庫 schema 自動建立開關（開發環境常設為 true）。
 database:

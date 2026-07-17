@@ -19,6 +19,11 @@ func NewInteractionClient(baseURL string, timeoutSeconds int) InteractionClient 
 	return usecasellminteraction.NewInteractionClient(baseURL, timeoutSeconds)
 }
 
+// NewLocalContractInteractionClient 允許本地 provider 指定 action/question 的 endpoint path。
+func NewLocalContractInteractionClient(baseURL string, timeoutSeconds int, actionDecisionPath string, questionAnswerPath string) InteractionClient {
+	return usecasellminteraction.NewInteractionClientWithPaths(baseURL, timeoutSeconds, actionDecisionPath, questionAnswerPath)
+}
+
 // NewOpenAIInteractionClient 建立直接呼叫 OpenAI 的 interaction client。
 func NewOpenAIInteractionClient(baseURL string, token string, decisionModel string, chatModel string, timeoutSeconds int, maxTokens *int, temperature *float64) (InteractionClient, error) {
 	return usecasellminteraction.NewOpenAIInteractionClient(baseURL, token, decisionModel, chatModel, timeoutSeconds, maxTokens, temperature)
