@@ -25,7 +25,6 @@ type LineQuery struct {
 	inters     []Interceptor
 	predicates []predicate.Line
 	withUser   *UserQuery
-	withFKs    bool
 	modifiers  []func(*sql.Selector)
 	loadTotal  []func(context.Context, []*Line) error
 	// intermediate query (i.e. traversal path).
@@ -302,12 +301,12 @@ func (_q *LineQuery) WithUser(opts ...func(*UserQuery)) *LineQuery {
 // Example:
 //
 //	var v []struct {
-//		LineUserID string `json:"line_user_id,omitempty"`
+//		PlatformUserID string `json:"platform_user_id,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
 //	client.Line.Query().
-//		GroupBy(line.FieldLineUserID).
+//		GroupBy(line.FieldPlatformUserID).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 func (_q *LineQuery) GroupBy(field string, fields ...string) *LineGroupBy {
@@ -325,11 +324,11 @@ func (_q *LineQuery) GroupBy(field string, fields ...string) *LineGroupBy {
 // Example:
 //
 //	var v []struct {
-//		LineUserID string `json:"line_user_id,omitempty"`
+//		PlatformUserID string `json:"platform_user_id,omitempty"`
 //	}
 //
 //	client.Line.Query().
-//		Select(line.FieldLineUserID).
+//		Select(line.FieldPlatformUserID).
 //		Scan(ctx, &v)
 func (_q *LineQuery) Select(fields ...string) *LineSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
@@ -373,18 +372,11 @@ func (_q *LineQuery) prepareQuery(ctx context.Context) error {
 func (_q *LineQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Line, error) {
 	var (
 		nodes       = []*Line{}
-		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
 		loadedTypes = [1]bool{
 			_q.withUser != nil,
 		}
 	)
-	if _q.withUser != nil {
-		withFKs = true
-	}
-	if withFKs {
-		_spec.Node.Columns = append(_spec.Node.Columns, line.ForeignKeys...)
-	}
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*Line).scanValues(nil, columns)
 	}
@@ -424,10 +416,7 @@ func (_q *LineQuery) loadUser(ctx context.Context, query *UserQuery, nodes []*Li
 	ids := make([]uuid.UUID, 0, len(nodes))
 	nodeids := make(map[uuid.UUID][]*Line)
 	for i := range nodes {
-		if nodes[i].line_user == nil {
-			continue
-		}
-		fk := *nodes[i].line_user
+		fk := nodes[i].UserID
 		if _, ok := nodeids[fk]; !ok {
 			ids = append(ids, fk)
 		}
@@ -444,7 +433,7 @@ func (_q *LineQuery) loadUser(ctx context.Context, query *UserQuery, nodes []*Li
 	for _, n := range neighbors {
 		nodes, ok := nodeids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "line_user" returned %v`, n.ID)
+			return fmt.Errorf(`unexpected foreign-key "user_id" returned %v`, n.ID)
 		}
 		for i := range nodes {
 			assign(nodes[i], n)
@@ -480,6 +469,9 @@ func (_q *LineQuery) querySpec() *sqlgraph.QuerySpec {
 			if fields[i] != line.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
+		}
+		if _q.withUser != nil {
+			_spec.Node.AddColumnOnce(line.FieldUserID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

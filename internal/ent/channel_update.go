@@ -108,27 +108,6 @@ func (_u *ChannelUpdate) SetNillableIsActive(v *bool) *ChannelUpdate {
 	return _u
 }
 
-// SetInactiveMessageCount sets the "inactive_message_count" field.
-func (_u *ChannelUpdate) SetInactiveMessageCount(v int) *ChannelUpdate {
-	_u.mutation.ResetInactiveMessageCount()
-	_u.mutation.SetInactiveMessageCount(v)
-	return _u
-}
-
-// SetNillableInactiveMessageCount sets the "inactive_message_count" field if the given value is not nil.
-func (_u *ChannelUpdate) SetNillableInactiveMessageCount(v *int) *ChannelUpdate {
-	if v != nil {
-		_u.SetInactiveMessageCount(*v)
-	}
-	return _u
-}
-
-// AddInactiveMessageCount adds value to the "inactive_message_count" field.
-func (_u *ChannelUpdate) AddInactiveMessageCount(v int) *ChannelUpdate {
-	_u.mutation.AddInactiveMessageCount(v)
-	return _u
-}
-
 // AddMessageIDs adds the "messages" edge to the ChannelMessage entity by IDs.
 func (_u *ChannelUpdate) AddMessageIDs(ids ...uuid.UUID) *ChannelUpdate {
 	_u.mutation.AddMessageIDs(ids...)
@@ -332,12 +311,6 @@ func (_u *ChannelUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.IsActive(); ok {
 		_spec.SetField(channel.FieldIsActive, field.TypeBool, value)
-	}
-	if value, ok := _u.mutation.InactiveMessageCount(); ok {
-		_spec.SetField(channel.FieldInactiveMessageCount, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.AddedInactiveMessageCount(); ok {
-		_spec.AddField(channel.FieldInactiveMessageCount, field.TypeInt, value)
 	}
 	if _u.mutation.MessagesCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -567,27 +540,6 @@ func (_u *ChannelUpdateOne) SetNillableIsActive(v *bool) *ChannelUpdateOne {
 	if v != nil {
 		_u.SetIsActive(*v)
 	}
-	return _u
-}
-
-// SetInactiveMessageCount sets the "inactive_message_count" field.
-func (_u *ChannelUpdateOne) SetInactiveMessageCount(v int) *ChannelUpdateOne {
-	_u.mutation.ResetInactiveMessageCount()
-	_u.mutation.SetInactiveMessageCount(v)
-	return _u
-}
-
-// SetNillableInactiveMessageCount sets the "inactive_message_count" field if the given value is not nil.
-func (_u *ChannelUpdateOne) SetNillableInactiveMessageCount(v *int) *ChannelUpdateOne {
-	if v != nil {
-		_u.SetInactiveMessageCount(*v)
-	}
-	return _u
-}
-
-// AddInactiveMessageCount adds value to the "inactive_message_count" field.
-func (_u *ChannelUpdateOne) AddInactiveMessageCount(v int) *ChannelUpdateOne {
-	_u.mutation.AddInactiveMessageCount(v)
 	return _u
 }
 
@@ -824,12 +776,6 @@ func (_u *ChannelUpdateOne) sqlSave(ctx context.Context) (_node *Channel, err er
 	}
 	if value, ok := _u.mutation.IsActive(); ok {
 		_spec.SetField(channel.FieldIsActive, field.TypeBool, value)
-	}
-	if value, ok := _u.mutation.InactiveMessageCount(); ok {
-		_spec.SetField(channel.FieldInactiveMessageCount, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.AddedInactiveMessageCount(); ok {
-		_spec.AddField(channel.FieldInactiveMessageCount, field.TypeInt, value)
 	}
 	if _u.mutation.MessagesCleared() {
 		edge := &sqlgraph.EdgeSpec{

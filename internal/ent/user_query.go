@@ -592,7 +592,9 @@ func (_q *UserQuery) loadLine(ctx context.Context, query *LineQuery, nodes []*Us
 			init(nodes[i])
 		}
 	}
-	query.withFKs = true
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(line.FieldUserID)
+	}
 	query.Where(predicate.Line(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(user.LineColumn), fks...))
 	}))
@@ -601,13 +603,10 @@ func (_q *UserQuery) loadLine(ctx context.Context, query *LineQuery, nodes []*Us
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.line_user
-		if fk == nil {
-			return fmt.Errorf(`foreign-key "line_user" is nil for node %v`, n.ID)
-		}
-		node, ok := nodeids[*fk]
+		fk := n.UserID
+		node, ok := nodeids[fk]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "line_user" returned %v for node %v`, *fk, n.ID)
+			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
 		}
 		assign(node, n)
 	}
@@ -623,7 +622,9 @@ func (_q *UserQuery) loadSlack(ctx context.Context, query *SlackQuery, nodes []*
 			init(nodes[i])
 		}
 	}
-	query.withFKs = true
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(slack.FieldUserID)
+	}
 	query.Where(predicate.Slack(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(user.SlackColumn), fks...))
 	}))
@@ -632,13 +633,10 @@ func (_q *UserQuery) loadSlack(ctx context.Context, query *SlackQuery, nodes []*
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.slack_user
-		if fk == nil {
-			return fmt.Errorf(`foreign-key "slack_user" is nil for node %v`, n.ID)
-		}
-		node, ok := nodeids[*fk]
+		fk := n.UserID
+		node, ok := nodeids[fk]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "slack_user" returned %v for node %v`, *fk, n.ID)
+			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
 		}
 		assign(node, n)
 	}

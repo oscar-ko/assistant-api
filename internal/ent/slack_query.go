@@ -25,7 +25,6 @@ type SlackQuery struct {
 	inters     []Interceptor
 	predicates []predicate.Slack
 	withUser   *UserQuery
-	withFKs    bool
 	modifiers  []func(*sql.Selector)
 	loadTotal  []func(context.Context, []*Slack) error
 	// intermediate query (i.e. traversal path).
@@ -373,18 +372,11 @@ func (_q *SlackQuery) prepareQuery(ctx context.Context) error {
 func (_q *SlackQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Slack, error) {
 	var (
 		nodes       = []*Slack{}
-		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
 		loadedTypes = [1]bool{
 			_q.withUser != nil,
 		}
 	)
-	if _q.withUser != nil {
-		withFKs = true
-	}
-	if withFKs {
-		_spec.Node.Columns = append(_spec.Node.Columns, slack.ForeignKeys...)
-	}
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*Slack).scanValues(nil, columns)
 	}
@@ -424,10 +416,7 @@ func (_q *SlackQuery) loadUser(ctx context.Context, query *UserQuery, nodes []*S
 	ids := make([]uuid.UUID, 0, len(nodes))
 	nodeids := make(map[uuid.UUID][]*Slack)
 	for i := range nodes {
-		if nodes[i].slack_user == nil {
-			continue
-		}
-		fk := *nodes[i].slack_user
+		fk := nodes[i].UserID
 		if _, ok := nodeids[fk]; !ok {
 			ids = append(ids, fk)
 		}
@@ -444,7 +433,7 @@ func (_q *SlackQuery) loadUser(ctx context.Context, query *UserQuery, nodes []*S
 	for _, n := range neighbors {
 		nodes, ok := nodeids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "slack_user" returned %v`, n.ID)
+			return fmt.Errorf(`unexpected foreign-key "user_id" returned %v`, n.ID)
 		}
 		for i := range nodes {
 			assign(nodes[i], n)
@@ -480,6 +469,9 @@ func (_q *SlackQuery) querySpec() *sqlgraph.QuerySpec {
 			if fields[i] != slack.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
+		}
+		if _q.withUser != nil {
+			_spec.Node.AddColumnOnce(slack.FieldUserID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

@@ -33,8 +33,6 @@ type Channel struct {
 	Type channel.Type `json:"type,omitempty"`
 	// 是否啟用該頻道處理
 	IsActive bool `json:"is_active,omitempty"`
-	// 停用期間累計訊息數
-	InactiveMessageCount int `json:"inactive_message_count,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ChannelQuery when eager-loading is set.
 	Edges        ChannelEdges `json:"edges"`
@@ -94,8 +92,6 @@ func (*Channel) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case channel.FieldIsActive:
 			values[i] = new(sql.NullBool)
-		case channel.FieldInactiveMessageCount:
-			values[i] = new(sql.NullInt64)
 		case channel.FieldName, channel.FieldPlatform, channel.FieldGroupID, channel.FieldType:
 			values[i] = new(sql.NullString)
 		case channel.FieldCreatedAt, channel.FieldUpdatedAt:
@@ -164,12 +160,6 @@ func (_m *Channel) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field is_active", values[i])
 			} else if value.Valid {
 				_m.IsActive = value.Bool
-			}
-		case channel.FieldInactiveMessageCount:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for field inactive_message_count", values[i])
-			} else if value.Valid {
-				_m.InactiveMessageCount = int(value.Int64)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -242,9 +232,6 @@ func (_m *Channel) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("is_active=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IsActive))
-	builder.WriteString(", ")
-	builder.WriteString("inactive_message_count=")
-	builder.WriteString(fmt.Sprintf("%v", _m.InactiveMessageCount))
 	builder.WriteByte(')')
 	return builder.String()
 }

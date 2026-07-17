@@ -75,6 +75,12 @@ func (_c *SlackCreate) SetNillablePicture(v *string) *SlackCreate {
 	return _c
 }
 
+// SetUserID sets the "user_id" field.
+func (_c *SlackCreate) SetUserID(v uuid.UUID) *SlackCreate {
+	_c.mutation.SetUserID(v)
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *SlackCreate) SetID(v uuid.UUID) *SlackCreate {
 	_c.mutation.SetID(v)
@@ -86,12 +92,6 @@ func (_c *SlackCreate) SetNillableID(v *uuid.UUID) *SlackCreate {
 	if v != nil {
 		_c.SetID(*v)
 	}
-	return _c
-}
-
-// SetUserID sets the "user" edge to the User entity by ID.
-func (_c *SlackCreate) SetUserID(id uuid.UUID) *SlackCreate {
-	_c.mutation.SetUserID(id)
 	return _c
 }
 
@@ -158,6 +158,9 @@ func (_c *SlackCreate) check() error {
 		if err := slack.PlatformUserIDValidator(v); err != nil {
 			return &ValidationError{Name: "platform_user_id", err: fmt.Errorf(`ent: validator failed for field "Slack.platform_user_id": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.UserID(); !ok {
+		return &ValidationError{Name: "user_id", err: errors.New(`ent: missing required field "Slack.user_id"`)}
 	}
 	if len(_c.mutation.UserIDs()) == 0 {
 		return &ValidationError{Name: "user", err: errors.New(`ent: missing required edge "Slack.user"`)}
@@ -231,7 +234,7 @@ func (_c *SlackCreate) createSpec() (*Slack, *sqlgraph.CreateSpec) {
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.slack_user = &nodes[0]
+		_node.UserID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

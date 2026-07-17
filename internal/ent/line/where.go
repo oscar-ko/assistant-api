@@ -55,9 +55,9 @@ func IDLTE(id uuid.UUID) predicate.Line {
 	return predicate.Line(sql.FieldLTE(FieldID, id))
 }
 
-// LineUserID applies equality check predicate on the "line_user_id" field. It's identical to LineUserIDEQ.
-func LineUserID(v string) predicate.Line {
-	return predicate.Line(sql.FieldEQ(FieldLineUserID, v))
+// PlatformUserID applies equality check predicate on the "platform_user_id" field. It's identical to PlatformUserIDEQ.
+func PlatformUserID(v string) predicate.Line {
+	return predicate.Line(sql.FieldEQ(FieldPlatformUserID, v))
 }
 
 // DisplayName applies equality check predicate on the "display_name" field. It's identical to DisplayNameEQ.
@@ -70,69 +70,74 @@ func Picture(v string) predicate.Line {
 	return predicate.Line(sql.FieldEQ(FieldPicture, v))
 }
 
-// LineUserIDEQ applies the EQ predicate on the "line_user_id" field.
-func LineUserIDEQ(v string) predicate.Line {
-	return predicate.Line(sql.FieldEQ(FieldLineUserID, v))
+// UserID applies equality check predicate on the "user_id" field. It's identical to UserIDEQ.
+func UserID(v uuid.UUID) predicate.Line {
+	return predicate.Line(sql.FieldEQ(FieldUserID, v))
 }
 
-// LineUserIDNEQ applies the NEQ predicate on the "line_user_id" field.
-func LineUserIDNEQ(v string) predicate.Line {
-	return predicate.Line(sql.FieldNEQ(FieldLineUserID, v))
+// PlatformUserIDEQ applies the EQ predicate on the "platform_user_id" field.
+func PlatformUserIDEQ(v string) predicate.Line {
+	return predicate.Line(sql.FieldEQ(FieldPlatformUserID, v))
 }
 
-// LineUserIDIn applies the In predicate on the "line_user_id" field.
-func LineUserIDIn(vs ...string) predicate.Line {
-	return predicate.Line(sql.FieldIn(FieldLineUserID, vs...))
+// PlatformUserIDNEQ applies the NEQ predicate on the "platform_user_id" field.
+func PlatformUserIDNEQ(v string) predicate.Line {
+	return predicate.Line(sql.FieldNEQ(FieldPlatformUserID, v))
 }
 
-// LineUserIDNotIn applies the NotIn predicate on the "line_user_id" field.
-func LineUserIDNotIn(vs ...string) predicate.Line {
-	return predicate.Line(sql.FieldNotIn(FieldLineUserID, vs...))
+// PlatformUserIDIn applies the In predicate on the "platform_user_id" field.
+func PlatformUserIDIn(vs ...string) predicate.Line {
+	return predicate.Line(sql.FieldIn(FieldPlatformUserID, vs...))
 }
 
-// LineUserIDGT applies the GT predicate on the "line_user_id" field.
-func LineUserIDGT(v string) predicate.Line {
-	return predicate.Line(sql.FieldGT(FieldLineUserID, v))
+// PlatformUserIDNotIn applies the NotIn predicate on the "platform_user_id" field.
+func PlatformUserIDNotIn(vs ...string) predicate.Line {
+	return predicate.Line(sql.FieldNotIn(FieldPlatformUserID, vs...))
 }
 
-// LineUserIDGTE applies the GTE predicate on the "line_user_id" field.
-func LineUserIDGTE(v string) predicate.Line {
-	return predicate.Line(sql.FieldGTE(FieldLineUserID, v))
+// PlatformUserIDGT applies the GT predicate on the "platform_user_id" field.
+func PlatformUserIDGT(v string) predicate.Line {
+	return predicate.Line(sql.FieldGT(FieldPlatformUserID, v))
 }
 
-// LineUserIDLT applies the LT predicate on the "line_user_id" field.
-func LineUserIDLT(v string) predicate.Line {
-	return predicate.Line(sql.FieldLT(FieldLineUserID, v))
+// PlatformUserIDGTE applies the GTE predicate on the "platform_user_id" field.
+func PlatformUserIDGTE(v string) predicate.Line {
+	return predicate.Line(sql.FieldGTE(FieldPlatformUserID, v))
 }
 
-// LineUserIDLTE applies the LTE predicate on the "line_user_id" field.
-func LineUserIDLTE(v string) predicate.Line {
-	return predicate.Line(sql.FieldLTE(FieldLineUserID, v))
+// PlatformUserIDLT applies the LT predicate on the "platform_user_id" field.
+func PlatformUserIDLT(v string) predicate.Line {
+	return predicate.Line(sql.FieldLT(FieldPlatformUserID, v))
 }
 
-// LineUserIDContains applies the Contains predicate on the "line_user_id" field.
-func LineUserIDContains(v string) predicate.Line {
-	return predicate.Line(sql.FieldContains(FieldLineUserID, v))
+// PlatformUserIDLTE applies the LTE predicate on the "platform_user_id" field.
+func PlatformUserIDLTE(v string) predicate.Line {
+	return predicate.Line(sql.FieldLTE(FieldPlatformUserID, v))
 }
 
-// LineUserIDHasPrefix applies the HasPrefix predicate on the "line_user_id" field.
-func LineUserIDHasPrefix(v string) predicate.Line {
-	return predicate.Line(sql.FieldHasPrefix(FieldLineUserID, v))
+// PlatformUserIDContains applies the Contains predicate on the "platform_user_id" field.
+func PlatformUserIDContains(v string) predicate.Line {
+	return predicate.Line(sql.FieldContains(FieldPlatformUserID, v))
 }
 
-// LineUserIDHasSuffix applies the HasSuffix predicate on the "line_user_id" field.
-func LineUserIDHasSuffix(v string) predicate.Line {
-	return predicate.Line(sql.FieldHasSuffix(FieldLineUserID, v))
+// PlatformUserIDHasPrefix applies the HasPrefix predicate on the "platform_user_id" field.
+func PlatformUserIDHasPrefix(v string) predicate.Line {
+	return predicate.Line(sql.FieldHasPrefix(FieldPlatformUserID, v))
 }
 
-// LineUserIDEqualFold applies the EqualFold predicate on the "line_user_id" field.
-func LineUserIDEqualFold(v string) predicate.Line {
-	return predicate.Line(sql.FieldEqualFold(FieldLineUserID, v))
+// PlatformUserIDHasSuffix applies the HasSuffix predicate on the "platform_user_id" field.
+func PlatformUserIDHasSuffix(v string) predicate.Line {
+	return predicate.Line(sql.FieldHasSuffix(FieldPlatformUserID, v))
 }
 
-// LineUserIDContainsFold applies the ContainsFold predicate on the "line_user_id" field.
-func LineUserIDContainsFold(v string) predicate.Line {
-	return predicate.Line(sql.FieldContainsFold(FieldLineUserID, v))
+// PlatformUserIDEqualFold applies the EqualFold predicate on the "platform_user_id" field.
+func PlatformUserIDEqualFold(v string) predicate.Line {
+	return predicate.Line(sql.FieldEqualFold(FieldPlatformUserID, v))
+}
+
+// PlatformUserIDContainsFold applies the ContainsFold predicate on the "platform_user_id" field.
+func PlatformUserIDContainsFold(v string) predicate.Line {
+	return predicate.Line(sql.FieldContainsFold(FieldPlatformUserID, v))
 }
 
 // DisplayNameEQ applies the EQ predicate on the "display_name" field.
@@ -283,6 +288,26 @@ func PictureEqualFold(v string) predicate.Line {
 // PictureContainsFold applies the ContainsFold predicate on the "picture" field.
 func PictureContainsFold(v string) predicate.Line {
 	return predicate.Line(sql.FieldContainsFold(FieldPicture, v))
+}
+
+// UserIDEQ applies the EQ predicate on the "user_id" field.
+func UserIDEQ(v uuid.UUID) predicate.Line {
+	return predicate.Line(sql.FieldEQ(FieldUserID, v))
+}
+
+// UserIDNEQ applies the NEQ predicate on the "user_id" field.
+func UserIDNEQ(v uuid.UUID) predicate.Line {
+	return predicate.Line(sql.FieldNEQ(FieldUserID, v))
+}
+
+// UserIDIn applies the In predicate on the "user_id" field.
+func UserIDIn(vs ...uuid.UUID) predicate.Line {
+	return predicate.Line(sql.FieldIn(FieldUserID, vs...))
+}
+
+// UserIDNotIn applies the NotIn predicate on the "user_id" field.
+func UserIDNotIn(vs ...uuid.UUID) predicate.Line {
+	return predicate.Line(sql.FieldNotIn(FieldUserID, vs...))
 }
 
 // HasUser applies the HasEdge predicate on the "user" edge.

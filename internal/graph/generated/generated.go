@@ -4738,7 +4738,7 @@ func (ec *executionContext) unmarshalInputChannelWhereInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "name", "nameNEQ", "nameIn", "nameNotIn", "nameGT", "nameGTE", "nameLT", "nameLTE", "nameContains", "nameHasPrefix", "nameHasSuffix", "nameEqualFold", "nameContainsFold", "platform", "platformNEQ", "platformIn", "platformNotIn", "groupID", "groupIDNEQ", "groupIDIn", "groupIDNotIn", "groupIDGT", "groupIDGTE", "groupIDLT", "groupIDLTE", "groupIDContains", "groupIDHasPrefix", "groupIDHasSuffix", "groupIDEqualFold", "groupIDContainsFold", "type", "typeNEQ", "typeIn", "typeNotIn", "isActive", "isActiveNEQ", "inactiveMessageCount", "inactiveMessageCountNEQ", "inactiveMessageCountIn", "inactiveMessageCountNotIn", "inactiveMessageCountGT", "inactiveMessageCountGTE", "inactiveMessageCountLT", "inactiveMessageCountLTE", "hasMessages", "hasMessagesWith"}
+	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "name", "nameNEQ", "nameIn", "nameNotIn", "nameGT", "nameGTE", "nameLT", "nameLTE", "nameContains", "nameHasPrefix", "nameHasSuffix", "nameEqualFold", "nameContainsFold", "platform", "platformNEQ", "platformIn", "platformNotIn", "groupID", "groupIDNEQ", "groupIDIn", "groupIDNotIn", "groupIDGT", "groupIDGTE", "groupIDLT", "groupIDLTE", "groupIDContains", "groupIDHasPrefix", "groupIDHasSuffix", "groupIDEqualFold", "groupIDContainsFold", "type", "typeNEQ", "typeIn", "typeNotIn", "isActive", "isActiveNEQ", "hasMessages", "hasMessagesWith"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -5202,62 +5202,6 @@ func (ec *executionContext) unmarshalInputChannelWhereInput(ctx context.Context,
 				return it, err
 			}
 			it.IsActiveNEQ = data
-		case "inactiveMessageCount":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("inactiveMessageCount"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.InactiveMessageCount = data
-		case "inactiveMessageCountNEQ":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("inactiveMessageCountNEQ"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.InactiveMessageCountNEQ = data
-		case "inactiveMessageCountIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("inactiveMessageCountIn"))
-			data, err := ec.unmarshalOInt2ᚕintᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.InactiveMessageCountIn = data
-		case "inactiveMessageCountNotIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("inactiveMessageCountNotIn"))
-			data, err := ec.unmarshalOInt2ᚕintᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.InactiveMessageCountNotIn = data
-		case "inactiveMessageCountGT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("inactiveMessageCountGT"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.InactiveMessageCountGT = data
-		case "inactiveMessageCountGTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("inactiveMessageCountGTE"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.InactiveMessageCountGTE = data
-		case "inactiveMessageCountLT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("inactiveMessageCountLT"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.InactiveMessageCountLT = data
-		case "inactiveMessageCountLTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("inactiveMessageCountLTE"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.InactiveMessageCountLTE = data
 		case "hasMessages":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hasMessages"))
 			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
@@ -5416,91 +5360,91 @@ func (ec *executionContext) unmarshalInputLineWhereInput(ctx context.Context, ob
 			if err != nil {
 				return it, err
 			}
-			it.LineUserID = data
+			it.PlatformUserID = data
 		case "lineUserIDNEQ":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("lineUserIDNEQ"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.LineUserIDNEQ = data
+			it.PlatformUserIDNEQ = data
 		case "lineUserIDIn":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("lineUserIDIn"))
 			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.LineUserIDIn = data
+			it.PlatformUserIDIn = data
 		case "lineUserIDNotIn":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("lineUserIDNotIn"))
 			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.LineUserIDNotIn = data
+			it.PlatformUserIDNotIn = data
 		case "lineUserIDGT":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("lineUserIDGT"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.LineUserIDGT = data
+			it.PlatformUserIDGT = data
 		case "lineUserIDGTE":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("lineUserIDGTE"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.LineUserIDGTE = data
+			it.PlatformUserIDGTE = data
 		case "lineUserIDLT":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("lineUserIDLT"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.LineUserIDLT = data
+			it.PlatformUserIDLT = data
 		case "lineUserIDLTE":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("lineUserIDLTE"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.LineUserIDLTE = data
+			it.PlatformUserIDLTE = data
 		case "lineUserIDContains":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("lineUserIDContains"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.LineUserIDContains = data
+			it.PlatformUserIDContains = data
 		case "lineUserIDHasPrefix":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("lineUserIDHasPrefix"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.LineUserIDHasPrefix = data
+			it.PlatformUserIDHasPrefix = data
 		case "lineUserIDHasSuffix":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("lineUserIDHasSuffix"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.LineUserIDHasSuffix = data
+			it.PlatformUserIDHasSuffix = data
 		case "lineUserIDEqualFold":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("lineUserIDEqualFold"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.LineUserIDEqualFold = data
+			it.PlatformUserIDEqualFold = data
 		case "lineUserIDContainsFold":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("lineUserIDContainsFold"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.LineUserIDContainsFold = data
+			it.PlatformUserIDContainsFold = data
 		case "displayName":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("displayName"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)

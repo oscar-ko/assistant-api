@@ -7,14 +7,9 @@ import (
 	"assistant-api/internal/config"
 )
 
-const (
-	providerLocal = "local"
-)
-
 type roleTarget struct {
 	provider string
 	profile  string
-	isLocal  bool
 }
 
 type builtRoleClient struct {
@@ -24,6 +19,7 @@ type builtRoleClient struct {
 
 type resolvedProviderProfile struct {
 	providerKey        string
+	providerType       string
 	url                string
 	token              string
 	headers            map[string]string
@@ -63,49 +59,30 @@ func parseRoleTarget(raw string) (roleTarget, error) {
 	if trimmed == "" {
 		return roleTarget{}, fmt.Errorf("target is required")
 	}
-	if strings.EqualFold(trimmed, providerLocal) {
-		return roleTarget{isLocal: true}, nil
-	}
 	parts := strings.Split(trimmed, ".")
 	if len(parts) != 2 {
-		return roleTarget{}, fmt.Errorf("target must be local or <provider>.<profile>")
+		return roleTarget{}, fmt.Errorf("target must be <provider>.<profile>")
 	}
 	provider := strings.TrimSpace(parts[0])
 	profile := strings.TrimSpace(parts[1])
 	if provider == "" || profile == "" {
-		return roleTarget{}, fmt.Errorf("target must be local or <provider>.<profile>")
+		return roleTarget{}, fmt.Errorf("target must be <provider>.<profile>")
 	}
 	return roleTarget{provider: provider, profile: profile}, nil
 }
 
 func buildRoleClient(cfg config.AIConfig, llmProviders map[string]config.LLMProviderConfig, target roleTarget, options config.LLMRoleConfig) (*builtRoleClient, error) {
-	if target.isLocal {
-		serviceURL := strings.TrimSpace(cfg.LLMInteraction.Local.ServiceURL)
-		timeout := cfg.LLMInteraction.Local.ServiceTimeoutSeconds
-		if serviceURL == "" {
-			return nil, fmt.Errorf("ai.llm_interaction.local.service_url is required when provider=local")
-		}
-		if timeout <= 0 {
-			return nil, fmt.Errorf("ai.llm_interaction.local.service_timeout_seconds is required when provider=local")
-		}
-		client := NewInteractionClient(serviceURL, timeout)
-		if client == nil {
-			return nil, fmt.Errorf("failed to initialize local interaction client")
-		}
-		return &builtRoleClient{client: client, label: "local"}, nil
-	}
 	resolved, err := resolveProviderProfile(llmProviders, target.provider, target.profile)
 	if err != nil {
 		return nil, err
 	}
+	if options.Timeout <= 0 {
+		return nil, fmt.Errorf("llm_interaction cloud timeout_seconds is required for target %s.%s", resolved.providerKey, strings.TrimSpace(target.profile))
+	}
 	if resolved.isLocal {
-		timeout := resolved.timeoutSeconds
-		if options.Timeout > 0 {
-			timeout = options.Timeout
-		}
 		client := NewLocalContractInteractionClient(
 			resolved.url,
-			timeout,
+			options.Timeout,
 			resolved.actionDecisionPath,
 			resolved.questionAnswerPath,
 		)
@@ -114,9 +91,6 @@ func buildRoleClient(cfg config.AIConfig, llmProviders map[string]config.LLMProv
 		}
 		label := resolved.providerKey + "." + strings.TrimSpace(target.profile) + " local"
 		return &builtRoleClient{client: client, label: label}, nil
-	}
-	if options.Timeout <= 0 {
-		return nil, fmt.Errorf("llm_interaction cloud timeout_seconds is required for target %s.%s", resolved.providerKey, strings.TrimSpace(target.profile))
 	}
 	client, err := NewOpenAIInteractionClient(
 		resolved.url,
@@ -134,17 +108,23 @@ func buildRoleClient(cfg config.AIConfig, llmProviders map[string]config.LLMProv
 	return &builtRoleClient{client: client, label: label}, nil
 }
 
-func mergeProfile(profile config.LLMProfileConfig) (resolvedProviderProfile, error) {
+func mergeProvider(provider config.LLMProviderConfig) (resolvedProviderProfile, error) {
+	providerType := strings.ToLower(strings.TrimSpace(provider.Type))
+	if providerType != "local" && providerType != "cloud" {
+		return resolvedProviderProfile{}, fmt.Errorf("provider type is required and must be local or cloud")
+	}
+	return resolvedProviderProfile{providerType: providerType}, nil
+}
+
+func mergeProfile(profile config.LLMProfileConfig, providerType string) (resolvedProviderProfile, error) {
 	model := strings.TrimSpace(profile.ModelName)
-	timeout := profile.TimeoutSeconds
-	if model == "" && timeout <= 0 {
-		return resolvedProviderProfile{}, fmt.Errorf("profile timeout_seconds is required")
+	if providerType == "cloud" && model == "" {
+		return resolvedProviderProfile{}, fmt.Errorf("cloud profile model_name is required")
 	}
 
 	return resolvedProviderProfile{
 		model:              model,
-		isLocal:            model == "",
-		timeoutSeconds:     timeout,
+		timeoutSeconds:     profile.TimeoutSeconds,
 		actionDecisionPath: strings.TrimSpace(profile.ActionDecisionPath),
 		questionAnswerPath: strings.TrimSpace(profile.QuestionAnswerPath),
 	}, nil
@@ -172,11 +152,16 @@ func resolveProviderProfile(llmProviders map[string]config.LLMProviderConfig, pr
 	if !ok {
 		return resolvedProviderProfile{}, fmt.Errorf("unknown profile %s for provider %s", profileKey, providerKey)
 	}
-	resolved, err := mergeProfile(profile)
+	providerMeta, err := mergeProvider(provider)
+	if err != nil {
+		return resolvedProviderProfile{}, fmt.Errorf("provider %s invalid: %w", providerKey, err)
+	}
+	resolved, err := mergeProfile(profile, providerMeta.providerType)
 	if err != nil {
 		return resolvedProviderProfile{}, fmt.Errorf("provider %s profile %s invalid: %w", providerKey, profileKey, err)
 	}
 	resolved.providerKey = providerKey
+	resolved.providerType = providerMeta.providerType
 	resolved.url = strings.TrimSpace(profile.URL)
 	if resolved.url == "" {
 		resolved.url = strings.TrimSpace(provider.URL)
@@ -186,7 +171,8 @@ func resolveProviderProfile(llmProviders map[string]config.LLMProviderConfig, pr
 	if resolved.url == "" {
 		return resolvedProviderProfile{}, fmt.Errorf("provider %s url is required", providerKey)
 	}
-	if !resolved.isLocal && resolved.token == "" {
+	resolved.isLocal = resolved.providerType == "local"
+	if resolved.providerType == "cloud" && resolved.token == "" {
 		return resolvedProviderProfile{}, fmt.Errorf("provider %s token is required for cloud provider", providerKey)
 	}
 	return resolved, nil

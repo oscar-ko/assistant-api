@@ -7,6 +7,7 @@ import (
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
+	"github.com/google/uuid"
 )
 
 // Slack holds the schema definition for the Slack entity.
@@ -29,6 +30,7 @@ func (Slack) Fields() []ent.Field {
 		field.String("display_name").Optional().Nillable().Comment("Slack 顯示名稱"),
 		field.String("email").Optional().Nillable().Comment("Slack 帳號 email"),
 		field.String("picture").Optional().Nillable().Comment("Slack 大頭貼 URL"),
+		field.UUID("user_id", uuid.UUID{}).Comment("對應系統內 user_id"),
 	}
 }
 
@@ -38,6 +40,7 @@ func (Slack) Edges() []ent.Edge {
 		edge.To("user", User.Type).
 			Unique().
 			Required().
+			Field("user_id").
 			Comment("Slack 帳號對應的系統使用者"),
 	}
 }

@@ -291,7 +291,7 @@ func (o *Orchestrator) ProcessCommand(message *unifiedmessage.Message, savedMess
 	}
 
 	if confidenceThreshold > 0 && finalDecision.Confidence < confidenceThreshold {
-		// execute_action 信心不足時降級為追問，避免低品質誤操作。
+		// execute_action 信心不足時降級為一般問答，避免低品質誤操作。
 		o.routeMessageToQuestionAnswer(message, savedMessage, strings.TrimSpace(senderUserID), finalDecision.Confidence, confidenceThreshold, "low_action_confidence", finalDecision.Reason, nil)
 		return
 	}
@@ -355,27 +355,7 @@ func (o *Orchestrator) decideFinalActionWithRetry(ctx context.Context, text stri
 	if o == nil || o.deps.LLM == nil {
 		return nil, nil
 	}
-	attempts := 1
-	if o.deps.DecisionJSONRetryCount > 0 {
-		attempts += o.deps.DecisionJSONRetryCount
-	}
-	var lastErr error
-	for attempt := 1; attempt <= attempts; attempt++ {
-		decision, err := o.deps.LLM.DecideFinalAction(ctx, text, candidates)
-		if err == nil {
-			return decision, nil
-		}
-		lastErr = err
-		if !isDecisionJSONFormatError(err) || attempt == attempts {
-			break
-		}
-		zap.L().Warn(o.logKey("message final action decision json format invalid, retrying"),
-			zap.Int("attempt", attempt),
-			zap.Int("max_attempts", attempts),
-			zap.Error(err),
-		)
-	}
-	return nil, lastErr
+	return o.deps.LLM.DecideFinalAction(ctx, text, candidates)
 }
 
 func isDecisionTimeoutError(err error) bool {

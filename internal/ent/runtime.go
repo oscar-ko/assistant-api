@@ -108,10 +108,6 @@ func init() {
 	channelDescIsActive := channelFields[4].Descriptor()
 	// channel.DefaultIsActive holds the default value on creation for the is_active field.
 	channel.DefaultIsActive = channelDescIsActive.Default.(bool)
-	// channelDescInactiveMessageCount is the schema descriptor for inactive_message_count field.
-	channelDescInactiveMessageCount := channelFields[5].Descriptor()
-	// channel.DefaultInactiveMessageCount holds the default value on creation for the inactive_message_count field.
-	channel.DefaultInactiveMessageCount = channelDescInactiveMessageCount.Default.(int)
 	// channelDescID is the schema descriptor for id field.
 	channelDescID := channelMixinFields0[0].Descriptor()
 	// channel.DefaultID holds the default value on creation for the id field.
@@ -171,10 +167,10 @@ func init() {
 	_ = lineMixinFields0
 	lineFields := schema.Line{}.Fields()
 	_ = lineFields
-	// lineDescLineUserID is the schema descriptor for line_user_id field.
-	lineDescLineUserID := lineFields[0].Descriptor()
-	// line.LineUserIDValidator is a validator for the "line_user_id" field. It is called by the builders before save.
-	line.LineUserIDValidator = lineDescLineUserID.Validators[0].(func(string) error)
+	// lineDescPlatformUserID is the schema descriptor for platform_user_id field.
+	lineDescPlatformUserID := lineFields[0].Descriptor()
+	// line.PlatformUserIDValidator is a validator for the "platform_user_id" field. It is called by the builders before save.
+	line.PlatformUserIDValidator = lineDescPlatformUserID.Validators[0].(func(string) error)
 	// lineDescID is the schema descriptor for id field.
 	lineDescID := lineMixinFields0[0].Descriptor()
 	// line.DefaultID holds the default value on creation for the id field.

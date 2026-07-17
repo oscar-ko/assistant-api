@@ -7,10 +7,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder:assistant-api}/cmd/server",
-      "cwd": "${workspaceFolder:assistant-api}",
-      "env": {
-        "APP_CONFIG": "${workspaceFolder:assistant-api}/configs/app.yml"
-      }
+      "cwd": "${workspaceFolder:assistant-api}"
     }
   ]
 }

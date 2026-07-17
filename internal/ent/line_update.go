@@ -29,16 +29,16 @@ func (_u *LineUpdate) Where(ps ...predicate.Line) *LineUpdate {
 	return _u
 }
 
-// SetLineUserID sets the "line_user_id" field.
-func (_u *LineUpdate) SetLineUserID(v string) *LineUpdate {
-	_u.mutation.SetLineUserID(v)
+// SetPlatformUserID sets the "platform_user_id" field.
+func (_u *LineUpdate) SetPlatformUserID(v string) *LineUpdate {
+	_u.mutation.SetPlatformUserID(v)
 	return _u
 }
 
-// SetNillableLineUserID sets the "line_user_id" field if the given value is not nil.
-func (_u *LineUpdate) SetNillableLineUserID(v *string) *LineUpdate {
+// SetNillablePlatformUserID sets the "platform_user_id" field if the given value is not nil.
+func (_u *LineUpdate) SetNillablePlatformUserID(v *string) *LineUpdate {
 	if v != nil {
-		_u.SetLineUserID(*v)
+		_u.SetPlatformUserID(*v)
 	}
 	return _u
 }
@@ -83,9 +83,17 @@ func (_u *LineUpdate) ClearPicture() *LineUpdate {
 	return _u
 }
 
-// SetUserID sets the "user" edge to the User entity by ID.
-func (_u *LineUpdate) SetUserID(id uuid.UUID) *LineUpdate {
-	_u.mutation.SetUserID(id)
+// SetUserID sets the "user_id" field.
+func (_u *LineUpdate) SetUserID(v uuid.UUID) *LineUpdate {
+	_u.mutation.SetUserID(v)
+	return _u
+}
+
+// SetNillableUserID sets the "user_id" field if the given value is not nil.
+func (_u *LineUpdate) SetNillableUserID(v *uuid.UUID) *LineUpdate {
+	if v != nil {
+		_u.SetUserID(*v)
+	}
 	return _u
 }
 
@@ -134,9 +142,9 @@ func (_u *LineUpdate) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *LineUpdate) check() error {
-	if v, ok := _u.mutation.LineUserID(); ok {
-		if err := line.LineUserIDValidator(v); err != nil {
-			return &ValidationError{Name: "line_user_id", err: fmt.Errorf(`ent: validator failed for field "Line.line_user_id": %w`, err)}
+	if v, ok := _u.mutation.PlatformUserID(); ok {
+		if err := line.PlatformUserIDValidator(v); err != nil {
+			return &ValidationError{Name: "platform_user_id", err: fmt.Errorf(`ent: validator failed for field "Line.platform_user_id": %w`, err)}
 		}
 	}
 	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
@@ -157,8 +165,8 @@ func (_u *LineUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.LineUserID(); ok {
-		_spec.SetField(line.FieldLineUserID, field.TypeString, value)
+	if value, ok := _u.mutation.PlatformUserID(); ok {
+		_spec.SetField(line.FieldPlatformUserID, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.DisplayName(); ok {
 		_spec.SetField(line.FieldDisplayName, field.TypeString, value)
@@ -221,16 +229,16 @@ type LineUpdateOne struct {
 	mutation *LineMutation
 }
 
-// SetLineUserID sets the "line_user_id" field.
-func (_u *LineUpdateOne) SetLineUserID(v string) *LineUpdateOne {
-	_u.mutation.SetLineUserID(v)
+// SetPlatformUserID sets the "platform_user_id" field.
+func (_u *LineUpdateOne) SetPlatformUserID(v string) *LineUpdateOne {
+	_u.mutation.SetPlatformUserID(v)
 	return _u
 }
 
-// SetNillableLineUserID sets the "line_user_id" field if the given value is not nil.
-func (_u *LineUpdateOne) SetNillableLineUserID(v *string) *LineUpdateOne {
+// SetNillablePlatformUserID sets the "platform_user_id" field if the given value is not nil.
+func (_u *LineUpdateOne) SetNillablePlatformUserID(v *string) *LineUpdateOne {
 	if v != nil {
-		_u.SetLineUserID(*v)
+		_u.SetPlatformUserID(*v)
 	}
 	return _u
 }
@@ -275,9 +283,17 @@ func (_u *LineUpdateOne) ClearPicture() *LineUpdateOne {
 	return _u
 }
 
-// SetUserID sets the "user" edge to the User entity by ID.
-func (_u *LineUpdateOne) SetUserID(id uuid.UUID) *LineUpdateOne {
-	_u.mutation.SetUserID(id)
+// SetUserID sets the "user_id" field.
+func (_u *LineUpdateOne) SetUserID(v uuid.UUID) *LineUpdateOne {
+	_u.mutation.SetUserID(v)
+	return _u
+}
+
+// SetNillableUserID sets the "user_id" field if the given value is not nil.
+func (_u *LineUpdateOne) SetNillableUserID(v *uuid.UUID) *LineUpdateOne {
+	if v != nil {
+		_u.SetUserID(*v)
+	}
 	return _u
 }
 
@@ -339,9 +355,9 @@ func (_u *LineUpdateOne) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *LineUpdateOne) check() error {
-	if v, ok := _u.mutation.LineUserID(); ok {
-		if err := line.LineUserIDValidator(v); err != nil {
-			return &ValidationError{Name: "line_user_id", err: fmt.Errorf(`ent: validator failed for field "Line.line_user_id": %w`, err)}
+	if v, ok := _u.mutation.PlatformUserID(); ok {
+		if err := line.PlatformUserIDValidator(v); err != nil {
+			return &ValidationError{Name: "platform_user_id", err: fmt.Errorf(`ent: validator failed for field "Line.platform_user_id": %w`, err)}
 		}
 	}
 	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
@@ -379,8 +395,8 @@ func (_u *LineUpdateOne) sqlSave(ctx context.Context) (_node *Line, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.LineUserID(); ok {
-		_spec.SetField(line.FieldLineUserID, field.TypeString, value)
+	if value, ok := _u.mutation.PlatformUserID(); ok {
+		_spec.SetField(line.FieldPlatformUserID, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.DisplayName(); ok {
 		_spec.SetField(line.FieldDisplayName, field.TypeString, value)

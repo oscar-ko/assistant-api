@@ -454,11 +454,6 @@ func (_q *ChannelQuery) collectField(ctx context.Context, oneNode bool, opCtx *g
 				selectedFields = append(selectedFields, channel.FieldIsActive)
 				fieldSeen[channel.FieldIsActive] = struct{}{}
 			}
-		case "inactiveMessageCount":
-			if _, ok := fieldSeen[channel.FieldInactiveMessageCount]; !ok {
-				selectedFields = append(selectedFields, channel.FieldInactiveMessageCount)
-				fieldSeen[channel.FieldInactiveMessageCount] = struct{}{}
-			}
 		case "id":
 		case "__typename":
 		default:
@@ -839,10 +834,14 @@ func (_q *LineQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 				return err
 			}
 			_q.withUser = query
-		case "lineUserID":
-			if _, ok := fieldSeen[line.FieldLineUserID]; !ok {
-				selectedFields = append(selectedFields, line.FieldLineUserID)
-				fieldSeen[line.FieldLineUserID] = struct{}{}
+			if _, ok := fieldSeen[line.FieldUserID]; !ok {
+				selectedFields = append(selectedFields, line.FieldUserID)
+				fieldSeen[line.FieldUserID] = struct{}{}
+			}
+		case "platformUserID":
+			if _, ok := fieldSeen[line.FieldPlatformUserID]; !ok {
+				selectedFields = append(selectedFields, line.FieldPlatformUserID)
+				fieldSeen[line.FieldPlatformUserID] = struct{}{}
 			}
 		case "displayName":
 			if _, ok := fieldSeen[line.FieldDisplayName]; !ok {
@@ -853,6 +852,11 @@ func (_q *LineQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 			if _, ok := fieldSeen[line.FieldPicture]; !ok {
 				selectedFields = append(selectedFields, line.FieldPicture)
 				fieldSeen[line.FieldPicture] = struct{}{}
+			}
+		case "userID":
+			if _, ok := fieldSeen[line.FieldUserID]; !ok {
+				selectedFields = append(selectedFields, line.FieldUserID)
+				fieldSeen[line.FieldUserID] = struct{}{}
 			}
 		case "id":
 		case "__typename":
@@ -1043,6 +1047,10 @@ func (_q *SlackQuery) collectField(ctx context.Context, oneNode bool, opCtx *gra
 				return err
 			}
 			_q.withUser = query
+			if _, ok := fieldSeen[slack.FieldUserID]; !ok {
+				selectedFields = append(selectedFields, slack.FieldUserID)
+				fieldSeen[slack.FieldUserID] = struct{}{}
+			}
 		case "platformTeamID":
 			if _, ok := fieldSeen[slack.FieldPlatformTeamID]; !ok {
 				selectedFields = append(selectedFields, slack.FieldPlatformTeamID)
@@ -1067,6 +1075,11 @@ func (_q *SlackQuery) collectField(ctx context.Context, oneNode bool, opCtx *gra
 			if _, ok := fieldSeen[slack.FieldPicture]; !ok {
 				selectedFields = append(selectedFields, slack.FieldPicture)
 				fieldSeen[slack.FieldPicture] = struct{}{}
+			}
+		case "userID":
+			if _, ok := fieldSeen[slack.FieldUserID]; !ok {
+				selectedFields = append(selectedFields, slack.FieldUserID)
+				fieldSeen[slack.FieldUserID] = struct{}{}
 			}
 		case "id":
 		case "__typename":

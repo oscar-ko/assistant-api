@@ -117,9 +117,17 @@ func (_u *SlackUpdate) ClearPicture() *SlackUpdate {
 	return _u
 }
 
-// SetUserID sets the "user" edge to the User entity by ID.
-func (_u *SlackUpdate) SetUserID(id uuid.UUID) *SlackUpdate {
-	_u.mutation.SetUserID(id)
+// SetUserID sets the "user_id" field.
+func (_u *SlackUpdate) SetUserID(v uuid.UUID) *SlackUpdate {
+	_u.mutation.SetUserID(v)
+	return _u
+}
+
+// SetNillableUserID sets the "user_id" field if the given value is not nil.
+func (_u *SlackUpdate) SetNillableUserID(v *uuid.UUID) *SlackUpdate {
+	if v != nil {
+		_u.SetUserID(*v)
+	}
 	return _u
 }
 
@@ -357,9 +365,17 @@ func (_u *SlackUpdateOne) ClearPicture() *SlackUpdateOne {
 	return _u
 }
 
-// SetUserID sets the "user" edge to the User entity by ID.
-func (_u *SlackUpdateOne) SetUserID(id uuid.UUID) *SlackUpdateOne {
-	_u.mutation.SetUserID(id)
+// SetUserID sets the "user_id" field.
+func (_u *SlackUpdateOne) SetUserID(v uuid.UUID) *SlackUpdateOne {
+	_u.mutation.SetUserID(v)
+	return _u
+}
+
+// SetNillableUserID sets the "user_id" field if the given value is not nil.
+func (_u *SlackUpdateOne) SetNillableUserID(v *uuid.UUID) *SlackUpdateOne {
+	if v != nil {
+		_u.SetUserID(*v)
+	}
 	return _u
 }
 

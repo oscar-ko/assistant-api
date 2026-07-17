@@ -686,17 +686,6 @@ input ChannelWhereInput {
   isActive: Boolean
   isActiveNEQ: Boolean
   """
-  inactive_message_count field predicates
-  """
-  inactiveMessageCount: Int
-  inactiveMessageCountNEQ: Int
-  inactiveMessageCountIn: [Int!]
-  inactiveMessageCountNotIn: [Int!]
-  inactiveMessageCountGT: Int
-  inactiveMessageCountGTE: Int
-  inactiveMessageCountLT: Int
-  inactiveMessageCountLTE: Int
-  """
   messages edge predicates
   """
   hasMessages: Boolean
@@ -750,21 +739,21 @@ input LineWhereInput {
   idLT: ID
   idLTE: ID
   """
-  line_user_id field predicates
+  platform_user_id field predicates
   """
-  lineUserID: String
-  lineUserIDNEQ: String
-  lineUserIDIn: [String!]
-  lineUserIDNotIn: [String!]
-  lineUserIDGT: String
-  lineUserIDGTE: String
-  lineUserIDLT: String
-  lineUserIDLTE: String
-  lineUserIDContains: String
-  lineUserIDHasPrefix: String
-  lineUserIDHasSuffix: String
-  lineUserIDEqualFold: String
-  lineUserIDContainsFold: String
+  platformUserID: String
+  platformUserIDNEQ: String
+  platformUserIDIn: [String!]
+  platformUserIDNotIn: [String!]
+  platformUserIDGT: String
+  platformUserIDGTE: String
+  platformUserIDLT: String
+  platformUserIDLTE: String
+  platformUserIDContains: String
+  platformUserIDHasPrefix: String
+  platformUserIDHasSuffix: String
+  platformUserIDEqualFold: String
+  platformUserIDContainsFold: String
   """
   display_name field predicates
   """
@@ -801,6 +790,13 @@ input LineWhereInput {
   pictureNotNil: Boolean
   pictureEqualFold: String
   pictureContainsFold: String
+  """
+  user_id field predicates
+  """
+  userID: ID
+  userIDNEQ: ID
+  userIDIn: [ID!]
+  userIDNotIn: [ID!]
   """
   user edge predicates
   """
@@ -997,6 +993,13 @@ input SlackWhereInput {
   pictureNotNil: Boolean
   pictureEqualFold: String
   pictureContainsFold: String
+  """
+  user_id field predicates
+  """
+  userID: ID
+  userIDNEQ: ID
+  userIDIn: [ID!]
+  userIDNotIn: [ID!]
   """
   user edge predicates
   """

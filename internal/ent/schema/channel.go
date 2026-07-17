@@ -30,7 +30,6 @@ func (Channel) Fields() []ent.Field {
 		field.String("group_id").NotEmpty().Comment("平台上的頻道識別碼（groupId/roomId/userId）"),
 		field.Enum("type").Values("group", "private").Default("group").Comment("頻道型別：群組或私訊"),
 		field.Bool("is_active").Default(true).Comment("是否啟用該頻道處理"),
-		field.Int("inactive_message_count").Default(0).Comment("停用期間累計訊息數"),
 	}
 }
 

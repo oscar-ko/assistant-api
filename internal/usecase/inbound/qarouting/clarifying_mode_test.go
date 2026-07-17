@@ -9,7 +9,7 @@ func TestShouldUseClarifyingQuestionMode(t *testing.T) {
 		missingParameters []string
 		want              bool
 	}{
-		{name: "low confidence always clarify", cause: "low_action_confidence", missingParameters: nil, want: true},
+		{name: "low confidence falls back to qa", cause: "low_action_confidence", missingParameters: nil, want: false},
 		{name: "ask clarifying with missing parameter", cause: "ask_clarifying_question", missingParameters: []string{"target_locales"}, want: true},
 		{name: "ask clarifying without missing parameter falls back to qa", cause: "ask_clarifying_question", missingParameters: nil, want: false},
 		{name: "answer question does not clarify", cause: "answer_question", missingParameters: []string{"target_locales"}, want: false},

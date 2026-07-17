@@ -1,12 +1,10 @@
 package config
 
 import (
-	"bytes"
 	"fmt"
 	"log"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 
@@ -14,7 +12,6 @@ import (
 )
 
 const defaultConfigPath = "configs/app.yml"
-const localOverrideConfigName = "app.local.yml"
 
 // configuration 對應設定檔結構，透過指標綁定到 package-level 全域變數。
 type configuration struct {
@@ -23,8 +20,8 @@ type configuration struct {
 	Server       *ServerConfig                 `mapstructure:"server"`
 	Database     *DatabaseConfig               `mapstructure:"database"`
 	PostgreSQL   *PostgreSQLConfig             `mapstructure:"postgresql"`
-	LLMProviders *map[string]LLMProviderConfig `mapstructure:"llm_providers"`
 	AI           *AIConfig                     `mapstructure:"ai"`
+	LLMProviders *map[string]LLMProviderConfig `mapstructure:"llm_providers"`
 	Line         *LineConfig                   `mapstructure:"line"`
 	Slack        *SlackConfig                  `mapstructure:"slack"`
 	GraphQL      *GraphQLConfig                `mapstructure:"graphql"`
@@ -58,10 +55,13 @@ type AIConfig struct {
 
 // LLMInteractionConfig 為角色導向的 LLM 互動設定。
 type LLMInteractionConfig struct {
-	Decision  LLMRoleConfig     `mapstructure:"decision" yaml:"decision"`
-	Chat      LLMRoleConfig     `mapstructure:"chat" yaml:"chat"`
-	Translate LLMRoleConfig     `mapstructure:"translate" yaml:"translate"`
-	Local     LLMEndpointConfig `mapstructure:"local" yaml:"local"`
+	// Decision 指定「最終 action 決策」使用的 target。
+	Decision LLMRoleConfig `mapstructure:"decision" yaml:"decision"`
+	// Chat 指定「一般問答/追問」使用的 target。
+	Chat LLMRoleConfig `mapstructure:"chat" yaml:"chat"`
+	// Translate 指定翻譯流程使用的 target。
+	Translate LLMRoleConfig `mapstructure:"translate" yaml:"translate"`
+	ChatGPT   ChatGPTConfig `mapstructure:"chatgpt" yaml:"chatgpt"`
 	// CommandConfidenceThreshold 決定 final action 信心值低於多少時，
 	// 直接視為對話意圖（非指令 action）。0 代表關閉此門檻判斷。
 	CommandConfidenceThreshold float64 `mapstructure:"command_confidence_threshold" yaml:"command_confidence_threshold"`
@@ -73,6 +73,7 @@ type LLMInteractionConfig struct {
 	DecisionJSONRetryCount int `mapstructure:"decision_json_retry_count" yaml:"decision_json_retry_count"`
 }
 
+// LLMRoleConfig 描述一個 role 對應到的 target。
 type LLMRoleConfig struct {
 	Profile     string   `mapstructure:"profile" yaml:"profile"`
 	Timeout     int      `mapstructure:"timeout" yaml:"timeout"`
@@ -80,87 +81,30 @@ type LLMRoleConfig struct {
 	Temperature *float64 `mapstructure:"temperature" yaml:"temperature"`
 }
 
-// LLMProviderConfig 描述單一 provider 層設定。
-// provider 類型由 profile 內容推導：
-// - 無 model_name：視為本地 endpoint profile
-// - 有 model_name：視為 cloud model profile
-type LLMProviderConfig struct {
-	URL      string                      `mapstructure:"url" yaml:"url"`
-	Token    string                      `mapstructure:"token" yaml:"token"`
-	Headers  map[string]string           `mapstructure:"headers" yaml:"headers"`
-	Profiles map[string]LLMProfileConfig `mapstructure:"profiles" yaml:"profiles"`
+// ChatGPTConfig 為 ChatGPT/OpenAI 供應商設定。
+type ChatGPTConfig struct {
+	URL      string                        `mapstructure:"url" yaml:"url"`
+	Token    string                        `mapstructure:"token" yaml:"token"`
+	Profiles map[string]ChatGPTModelConfig `mapstructure:"profiles" yaml:"profiles"`
 }
 
-// LLMProfileConfig 描述 provider 底下的單一 profile。
-type LLMProfileConfig struct {
-	URL                    string `mapstructure:"url" yaml:"url"`
-	ModelName              string `mapstructure:"model_name" yaml:"model_name"`
-	TimeoutSeconds         int    `mapstructure:"timeout_seconds" yaml:"timeout_seconds"`
-	Path                   string `mapstructure:"path" yaml:"path"`
-	TranslatePath          string `mapstructure:"translate_path" yaml:"translate_path"`
-	ActionDecisionPath     string `mapstructure:"action_decision_path" yaml:"action_decision_path"`
-	QuestionAnswerPath     string `mapstructure:"question_answer_path" yaml:"question_answer_path"`
-	MaxAttempts            int    `mapstructure:"max_attempts" yaml:"max_attempts"`
-	RetryBackoffMS         int    `mapstructure:"retry_backoff_ms" yaml:"retry_backoff_ms"`
-	AliveProbeIntervalMS   int    `mapstructure:"alive_probe_interval_ms" yaml:"alive_probe_interval_ms"`
-	AliveProbeTimeoutMS    int    `mapstructure:"alive_probe_timeout_ms" yaml:"alive_probe_timeout_ms"`
-	AliveSuccessTTLMS      int    `mapstructure:"alive_success_ttl_ms" yaml:"alive_success_ttl_ms"`
-	AliveFailureCooldownMS int    `mapstructure:"alive_failure_cooldown_ms" yaml:"alive_failure_cooldown_ms"`
-}
-
-// LLMEndpointConfig 為統一 interaction 端點設定。
-type LLMEndpointConfig struct {
-	ServiceURL            string `mapstructure:"service_url" yaml:"service_url"`
-	ServiceTimeoutSeconds int    `mapstructure:"service_timeout_seconds" yaml:"service_timeout_seconds"`
-}
-
-type LocalProviderProfile struct {
-	URL  string
-	Path string
-}
-
-func ResolveLocalProviderProfile(llmProviders map[string]LLMProviderConfig, target string) (*LocalProviderProfile, error) {
-	target = strings.TrimSpace(target)
-	parts := strings.Split(target, ".")
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("target must be <provider>.<profile>")
-	}
-	providerKey := strings.TrimSpace(parts[0])
-	profileKey := strings.TrimSpace(parts[1])
-	if providerKey == "" || profileKey == "" {
-		return nil, fmt.Errorf("target must be <provider>.<profile>")
-	}
-	provider, ok := llmProviders[providerKey]
-	if !ok {
-		return nil, fmt.Errorf("unknown provider: %s", providerKey)
-	}
-	profile, ok := provider.Profiles[profileKey]
-	if !ok {
-		return nil, fmt.Errorf("unknown profile %s for provider %s", profileKey, providerKey)
-	}
-	url := strings.TrimSpace(profile.URL)
-	if url == "" {
-		url = strings.TrimSpace(provider.URL)
-	}
-	if url == "" {
-		return nil, fmt.Errorf("provider %s url is required", providerKey)
-	}
-	path := strings.TrimSpace(profile.Path)
-	if path == "" {
-		return nil, fmt.Errorf("provider %s profile %s path is required", providerKey, profileKey)
-	}
-	return &LocalProviderProfile{
-		URL:  url,
-		Path: path,
-	}, nil
+// ChatGPTModelConfig 描述單一 ChatGPT 模型 profile。
+// 可定義是否支援特定參數，避免因模型參數不相容而回 400。
+type ChatGPTModelConfig struct {
+	ModelName      string   `mapstructure:"model_name" yaml:"model_name"`
+	TimeoutSeconds int      `mapstructure:"timeout_seconds" yaml:"timeout_seconds"`
+	MaxTokens      *int     `mapstructure:"max_tokens" yaml:"max_tokens"`
+	Temperature    *float64 `mapstructure:"temperature" yaml:"temperature"`
 }
 
 // EmbeddingConfig 為第一階段候選召回使用的向量化服務設定。
 type EmbeddingConfig struct {
 	Target         string `mapstructure:"target" yaml:"target"`
+	URL            string `mapstructure:"url" yaml:"url"`
 	TimeoutSeconds int    `mapstructure:"timeout_seconds" yaml:"timeout_seconds"`
 	MaxAttempts    int    `mapstructure:"max_attempts" yaml:"max_attempts"`
 	RetryBackoffMS int    `mapstructure:"retry_backoff_ms" yaml:"retry_backoff_ms"`
+	Path           string `mapstructure:"path" yaml:"path"`
 	// RetrievalTopK 控制第一階段向量召回（top-k）最多取回幾筆候選。
 	RetrievalTopK int `mapstructure:"retrieval_top_k" yaml:"retrieval_top_k"`
 	// Alive*：探活快取與失敗冷卻策略，避免每次訊息都探活。
@@ -178,9 +122,11 @@ type EmbeddingConfig struct {
 type RerankerConfig struct {
 	Enabled        bool   `mapstructure:"enabled" yaml:"enabled"`
 	Target         string `mapstructure:"target" yaml:"target"`
+	URL            string `mapstructure:"url" yaml:"url"`
 	TimeoutSeconds int    `mapstructure:"timeout_seconds" yaml:"timeout_seconds"`
 	MaxAttempts    int    `mapstructure:"max_attempts" yaml:"max_attempts"`
 	RetryBackoffMS int    `mapstructure:"retry_backoff_ms" yaml:"retry_backoff_ms"`
+	Path           string `mapstructure:"path" yaml:"path"`
 	// TopK 控制第二階段 cross-encoder 精排最多回傳幾筆候選。
 	TopK int `mapstructure:"top_k" yaml:"top_k"`
 	// Alive*：探活快取與失敗冷卻策略，避免每次訊息都探活。
@@ -202,7 +148,7 @@ type LineConfig struct {
 	Scopes          string `mapstructure:"scopes" yaml:"scopes"`
 }
 
-// SlackConfig 為 Slack Bot 與 OAuth 安裝流程設定。
+// SlackConfig 為 Slack OAuth / webhook / bot 發訊所需參數。
 type SlackConfig struct {
 	AppID             string `mapstructure:"app_id" yaml:"app_id"`
 	ClientID          string `mapstructure:"client_id" yaml:"client_id"`
@@ -214,8 +160,30 @@ type SlackConfig struct {
 	RedirectURI       string `mapstructure:"redirect_uri" yaml:"redirect_uri"`
 	LoginRedirectURI  string `mapstructure:"login_redirect_uri" yaml:"login_redirect_uri"`
 	Scopes            string `mapstructure:"scopes" yaml:"scopes"`
-	UserScopes        string `mapstructure:"user_scopes" yaml:"user_scopes"`
 	LoginScopes       string `mapstructure:"login_scopes" yaml:"login_scopes"`
+	UserScopes        string `mapstructure:"user_scopes" yaml:"user_scopes"`
+}
+
+// LLMProviderConfig 描述一個 provider 與其底下 profiles。
+type LLMProviderConfig struct {
+	Type     string                      `mapstructure:"type" yaml:"type"`
+	URL      string                      `mapstructure:"url" yaml:"url"`
+	Token    string                      `mapstructure:"token" yaml:"token"`
+	Headers  map[string]string           `mapstructure:"headers" yaml:"headers"`
+	Profiles map[string]LLMProfileConfig `mapstructure:"profiles" yaml:"profiles"`
+}
+
+// LLMProfileConfig 描述單一 provider profile 的連線資訊。
+type LLMProfileConfig struct {
+	URL                string   `mapstructure:"url" yaml:"url"`
+	ModelName          string   `mapstructure:"model_name" yaml:"model_name"`
+	TimeoutSeconds     int      `mapstructure:"timeout_seconds" yaml:"timeout_seconds"`
+	MaxTokens          *int     `mapstructure:"max_tokens" yaml:"max_tokens"`
+	Temperature        *float64 `mapstructure:"temperature" yaml:"temperature"`
+	Path               string   `mapstructure:"path" yaml:"path"`
+	ActionDecisionPath string   `mapstructure:"action_decision_path" yaml:"action_decision_path"`
+	QuestionAnswerPath string   `mapstructure:"question_answer_path" yaml:"question_answer_path"`
+	TranslatePath      string   `mapstructure:"translate_path" yaml:"translate_path"`
 }
 
 // PostgreSQLConfig 參照 backend 風格，集中管理 PostgreSQL 連線參數。
@@ -256,8 +224,8 @@ var (
 	Server       ServerConfig
 	Database     DatabaseConfig
 	PostgreSQL   PostgreSQLConfig
-	LLMProviders map[string]LLMProviderConfig
 	AI           AIConfig
+	LLMProviders map[string]LLMProviderConfig
 	Line         LineConfig
 	Slack        SlackConfig
 	GraphQL      GraphQLConfig
@@ -268,8 +236,8 @@ var (
 		Server:       &Server,
 		Database:     &Database,
 		PostgreSQL:   &PostgreSQL,
-		LLMProviders: &LLMProviders,
 		AI:           &AI,
+		LLMProviders: &LLMProviders,
 		Line:         &Line,
 		Slack:        &Slack,
 		GraphQL:      &GraphQL,
@@ -312,46 +280,45 @@ func MustLoad() {
 		viper.SetDefault("postgresql.user_name", "")
 		viper.SetDefault("postgresql.password", "")
 		viper.SetDefault("postgresql.parameters", "sslmode=disable")
-		viper.SetDefault("ai.llm_interaction.decision.profile", "local")
-		viper.SetDefault("ai.llm_interaction.decision.timeout", 120)
-		viper.SetDefault("ai.llm_interaction.decision.max_token", 1024)
-		viper.SetDefault("ai.llm_interaction.decision.temperature", 0.2)
-		viper.SetDefault("ai.llm_interaction.chat.profile", "local")
-		viper.SetDefault("ai.llm_interaction.chat.timeout", 120)
-		viper.SetDefault("ai.llm_interaction.chat.max_token", 1024)
-		viper.SetDefault("ai.llm_interaction.translate.profile", "local")
-		viper.SetDefault("ai.llm_interaction.translate.timeout", 120)
-		viper.SetDefault("ai.llm_interaction.translate.max_token", 1024)
-		viper.SetDefault("ai.llm_interaction.translate.temperature", 0.2)
-		viper.SetDefault("ai.llm_interaction.local.service_url", "http://127.0.0.1:9002")
-		viper.SetDefault("ai.llm_interaction.local.service_timeout_seconds", 90)
-		viper.SetDefault("llm_providers", map[string]any{})
+		viper.SetDefault("ai.llm_interaction.decision.profile", "aistant.llm")
+		viper.SetDefault("ai.llm_interaction.chat.profile", "aistant.llm")
+		viper.SetDefault("ai.llm_interaction.translate.profile", "aistant.llm")
+		viper.SetDefault("ai.llm_interaction.chatgpt.url", "https://api.openai.com/v1")
+		viper.SetDefault("ai.llm_interaction.chatgpt.token", "")
+		viper.SetDefault("ai.llm_interaction.chatgpt.profiles.default.model_name", "gpt-4o-mini")
+		viper.SetDefault("ai.llm_interaction.chatgpt.profiles.default.timeout_seconds", 120)
+		viper.SetDefault("ai.llm_interaction.chatgpt.profiles.default.max_tokens", 1024)
+		viper.SetDefault("ai.llm_interaction.chatgpt.profiles.default.temperature", 0.2)
 		// 第一層門檻：action decision confidence 低於此值時，
 		// 不直接執行 action，改走 question-answer 分支。
 		viper.SetDefault("ai.llm_interaction.command_confidence_threshold", 0.7)
 		// 第二層門檻：question-answer confidence 低於此值時，
 		// 標記建議改送 cloud LLM（例如時事/高難推理問題）。
 		viper.SetDefault("ai.llm_interaction.question_confidence_threshold", 0.6)
-		// action decision JSON 格式錯誤重送次數。
-		viper.SetDefault("ai.llm_interaction.decision_json_retry_count", 2)
+		// action decision JSON 格式錯誤重送次數。預設為 0，避免同一訊息被重送到 AI。
+		viper.SetDefault("ai.llm_interaction.decision_json_retry_count", 0)
+		viper.SetDefault("ai.embedding.url", "http://127.0.0.1:9000")
 		viper.SetDefault("ai.embedding.target", "aistant.embedding")
 		viper.SetDefault("ai.embedding.timeout_seconds", 60)
 		viper.SetDefault("ai.embedding.max_attempts", 4)
 		viper.SetDefault("ai.embedding.retry_backoff_ms", 500)
-		// 第一階段向量召回預設取回 20 筆候選，確保正確候選不會被漏掉，
-		// 再交給 reranker 精排縮減到最終筆數。
-		viper.SetDefault("ai.embedding.retrieval_top_k", 20)
+		viper.SetDefault("ai.embedding.path", "/embed")
 		viper.SetDefault("ai.embedding.alive_probe_interval_ms", 2000)
 		viper.SetDefault("ai.embedding.alive_probe_timeout_ms", 1500)
 		viper.SetDefault("ai.embedding.alive_success_ttl_ms", 10000)
 		viper.SetDefault("ai.embedding.alive_failure_cooldown_ms", 3000)
+		// 第一階段向量召回預設取回 20 筆候選，確保正確候選不會被漏掉，
+		// 再交給 reranker 精排縮減到最終筆數。
+		viper.SetDefault("ai.embedding.retrieval_top_k", 20)
 		// cross-encoder reranker 的預設本機端點（第二階段重排）。
 		// 這些預設值可讓本機在未特別覆寫時，直接對接 9001 服務。
 		viper.SetDefault("ai.reranker.enabled", true)
 		viper.SetDefault("ai.reranker.target", "aistant.reranker")
+		viper.SetDefault("ai.reranker.url", "http://127.0.0.1:9001")
 		viper.SetDefault("ai.reranker.timeout_seconds", 60)
 		viper.SetDefault("ai.reranker.max_attempts", 3)
 		viper.SetDefault("ai.reranker.retry_backoff_ms", 300)
+		viper.SetDefault("ai.reranker.path", "/rerank")
 		// 第二階段精排預設回傳 5 筆候選，維持與召回筆數一致。
 		viper.SetDefault("ai.reranker.top_k", 5)
 		viper.SetDefault("ai.reranker.alive_probe_interval_ms", 2000)
@@ -375,9 +342,9 @@ func MustLoad() {
 		viper.SetDefault("slack.bot_user_id", "")
 		viper.SetDefault("slack.redirect_uri", "")
 		viper.SetDefault("slack.login_redirect_uri", "")
-		viper.SetDefault("slack.scopes", "")
+		viper.SetDefault("slack.scopes", "app_mentions:read,channels:history,chat:write,groups:history,im:history,mpim:history")
+		viper.SetDefault("slack.login_scopes", "openid profile email")
 		viper.SetDefault("slack.user_scopes", "")
-		viper.SetDefault("slack.login_scopes", "")
 		viper.SetDefault("graphql.query_path", "/query")
 		viper.SetDefault("graphql.playground_path", "/playground")
 
@@ -388,9 +355,6 @@ func MustLoad() {
 			}
 			// APP_CONFIG 有指定時，回報完整路徑方便排錯。
 			log.Fatalf("failed to read config file %q: %v", path, err)
-		}
-		if err := mergeOptionalLocalOverride(path); err != nil {
-			log.Fatalf("failed to merge local config override: %v", err)
 		}
 
 		// 重要欄位缺失時直接中止，避免服務以不完整設定啟動。
@@ -419,36 +383,25 @@ func MustLoad() {
 	})
 }
 
-func mergeOptionalLocalOverride(basePath string) error {
-	var candidates []string
-	if strings.TrimSpace(basePath) != "" {
-		candidates = append(candidates, filepath.Join(filepath.Dir(basePath), localOverrideConfigName))
-	} else {
-		candidates = append(candidates,
-			localOverrideConfigName,
-			filepath.Join("configs", localOverrideConfigName),
-			filepath.Join("..", "..", localOverrideConfigName),
-			filepath.Join("..", "..", "configs", localOverrideConfigName),
-		)
+// ResolveLocalProviderProfile 依 target 解析 provider/profile。
+func ResolveLocalProviderProfile(providers map[string]LLMProviderConfig, target string) (LLMProviderConfig, LLMProfileConfig, error) {
+	target = strings.TrimSpace(target)
+	parts := strings.Split(target, ".")
+	if len(parts) != 2 {
+		return LLMProviderConfig{}, LLMProfileConfig{}, fmt.Errorf("target must be <provider>.<profile>")
 	}
-	seen := map[string]struct{}{}
-	for _, candidate := range candidates {
-		cleaned := filepath.Clean(candidate)
-		if _, ok := seen[cleaned]; ok {
-			continue
-		}
-		seen[cleaned] = struct{}{}
-		content, err := os.ReadFile(cleaned)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return fmt.Errorf("read %s: %w", cleaned, err)
-		}
-		if err := viper.MergeConfig(bytes.NewReader(content)); err != nil {
-			return fmt.Errorf("merge %s: %w", cleaned, err)
-		}
-		return nil
+	providerKey := strings.TrimSpace(parts[0])
+	profileKey := strings.TrimSpace(parts[1])
+	if providerKey == "" || profileKey == "" {
+		return LLMProviderConfig{}, LLMProfileConfig{}, fmt.Errorf("target must be <provider>.<profile>")
 	}
-	return nil
+	provider, ok := providers[providerKey]
+	if !ok {
+		return LLMProviderConfig{}, LLMProfileConfig{}, fmt.Errorf("unknown provider: %s", providerKey)
+	}
+	profile, ok := provider.Profiles[profileKey]
+	if !ok {
+		return LLMProviderConfig{}, LLMProfileConfig{}, fmt.Errorf("unknown profile %s for provider %s", profileKey, providerKey)
+	}
+	return provider, profile, nil
 }

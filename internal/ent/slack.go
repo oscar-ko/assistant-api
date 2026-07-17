@@ -29,10 +29,11 @@ type Slack struct {
 	Email *string `json:"email,omitempty"`
 	// Slack 大頭貼 URL
 	Picture *string `json:"picture,omitempty"`
+	// 對應系統內 user_id
+	UserID uuid.UUID `json:"user_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the SlackQuery when eager-loading is set.
 	Edges        SlackEdges `json:"edges"`
-	slack_user   *uuid.UUID
 	selectValues sql.SelectValues
 }
 
@@ -65,10 +66,8 @@ func (*Slack) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case slack.FieldPlatformTeamID, slack.FieldPlatformUserID, slack.FieldDisplayName, slack.FieldEmail, slack.FieldPicture:
 			values[i] = new(sql.NullString)
-		case slack.FieldID:
+		case slack.FieldID, slack.FieldUserID:
 			values[i] = new(uuid.UUID)
-		case slack.ForeignKeys[0]: // slack_user
-			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -123,12 +122,11 @@ func (_m *Slack) assignValues(columns []string, values []any) error {
 				_m.Picture = new(string)
 				*_m.Picture = value.String
 			}
-		case slack.ForeignKeys[0]:
-			if value, ok := values[i].(*sql.NullScanner); !ok {
-				return fmt.Errorf("unexpected type %T for field slack_user", values[i])
-			} else if value.Valid {
-				_m.slack_user = new(uuid.UUID)
-				*_m.slack_user = *value.S.(*uuid.UUID)
+		case slack.FieldUserID:
+			if value, ok := values[i].(*uuid.UUID); !ok {
+				return fmt.Errorf("unexpected type %T for field user_id", values[i])
+			} else if value != nil {
+				_m.UserID = *value
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -191,6 +189,9 @@ func (_m *Slack) String() string {
 		builder.WriteString("picture=")
 		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	builder.WriteString("user_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.UserID))
 	builder.WriteByte(')')
 	return builder.String()
 }

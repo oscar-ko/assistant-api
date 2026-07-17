@@ -6,9 +6,6 @@ import "strings"
 // clarifying question or directly answer the user's question.
 func ShouldUseClarifyingQuestionMode(cause string, missingParameters []string) bool {
 	trimmedCause := strings.ToLower(strings.TrimSpace(cause))
-	if trimmedCause == "low_action_confidence" {
-		return true
-	}
 	if trimmedCause != "ask_clarifying_question" {
 		return false
 	}

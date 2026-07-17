@@ -80,6 +80,11 @@ func Picture(v string) predicate.Slack {
 	return predicate.Slack(sql.FieldEQ(FieldPicture, v))
 }
 
+// UserID applies equality check predicate on the "user_id" field. It's identical to UserIDEQ.
+func UserID(v uuid.UUID) predicate.Slack {
+	return predicate.Slack(sql.FieldEQ(FieldUserID, v))
+}
+
 // PlatformTeamIDEQ applies the EQ predicate on the "platform_team_id" field.
 func PlatformTeamIDEQ(v string) predicate.Slack {
 	return predicate.Slack(sql.FieldEQ(FieldPlatformTeamID, v))
@@ -433,6 +438,26 @@ func PictureEqualFold(v string) predicate.Slack {
 // PictureContainsFold applies the ContainsFold predicate on the "picture" field.
 func PictureContainsFold(v string) predicate.Slack {
 	return predicate.Slack(sql.FieldContainsFold(FieldPicture, v))
+}
+
+// UserIDEQ applies the EQ predicate on the "user_id" field.
+func UserIDEQ(v uuid.UUID) predicate.Slack {
+	return predicate.Slack(sql.FieldEQ(FieldUserID, v))
+}
+
+// UserIDNEQ applies the NEQ predicate on the "user_id" field.
+func UserIDNEQ(v uuid.UUID) predicate.Slack {
+	return predicate.Slack(sql.FieldNEQ(FieldUserID, v))
+}
+
+// UserIDIn applies the In predicate on the "user_id" field.
+func UserIDIn(vs ...uuid.UUID) predicate.Slack {
+	return predicate.Slack(sql.FieldIn(FieldUserID, vs...))
+}
+
+// UserIDNotIn applies the NotIn predicate on the "user_id" field.
+func UserIDNotIn(vs ...uuid.UUID) predicate.Slack {
+	return predicate.Slack(sql.FieldNotIn(FieldUserID, vs...))
 }
 
 // HasUser applies the HasEdge predicate on the "user" edge.

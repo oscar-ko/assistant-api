@@ -21,9 +21,9 @@ type LineCreate struct {
 	hooks    []Hook
 }
 
-// SetLineUserID sets the "line_user_id" field.
-func (_c *LineCreate) SetLineUserID(v string) *LineCreate {
-	_c.mutation.SetLineUserID(v)
+// SetPlatformUserID sets the "platform_user_id" field.
+func (_c *LineCreate) SetPlatformUserID(v string) *LineCreate {
+	_c.mutation.SetPlatformUserID(v)
 	return _c
 }
 
@@ -55,6 +55,12 @@ func (_c *LineCreate) SetNillablePicture(v *string) *LineCreate {
 	return _c
 }
 
+// SetUserID sets the "user_id" field.
+func (_c *LineCreate) SetUserID(v uuid.UUID) *LineCreate {
+	_c.mutation.SetUserID(v)
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *LineCreate) SetID(v uuid.UUID) *LineCreate {
 	_c.mutation.SetID(v)
@@ -66,12 +72,6 @@ func (_c *LineCreate) SetNillableID(v *uuid.UUID) *LineCreate {
 	if v != nil {
 		_c.SetID(*v)
 	}
-	return _c
-}
-
-// SetUserID sets the "user" edge to the User entity by ID.
-func (_c *LineCreate) SetUserID(id uuid.UUID) *LineCreate {
-	_c.mutation.SetUserID(id)
 	return _c
 }
 
@@ -123,13 +123,16 @@ func (_c *LineCreate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *LineCreate) check() error {
-	if _, ok := _c.mutation.LineUserID(); !ok {
-		return &ValidationError{Name: "line_user_id", err: errors.New(`ent: missing required field "Line.line_user_id"`)}
+	if _, ok := _c.mutation.PlatformUserID(); !ok {
+		return &ValidationError{Name: "platform_user_id", err: errors.New(`ent: missing required field "Line.platform_user_id"`)}
 	}
-	if v, ok := _c.mutation.LineUserID(); ok {
-		if err := line.LineUserIDValidator(v); err != nil {
-			return &ValidationError{Name: "line_user_id", err: fmt.Errorf(`ent: validator failed for field "Line.line_user_id": %w`, err)}
+	if v, ok := _c.mutation.PlatformUserID(); ok {
+		if err := line.PlatformUserIDValidator(v); err != nil {
+			return &ValidationError{Name: "platform_user_id", err: fmt.Errorf(`ent: validator failed for field "Line.platform_user_id": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.UserID(); !ok {
+		return &ValidationError{Name: "user_id", err: errors.New(`ent: missing required field "Line.user_id"`)}
 	}
 	if len(_c.mutation.UserIDs()) == 0 {
 		return &ValidationError{Name: "user", err: errors.New(`ent: missing required edge "Line.user"`)}
@@ -169,9 +172,9 @@ func (_c *LineCreate) createSpec() (*Line, *sqlgraph.CreateSpec) {
 		_node.ID = id
 		_spec.ID.Value = &id
 	}
-	if value, ok := _c.mutation.LineUserID(); ok {
-		_spec.SetField(line.FieldLineUserID, field.TypeString, value)
-		_node.LineUserID = value
+	if value, ok := _c.mutation.PlatformUserID(); ok {
+		_spec.SetField(line.FieldPlatformUserID, field.TypeString, value)
+		_node.PlatformUserID = value
 	}
 	if value, ok := _c.mutation.DisplayName(); ok {
 		_spec.SetField(line.FieldDisplayName, field.TypeString, value)
@@ -195,7 +198,7 @@ func (_c *LineCreate) createSpec() (*Line, *sqlgraph.CreateSpec) {
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.line_user = &nodes[0]
+		_node.UserID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

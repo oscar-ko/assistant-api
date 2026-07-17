@@ -140,7 +140,6 @@ var (
 		{Name: "group_id", Type: field.TypeString},
 		{Name: "type", Type: field.TypeEnum, Enums: []string{"group", "private"}, Default: "group"},
 		{Name: "is_active", Type: field.TypeBool, Default: true},
-		{Name: "inactive_message_count", Type: field.TypeInt, Default: 0},
 	}
 	// ChannelsTable holds the schema information for the "channels" table.
 	ChannelsTable = &schema.Table{
@@ -265,10 +264,10 @@ var (
 	// LinesColumns holds the columns for the "lines" table.
 	LinesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
-		{Name: "line_user_id", Type: field.TypeString, Unique: true},
+		{Name: "platform_user_id", Type: field.TypeString, Unique: true},
 		{Name: "display_name", Type: field.TypeString, Nullable: true},
 		{Name: "picture", Type: field.TypeString, Nullable: true},
-		{Name: "line_user", Type: field.TypeUUID},
+		{Name: "user_id", Type: field.TypeUUID},
 	}
 	// LinesTable holds the schema information for the "lines" table.
 	LinesTable = &schema.Table{
@@ -312,7 +311,7 @@ var (
 		{Name: "display_name", Type: field.TypeString, Nullable: true},
 		{Name: "email", Type: field.TypeString, Nullable: true},
 		{Name: "picture", Type: field.TypeString, Nullable: true},
-		{Name: "slack_user", Type: field.TypeUUID},
+		{Name: "user_id", Type: field.TypeUUID},
 	}
 	// SlacksTable holds the schema information for the "slacks" table.
 	SlacksTable = &schema.Table{

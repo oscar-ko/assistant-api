@@ -40,7 +40,7 @@ func (r *ChannelMessageRepo) ResolveLineDisplayNameByLineUserID(ctx context.Cont
 	}
 
 	item, err := r.db.Line.Query().
-		Where(line.LineUserIDEQ(lineUserID)).
+		Where(line.PlatformUserIDEQ(lineUserID)).
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -74,7 +74,7 @@ func (r *ChannelMessageRepo) ResolveUserIDByLineUserID(ctx context.Context, line
 	// 透過 user.HasLineWith(...) 反查綁定關係，
 	// 可確保回傳的是系統內部 user 主鍵，而非平台外部識別。
 	boundUser, err := r.db.User.Query().
-		Where(user.HasLineWith(line.LineUserIDEQ(lineUserID))).
+		Where(user.HasLineWith(line.PlatformUserIDEQ(lineUserID))).
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -302,9 +302,6 @@ func (r *ChannelMessageRepo) SetChannelActiveByPlatformGroupID(
 	}
 
 	update := r.db.Channel.UpdateOneID(item.ID).SetIsActive(isActive)
-	if isActive {
-		update = update.SetInactiveMessageCount(0)
-	}
 	if _, err := update.Save(ctx); err != nil {
 		return fmt.Errorf("update channel active flag failed: %w", err)
 	}

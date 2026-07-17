@@ -19,6 +19,9 @@ func slackBotTokenStrict() (string, error) {
 	if token == "" {
 		return "", fmt.Errorf("slack bot token is empty")
 	}
+	if !strings.HasPrefix(token, "xoxb-") {
+		return "", fmt.Errorf("slack bot token is invalid format (expected xoxb-)")
+	}
 	return token, nil
 }
 
@@ -258,7 +261,11 @@ func GetUserDisplayNameByID(ctx context.Context, userID string) (string, error) 
 		if strings.TrimSpace(parsed.Error) == "" {
 			return "", fmt.Errorf("slack users.info failed")
 		}
-		return "", fmt.Errorf("slack users.info failed: %s", strings.TrimSpace(parsed.Error))
+		errCode := strings.TrimSpace(parsed.Error)
+		if strings.EqualFold(errCode, "invalid_auth") {
+			return "", fmt.Errorf("slack users.info failed: invalid_auth (check active config slack.bot_token)")
+		}
+		return "", fmt.Errorf("slack users.info failed: %s", errCode)
 	}
 
 	if v := strings.TrimSpace(parsed.User.Profile.DisplayName); v != "" {

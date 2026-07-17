@@ -10,10 +10,7 @@
         "./cmd/server"
       ],
       "options": {
-        "cwd": "${workspaceFolder:assistant-api}",
-        "env": {
-          "APP_CONFIG": "${workspaceFolder:assistant-api}/configs/app.yml"
-        }
+        "cwd": "${workspaceFolder:assistant-api}"
       },
       "group": {
         "kind": "build",

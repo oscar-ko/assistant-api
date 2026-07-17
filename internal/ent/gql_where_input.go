@@ -1208,16 +1208,6 @@ type ChannelWhereInput struct {
 	IsActive    *bool `json:"isActive,omitempty"`
 	IsActiveNEQ *bool `json:"isActiveNEQ,omitempty"`
 
-	// "inactive_message_count" field predicates.
-	InactiveMessageCount      *int  `json:"inactiveMessageCount,omitempty"`
-	InactiveMessageCountNEQ   *int  `json:"inactiveMessageCountNEQ,omitempty"`
-	InactiveMessageCountIn    []int `json:"inactiveMessageCountIn,omitempty"`
-	InactiveMessageCountNotIn []int `json:"inactiveMessageCountNotIn,omitempty"`
-	InactiveMessageCountGT    *int  `json:"inactiveMessageCountGT,omitempty"`
-	InactiveMessageCountGTE   *int  `json:"inactiveMessageCountGTE,omitempty"`
-	InactiveMessageCountLT    *int  `json:"inactiveMessageCountLT,omitempty"`
-	InactiveMessageCountLTE   *int  `json:"inactiveMessageCountLTE,omitempty"`
-
 	// "messages" edge predicates.
 	HasMessages     *bool                       `json:"hasMessages,omitempty"`
 	HasMessagesWith []*ChannelMessageWhereInput `json:"hasMessagesWith,omitempty"`
@@ -1481,30 +1471,6 @@ func (i *ChannelWhereInput) P() (predicate.Channel, error) {
 	}
 	if i.IsActiveNEQ != nil {
 		predicates = append(predicates, channel.IsActiveNEQ(*i.IsActiveNEQ))
-	}
-	if i.InactiveMessageCount != nil {
-		predicates = append(predicates, channel.InactiveMessageCountEQ(*i.InactiveMessageCount))
-	}
-	if i.InactiveMessageCountNEQ != nil {
-		predicates = append(predicates, channel.InactiveMessageCountNEQ(*i.InactiveMessageCountNEQ))
-	}
-	if len(i.InactiveMessageCountIn) > 0 {
-		predicates = append(predicates, channel.InactiveMessageCountIn(i.InactiveMessageCountIn...))
-	}
-	if len(i.InactiveMessageCountNotIn) > 0 {
-		predicates = append(predicates, channel.InactiveMessageCountNotIn(i.InactiveMessageCountNotIn...))
-	}
-	if i.InactiveMessageCountGT != nil {
-		predicates = append(predicates, channel.InactiveMessageCountGT(*i.InactiveMessageCountGT))
-	}
-	if i.InactiveMessageCountGTE != nil {
-		predicates = append(predicates, channel.InactiveMessageCountGTE(*i.InactiveMessageCountGTE))
-	}
-	if i.InactiveMessageCountLT != nil {
-		predicates = append(predicates, channel.InactiveMessageCountLT(*i.InactiveMessageCountLT))
-	}
-	if i.InactiveMessageCountLTE != nil {
-		predicates = append(predicates, channel.InactiveMessageCountLTE(*i.InactiveMessageCountLTE))
 	}
 
 	if i.HasMessages != nil {
@@ -2758,20 +2724,20 @@ type LineWhereInput struct {
 	IDLT    *uuid.UUID  `json:"idLT,omitempty"`
 	IDLTE   *uuid.UUID  `json:"idLTE,omitempty"`
 
-	// "line_user_id" field predicates.
-	LineUserID             *string  `json:"lineUserID,omitempty"`
-	LineUserIDNEQ          *string  `json:"lineUserIDNEQ,omitempty"`
-	LineUserIDIn           []string `json:"lineUserIDIn,omitempty"`
-	LineUserIDNotIn        []string `json:"lineUserIDNotIn,omitempty"`
-	LineUserIDGT           *string  `json:"lineUserIDGT,omitempty"`
-	LineUserIDGTE          *string  `json:"lineUserIDGTE,omitempty"`
-	LineUserIDLT           *string  `json:"lineUserIDLT,omitempty"`
-	LineUserIDLTE          *string  `json:"lineUserIDLTE,omitempty"`
-	LineUserIDContains     *string  `json:"lineUserIDContains,omitempty"`
-	LineUserIDHasPrefix    *string  `json:"lineUserIDHasPrefix,omitempty"`
-	LineUserIDHasSuffix    *string  `json:"lineUserIDHasSuffix,omitempty"`
-	LineUserIDEqualFold    *string  `json:"lineUserIDEqualFold,omitempty"`
-	LineUserIDContainsFold *string  `json:"lineUserIDContainsFold,omitempty"`
+	// "platform_user_id" field predicates.
+	PlatformUserID             *string  `json:"platformUserID,omitempty"`
+	PlatformUserIDNEQ          *string  `json:"platformUserIDNEQ,omitempty"`
+	PlatformUserIDIn           []string `json:"platformUserIDIn,omitempty"`
+	PlatformUserIDNotIn        []string `json:"platformUserIDNotIn,omitempty"`
+	PlatformUserIDGT           *string  `json:"platformUserIDGT,omitempty"`
+	PlatformUserIDGTE          *string  `json:"platformUserIDGTE,omitempty"`
+	PlatformUserIDLT           *string  `json:"platformUserIDLT,omitempty"`
+	PlatformUserIDLTE          *string  `json:"platformUserIDLTE,omitempty"`
+	PlatformUserIDContains     *string  `json:"platformUserIDContains,omitempty"`
+	PlatformUserIDHasPrefix    *string  `json:"platformUserIDHasPrefix,omitempty"`
+	PlatformUserIDHasSuffix    *string  `json:"platformUserIDHasSuffix,omitempty"`
+	PlatformUserIDEqualFold    *string  `json:"platformUserIDEqualFold,omitempty"`
+	PlatformUserIDContainsFold *string  `json:"platformUserIDContainsFold,omitempty"`
 
 	// "display_name" field predicates.
 	DisplayName             *string  `json:"displayName,omitempty"`
@@ -2806,6 +2772,12 @@ type LineWhereInput struct {
 	PictureNotNil       bool     `json:"pictureNotNil,omitempty"`
 	PictureEqualFold    *string  `json:"pictureEqualFold,omitempty"`
 	PictureContainsFold *string  `json:"pictureContainsFold,omitempty"`
+
+	// "user_id" field predicates.
+	UserID      *uuid.UUID  `json:"userID,omitempty"`
+	UserIDNEQ   *uuid.UUID  `json:"userIDNEQ,omitempty"`
+	UserIDIn    []uuid.UUID `json:"userIDIn,omitempty"`
+	UserIDNotIn []uuid.UUID `json:"userIDNotIn,omitempty"`
 
 	// "user" edge predicates.
 	HasUser     *bool             `json:"hasUser,omitempty"`
@@ -2907,44 +2879,44 @@ func (i *LineWhereInput) P() (predicate.Line, error) {
 	if i.IDLTE != nil {
 		predicates = append(predicates, line.IDLTE(*i.IDLTE))
 	}
-	if i.LineUserID != nil {
-		predicates = append(predicates, line.LineUserIDEQ(*i.LineUserID))
+	if i.PlatformUserID != nil {
+		predicates = append(predicates, line.PlatformUserIDEQ(*i.PlatformUserID))
 	}
-	if i.LineUserIDNEQ != nil {
-		predicates = append(predicates, line.LineUserIDNEQ(*i.LineUserIDNEQ))
+	if i.PlatformUserIDNEQ != nil {
+		predicates = append(predicates, line.PlatformUserIDNEQ(*i.PlatformUserIDNEQ))
 	}
-	if len(i.LineUserIDIn) > 0 {
-		predicates = append(predicates, line.LineUserIDIn(i.LineUserIDIn...))
+	if len(i.PlatformUserIDIn) > 0 {
+		predicates = append(predicates, line.PlatformUserIDIn(i.PlatformUserIDIn...))
 	}
-	if len(i.LineUserIDNotIn) > 0 {
-		predicates = append(predicates, line.LineUserIDNotIn(i.LineUserIDNotIn...))
+	if len(i.PlatformUserIDNotIn) > 0 {
+		predicates = append(predicates, line.PlatformUserIDNotIn(i.PlatformUserIDNotIn...))
 	}
-	if i.LineUserIDGT != nil {
-		predicates = append(predicates, line.LineUserIDGT(*i.LineUserIDGT))
+	if i.PlatformUserIDGT != nil {
+		predicates = append(predicates, line.PlatformUserIDGT(*i.PlatformUserIDGT))
 	}
-	if i.LineUserIDGTE != nil {
-		predicates = append(predicates, line.LineUserIDGTE(*i.LineUserIDGTE))
+	if i.PlatformUserIDGTE != nil {
+		predicates = append(predicates, line.PlatformUserIDGTE(*i.PlatformUserIDGTE))
 	}
-	if i.LineUserIDLT != nil {
-		predicates = append(predicates, line.LineUserIDLT(*i.LineUserIDLT))
+	if i.PlatformUserIDLT != nil {
+		predicates = append(predicates, line.PlatformUserIDLT(*i.PlatformUserIDLT))
 	}
-	if i.LineUserIDLTE != nil {
-		predicates = append(predicates, line.LineUserIDLTE(*i.LineUserIDLTE))
+	if i.PlatformUserIDLTE != nil {
+		predicates = append(predicates, line.PlatformUserIDLTE(*i.PlatformUserIDLTE))
 	}
-	if i.LineUserIDContains != nil {
-		predicates = append(predicates, line.LineUserIDContains(*i.LineUserIDContains))
+	if i.PlatformUserIDContains != nil {
+		predicates = append(predicates, line.PlatformUserIDContains(*i.PlatformUserIDContains))
 	}
-	if i.LineUserIDHasPrefix != nil {
-		predicates = append(predicates, line.LineUserIDHasPrefix(*i.LineUserIDHasPrefix))
+	if i.PlatformUserIDHasPrefix != nil {
+		predicates = append(predicates, line.PlatformUserIDHasPrefix(*i.PlatformUserIDHasPrefix))
 	}
-	if i.LineUserIDHasSuffix != nil {
-		predicates = append(predicates, line.LineUserIDHasSuffix(*i.LineUserIDHasSuffix))
+	if i.PlatformUserIDHasSuffix != nil {
+		predicates = append(predicates, line.PlatformUserIDHasSuffix(*i.PlatformUserIDHasSuffix))
 	}
-	if i.LineUserIDEqualFold != nil {
-		predicates = append(predicates, line.LineUserIDEqualFold(*i.LineUserIDEqualFold))
+	if i.PlatformUserIDEqualFold != nil {
+		predicates = append(predicates, line.PlatformUserIDEqualFold(*i.PlatformUserIDEqualFold))
 	}
-	if i.LineUserIDContainsFold != nil {
-		predicates = append(predicates, line.LineUserIDContainsFold(*i.LineUserIDContainsFold))
+	if i.PlatformUserIDContainsFold != nil {
+		predicates = append(predicates, line.PlatformUserIDContainsFold(*i.PlatformUserIDContainsFold))
 	}
 	if i.DisplayName != nil {
 		predicates = append(predicates, line.DisplayNameEQ(*i.DisplayName))
@@ -3035,6 +3007,18 @@ func (i *LineWhereInput) P() (predicate.Line, error) {
 	}
 	if i.PictureContainsFold != nil {
 		predicates = append(predicates, line.PictureContainsFold(*i.PictureContainsFold))
+	}
+	if i.UserID != nil {
+		predicates = append(predicates, line.UserIDEQ(*i.UserID))
+	}
+	if i.UserIDNEQ != nil {
+		predicates = append(predicates, line.UserIDNEQ(*i.UserIDNEQ))
+	}
+	if len(i.UserIDIn) > 0 {
+		predicates = append(predicates, line.UserIDIn(i.UserIDIn...))
+	}
+	if len(i.UserIDNotIn) > 0 {
+		predicates = append(predicates, line.UserIDNotIn(i.UserIDNotIn...))
 	}
 
 	if i.HasUser != nil {
@@ -3523,6 +3507,12 @@ type SlackWhereInput struct {
 	PictureEqualFold    *string  `json:"pictureEqualFold,omitempty"`
 	PictureContainsFold *string  `json:"pictureContainsFold,omitempty"`
 
+	// "user_id" field predicates.
+	UserID      *uuid.UUID  `json:"userID,omitempty"`
+	UserIDNEQ   *uuid.UUID  `json:"userIDNEQ,omitempty"`
+	UserIDIn    []uuid.UUID `json:"userIDIn,omitempty"`
+	UserIDNotIn []uuid.UUID `json:"userIDNotIn,omitempty"`
+
 	// "user" edge predicates.
 	HasUser     *bool             `json:"hasUser,omitempty"`
 	HasUserWith []*UserWhereInput `json:"hasUserWith,omitempty"`
@@ -3835,6 +3825,18 @@ func (i *SlackWhereInput) P() (predicate.Slack, error) {
 	}
 	if i.PictureContainsFold != nil {
 		predicates = append(predicates, slack.PictureContainsFold(*i.PictureContainsFold))
+	}
+	if i.UserID != nil {
+		predicates = append(predicates, slack.UserIDEQ(*i.UserID))
+	}
+	if i.UserIDNEQ != nil {
+		predicates = append(predicates, slack.UserIDNEQ(*i.UserIDNEQ))
+	}
+	if len(i.UserIDIn) > 0 {
+		predicates = append(predicates, slack.UserIDIn(i.UserIDIn...))
+	}
+	if len(i.UserIDNotIn) > 0 {
+		predicates = append(predicates, slack.UserIDNotIn(i.UserIDNotIn...))
 	}
 
 	if i.HasUser != nil {

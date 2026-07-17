@@ -13,12 +13,14 @@ const (
 	Label = "line"
 	// FieldID holds the string denoting the id field in the database.
 	FieldID = "id"
-	// FieldLineUserID holds the string denoting the line_user_id field in the database.
-	FieldLineUserID = "line_user_id"
+	// FieldPlatformUserID holds the string denoting the platform_user_id field in the database.
+	FieldPlatformUserID = "platform_user_id"
 	// FieldDisplayName holds the string denoting the display_name field in the database.
 	FieldDisplayName = "display_name"
 	// FieldPicture holds the string denoting the picture field in the database.
 	FieldPicture = "picture"
+	// FieldUserID holds the string denoting the user_id field in the database.
+	FieldUserID = "user_id"
 	// EdgeUser holds the string denoting the user edge name in mutations.
 	EdgeUser = "user"
 	// Table holds the table name of the line in the database.
@@ -29,21 +31,16 @@ const (
 	// It exists in this package in order to avoid circular dependency with the "user" package.
 	UserInverseTable = "users"
 	// UserColumn is the table column denoting the user relation/edge.
-	UserColumn = "line_user"
+	UserColumn = "user_id"
 )
 
 // Columns holds all SQL columns for line fields.
 var Columns = []string{
 	FieldID,
-	FieldLineUserID,
+	FieldPlatformUserID,
 	FieldDisplayName,
 	FieldPicture,
-}
-
-// ForeignKeys holds the SQL foreign-keys that are owned by the "lines"
-// table and are not defined as standalone fields in the schema.
-var ForeignKeys = []string{
-	"line_user",
+	FieldUserID,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -53,17 +50,12 @@ func ValidColumn(column string) bool {
 			return true
 		}
 	}
-	for i := range ForeignKeys {
-		if column == ForeignKeys[i] {
-			return true
-		}
-	}
 	return false
 }
 
 var (
-	// LineUserIDValidator is a validator for the "line_user_id" field. It is called by the builders before save.
-	LineUserIDValidator func(string) error
+	// PlatformUserIDValidator is a validator for the "platform_user_id" field. It is called by the builders before save.
+	PlatformUserIDValidator func(string) error
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
@@ -76,9 +68,9 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldID, opts...).ToFunc()
 }
 
-// ByLineUserID orders the results by the line_user_id field.
-func ByLineUserID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldLineUserID, opts...).ToFunc()
+// ByPlatformUserID orders the results by the platform_user_id field.
+func ByPlatformUserID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPlatformUserID, opts...).ToFunc()
 }
 
 // ByDisplayName orders the results by the display_name field.
@@ -89,6 +81,11 @@ func ByDisplayName(opts ...sql.OrderTermOption) OrderOption {
 // ByPicture orders the results by the picture field.
 func ByPicture(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPicture, opts...).ToFunc()
+}
+
+// ByUserID orders the results by the user_id field.
+func ByUserID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUserID, opts...).ToFunc()
 }
 
 // ByUserField orders the results by user field.

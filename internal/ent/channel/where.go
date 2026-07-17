@@ -81,11 +81,6 @@ func IsActive(v bool) predicate.Channel {
 	return predicate.Channel(sql.FieldEQ(FieldIsActive, v))
 }
 
-// InactiveMessageCount applies equality check predicate on the "inactive_message_count" field. It's identical to InactiveMessageCountEQ.
-func InactiveMessageCount(v int) predicate.Channel {
-	return predicate.Channel(sql.FieldEQ(FieldInactiveMessageCount, v))
-}
-
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.Channel {
 	return predicate.Channel(sql.FieldEQ(FieldCreatedAt, v))
@@ -344,46 +339,6 @@ func IsActiveEQ(v bool) predicate.Channel {
 // IsActiveNEQ applies the NEQ predicate on the "is_active" field.
 func IsActiveNEQ(v bool) predicate.Channel {
 	return predicate.Channel(sql.FieldNEQ(FieldIsActive, v))
-}
-
-// InactiveMessageCountEQ applies the EQ predicate on the "inactive_message_count" field.
-func InactiveMessageCountEQ(v int) predicate.Channel {
-	return predicate.Channel(sql.FieldEQ(FieldInactiveMessageCount, v))
-}
-
-// InactiveMessageCountNEQ applies the NEQ predicate on the "inactive_message_count" field.
-func InactiveMessageCountNEQ(v int) predicate.Channel {
-	return predicate.Channel(sql.FieldNEQ(FieldInactiveMessageCount, v))
-}
-
-// InactiveMessageCountIn applies the In predicate on the "inactive_message_count" field.
-func InactiveMessageCountIn(vs ...int) predicate.Channel {
-	return predicate.Channel(sql.FieldIn(FieldInactiveMessageCount, vs...))
-}
-
-// InactiveMessageCountNotIn applies the NotIn predicate on the "inactive_message_count" field.
-func InactiveMessageCountNotIn(vs ...int) predicate.Channel {
-	return predicate.Channel(sql.FieldNotIn(FieldInactiveMessageCount, vs...))
-}
-
-// InactiveMessageCountGT applies the GT predicate on the "inactive_message_count" field.
-func InactiveMessageCountGT(v int) predicate.Channel {
-	return predicate.Channel(sql.FieldGT(FieldInactiveMessageCount, v))
-}
-
-// InactiveMessageCountGTE applies the GTE predicate on the "inactive_message_count" field.
-func InactiveMessageCountGTE(v int) predicate.Channel {
-	return predicate.Channel(sql.FieldGTE(FieldInactiveMessageCount, v))
-}
-
-// InactiveMessageCountLT applies the LT predicate on the "inactive_message_count" field.
-func InactiveMessageCountLT(v int) predicate.Channel {
-	return predicate.Channel(sql.FieldLT(FieldInactiveMessageCount, v))
-}
-
-// InactiveMessageCountLTE applies the LTE predicate on the "inactive_message_count" field.
-func InactiveMessageCountLTE(v int) predicate.Channel {
-	return predicate.Channel(sql.FieldLTE(FieldInactiveMessageCount, v))
 }
 
 // HasMessages applies the HasEdge predicate on the "messages" edge.

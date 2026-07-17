@@ -3,4 +3,4 @@
 server.crt
 server.key
 __debug_bin*
-configs/app.local.yml
+configs/app.yml

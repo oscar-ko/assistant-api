@@ -32,8 +32,6 @@ const (
 	FieldType = "type"
 	// FieldIsActive holds the string denoting the is_active field in the database.
 	FieldIsActive = "is_active"
-	// FieldInactiveMessageCount holds the string denoting the inactive_message_count field in the database.
-	FieldInactiveMessageCount = "inactive_message_count"
 	// EdgeMessages holds the string denoting the messages edge name in mutations.
 	EdgeMessages = "messages"
 	// EdgeServiceMembers holds the string denoting the service_members edge name in mutations.
@@ -75,7 +73,6 @@ var Columns = []string{
 	FieldGroupID,
 	FieldType,
 	FieldIsActive,
-	FieldInactiveMessageCount,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -101,8 +98,6 @@ var (
 	GroupIDValidator func(string) error
 	// DefaultIsActive holds the default value on creation for the "is_active" field.
 	DefaultIsActive bool
-	// DefaultInactiveMessageCount holds the default value on creation for the "inactive_message_count" field.
-	DefaultInactiveMessageCount int
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
@@ -202,11 +197,6 @@ func ByType(opts ...sql.OrderTermOption) OrderOption {
 // ByIsActive orders the results by the is_active field.
 func ByIsActive(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIsActive, opts...).ToFunc()
-}
-
-// ByInactiveMessageCount orders the results by the inactive_message_count field.
-func ByInactiveMessageCount(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldInactiveMessageCount, opts...).ToFunc()
 }
 
 // ByMessagesCount orders the results by messages count.

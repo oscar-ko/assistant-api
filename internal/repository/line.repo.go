@@ -21,7 +21,7 @@ func NewLineRepo(db *ent.Client) *LineRepo {
 
 // GetUserByLineUserID 依 LINE user id 查詢已綁定使用者。
 func (r *LineRepo) GetUserByLineUserID(ctx context.Context, lineUserID string) (*ent.User, error) {
-	return r.db.User.Query().Where(user.HasLineWith(line.LineUserIDEQ(lineUserID))).Only(ctx)
+	return r.db.User.Query().Where(user.HasLineWith(line.PlatformUserIDEQ(lineUserID))).Only(ctx)
 }
 
 // GetUserByEmail 依 email 查詢使用者。
@@ -37,10 +37,10 @@ func (r *LineRepo) HasLineBindingForUser(ctx context.Context, userID uuid.UUID) 
 // CreateLineBinding 建立 LINE 綁定資料。
 func (r *LineRepo) CreateLineBinding(ctx context.Context, u *ent.User, lineUserID string, displayName string, picture *string) error {
 	_, err := r.db.Line.Create().
-		SetLineUserID(lineUserID).
+		SetPlatformUserID(lineUserID).
 		SetDisplayName(displayName).
 		SetNillablePicture(picture).
-		SetUser(u).
+		SetUserID(u.ID).
 		Save(ctx)
 	return err
 }

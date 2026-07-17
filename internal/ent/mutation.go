@@ -2138,8 +2138,6 @@ type ChannelMutation struct {
 	group_id                   *string
 	_type                      *channel.Type
 	is_active                  *bool
-	inactive_message_count     *int
-	addinactive_message_count  *int
 	clearedFields              map[string]struct{}
 	messages                   map[uuid.UUID]struct{}
 	removedmessages            map[uuid.UUID]struct{}
@@ -2511,62 +2509,6 @@ func (m *ChannelMutation) ResetIsActive() {
 	m.is_active = nil
 }
 
-// SetInactiveMessageCount sets the "inactive_message_count" field.
-func (m *ChannelMutation) SetInactiveMessageCount(i int) {
-	m.inactive_message_count = &i
-	m.addinactive_message_count = nil
-}
-
-// InactiveMessageCount returns the value of the "inactive_message_count" field in the mutation.
-func (m *ChannelMutation) InactiveMessageCount() (r int, exists bool) {
-	v := m.inactive_message_count
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldInactiveMessageCount returns the old "inactive_message_count" field's value of the Channel entity.
-// If the Channel object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ChannelMutation) OldInactiveMessageCount(ctx context.Context) (v int, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldInactiveMessageCount is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldInactiveMessageCount requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldInactiveMessageCount: %w", err)
-	}
-	return oldValue.InactiveMessageCount, nil
-}
-
-// AddInactiveMessageCount adds i to the "inactive_message_count" field.
-func (m *ChannelMutation) AddInactiveMessageCount(i int) {
-	if m.addinactive_message_count != nil {
-		*m.addinactive_message_count += i
-	} else {
-		m.addinactive_message_count = &i
-	}
-}
-
-// AddedInactiveMessageCount returns the value that was added to the "inactive_message_count" field in this mutation.
-func (m *ChannelMutation) AddedInactiveMessageCount() (r int, exists bool) {
-	v := m.addinactive_message_count
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// ResetInactiveMessageCount resets all changes to the "inactive_message_count" field.
-func (m *ChannelMutation) ResetInactiveMessageCount() {
-	m.inactive_message_count = nil
-	m.addinactive_message_count = nil
-}
-
 // AddMessageIDs adds the "messages" edge to the ChannelMessage entity by ids.
 func (m *ChannelMutation) AddMessageIDs(ids ...uuid.UUID) {
 	if m.messages == nil {
@@ -2763,7 +2705,7 @@ func (m *ChannelMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 7)
 	if m.created_at != nil {
 		fields = append(fields, channel.FieldCreatedAt)
 	}
@@ -2784,9 +2726,6 @@ func (m *ChannelMutation) Fields() []string {
 	}
 	if m.is_active != nil {
 		fields = append(fields, channel.FieldIsActive)
-	}
-	if m.inactive_message_count != nil {
-		fields = append(fields, channel.FieldInactiveMessageCount)
 	}
 	return fields
 }
@@ -2810,8 +2749,6 @@ func (m *ChannelMutation) Field(name string) (ent.Value, bool) {
 		return m.GetType()
 	case channel.FieldIsActive:
 		return m.IsActive()
-	case channel.FieldInactiveMessageCount:
-		return m.InactiveMessageCount()
 	}
 	return nil, false
 }
@@ -2835,8 +2772,6 @@ func (m *ChannelMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldType(ctx)
 	case channel.FieldIsActive:
 		return m.OldIsActive(ctx)
-	case channel.FieldInactiveMessageCount:
-		return m.OldInactiveMessageCount(ctx)
 	}
 	return nil, fmt.Errorf("unknown Channel field %s", name)
 }
@@ -2895,13 +2830,6 @@ func (m *ChannelMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetIsActive(v)
 		return nil
-	case channel.FieldInactiveMessageCount:
-		v, ok := value.(int)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetInactiveMessageCount(v)
-		return nil
 	}
 	return fmt.Errorf("unknown Channel field %s", name)
 }
@@ -2909,21 +2837,13 @@ func (m *ChannelMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *ChannelMutation) AddedFields() []string {
-	var fields []string
-	if m.addinactive_message_count != nil {
-		fields = append(fields, channel.FieldInactiveMessageCount)
-	}
-	return fields
+	return nil
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *ChannelMutation) AddedField(name string) (ent.Value, bool) {
-	switch name {
-	case channel.FieldInactiveMessageCount:
-		return m.AddedInactiveMessageCount()
-	}
 	return nil, false
 }
 
@@ -2932,13 +2852,6 @@ func (m *ChannelMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *ChannelMutation) AddField(name string, value ent.Value) error {
 	switch name {
-	case channel.FieldInactiveMessageCount:
-		v, ok := value.(int)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.AddInactiveMessageCount(v)
-		return nil
 	}
 	return fmt.Errorf("unknown Channel numeric field %s", name)
 }
@@ -2986,9 +2899,6 @@ func (m *ChannelMutation) ResetField(name string) error {
 		return nil
 	case channel.FieldIsActive:
 		m.ResetIsActive()
-		return nil
-	case channel.FieldInactiveMessageCount:
-		m.ResetInactiveMessageCount()
 		return nil
 	}
 	return fmt.Errorf("unknown Channel field %s", name)
@@ -5241,18 +5151,18 @@ func (m *ChannelServiceMemberMutation) ResetEdge(name string) error {
 // LineMutation represents an operation that mutates the Line nodes in the graph.
 type LineMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *uuid.UUID
-	line_user_id  *string
-	display_name  *string
-	picture       *string
-	clearedFields map[string]struct{}
-	user          *uuid.UUID
-	cleareduser   bool
-	done          bool
-	oldValue      func(context.Context) (*Line, error)
-	predicates    []predicate.Line
+	op               Op
+	typ              string
+	id               *uuid.UUID
+	platform_user_id *string
+	display_name     *string
+	picture          *string
+	clearedFields    map[string]struct{}
+	user             *uuid.UUID
+	cleareduser      bool
+	done             bool
+	oldValue         func(context.Context) (*Line, error)
+	predicates       []predicate.Line
 }
 
 var _ ent.Mutation = (*LineMutation)(nil)
@@ -5359,40 +5269,40 @@ func (m *LineMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
 	}
 }
 
-// SetLineUserID sets the "line_user_id" field.
-func (m *LineMutation) SetLineUserID(s string) {
-	m.line_user_id = &s
+// SetPlatformUserID sets the "platform_user_id" field.
+func (m *LineMutation) SetPlatformUserID(s string) {
+	m.platform_user_id = &s
 }
 
-// LineUserID returns the value of the "line_user_id" field in the mutation.
-func (m *LineMutation) LineUserID() (r string, exists bool) {
-	v := m.line_user_id
+// PlatformUserID returns the value of the "platform_user_id" field in the mutation.
+func (m *LineMutation) PlatformUserID() (r string, exists bool) {
+	v := m.platform_user_id
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldLineUserID returns the old "line_user_id" field's value of the Line entity.
+// OldPlatformUserID returns the old "platform_user_id" field's value of the Line entity.
 // If the Line object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *LineMutation) OldLineUserID(ctx context.Context) (v string, err error) {
+func (m *LineMutation) OldPlatformUserID(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldLineUserID is only allowed on UpdateOne operations")
+		return v, errors.New("OldPlatformUserID is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldLineUserID requires an ID field in the mutation")
+		return v, errors.New("OldPlatformUserID requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldLineUserID: %w", err)
+		return v, fmt.Errorf("querying old value for OldPlatformUserID: %w", err)
 	}
-	return oldValue.LineUserID, nil
+	return oldValue.PlatformUserID, nil
 }
 
-// ResetLineUserID resets all changes to the "line_user_id" field.
-func (m *LineMutation) ResetLineUserID() {
-	m.line_user_id = nil
+// ResetPlatformUserID resets all changes to the "platform_user_id" field.
+func (m *LineMutation) ResetPlatformUserID() {
+	m.platform_user_id = nil
 }
 
 // SetDisplayName sets the "display_name" field.
@@ -5493,27 +5403,51 @@ func (m *LineMutation) ResetPicture() {
 	delete(m.clearedFields, line.FieldPicture)
 }
 
-// SetUserID sets the "user" edge to the User entity by id.
-func (m *LineMutation) SetUserID(id uuid.UUID) {
-	m.user = &id
+// SetUserID sets the "user_id" field.
+func (m *LineMutation) SetUserID(u uuid.UUID) {
+	m.user = &u
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *LineMutation) UserID() (r uuid.UUID, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the Line entity.
+// If the Line object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LineMutation) OldUserID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *LineMutation) ResetUserID() {
+	m.user = nil
 }
 
 // ClearUser clears the "user" edge to the User entity.
 func (m *LineMutation) ClearUser() {
 	m.cleareduser = true
+	m.clearedFields[line.FieldUserID] = struct{}{}
 }
 
 // UserCleared reports if the "user" edge to the User entity was cleared.
 func (m *LineMutation) UserCleared() bool {
 	return m.cleareduser
-}
-
-// UserID returns the "user" edge ID in the mutation.
-func (m *LineMutation) UserID() (id uuid.UUID, exists bool) {
-	if m.user != nil {
-		return *m.user, true
-	}
-	return
 }
 
 // UserIDs returns the "user" edge IDs in the mutation.
@@ -5566,15 +5500,18 @@ func (m *LineMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *LineMutation) Fields() []string {
-	fields := make([]string, 0, 3)
-	if m.line_user_id != nil {
-		fields = append(fields, line.FieldLineUserID)
+	fields := make([]string, 0, 4)
+	if m.platform_user_id != nil {
+		fields = append(fields, line.FieldPlatformUserID)
 	}
 	if m.display_name != nil {
 		fields = append(fields, line.FieldDisplayName)
 	}
 	if m.picture != nil {
 		fields = append(fields, line.FieldPicture)
+	}
+	if m.user != nil {
+		fields = append(fields, line.FieldUserID)
 	}
 	return fields
 }
@@ -5584,12 +5521,14 @@ func (m *LineMutation) Fields() []string {
 // schema.
 func (m *LineMutation) Field(name string) (ent.Value, bool) {
 	switch name {
-	case line.FieldLineUserID:
-		return m.LineUserID()
+	case line.FieldPlatformUserID:
+		return m.PlatformUserID()
 	case line.FieldDisplayName:
 		return m.DisplayName()
 	case line.FieldPicture:
 		return m.Picture()
+	case line.FieldUserID:
+		return m.UserID()
 	}
 	return nil, false
 }
@@ -5599,12 +5538,14 @@ func (m *LineMutation) Field(name string) (ent.Value, bool) {
 // database failed.
 func (m *LineMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
-	case line.FieldLineUserID:
-		return m.OldLineUserID(ctx)
+	case line.FieldPlatformUserID:
+		return m.OldPlatformUserID(ctx)
 	case line.FieldDisplayName:
 		return m.OldDisplayName(ctx)
 	case line.FieldPicture:
 		return m.OldPicture(ctx)
+	case line.FieldUserID:
+		return m.OldUserID(ctx)
 	}
 	return nil, fmt.Errorf("unknown Line field %s", name)
 }
@@ -5614,12 +5555,12 @@ func (m *LineMutation) OldField(ctx context.Context, name string) (ent.Value, er
 // type.
 func (m *LineMutation) SetField(name string, value ent.Value) error {
 	switch name {
-	case line.FieldLineUserID:
+	case line.FieldPlatformUserID:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetLineUserID(v)
+		m.SetPlatformUserID(v)
 		return nil
 	case line.FieldDisplayName:
 		v, ok := value.(string)
@@ -5634,6 +5575,13 @@ func (m *LineMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPicture(v)
+		return nil
+	case line.FieldUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Line field %s", name)
@@ -5699,14 +5647,17 @@ func (m *LineMutation) ClearField(name string) error {
 // It returns an error if the field is not defined in the schema.
 func (m *LineMutation) ResetField(name string) error {
 	switch name {
-	case line.FieldLineUserID:
-		m.ResetLineUserID()
+	case line.FieldPlatformUserID:
+		m.ResetPlatformUserID()
 		return nil
 	case line.FieldDisplayName:
 		m.ResetDisplayName()
 		return nil
 	case line.FieldPicture:
 		m.ResetPicture()
+		return nil
+	case line.FieldUserID:
+		m.ResetUserID()
 		return nil
 	}
 	return fmt.Errorf("unknown Line field %s", name)
@@ -6849,27 +6800,51 @@ func (m *SlackMutation) ResetPicture() {
 	delete(m.clearedFields, slack.FieldPicture)
 }
 
-// SetUserID sets the "user" edge to the User entity by id.
-func (m *SlackMutation) SetUserID(id uuid.UUID) {
-	m.user = &id
+// SetUserID sets the "user_id" field.
+func (m *SlackMutation) SetUserID(u uuid.UUID) {
+	m.user = &u
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *SlackMutation) UserID() (r uuid.UUID, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the Slack entity.
+// If the Slack object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SlackMutation) OldUserID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *SlackMutation) ResetUserID() {
+	m.user = nil
 }
 
 // ClearUser clears the "user" edge to the User entity.
 func (m *SlackMutation) ClearUser() {
 	m.cleareduser = true
+	m.clearedFields[slack.FieldUserID] = struct{}{}
 }
 
 // UserCleared reports if the "user" edge to the User entity was cleared.
 func (m *SlackMutation) UserCleared() bool {
 	return m.cleareduser
-}
-
-// UserID returns the "user" edge ID in the mutation.
-func (m *SlackMutation) UserID() (id uuid.UUID, exists bool) {
-	if m.user != nil {
-		return *m.user, true
-	}
-	return
 }
 
 // UserIDs returns the "user" edge IDs in the mutation.
@@ -6922,7 +6897,7 @@ func (m *SlackMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SlackMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 6)
 	if m.platform_team_id != nil {
 		fields = append(fields, slack.FieldPlatformTeamID)
 	}
@@ -6937,6 +6912,9 @@ func (m *SlackMutation) Fields() []string {
 	}
 	if m.picture != nil {
 		fields = append(fields, slack.FieldPicture)
+	}
+	if m.user != nil {
+		fields = append(fields, slack.FieldUserID)
 	}
 	return fields
 }
@@ -6956,6 +6934,8 @@ func (m *SlackMutation) Field(name string) (ent.Value, bool) {
 		return m.Email()
 	case slack.FieldPicture:
 		return m.Picture()
+	case slack.FieldUserID:
+		return m.UserID()
 	}
 	return nil, false
 }
@@ -6975,6 +6955,8 @@ func (m *SlackMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldEmail(ctx)
 	case slack.FieldPicture:
 		return m.OldPicture(ctx)
+	case slack.FieldUserID:
+		return m.OldUserID(ctx)
 	}
 	return nil, fmt.Errorf("unknown Slack field %s", name)
 }
@@ -7018,6 +7000,13 @@ func (m *SlackMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPicture(v)
+		return nil
+	case slack.FieldUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Slack field %s", name)
@@ -7103,6 +7092,9 @@ func (m *SlackMutation) ResetField(name string) error {
 		return nil
 	case slack.FieldPicture:
 		m.ResetPicture()
+		return nil
+	case slack.FieldUserID:
+		m.ResetUserID()
 		return nil
 	}
 	return fmt.Errorf("unknown Slack field %s", name)

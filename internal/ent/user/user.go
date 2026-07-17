@@ -33,14 +33,14 @@ const (
 	// It exists in this package in order to avoid circular dependency with the "line" package.
 	LineInverseTable = "lines"
 	// LineColumn is the table column denoting the line relation/edge.
-	LineColumn = "line_user"
+	LineColumn = "user_id"
 	// SlackTable is the table that holds the slack relation/edge.
 	SlackTable = "slacks"
 	// SlackInverseTable is the table name for the Slack entity.
 	// It exists in this package in order to avoid circular dependency with the "slack" package.
 	SlackInverseTable = "slacks"
 	// SlackColumn is the table column denoting the slack relation/edge.
-	SlackColumn = "slack_user"
+	SlackColumn = "user_id"
 	// ChannelServiceMembersTable is the table that holds the channel_service_members relation/edge.
 	ChannelServiceMembersTable = "channel_service_members"
 	// ChannelServiceMembersInverseTable is the table name for the ChannelServiceMember entity.

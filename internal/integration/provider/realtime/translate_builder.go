@@ -7,15 +7,10 @@ import (
 	"assistant-api/internal/config"
 )
 
-const (
-	translateProviderLocal = "local"
-)
-
 // BuildTranslatorFromConfig 依設定建立翻譯實作。
 //
 // 規則：
-// - ai.llm_interaction.translate=local -> 使用 local.service_url + /translate
-// - 其他值使用 <provider>.<profile>，由 llm_providers.<provider>.profiles.<profile> 決定實作
+// - 使用 <provider>.<profile>，由 llm_providers.<provider>.profiles.<profile> 決定實作
 func BuildTranslatorFromConfig(cfg config.AIConfig, llmProviders map[string]config.LLMProviderConfig) (Translator, string, error) {
 	return BuildTranslatorFromTarget(cfg, llmProviders, strings.TrimSpace(cfg.LLMInteraction.Translate.Profile))
 }
@@ -23,19 +18,11 @@ func BuildTranslatorFromConfig(cfg config.AIConfig, llmProviders map[string]conf
 // BuildTranslatorFromTarget 依指定 target 建立翻譯實作。
 //
 // 這個入口給「單次指令翻譯」與「即時翻譯」共用：
-// 呼叫端可自行決定要用哪個 target（例如 local、openai.happy_chat、openrouter.nothappy_chat）。
+// 呼叫端可自行決定要用哪個 target（例如 openai.chat_search、openrouter.nothappy_chat）。
 func BuildTranslatorFromTarget(cfg config.AIConfig, llmProviders map[string]config.LLMProviderConfig, target string) (Translator, string, error) {
 	target = strings.TrimSpace(target)
-	if target == "" || strings.EqualFold(target, translateProviderLocal) {
-		serviceURL := strings.TrimSpace(cfg.LLMInteraction.Local.ServiceURL)
-		if serviceURL == "" {
-			return nil, "", fmt.Errorf("ai.llm_interaction.local.service_url is required when translate=local")
-		}
-		timeout := cfg.LLMInteraction.Local.ServiceTimeoutSeconds
-		if timeout <= 0 {
-			return nil, "", fmt.Errorf("ai.llm_interaction.local.service_timeout_seconds is required when translate=local")
-		}
-		return NewLocalTranslateClient(serviceURL, timeout), "local", nil
+	if target == "" {
+		return nil, "", fmt.Errorf("translate target is required")
 	}
 
 	providerKey, profileKey, err := parseProviderProfileTarget(target)
@@ -46,7 +33,8 @@ func BuildTranslatorFromTarget(cfg config.AIConfig, llmProviders map[string]conf
 	if err != nil {
 		return nil, "", err
 	}
-	if strings.TrimSpace(profile.ModelName) == "" {
+	providerType := strings.ToLower(strings.TrimSpace(provider.Type))
+	if providerType == "local" {
 		url := strings.TrimSpace(profile.URL)
 		if url == "" {
 			url = strings.TrimSpace(provider.URL)
@@ -59,9 +47,6 @@ func BuildTranslatorFromTarget(cfg config.AIConfig, llmProviders map[string]conf
 			timeout = cfg.LLMInteraction.Translate.Timeout
 		}
 		if timeout <= 0 {
-			timeout = cfg.LLMInteraction.Local.ServiceTimeoutSeconds
-		}
-		if timeout <= 0 {
 			return nil, "", fmt.Errorf("provider %s profile %s requires timeout_seconds", providerKey, profileKey)
 		}
 		translatePath := strings.TrimSpace(profile.TranslatePath)
@@ -69,6 +54,9 @@ func BuildTranslatorFromTarget(cfg config.AIConfig, llmProviders map[string]conf
 			translatePath = strings.TrimSpace(profile.Path)
 		}
 		return NewLocalContractTranslateClient(url, timeout, translatePath), target, nil
+	}
+	if providerType != "cloud" {
+		return nil, "", fmt.Errorf("provider %s type must be local or cloud", providerKey)
 	}
 	{
 		url := strings.TrimSpace(profile.URL)
@@ -98,12 +86,12 @@ func parseProviderProfileTarget(target string) (string, string, error) {
 	target = strings.TrimSpace(target)
 	parts := strings.Split(target, ".")
 	if len(parts) != 2 {
-		return "", "", fmt.Errorf("translate target must be local or <provider>.<profile>")
+		return "", "", fmt.Errorf("translate target must be <provider>.<profile>")
 	}
 	provider := strings.TrimSpace(parts[0])
 	profile := strings.TrimSpace(parts[1])
 	if provider == "" || profile == "" {
-		return "", "", fmt.Errorf("translate target must be local or <provider>.<profile>")
+		return "", "", fmt.Errorf("translate target must be <provider>.<profile>")
 	}
 	return provider, profile, nil
 }

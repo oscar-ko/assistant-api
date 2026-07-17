@@ -6,6 +6,7 @@ import (
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 )
 
 // Line holds the schema definition for the Line entity.
@@ -23,9 +24,10 @@ func (Line) Mixin() []ent.Mixin {
 // Fields of the Line.
 func (Line) Fields() []ent.Field {
 	return []ent.Field{
-		field.String("line_user_id").NotEmpty().Unique().Comment("LINE 平台使用者 ID"),
+		field.String("platform_user_id").NotEmpty().Unique().Comment("LINE 平台使用者 ID"),
 		field.String("display_name").Optional().Nillable().Comment("LINE 顯示名稱"),
 		field.String("picture").Optional().Nillable().Comment("LINE 大頭貼 URL"),
+		field.UUID("user_id", uuid.UUID{}).Comment("對應系統內 user_id"),
 	}
 }
 
@@ -35,6 +37,7 @@ func (Line) Edges() []ent.Edge {
 		edge.To("user", User.Type).
 			Unique().
 			Required().
+			Field("user_id").
 			Comment("LINE 帳號對應的系統使用者"),
 	}
 }

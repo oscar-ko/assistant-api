@@ -106,20 +106,6 @@ func (_c *ChannelCreate) SetNillableIsActive(v *bool) *ChannelCreate {
 	return _c
 }
 
-// SetInactiveMessageCount sets the "inactive_message_count" field.
-func (_c *ChannelCreate) SetInactiveMessageCount(v int) *ChannelCreate {
-	_c.mutation.SetInactiveMessageCount(v)
-	return _c
-}
-
-// SetNillableInactiveMessageCount sets the "inactive_message_count" field if the given value is not nil.
-func (_c *ChannelCreate) SetNillableInactiveMessageCount(v *int) *ChannelCreate {
-	if v != nil {
-		_c.SetInactiveMessageCount(*v)
-	}
-	return _c
-}
-
 // SetID sets the "id" field.
 func (_c *ChannelCreate) SetID(v uuid.UUID) *ChannelCreate {
 	_c.mutation.SetID(v)
@@ -234,10 +220,6 @@ func (_c *ChannelCreate) defaults() {
 		v := channel.DefaultIsActive
 		_c.mutation.SetIsActive(v)
 	}
-	if _, ok := _c.mutation.InactiveMessageCount(); !ok {
-		v := channel.DefaultInactiveMessageCount
-		_c.mutation.SetInactiveMessageCount(v)
-	}
 	if _, ok := _c.mutation.ID(); !ok {
 		v := channel.DefaultID()
 		_c.mutation.SetID(v)
@@ -286,9 +268,6 @@ func (_c *ChannelCreate) check() error {
 	}
 	if _, ok := _c.mutation.IsActive(); !ok {
 		return &ValidationError{Name: "is_active", err: errors.New(`ent: missing required field "Channel.is_active"`)}
-	}
-	if _, ok := _c.mutation.InactiveMessageCount(); !ok {
-		return &ValidationError{Name: "inactive_message_count", err: errors.New(`ent: missing required field "Channel.inactive_message_count"`)}
 	}
 	return nil
 }
@@ -352,10 +331,6 @@ func (_c *ChannelCreate) createSpec() (*Channel, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.IsActive(); ok {
 		_spec.SetField(channel.FieldIsActive, field.TypeBool, value)
 		_node.IsActive = value
-	}
-	if value, ok := _c.mutation.InactiveMessageCount(); ok {
-		_spec.SetField(channel.FieldInactiveMessageCount, field.TypeInt, value)
-		_node.InactiveMessageCount = value
 	}
 	if nodes := _c.mutation.MessagesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
