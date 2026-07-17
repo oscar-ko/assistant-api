@@ -8,6 +8,7 @@ import (
 	"assistant-api/internal/graph"
 	"assistant-api/internal/graph/generated"
 	lineprovider "assistant-api/internal/integration/provider/line"
+	slackprovider "assistant-api/internal/integration/provider/slack"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
@@ -23,6 +24,7 @@ func NewRouter(client *ent.Client) *gin.Engine {
 	registerHealthRoutes(r)
 	registerGraphQLRoutes(r, client)
 	lineprovider.RegisterRoutes(r, client)
+	slackprovider.RegisterRoutes(r, client)
 
 	return r
 }

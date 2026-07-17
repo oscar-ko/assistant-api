@@ -26,6 +26,7 @@ type configuration struct {
 	LLMProviders *map[string]LLMProviderConfig `mapstructure:"llm_providers"`
 	AI           *AIConfig                     `mapstructure:"ai"`
 	Line         *LineConfig                   `mapstructure:"line"`
+	Slack        *SlackConfig                  `mapstructure:"slack"`
 	GraphQL      *GraphQLConfig                `mapstructure:"graphql"`
 }
 
@@ -201,6 +202,20 @@ type LineConfig struct {
 	Scopes          string `mapstructure:"scopes" yaml:"scopes"`
 }
 
+// SlackConfig 為 Slack Bot 與 OAuth 安裝流程設定。
+type SlackConfig struct {
+	AppID             string `mapstructure:"app_id" yaml:"app_id"`
+	ClientID          string `mapstructure:"client_id" yaml:"client_id"`
+	ClientSecret      string `mapstructure:"client_secret" yaml:"client_secret"`
+	SigningSecret     string `mapstructure:"signing_secret" yaml:"signing_secret"`
+	VerificationToken string `mapstructure:"verification_token" yaml:"verification_token"`
+	BotToken          string `mapstructure:"bot_token" yaml:"bot_token"`
+	BotUserID         string `mapstructure:"bot_user_id" yaml:"bot_user_id"`
+	RedirectURI       string `mapstructure:"redirect_uri" yaml:"redirect_uri"`
+	Scopes            string `mapstructure:"scopes" yaml:"scopes"`
+	UserScopes        string `mapstructure:"user_scopes" yaml:"user_scopes"`
+}
+
 // PostgreSQLConfig 參照 backend 風格，集中管理 PostgreSQL 連線參數。
 type PostgreSQLConfig struct {
 	Address    string `mapstructure:"address" yaml:"address"`
@@ -242,6 +257,7 @@ var (
 	LLMProviders map[string]LLMProviderConfig
 	AI           AIConfig
 	Line         LineConfig
+	Slack        SlackConfig
 	GraphQL      GraphQLConfig
 
 	config = &configuration{
@@ -253,6 +269,7 @@ var (
 		LLMProviders: &LLMProviders,
 		AI:           &AI,
 		Line:         &Line,
+		Slack:        &Slack,
 		GraphQL:      &GraphQL,
 	}
 )
@@ -347,6 +364,16 @@ func MustLoad() {
 		viper.SetDefault("line.redirect_uri", "")
 		viper.SetDefault("line.assistant_bot_url", "")
 		viper.SetDefault("line.scopes", "openid profile email")
+		viper.SetDefault("slack.app_id", "")
+		viper.SetDefault("slack.client_id", "")
+		viper.SetDefault("slack.client_secret", "")
+		viper.SetDefault("slack.signing_secret", "")
+		viper.SetDefault("slack.verification_token", "")
+		viper.SetDefault("slack.bot_token", "")
+		viper.SetDefault("slack.bot_user_id", "")
+		viper.SetDefault("slack.redirect_uri", "")
+		viper.SetDefault("slack.scopes", "app_mentions:read,channels:history,chat:write,groups:history,im:history,mpim:history")
+		viper.SetDefault("slack.user_scopes", "")
 		viper.SetDefault("graphql.query_path", "/query")
 		viper.SetDefault("graphql.playground_path", "/playground")
 

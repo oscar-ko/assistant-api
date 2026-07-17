@@ -9,6 +9,7 @@ import (
 	"assistant-api/internal/config"
 	"assistant-api/internal/ent"
 	"assistant-api/internal/integration/provider/realtime"
+	webhooklog "assistant-api/internal/integration/provider/webhooklog"
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
 	"assistant-api/internal/usecase/actionpost"
@@ -209,15 +210,16 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 	// 第二段：逐筆掃描事件陣列，只處理 message 事件。
 	for _, event := range req.Events {
 		// 先把收到的原始事件資訊印出來，避免後續轉換或 command gate 把訊息吃掉。
-		zap.L().Info("line message received",
-			zap.String("event_type", strings.TrimSpace(event.Type)),
-			zap.String("source_type", strings.TrimSpace(event.Source.Type)),
-			zap.String("source_user_id", strings.TrimSpace(event.Source.UserID)),
-			zap.String("source_group_id", strings.TrimSpace(event.Source.GroupID)),
-			zap.String("source_room_id", strings.TrimSpace(event.Source.RoomID)),
-			zap.String("message_id", strings.TrimSpace(event.Message.ID)),
-			zap.String("text", strings.TrimSpace(event.Message.Text)),
-		)
+		webhooklog.LogIncomingMessage(webhooklog.IncomingMessage{
+			Provider:      "line",
+			EventType:     event.Type,
+			SourceType:    event.Source.Type,
+			SourceUserID:  event.Source.UserID,
+			SourceGroupID: event.Source.GroupID,
+			SourceRoomID:  event.Source.RoomID,
+			MessageID:     event.Message.ID,
+			Text:          event.Message.Text,
+		})
 
 		// 非 message 事件直接略過；只有文字/圖片等訊息才需要進一步處理。
 		if strings.TrimSpace(event.Type) != "message" {
@@ -226,15 +228,16 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 
 		message, ok, reason := adaptLineEventToUnified(event)
 		if !ok {
-			zap.L().Debug("line message unified conversion skipped",
-				zap.String("event_type", strings.TrimSpace(event.Type)),
-				zap.String("source_type", strings.TrimSpace(event.Source.Type)),
-				zap.String("source_user_id", strings.TrimSpace(event.Source.UserID)),
-				zap.String("source_group_id", strings.TrimSpace(event.Source.GroupID)),
-				zap.String("source_room_id", strings.TrimSpace(event.Source.RoomID)),
-				zap.String("message_id", strings.TrimSpace(event.Message.ID)),
-				zap.String("reason", reason),
-			)
+			webhooklog.LogUnifiedConversionSkipped(webhooklog.UnifiedConversionSkipped{
+				Provider:      "line",
+				EventType:     event.Type,
+				SourceType:    event.Source.Type,
+				SourceUserID:  event.Source.UserID,
+				SourceGroupID: event.Source.GroupID,
+				SourceRoomID:  event.Source.RoomID,
+				MessageID:     event.Message.ID,
+				Reason:        reason,
+			})
 			continue
 		}
 
