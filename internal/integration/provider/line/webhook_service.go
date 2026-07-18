@@ -89,6 +89,10 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 	if err != nil {
 		panic(err)
 	}
+	classifierClient, classifierProfile, err := realtime.BuildClassifierFromConfig(config.AI)
+	if err != nil {
+		panic(err)
+	}
 	// 這裡把翻譯能力包成共用 realtime service，而不是直接寫在 LINE webhook 裡。
 	// 這樣 Slack 也可以用同一套「非指令訊息 -> 翻譯 side-effect」流程，
 	// 差別只剩底層 sender 與平台使用者識別來源。
@@ -103,6 +107,10 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 		},
 		BotSenderID:   strings.TrimSpace(config.Line.BotUserID),
 		PlatformLabel: "line:" + strings.TrimSpace(translateProfile),
+	})
+	messageClassifier := realtime.NewMessageClassificationService(realtime.MessageClassificationServiceOptions{
+		Classifier:    classifierClient,
+		PlatformLabel: "line:" + strings.TrimSpace(classifierProfile),
 	})
 	flow := conversationflow.NewFromFactory(conversationflow.FactoryOptions{
 		PlatformLabel:               "line",
@@ -126,7 +134,7 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 		topKFilterService:     options.TopKFilter,
 		actionPostDispatcher:  dispatcher,
 		followUpSender:        options.FollowUpSender,
-		nonCommandDispatcher:  realtime.NewDispatcher(autoTranslate),
+		nonCommandDispatcher:  realtime.NewDispatcher(autoTranslate, messageClassifier),
 		commandFlow:           flow,
 	}
 }

@@ -51,6 +51,16 @@ type AIConfig struct {
 	LLMInteraction LLMInteractionConfig `mapstructure:"llm_interaction" yaml:"llm_interaction"`
 	Embedding      EmbeddingConfig      `mapstructure:"embedding" yaml:"embedding"`
 	Reranker       RerankerConfig       `mapstructure:"reranker" yaml:"reranker"`
+	Classifier     ClassifierConfig     `mapstructure:"classifier" yaml:"classifier"`
+}
+
+// ClassifierConfig controls the local message classifier used by realtime handlers.
+type ClassifierConfig struct {
+	Enabled        bool     `mapstructure:"enabled" yaml:"enabled"`
+	URL            string   `mapstructure:"url" yaml:"url"`
+	TimeoutSeconds int      `mapstructure:"timeout_seconds" yaml:"timeout_seconds"`
+	Path           string   `mapstructure:"path" yaml:"path"`
+	Labels         []string `mapstructure:"labels" yaml:"labels"`
 }
 
 // LLMInteractionConfig 為角色導向的 LLM 互動設定。

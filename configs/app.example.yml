@@ -42,6 +42,13 @@ ai:
         alive_success_ttl_ms: 10000
         alive_failure_cooldown_ms: 3000
 
+    classifier:
+        enabled: true
+        url: "http://127.0.0.1:9000"
+        timeout_seconds: 30
+        path: "/predict/classifier"
+        labels: []
+
     # LLM 互動服務（第三階段）
     llm_interaction:
         decision:

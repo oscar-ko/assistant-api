@@ -87,6 +87,10 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 	if err != nil {
 		panic(err)
 	}
+	classifierClient, classifierProfile, err := realtime.BuildClassifierFromConfig(config.AI)
+	if err != nil {
+		panic(err)
+	}
 	// Slack 也直接掛到共用 realtime 翻譯流程上，避免跟 LINE 各自維護一套非指令處理邏輯。
 	// 這裡只提供 Slack 專用的 sender 與 platform user id 來源，核心翻譯行為仍由共用模組執行。
 	autoTranslate := realtime.NewAutoTranslateService(realtime.AutoTranslateServiceOptions{
@@ -99,6 +103,10 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 		},
 		BotSenderID:   "",
 		PlatformLabel: "slack:" + strings.TrimSpace(translateProfile),
+	})
+	messageClassifier := realtime.NewMessageClassificationService(realtime.MessageClassificationServiceOptions{
+		Classifier:    classifierClient,
+		PlatformLabel: "slack:" + strings.TrimSpace(classifierProfile),
 	})
 	flow := conversationflow.NewFromFactory(conversationflow.FactoryOptions{
 		PlatformLabel:               "slack",
@@ -122,7 +130,7 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 		topKFilterService:     options.TopKFilter,
 		actionPostDispatcher:  dispatcher,
 		followUpSender:        options.FollowUpSender,
-		nonCommandDispatcher:  realtime.NewDispatcher(autoTranslate),
+		nonCommandDispatcher:  realtime.NewDispatcher(autoTranslate, messageClassifier),
 		commandFlow:           flow,
 	}
 }
