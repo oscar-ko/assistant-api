@@ -22,8 +22,8 @@ import (
 //   - 只接收已正規化的 unified message，以及少量仍需由平台提供的上下文。
 //
 // 這個抽象的目的，是讓各 provider webhook service 只保留平台差異：
-// adapter、signature 驗證、reply/thread token、workspace bot id 等；而持久化、
-// command 判斷、非指令 realtime side-effect、command flow 則集中在這裡維護。
+// adapter、signature 驗證、reply/thread token、workspace bot id 等；
+// 而持久化、command 判斷、非指令 realtime side-effect、command flow 則集中在這裡維護。
 type Handler struct {
 	// PlatformLabel 只用於 log，例如 line / slack。
 	// 不應被下游用來做業務分支，避免重新引入 provider-specific hardcode。
