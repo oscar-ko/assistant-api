@@ -13,6 +13,7 @@ import (
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
+	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
@@ -817,6 +818,40 @@ func (r *ChannelMessageRepo) HasChannelServiceMember(ctx context.Context, channe
 	return exists, nil
 }
 
+// RemoveServiceMemberFromChannel 移除某使用者在某頻道啟用的指定技能。
+//
+// 使用場景：
+// - 關閉翻譯時，將下指令者從 channel_service_member 的翻譯 skill 關聯中移除。
+// - 此方法只刪除 (channel_id, user_id, skill_id) 精準命中的那一筆，不影響同頻道其他使用者。
+//
+// 回傳值為實際刪除筆數；找不到資料時回傳 0, nil，讓停用指令具備冪等性。
+func (r *ChannelMessageRepo) RemoveServiceMemberFromChannel(ctx context.Context, channelID uuid.UUID, ownerID uuid.UUID, skillID uuid.UUID) (int, error) {
+	if r == nil || r.db == nil {
+		return 0, fmt.Errorf("channel repository not initialized")
+	}
+	if channelID == uuid.Nil {
+		return 0, fmt.Errorf("channel id is required")
+	}
+	if ownerID == uuid.Nil {
+		return 0, fmt.Errorf("owner id is required")
+	}
+	if skillID == uuid.Nil {
+		return 0, fmt.Errorf("skill id is required")
+	}
+
+	deleted, err := r.db.ChannelServiceMember.Delete().
+		Where(
+			channelservicemember.ChannelIDEQ(channelID),
+			channelservicemember.UserIDEQ(ownerID),
+			channelservicemember.SkillIDEQ(skillID),
+		).
+		Exec(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to remove service member from channel: %w", err)
+	}
+	return deleted, nil
+}
+
 // AddTranslationLocaleToChannel records a translation target locale with owner under a channel and skill.
 // The operation is idempotent and ignored if (channel_id, target_locale) already exists.
 func (r *ChannelMessageRepo) AddTranslationLocaleToChannel(ctx context.Context, channelID uuid.UUID, skillID uuid.UUID, ownerUserID uuid.UUID, targetLocale string) error {
@@ -857,6 +892,103 @@ func (r *ChannelMessageRepo) AddTranslationLocaleToChannel(ctx context.Context, 
 	}
 
 	return nil
+}
+
+// RemoveTranslationLocalesFromChannel 移除某使用者在某頻道建立的翻譯語系。
+//
+// 刪除範圍固定包含：
+// - channel_id：只處理目前下指令所在 channel。
+// - skill_id：只處理翻譯 skill，不影響其他技能的設定。
+// - owner_user_id：只刪除下指令者建立的 locales，不刪同 channel 其他人的翻譯設定。
+//
+// targetLocales 為空時代表 stop_translation_all，會刪除該 owner 的全部翻譯語系；
+// targetLocales 有值時代表 stop_translation_locale，只刪指定語系。
+func (r *ChannelMessageRepo) RemoveTranslationLocalesFromChannel(ctx context.Context, channelID uuid.UUID, skillID uuid.UUID, ownerUserID uuid.UUID, targetLocales []string) (int, error) {
+	if r == nil || r.db == nil {
+		return 0, fmt.Errorf("channel repository not initialized")
+	}
+	if channelID == uuid.Nil {
+		return 0, fmt.Errorf("channel id is required")
+	}
+	if skillID == uuid.Nil {
+		return 0, fmt.Errorf("skill id is required")
+	}
+	if ownerUserID == uuid.Nil {
+		return 0, fmt.Errorf("owner user id is required")
+	}
+
+	predicates := []predicate.TranslationLocale{
+		translationlocale.ChannelIDEQ(channelID),
+		translationlocale.SkillIDEQ(skillID),
+		translationlocale.OwnerUserIDEQ(ownerUserID),
+	}
+	locales := normalizeLocaleFilter(targetLocales)
+	if len(locales) > 0 {
+		// 指定語系關閉時才加 target_locale 條件；整體關閉時不可加空 IN 條件，
+		// 否則會變成刪不到任何資料。
+		predicates = append(predicates, translationlocale.TargetLocaleIn(locales...))
+	}
+
+	deleted, err := r.db.TranslationLocale.Delete().Where(predicates...).Exec(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to remove translation locales: %w", err)
+	}
+	return deleted, nil
+}
+
+// CountOwnerTranslationLocales 統計某使用者在 channel 中仍保留的翻譯語系數量。
+//
+// stop_translation_locale 會用這個數字判斷是否還需要保留 channel_service_member：
+// - count > 0：仍有其他語系啟用，保留 service member。
+// - count == 0：已無翻譯語系，移除 service member，表示此使用者已關閉翻譯 skill。
+func (r *ChannelMessageRepo) CountOwnerTranslationLocales(ctx context.Context, channelID uuid.UUID, skillID uuid.UUID, ownerUserID uuid.UUID) (int, error) {
+	if r == nil || r.db == nil {
+		return 0, fmt.Errorf("channel repository not initialized")
+	}
+	if channelID == uuid.Nil {
+		return 0, fmt.Errorf("channel id is required")
+	}
+	if skillID == uuid.Nil {
+		return 0, fmt.Errorf("skill id is required")
+	}
+	if ownerUserID == uuid.Nil {
+		return 0, fmt.Errorf("owner user id is required")
+	}
+
+	count, err := r.db.TranslationLocale.Query().
+		Where(
+			translationlocale.ChannelIDEQ(channelID),
+			translationlocale.SkillIDEQ(skillID),
+			translationlocale.OwnerUserIDEQ(ownerUserID),
+		).
+		Count(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count translation locales: %w", err)
+	}
+	return count, nil
+}
+
+func normalizeLocaleFilter(targetLocales []string) []string {
+	if len(targetLocales) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(targetLocales))
+	locales := make([]string, 0, len(targetLocales))
+	for _, targetLocale := range targetLocales {
+		locale := strings.TrimSpace(targetLocale)
+		if locale == "" {
+			continue
+		}
+		// DB 目前保存的是原始 locale 字面；這裡只用 lower key 去重，
+		// 實際刪除時仍保留第一個輸入值，避免在 repository 層做額外語系轉換。
+		key := strings.ToLower(locale)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		locales = append(locales, locale)
+	}
+	return locales
 }
 
 // ListChannelSkillTargetLocales returns configured translation target locales by channel and skill.

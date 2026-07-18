@@ -3,6 +3,7 @@ package actionpost
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"strings"
 
 	"assistant-api/internal/integration/unifiedmessage"
@@ -17,6 +18,10 @@ const (
 	// translationStartOperation 是翻譯啟用動作在 action 決策層的 operation 名稱。
 	// Dispatcher 會用這個值把決策結果路由到對應 side-effect handler。
 	translationStartOperation = "start_translation_locale"
+	// translationStopAllOperation 代表關閉發起者在目前 channel 的整體翻譯服務。
+	translationStopAllOperation = "stop_translation_all"
+	// translationStopLocaleOperation 代表移除發起者在目前 channel 建立的指定翻譯語系。
+	translationStopLocaleOperation = "stop_translation_locale"
 )
 
 // Handler 是 action 決策後的擴充處理函式簽名。
@@ -66,7 +71,9 @@ func New(handlers map[string]Handler) *Dispatcher {
 // 3) 各 provider 無需修改 dispatch 流程，即可共用新能力
 func NewDefaultDispatcher(repo *repository.ChannelMessageRepo) *Dispatcher {
 	return New(map[string]Handler{
-		translationStartOperation: NewPersistTranslationCommandStateHandler(repo),
+		translationStartOperation:      NewPersistTranslationCommandStateHandler(repo),
+		translationStopAllOperation:    NewRemoveTranslationCommandStateHandler(repo),
+		translationStopLocaleOperation: NewRemoveTranslationCommandStateHandler(repo),
 	})
 }
 
@@ -342,6 +349,250 @@ func NewPersistTranslationCommandStateHandler(repo *repository.ChannelMessageRep
 	}
 }
 
+// NewRemoveTranslationCommandStateHandler 建立翻譯停用副作用的共用 handler。
+//
+// stop_translation_all：
+// 1) 刪除發起者在目前 channel 的 translation locales
+// 2) 刪除發起者在 channel_service_member 中的翻譯 skill 關聯
+//
+// stop_translation_locale：
+// 1) 只刪除 action_params.target_locales 指定的 locales
+// 2) 若該使用者已沒有剩餘 translation locales，再移除 service member
+func NewRemoveTranslationCommandStateHandler(repo *repository.ChannelMessageRepo) Handler {
+	return func(message *unifiedmessage.Message, senderUserID string, decision *llminteraction.ActionDecision, matchedSkillCode string) bool {
+		if repo == nil || message == nil || decision == nil {
+			zap.L().Error("translation command removal failed: missing required dependency",
+				zap.Bool("repo_nil", repo == nil),
+				zap.Bool("message_nil", message == nil),
+				zap.Bool("decision_nil", decision == nil),
+			)
+			return false
+		}
+
+		apiOperation := strings.TrimSpace(decision.APIOperation)
+		operationKey := strings.ToLower(apiOperation)
+		// 同一個 handler 同時支援「整體關閉」與「指定語系關閉」，
+		// 其他 operation 一律交回 dispatcher 視為未處理。
+		if operationKey != translationStopAllOperation && operationKey != translationStopLocaleOperation {
+			return false
+		}
+
+		// unified message 的 ChannelID 是平台外部識別；刪除資料前必須先解析成內部 channel UUID，
+		// 才能精準命中 channel_service_member 與 translation_locale 的資料列。
+		channel, err := repo.GetChannelByPlatformGroupID(
+			context.Background(),
+			strings.TrimSpace(message.Platform),
+			strings.TrimSpace(message.ChannelID),
+		)
+		if err != nil || channel == nil || channel.ID == uuid.Nil {
+			zap.L().Error("translation command removal failed: resolve internal channel failed",
+				zap.String("platform", strings.TrimSpace(message.Platform)),
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("channel_type", strings.TrimSpace(message.ChannelType)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.Error(err),
+			)
+			return false
+		}
+		channelUUID := channel.ID
+
+		// 停用指令同樣寫 action_result，讓前後端能查到這次指令是 success、failed 或 missing_parameter。
+		// 因此需要先用平台訊息 ID 找回已落庫的 channel_message。
+		persistedMessage, err := repo.FindMessageByPlatformMessageID(context.Background(), channelUUID, strings.TrimSpace(message.PlatformMessageID))
+		if err != nil {
+			zap.L().Error("translation command removal failed: resolve persisted message for action result",
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.String("api_operation", apiOperation),
+				zap.Error(err),
+			)
+			return false
+		}
+		if persistedMessage == nil || persistedMessage.ID == uuid.Nil {
+			zap.L().Error("translation command removal failed: persisted message not found for action result",
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.String("api_operation", apiOperation),
+			)
+			return false
+		}
+
+		persistResult := func(status string, resultMessage string) bool {
+			// action_results 的 key 由 api_operation + channel_message 決定；
+			// 同一則停用指令重跑時會更新既有結果，而不是新增重複紀錄。
+			if err := repo.UpsertActionResult(context.Background(), apiOperation, persistedMessage.ID, status, resultMessage); err != nil {
+				zap.L().Error("translation command removal failed: upsert action result",
+					zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+					zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+					zap.String("persisted_message_id", persistedMessage.ID.String()),
+					zap.String("api_operation", apiOperation),
+					zap.String("result_status", status),
+					zap.Error(err),
+				)
+				return false
+			}
+			return true
+		}
+
+		// senderUserID 代表下指令的人；關閉翻譯必須以此人為 owner 範圍，
+		// 不允許用 unknown 或空值模糊刪除資料。
+		senderUserID = strings.TrimSpace(senderUserID)
+		if senderUserID == "" || strings.EqualFold(senderUserID, "unknown") {
+			_ = persistResult("failed", "missing sender user id")
+			zap.L().Error("translation command removal failed: missing sender user id",
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.String("sender_user_id", senderUserID),
+			)
+			return false
+		}
+
+		// 目前翻譯 command state 以 LINE 綁定解析 owner user id；
+		// 若使用者尚未綁定，不能刪除任何 channel_member 或 locale。
+		ownerUserID, err := repo.ResolveUserIDByLineUserID(context.Background(), senderUserID)
+		if err != nil {
+			_ = persistResult("failed", "resolve owner user failed")
+			zap.L().Error("translation command removal failed: resolve owner user failed",
+				zap.String("line_user_id", senderUserID),
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.Error(err),
+			)
+			return false
+		}
+		if ownerUserID == uuid.Nil {
+			_ = persistResult("failed", "line user not bound")
+			zap.L().Error("translation command removal failed: line user not bound",
+				zap.String("line_user_id", senderUserID),
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			)
+			return false
+		}
+
+		// matchedSkillCode 來自上游 action/skill 決策結果；停用時也要求明確 skill，
+		// 避免用預設翻譯 skill 誤刪其他 skill 的 service member。
+		skillCode := strings.TrimSpace(matchedSkillCode)
+		if skillCode == "" {
+			_ = persistResult("failed", "missing matched skill code")
+			zap.L().Error("translation command removal failed: missing matched skill code",
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.String("line_user_id", senderUserID),
+			)
+			return false
+		}
+		skillID, err := repo.ResolveSkillIDByCode(context.Background(), skillCode)
+		if err != nil {
+			_ = persistResult("failed", "resolve skill failed")
+			zap.L().Error("translation command removal failed: resolve skill failed",
+				zap.String("skill_code", skillCode),
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.Error(err),
+			)
+			return false
+		}
+		if skillID == uuid.Nil {
+			_ = persistResult("failed", "skill not found")
+			zap.L().Error("translation command removal failed: skill not found",
+				zap.String("skill_code", skillCode),
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			)
+			return false
+		}
+
+		targetLocales := ExtractTranslationTargetLocales(decision)
+		// 指定語系關閉必須帶 target_locales；缺參時只記 action_result，
+		// 不進行任何資料刪除，保留使用者現有翻譯設定。
+		if operationKey == translationStopLocaleOperation && len(targetLocales) == 0 {
+			_ = persistResult("missing_parameter", "target_locales is required")
+			zap.L().Error("translation command removal failed: missing required locale params",
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.String("api_operation", apiOperation),
+			)
+			return false
+		}
+
+		if operationKey == translationStopAllOperation {
+			// 整體關閉不需要 locale filter；repository 會刪除此 owner 在該 channel 的全部翻譯語系。
+			targetLocales = nil
+		}
+		removedLocales, err := repo.RemoveTranslationLocalesFromChannel(context.Background(), channelUUID, skillID, ownerUserID, targetLocales)
+		if err != nil {
+			_ = persistResult("failed", "remove translation locales failed")
+			zap.L().Error("translation command removal failed: remove translation locales",
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.String("line_user_id", senderUserID),
+				zap.String("skill_code", skillCode),
+				zap.Strings("target_locales", targetLocales),
+				zap.Error(err),
+			)
+			return false
+		}
+
+		// 刪除指定語系後先查剩餘數量，避免使用者仍有其他翻譯語系時就把 service member 移掉。
+		remainingLocales, err := repo.CountOwnerTranslationLocales(context.Background(), channelUUID, skillID, ownerUserID)
+		if err != nil {
+			_ = persistResult("failed", "count remaining translation locales failed")
+			zap.L().Error("translation command removal failed: count remaining locales",
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.String("line_user_id", senderUserID),
+				zap.String("skill_code", skillCode),
+				zap.Error(err),
+			)
+			return false
+		}
+
+		removedMembers := 0
+		if operationKey == translationStopAllOperation || remainingLocales == 0 {
+			// stop_translation_all 一律移除 service member；
+			// stop_translation_locale 則只在該 owner 已無剩餘 locale 時移除。
+			removedMembers, err = repo.RemoveServiceMemberFromChannel(context.Background(), channelUUID, ownerUserID, skillID)
+			if err != nil {
+				_ = persistResult("failed", "remove service member failed")
+				zap.L().Error("translation command removal failed: remove service member",
+					zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+					zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+					zap.String("line_user_id", senderUserID),
+					zap.String("skill_code", skillCode),
+					zap.Error(err),
+				)
+				return false
+			}
+		}
+
+		// result_message 用簡單 key=value 格式保存，方便 command chain 之後回溯與除錯。
+		resultParts := []string{
+			"removed_locales=" + intString(removedLocales),
+			"removed_service_members=" + intString(removedMembers),
+		}
+		if len(targetLocales) > 0 {
+			resultParts = append(resultParts, "target_locales="+strings.Join(targetLocales, ","))
+		}
+		if !persistResult("success", strings.Join(resultParts, ";")) {
+			return false
+		}
+
+		zap.L().Info("line translation command state removed",
+			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			zap.String("persisted_message_id", persistedMessage.ID.String()),
+			zap.String("line_user_id", senderUserID),
+			zap.String("skill_code", skillCode),
+			zap.String("api_operation", apiOperation),
+			zap.Strings("target_locales", targetLocales),
+			zap.Int("removed_locales", removedLocales),
+			zap.Int("removed_service_members", removedMembers),
+		)
+		return true
+	}
+}
+
 // ExtractTranslationTargetLocales 從通用 action_params 擷取翻譯語系參數。
 //
 // 契約固定使用 target_locales（字串陣列），
@@ -392,4 +643,8 @@ func dedupeLocales(locales []string) []string {
 		return nil
 	}
 	return out
+}
+
+func intString(value int) string {
+	return strconv.Itoa(value)
 }
