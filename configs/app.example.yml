@@ -1,0 +1,155 @@
+run_mode: "dev"
+
+# 日誌設定：控制輸出等級與檔案輪替策略。
+log:
+    level: "info"
+    filename: ""
+    max_size: 10
+    max_age: 7
+    max_backups: 5
+
+server:
+    # API 服務對外監聽埠。
+    port: "8080"
+
+ai:
+    # 第一階段：embedding 向量服務（用於 top-k 候選召回）。
+    embedding:
+        url: "http://127.0.0.1:9000"
+        timeout_seconds: 60
+        max_attempts: 4
+        retry_backoff_ms: 500
+        path: "/embed"
+        # 第一階段向量召回（top-k）最多取回幾筆候選。
+        retrieval_top_k: 10
+        # embedding 探活策略（毫秒）：
+        #背景主動探活週期
+        alive_probe_interval_ms: 2000
+        #單次探活最長等待
+        alive_probe_timeout_ms: 1500
+        #成功後快取多久不再探活
+        alive_success_ttl_ms: 10000
+        #失敗後多久內直接快回錯
+        alive_failure_cooldown_ms: 3000
+
+    reranker:
+        enabled: true
+        target: "aistant.reranker"
+        timeout_seconds: 60
+        # 第二階段精排後最終保留幾筆候選，這筆數會小於 retrieval_top_k，代表從較大候選集中縮減到最終要交給 semantic decision 判斷的筆數。
+        top_k: 3
+        # reranker 探活策略（毫秒），用途同 embedding。
+        alive_success_ttl_ms: 10000
+        alive_failure_cooldown_ms: 3000
+
+    # LLM 互動服務（第三階段）
+    llm_interaction:
+        decision:
+            profile: "aistant.llm"
+            timeout: 180
+            max_token: 1024
+            temperature: 0.2
+        chat:
+            # 公開版預設走本地 provider，避免 cloud token 留空時啟動失敗。
+            profile: "aistant.llm"
+            timeout: 120
+            max_token: 1024
+            temperature: null
+        translate:
+            profile: "aistant.llm"
+            timeout: 120
+            max_token: 1024
+            temperature: 0.2
+        chatgpt:
+            url: "https://api.openai.com/v1"
+            # 安全規範：公開版 app.yml 不放密鑰，請在 app.local.yml 填入實際 token。
+            token: ""
+            profiles:
+                action_decision:
+                    model_name: "gpt-4o-mini"
+                    timeout_seconds: 120
+                    max_tokens: 1024
+                    temperature: 0.2
+                chat_search:
+                    model_name: "gpt-5-search-api-2025-10-14"
+                    timeout_seconds: 120
+                    max_tokens: 1024
+                    temperature: null
+        command_confidence_threshold: 0.7
+        question_confidence_threshold: 0.6
+        decision_json_retry_count: 0
+
+# LLM provider 分組設定：每個 provider 底下可放多個 profile。
+llm_providers:
+    aistant:
+        type: "local"
+        profiles:
+            embedding:
+                url: "http://127.0.0.1:9000"
+                path: "/embed"
+            reranker:
+                url: "http://127.0.0.1:9001"
+                path: "/rerank"
+            llm:
+                url: "http://127.0.0.1:9002"
+                timeout_seconds: 120
+                action_decision_path: "/predict/action_decision"
+                question_answer_path: "/predict/question_answer"
+                translate_path: "/translate"
+
+    openai:
+        type: "cloud"
+        url: "https://api.openai.com/v1"
+        # 安全規範：公開版 app.yml 不放密鑰，請在 app.local.yml 填入實際 token。
+        token: ""
+        profiles:
+            chat_search:
+                model_name: "gpt-5-search-api-2025-10-14"
+                timeout_seconds: 120
+                max_tokens: 1024
+                temperature: null
+                # 搜尋型 chat profile 不相容 response_format=json_object，因此在設定層關閉。
+                # JSON 契約仍由 prompt 與後端 parse 驗證維持，不依賴 OpenAI 強制輸出模式。
+                use_json_response_format: false
+
+# 資料庫 schema 自動建立開關（開發環境常設為 true）。
+database:
+    auto_schema_create: true
+
+# PostgreSQL 連線資訊。
+postgresql:
+    address: "127.0.0.1:5432"
+    database: "assistant_dev2"
+    user_name: "postgres"
+    password: ""
+    parameters: "sslmode=disable"
+
+# LINE 平台整合設定（OAuth + webhook bot 資訊）。
+line:
+    channel_token: ""
+    channel_secret: ""
+    channel_id: ""
+    bot_user_id: ""
+    client_secret: ""
+    redirect_uri: "https://uninebriated-nonexplorative-kasey.ngrok-free.dev/line/bind"
+    assistant_bot_url: "https://line.me/R/ti/p/@001ondgw"
+    scopes: "openid profile email"
+
+# Slack 平台整合設定（Events API + OAuth 安裝）。
+slack:
+    app_id: ""
+    client_id: ""
+    client_secret: ""
+    signing_secret: ""
+    verification_token: ""
+    bot_user_id: ""
+    redirect_uri: "https://uninebriated-nonexplorative-kasey.ngrok-free.dev/slack/oauth/callback"
+    login_redirect_uri: "https://uninebriated-nonexplorative-kasey.ngrok-free.dev/slack/login/callback"
+    scopes: "app_mentions:read,channels:history,chat:write,groups:history,im:history,mpim:history"
+    login_scopes: "openid profile email"
+    user_scopes: ""
+
+# GraphQL API 與 Playground 路由。
+graphql:
+    query_path: "/query"
+    playground_path: "/playground"
