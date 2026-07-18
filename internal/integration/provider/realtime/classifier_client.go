@@ -24,6 +24,8 @@ type ClassificationResult struct {
 	ModelName string
 }
 
+// classifierPrompt 暫放在 client：目前它是 venv classifier 的 transport contract，
+// 不是可由部署環境調整的設定。等分類 prompt 穩定後，再視需要抽到 prompt registry。
 const classifierPrompt = `Classify the incoming non-command chat message into one trained service tag.
 Use only the classifier model label space and return the predicted label from the model.`
 
@@ -83,6 +85,8 @@ func (c *LocalClassifierClient) Classify(ctx context.Context, text string) (*Cla
 		Scores         map[string]float64 `json:"scores"`
 	}
 
+	// prompt 由 API client 注入，venv classifier 不硬編提示詞；
+	// labels 仍可由 ai.classifier.labels 限縮本次允許的模型 label space。
 	payload, err := json.Marshal(classifyRequest{Text: inputText, Prompt: classifierPrompt, Labels: append([]string(nil), c.labels...)})
 	if err != nil {
 		return nil, err

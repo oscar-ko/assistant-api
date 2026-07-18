@@ -112,6 +112,8 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 		Classifier:    classifierClient,
 		PlatformLabel: "line:" + strings.TrimSpace(classifierProfile),
 	})
+	// 非指令訊息允許多個 realtime service 同時處理。
+	// 翻譯會主動送出譯文；分類只產生 tag 並交給後續 handler，不阻斷彼此。
 	flow := conversationflow.NewFromFactory(conversationflow.FactoryOptions{
 		PlatformLabel:               "line",
 		BotSenderID:                 strings.TrimSpace(config.Line.BotUserID),

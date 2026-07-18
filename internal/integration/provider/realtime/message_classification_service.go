@@ -78,6 +78,8 @@ func (s *MessageClassificationService) Handle(ctx context.Context, messageCtx Me
 		return
 	}
 
+	// tag 是模型訓練產物，名稱可能隨訓練資料演進而調整，因此不落庫。
+	// 這裡直接 fan-out 給註冊的 handler，讓 todo/calendar 等服務即時消化分類結果。
 	for _, handler := range s.handlers {
 		handler.HandleClassification(ctx, messageCtx, *result)
 	}

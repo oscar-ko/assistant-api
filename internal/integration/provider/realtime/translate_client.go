@@ -69,9 +69,9 @@ func (c *LocalTranslateClient) Translate(ctx context.Context, text string, targe
 	}
 
 	type translateRequest struct {
-		Prompt        string   `json:"prompt"`
-		Text          string   `json:"text"`
-		TargetLocales []string `json:"target_locales"`
+		Prompt                string   `json:"prompt"`
+		ValidationRetryPrompt string   `json:"validation_retry_prompt"`
+		TargetLocales         []string `json:"target_locales"`
 	}
 	type translateResponse struct {
 		SchemaVersion string            `json:"schema_version"`
@@ -79,8 +79,14 @@ func (c *LocalTranslateClient) Translate(ctx context.Context, text string, targe
 	}
 
 	endpoint := c.baseURL + c.endpointPath
-	prompt := "You are a translation engine. Translate the message content into all target locales. Return strict JSON only with this schema: {\"schema_version\":\"v1\",\"translations\":{\"<locale>\":\"<translation>\"}}. The translations object keys must exactly match target locales. Do not include extra keys or explanations."
-	payload, err := json.Marshal(translateRequest{Prompt: prompt, Text: inputText, TargetLocales: locales})
+	// 翻譯 prompt 也由 API 端完整注入：包含固定輸出契約、當次 target locales、以及原始訊息。
+	// 9003 只根據 prompt 執行模型與驗證 translations，不再自行拼接 text。
+	prompt := buildLocalTranslatePrompt(locales, inputText)
+	payload, err := json.Marshal(translateRequest{
+		Prompt:                prompt,
+		ValidationRetryPrompt: buildLocalTranslateValidationRetryPrompt(prompt),
+		TargetLocales:         locales,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -131,6 +137,26 @@ func (c *LocalTranslateClient) Translate(ctx context.Context, text string, targe
 		return nil, fmt.Errorf("translate endpoint returned no matching locale translations")
 	}
 	return result, nil
+}
+
+func buildLocalTranslatePrompt(locales []string, inputText string) string {
+	return strings.TrimSpace(`You are a translation engine.
+Translate the message content into all target locales.
+Return strict JSON only with this schema: {"schema_version":"v1","translations":{"<locale>":"<translation>"}}.
+The translations object keys must exactly match target locales.
+Do not include extra keys or explanations.
+
+Target locales: ` + strings.Join(locales, ", ") + `
+Message content:
+` + strings.TrimSpace(inputText))
+}
+
+func buildLocalTranslateValidationRetryPrompt(prompt string) string {
+	return strings.TrimSpace(prompt + `
+
+Your previous JSON output did not satisfy validation. Return strict JSON only.
+Schema must be exactly: {"schema_version":"v1","translations":{...}}.
+Validation failure: {validation_error}`)
 }
 
 // dedupeLocales removes blank and duplicate locale values.

@@ -16,8 +16,8 @@ import (
 	aillminteraction "assistant-api/internal/integration/ai/llm_interaction"
 	aitopkfilter "assistant-api/internal/integration/ai/topkfilter"
 	"assistant-api/internal/integration/provider/realtime"
-	"assistant-api/internal/integration/runtimecontext"
 	webhooklog "assistant-api/internal/integration/provider/webhooklog"
+	"assistant-api/internal/integration/runtimecontext"
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
 	"assistant-api/internal/usecase/actionpost"
@@ -108,6 +108,8 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 		Classifier:    classifierClient,
 		PlatformLabel: "slack:" + strings.TrimSpace(classifierProfile),
 	})
+	// Slack 和 LINE 共用同一組非指令 realtime services；
+	// 平台差異只留在 sender/user resolver，分類 tag 的後續處理由 handler 接手。
 	flow := conversationflow.NewFromFactory(conversationflow.FactoryOptions{
 		PlatformLabel:               "slack",
 		BotSenderID:                 "",

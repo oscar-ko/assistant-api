@@ -163,8 +163,9 @@ type interactionClient struct {
 }
 
 type classificationRequest struct {
-	Prompt string `json:"prompt"`
-	Text   string `json:"text"`
+	Prompt                string `json:"prompt"`
+	JSONDecodeRetryPrompt string `json:"json_decode_retry_prompt"`
+	ValidationRetryPrompt string `json:"validation_retry_prompt"`
 }
 
 type upstreamErrorPayload struct {
@@ -361,9 +362,15 @@ func BuildClarifyingQuestionPrompt(reason string) string {
 }
 
 func (c *interactionClient) buildRequest(ctx context.Context, path string, prompt string, text string) (*http.Request, error) {
-	// 這裡只傳兩個欄位：prompt + text。
-	// 目的是讓 9002 只做「語意到 action 的最後選擇」，不承擔上游 rerank 結構細節。
-	payload := classificationRequest{Prompt: strings.TrimSpace(prompt), Text: strings.TrimSpace(text)}
+	// 9003 的 llm_interaction 服務只負責「執行模型 + 驗證輸出」，
+	// 不再自己拼接使用者訊息或重試提示詞。這裡由 API 端一次組好完整 prompt，
+	// 讓 prompt 契約集中在 Go 端，避免 Python 服務與 API 端各維護一份規則。
+	composedPrompt := buildLocalInteractionPrompt(prompt, text)
+	payload := classificationRequest{
+		Prompt:                composedPrompt,
+		JSONDecodeRetryPrompt: buildJSONDecodeRetryPrompt(composedPrompt),
+		ValidationRetryPrompt: buildValidationRetryPrompt(composedPrompt),
+	}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
@@ -375,6 +382,32 @@ func (c *interactionClient) buildRequest(ctx context.Context, path string, promp
 	}
 	req.Header.Set("Content-Type", "application/json")
 	return req, nil
+}
+
+func buildLocalInteractionPrompt(prompt string, text string) string {
+	// prompt 內含 action 候選、輸出 contract 與規則；text 是當次使用者訊息。
+	// 兩者在 API 端合併後送出，Python 端不再需要理解哪一段是系統規則、哪一段是訊息本文。
+	return strings.TrimSpace(strings.TrimSpace(prompt) + "\n\nMessage content:\n" + strings.TrimSpace(text))
+}
+
+func buildJSONDecodeRetryPrompt(composedPrompt string) string {
+	// JSON decode 失敗代表模型沒有輸出合法 JSON。重試時保留原完整 prompt，
+	// 只追加格式修正要求，避免第二次請求失去原本候選與使用者訊息脈絡。
+	return strings.TrimSpace(composedPrompt + `
+
+Your previous output was not valid JSON. Return exactly one-line JSON only.
+Do not include markdown or extra keys.
+Follow the exact output schema and constraints already defined in the original instruction above.`)
+}
+
+func buildValidationRetryPrompt(composedPrompt string) string {
+	// venv 會把 {validation_error} 替換成實際驗證錯誤。
+	// placeholder 由 API 端固定提供，確保每個本地 LLM endpoint 的 retry 行為一致。
+	return strings.TrimSpace(composedPrompt + `
+
+Your previous JSON output did not satisfy validation. Return strict JSON only.
+Follow the exact output schema and constraints already defined in the original instruction above.
+Validation failure: {validation_error}`)
 }
 
 // readErrorBodyPreview 在非 2xx 回應時讀出一小段 body，方便直接在 Go 端 log 看到
