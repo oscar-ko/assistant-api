@@ -47,7 +47,33 @@ type defaultActionSeed struct {
 // 4) 最後補齊缺失的 route embedding
 // 任何一步失敗都會中止，避免寫入部分不一致的種子資料。
 func seedActionCatalog(ctx context.Context, client *ent.Client) error {
-	seeds := []defaultSkillSeed{
+	seeds := defaultActionCatalogSeeds()
+
+	for _, seed := range seeds {
+		skillNode, err := upsertSeedSkill(ctx, client, seed)
+		if err != nil {
+			return err
+		}
+		for _, actionSeed := range seed.Actions {
+			actionNode, err := upsertSeedAction(ctx, client, skillNode.ID, actionSeed)
+			if err != nil {
+				return err
+			}
+			if err := upsertSeedActionRoutes(ctx, client, actionNode.ID, "zh-TW", actionSeed.RouteTexts); err != nil {
+				return err
+			}
+		}
+	}
+
+	if err := backfillActionRouteEmbeddings(ctx, client); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func defaultActionCatalogSeeds() []defaultSkillSeed {
+	return []defaultSkillSeed{
 		{
 			SkillCode:   "todo.reminder",
 			Name:        "Todo Reminder Skill",
@@ -89,16 +115,16 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Name:           "Stop Translation All",
 					Description:    "Disable translation service globally in the current channel.",
 					APIOperation:   "stop_translation_all",
-					RouteTexts:     []string{"關閉翻譯服務", "停止所有翻譯", "不要翻譯了", "把翻譯功能全部關掉"},
-					CommandPurpose: "用途: 關閉整體翻譯服務。規則: 直接判定為 stop_translation_all，不需語系參數。",
+					RouteTexts:     []string{"關閉翻譯", "停止翻譯", "關閉翻譯服務", "停止所有翻譯", "不要再翻譯", "把翻譯功能全部關掉"},
+					CommandPurpose: "用途: 關閉整體翻譯服務。規則: 當使用者要求停用翻譯且未明確限定目標語系或語言時，直接判定為 stop_translation_all，不需語系參數。若使用者明確指定要停用的語系或語言，才應改選 stop_translation_locale。",
 				},
 				{
 					ActionCode:     action.ActionCodeConfigure,
 					Name:           "Stop Translation Locale",
 					Description:    "Disable translation for a specific locale in the current channel.",
 					APIOperation:   "stop_translation_locale",
-					RouteTexts:     []string{"關閉某語言翻譯", "停止指定語言翻譯", "移除翻譯語系", "把某個語言的翻譯關掉", "不要某語言翻譯"},
-					CommandPurpose: fmt.Sprintf("用途: 停用指定翻譯語系。規則: 只接受使用者明確指定的目標語系；禁止推測預設語系、聊天語言或從上下文自動補值。若使用者以自然語言提及語言名稱（如 中文/英文/日文 或 Chinese/English/Japanese），視為已明確指定語系，必須將其正規化為 action_params.target_locales 的語系碼。輸出格式: action_params.target_locales 必須是字串陣列，元素格式僅允許語言碼(xx)或語系碼(xx-YY)，例如 en、ja、zh-TW；不可輸出自然語言名稱。若輸入包含 [command_chain_context] 且 missing_parameters 含 %s，代表補參數階段；此時若使用者提及一個或多個語言名稱，必須直接 next_step=execute_action 並輸出 action_params.target_locales。若沒有 [command_chain_context]，代表初次決策階段；僅在使用者完全未提及任何可映射語系時，才可 next_step=ask_clarifying_question 且 missing_parameters=[%s]。", aillminteraction.ActionParamTargetLocales, aillminteraction.ActionParamTargetLocales),
+					RouteTexts:     []string{"關閉英文翻譯", "停止日文翻譯", "不要翻譯成中文", "移除英文翻譯語系", "停止指定語言翻譯"},
+					CommandPurpose: fmt.Sprintf("用途: 停用指定翻譯語系。規則: 只有使用者明確指定目標語系或語言時才選 stop_translation_locale；若只是要求停用翻譯但未限定語系或語言，應選 stop_translation_all。只接受使用者明確指定的目標語系；禁止推測預設語系、聊天語言或從上下文自動補值。若使用者以自然語言提及語言名稱（如 中文/英文/日文 或 Chinese/English/Japanese），視為已明確指定語系，必須將其正規化為 action_params.target_locales 的語系碼。輸出格式: action_params.target_locales 必須是字串陣列，元素格式僅允許語言碼(xx)或語系碼(xx-YY)，例如 en、ja、zh-TW；不可輸出自然語言名稱。若輸入包含 [command_chain_context] 且 missing_parameters 含 %s，代表補參數階段；此時若使用者提及一個或多個語言名稱，必須直接 next_step=execute_action 並輸出 action_params.target_locales。若沒有 [command_chain_context]，代表初次決策階段；僅在使用者完全未提及任何可映射語系時，才可 next_step=ask_clarifying_question 且 missing_parameters=[%s]。", aillminteraction.ActionParamTargetLocales, aillminteraction.ActionParamTargetLocales),
 				},
 			},
 		},
@@ -149,28 +175,6 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 			},
 		},
 	}
-
-	for _, seed := range seeds {
-		skillNode, err := upsertSeedSkill(ctx, client, seed)
-		if err != nil {
-			return err
-		}
-		for _, actionSeed := range seed.Actions {
-			actionNode, err := upsertSeedAction(ctx, client, skillNode.ID, actionSeed)
-			if err != nil {
-				return err
-			}
-			if err := upsertSeedActionRoutes(ctx, client, actionNode.ID, "zh-TW", actionSeed.RouteTexts); err != nil {
-				return err
-			}
-		}
-	}
-
-	if err := backfillActionRouteEmbeddings(ctx, client); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // upsertSeedSkill 以 skill_code 作為唯一鍵，建立或更新 skill。
@@ -247,17 +251,26 @@ func upsertSeedAction(ctx context.Context, client *ent.Client, skillID uuid.UUID
 // - locale 空值時預設使用 zh-TW，確保資料一致。
 // - route text 會 trim 並忽略空字串。
 // - 若已存在同 action/locale/text 的記錄則跳過，保持可重複執行（idempotent）。
+// - 同步移除同 action/locale 下不在 seed 清單內的舊 route，避免過時語料持續影響召回排序。
 func upsertSeedActionRoutes(ctx context.Context, client *ent.Client, actionID uuid.UUID, locale string, routeTexts []string) error {
 	trimmedLocale := strings.TrimSpace(locale)
 	if trimmedLocale == "" {
 		trimmedLocale = "zh-TW"
 	}
+	texts := normalizeSeedRouteTexts(routeTexts)
+	if len(texts) == 0 {
+		return fmt.Errorf("route_texts is required for action_id=%s locale=%s", actionID.String(), trimmedLocale)
+	}
 
-	for _, routeText := range routeTexts {
-		text := strings.TrimSpace(routeText)
-		if text == "" {
-			continue
-		}
+	if _, err := client.ActionRoute.Delete().Where(
+		actionroute.ActionIDEQ(actionID),
+		actionroute.LocaleEQ(trimmedLocale),
+		actionroute.RouteTextNotIn(texts...),
+	).Exec(ctx); err != nil {
+		return err
+	}
+
+	for _, text := range texts {
 		_, err := client.ActionRoute.Query().Where(actionroute.ActionIDEQ(actionID), actionroute.LocaleEQ(trimmedLocale), actionroute.RouteTextEQ(text)).Only(ctx)
 		if err != nil {
 			if !ent.IsNotFound(err) {
@@ -271,6 +284,23 @@ func upsertSeedActionRoutes(ctx context.Context, client *ent.Client, actionID uu
 		}
 	}
 	return nil
+}
+
+func normalizeSeedRouteTexts(routeTexts []string) []string {
+	seen := make(map[string]struct{}, len(routeTexts))
+	texts := make([]string, 0, len(routeTexts))
+	for _, routeText := range routeTexts {
+		text := strings.TrimSpace(routeText)
+		if text == "" {
+			continue
+		}
+		if _, exists := seen[text]; exists {
+			continue
+		}
+		seen[text] = struct{}{}
+		texts = append(texts, text)
+	}
+	return texts
 }
 
 // backfillActionRouteEmbeddings 為尚未有 embedding 的 action_route 回填向量。
