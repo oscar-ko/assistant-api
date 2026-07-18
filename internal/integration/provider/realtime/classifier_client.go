@@ -24,6 +24,9 @@ type ClassificationResult struct {
 	ModelName string
 }
 
+const classifierPrompt = `Classify the incoming non-command chat message into one trained service tag.
+Use only the classifier model label space and return the predicted label from the model.`
+
 // LocalClassifierClient calls the venv classifier service at /predict/classifier.
 type LocalClassifierClient struct {
 	baseURL      string
@@ -70,6 +73,7 @@ func (c *LocalClassifierClient) Classify(ctx context.Context, text string) (*Cla
 
 	type classifyRequest struct {
 		Text   string   `json:"text"`
+		Prompt string   `json:"prompt,omitempty"`
 		Labels []string `json:"labels,omitempty"`
 	}
 	type classifyResponse struct {
@@ -79,7 +83,7 @@ func (c *LocalClassifierClient) Classify(ctx context.Context, text string) (*Cla
 		Scores         map[string]float64 `json:"scores"`
 	}
 
-	payload, err := json.Marshal(classifyRequest{Text: inputText, Labels: append([]string(nil), c.labels...)})
+	payload, err := json.Marshal(classifyRequest{Text: inputText, Prompt: classifierPrompt, Labels: append([]string(nil), c.labels...)})
 	if err != nil {
 		return nil, err
 	}

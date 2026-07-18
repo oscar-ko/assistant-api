@@ -13,13 +13,17 @@ func BuildClassifierFromConfig(cfg config.AIConfig) (Classifier, string, error) 
 	if !classifierCfg.Enabled {
 		return nil, "", nil
 	}
-	baseURL := strings.TrimSpace(classifierCfg.URL)
-	if baseURL == "" {
-		return nil, "", fmt.Errorf("classifier url is required when ai.classifier.enabled is true")
+	target := strings.TrimSpace(classifierCfg.Target)
+	if target == "" {
+		return nil, "", fmt.Errorf("classifier target is required when ai.classifier.enabled is true")
 	}
-	timeout := classifierCfg.TimeoutSeconds
+	_, classifierProfile, err := config.ResolveLocalProviderProfile(config.LLMProviders, target)
+	if err != nil {
+		return nil, "", fmt.Errorf("invalid ai.classifier.target: %w", err)
+	}
+	timeout := classifierProfile.TimeoutSeconds
 	if timeout <= 0 {
-		return nil, "", fmt.Errorf("classifier timeout_seconds is required when ai.classifier.enabled is true")
+		return nil, "", fmt.Errorf("classifier profile timeout_seconds is required when ai.classifier.enabled is true")
 	}
-	return NewLocalClassifierClient(baseURL, timeout, classifierCfg.Path, classifierCfg.Labels), baseURL, nil
+	return NewLocalClassifierClient(classifierProfile.URL, timeout, classifierProfile.Path, classifierCfg.Labels), target, nil
 }

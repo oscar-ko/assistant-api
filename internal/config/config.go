@@ -56,11 +56,9 @@ type AIConfig struct {
 
 // ClassifierConfig controls the local message classifier used by realtime handlers.
 type ClassifierConfig struct {
-	Enabled        bool     `mapstructure:"enabled" yaml:"enabled"`
-	URL            string   `mapstructure:"url" yaml:"url"`
-	TimeoutSeconds int      `mapstructure:"timeout_seconds" yaml:"timeout_seconds"`
-	Path           string   `mapstructure:"path" yaml:"path"`
-	Labels         []string `mapstructure:"labels" yaml:"labels"`
+	Enabled bool     `mapstructure:"enabled" yaml:"enabled"`
+	Target  string   `mapstructure:"target" yaml:"target"`
+	Labels  []string `mapstructure:"labels" yaml:"labels"`
 }
 
 // LLMInteractionConfig 為角色導向的 LLM 互動設定。

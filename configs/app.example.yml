@@ -15,11 +15,10 @@ server:
 ai:
     # 第一階段：embedding 向量服務（用於 top-k 候選召回）。
     embedding:
-        url: "http://127.0.0.1:9000"
+        target: "aistant.embedding"
         timeout_seconds: 60
         max_attempts: 4
         retry_backoff_ms: 500
-        path: "/embed"
         # 第一階段向量召回（top-k）最多取回幾筆候選。
         retrieval_top_k: 10
         # embedding 探活策略（毫秒）：
@@ -44,9 +43,7 @@ ai:
 
     classifier:
         enabled: true
-        url: "http://127.0.0.1:9000"
-        timeout_seconds: 30
-        path: "/predict/classifier"
+        target: "aistant.classifier"
         labels: []
 
     # LLM 互動服務（第三階段）
@@ -91,14 +88,18 @@ llm_providers:
     aistant:
         type: "local"
         profiles:
-            embedding:
+            classifier:
                 url: "http://127.0.0.1:9000"
+                timeout_seconds: 30
+                path: "/predict/classifier"
+            embedding:
+                url: "http://127.0.0.1:9001"
                 path: "/embed"
             reranker:
-                url: "http://127.0.0.1:9001"
+                url: "http://127.0.0.1:9002"
                 path: "/rerank"
             llm:
-                url: "http://127.0.0.1:9002"
+                url: "http://127.0.0.1:9003"
                 timeout_seconds: 120
                 action_decision_path: "/predict/action_decision"
                 question_answer_path: "/predict/question_answer"
