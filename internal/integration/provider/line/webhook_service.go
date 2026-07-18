@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"assistant-api/internal/config"
-	"assistant-api/internal/ent"
+	"assistant-api/internal/integration/provider/messagepipeline"
 	"assistant-api/internal/integration/provider/realtime"
 	webhooklog "assistant-api/internal/integration/provider/webhooklog"
 	"assistant-api/internal/integration/unifiedmessage"
@@ -45,6 +45,7 @@ type WebhookService struct {
 	followUpSender        PushMessageService
 	nonCommandDispatcher  *realtime.Dispatcher
 	commandFlow           *conversationflow.Orchestrator
+	messagePipeline       *messagepipeline.Handler
 }
 
 // WebhookServiceOptions 提供 webhook service 的擴充設定。
@@ -112,6 +113,7 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 		Classifier:    classifierClient,
 		PlatformLabel: "line:" + strings.TrimSpace(classifierProfile),
 	})
+	nonCommandDispatcher := realtime.NewDispatcher(autoTranslate, messageClassifier)
 	// 非指令訊息允許多個 realtime service 同時處理。
 	// 翻譯會主動送出譯文；分類只產生 tag 並交給後續 handler，不阻斷彼此。
 	flow := conversationflow.NewFromFactory(conversationflow.FactoryOptions{
@@ -127,6 +129,13 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 		Dispatcher:                  dispatcher,
 		Messenger:                   lineOutboundMessenger{sender: options.FollowUpSender},
 	})
+	pipeline := &messagepipeline.Handler{
+		PlatformLabel:        "line",
+		Persistence:          persistSvc,
+		Decision:             decisionSvc,
+		NonCommandDispatcher: nonCommandDispatcher,
+		CommandFlow:          flow,
+	}
 	return &WebhookService{
 		repo:                  repo,
 		lineClient:            lineClient,
@@ -136,8 +145,9 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 		topKFilterService:     options.TopKFilter,
 		actionPostDispatcher:  dispatcher,
 		followUpSender:        options.FollowUpSender,
-		nonCommandDispatcher:  realtime.NewDispatcher(autoTranslate, messageClassifier),
+		nonCommandDispatcher:  nonCommandDispatcher,
 		commandFlow:           flow,
+		messagePipeline:       pipeline,
 	}
 }
 
@@ -276,60 +286,17 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 			message.ChannelName = resolvedChannelName
 		}
 
-		// 先落庫，確保訊息資料優先可用，不受後續 AI 延遲影響。
-		savedMessage := s.persistUnifiedMessage(message)
-		decision := &commanddecision.Decision{IsMentionedBot: message.MentionsUser(config.Line.BotUserID)}
-		if strings.EqualFold(strings.TrimSpace(message.ChannelType), "private") {
-			decision.IsPrivateChannel = true
-		}
-		decision.IsEffectiveMentionedBot = decision.IsMentionedBot
-		if s.decisionService != nil {
-			decision = s.decisionService.DecideMessage(context.Background(), message, savedMessage, config.Line.BotUserID)
-			if decision != nil && strings.EqualFold(strings.TrimSpace(message.ChannelType), "private") {
-				decision.IsPrivateChannel = true
-			}
-		}
-
-		if !decision.IsCommand() {
-			// 非指令訊息不進 command flow，但仍允許多服務即時 side-effect。
-			// 目前包含：翻譯服務；後續可擴充待辦分析等服務，避免互斥。
-			s.handleRealtimeNonCommandServices(
-				message,
-				savedMessage,
-				strings.TrimSpace(event.Source.UserID),
-				strings.TrimSpace(event.Message.QuoteToken),
-			)
+		if s.messagePipeline == nil {
 			continue
 		}
-
-		if decision.CommandChainError != nil {
-			zap.L().Debug("command chain check skipped",
-				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-				zap.Error(decision.CommandChainError),
-			)
-		} else if decision.IsOnCommandChain {
-			zap.L().Info("command chain message",
-				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
-				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-				zap.Bool("mentioned_bot", decision.IsMentionedBot),
-				zap.Bool("effective_mentioned_bot", decision.IsEffectiveMentionedBot),
-				zap.String("reply_to_msg_id", strings.TrimSpace(message.ReplyToMsgID)),
-			)
-		}
-
-		s.ensureCommandFlow()
-		if s.commandFlow == nil {
-			continue
-		}
-		s.commandFlow.ProcessCommand(
-			context.Background(),
-			message,
-			savedMessage,
-			strings.TrimSpace(event.Source.UserID),
-			strings.TrimSpace(event.ReplyToken),
-			strings.TrimSpace(event.Message.QuoteToken),
-		)
+		s.messagePipeline.Process(messagepipeline.Input{
+			Context:        context.Background(),
+			Message:        message,
+			BotUserID:      config.Line.BotUserID,
+			PlatformUserID: strings.TrimSpace(event.Source.UserID),
+			ReplyRef:       strings.TrimSpace(event.ReplyToken),
+			QuoteRef:       strings.TrimSpace(event.Message.QuoteToken),
+		})
 	}
 
 }
@@ -448,29 +415,6 @@ func (s *WebhookService) resolveLineChannelDisplayName(ctx context.Context, even
 	}
 }
 
-// handleRealtimeNonCommandServices 是非指令訊息的即時服務分派點。
-// 設計目標：
-// 1) 保持 command 與 non-command 路徑解耦
-// 2) 讓同一則訊息可並行觸發多個服務（翻譯、提醒分析等）
-// 3) 新服務只需在這裡掛載，不必改 command 判斷流程
-func (s *WebhookService) handleRealtimeNonCommandServices(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, lineUserID string, quoteToken string) {
-	if s == nil || message == nil {
-		return
-	}
-	if s.nonCommandDispatcher == nil {
-		return
-	}
-	// 非指令訊息可同時觸發多個即時服務；翻譯/未來服務都由共用 dispatcher 管理。
-	// 這裡只做資料轉交，不在 webhook service 裡直接判斷翻譯條件或執行任何額外邏輯，
-	// 讓 command flow 與 realtime side-effect 兩條路徑明確分離。
-	s.nonCommandDispatcher.Handle(context.Background(), realtime.MessageContext{
-		Message:        message,
-		SavedMessage:   savedMessage,
-		PlatformUserID: lineUserID,
-		QuoteRef:       quoteToken,
-	})
-}
-
 // lineRealtimeSender 將 LINE 的送訊息能力包成共用 realtime sender 介面。
 //
 // 讓 auto-translate 只依賴 SendText 介面，不需要關心實際是 LINE SDK、Slack SDK，
@@ -519,12 +463,6 @@ func (s *WebhookService) ensureCommandFlow() {
 		Dispatcher:                  dispatcher,
 		Messenger:                   lineOutboundMessenger{sender: s.followUpSender},
 	})
-}
-
-// persistUnifiedMessage 負責把統一訊息格式寫入 channel 與 channel_message。
-// 這個函式只做資料持久化，不應再混入 AI 判讀或其他額外業務邏輯。
-func (s *WebhookService) persistUnifiedMessage(message *unifiedmessage.Message) *ent.ChannelMessage {
-	return s.persistenceService.PersistUnifiedMessage(context.Background(), message)
 }
 
 // toActionCandidates 把 topkfilter 的 reranked 候選轉成 llm_interaction 可用的文字描述，

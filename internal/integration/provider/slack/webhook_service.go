@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"assistant-api/internal/config"
-	"assistant-api/internal/ent"
 	aillminteraction "assistant-api/internal/integration/ai/llm_interaction"
 	aitopkfilter "assistant-api/internal/integration/ai/topkfilter"
+	"assistant-api/internal/integration/provider/messagepipeline"
 	"assistant-api/internal/integration/provider/realtime"
 	webhooklog "assistant-api/internal/integration/provider/webhooklog"
 	"assistant-api/internal/integration/runtimecontext"
@@ -45,6 +45,7 @@ type WebhookService struct {
 	followUpSender        PushMessageService
 	nonCommandDispatcher  *realtime.Dispatcher
 	commandFlow           *conversationflow.Orchestrator
+	messagePipeline       *messagepipeline.Handler
 }
 
 type WebhookServiceOptions struct {
@@ -108,6 +109,7 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 		Classifier:    classifierClient,
 		PlatformLabel: "slack:" + strings.TrimSpace(classifierProfile),
 	})
+	nonCommandDispatcher := realtime.NewDispatcher(autoTranslate, messageClassifier)
 	// Slack 和 LINE 共用同一組非指令 realtime services；
 	// 平台差異只留在 sender/user resolver，分類 tag 的後續處理由 handler 接手。
 	flow := conversationflow.NewFromFactory(conversationflow.FactoryOptions{
@@ -123,6 +125,13 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 		Dispatcher:                  dispatcher,
 		Messenger:                   slackOutboundMessenger{sender: options.FollowUpSender},
 	})
+	pipeline := &messagepipeline.Handler{
+		PlatformLabel:        "slack",
+		Persistence:          persistSvc,
+		Decision:             decisionSvc,
+		NonCommandDispatcher: nonCommandDispatcher,
+		CommandFlow:          flow,
+	}
 	return &WebhookService{
 		repo:                  repo,
 		tokenStore:            tokenStore,
@@ -132,8 +141,9 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 		topKFilterService:     options.TopKFilter,
 		actionPostDispatcher:  dispatcher,
 		followUpSender:        options.FollowUpSender,
-		nonCommandDispatcher:  realtime.NewDispatcher(autoTranslate, messageClassifier),
+		nonCommandDispatcher:  nonCommandDispatcher,
 		commandFlow:           flow,
+		messagePipeline:       pipeline,
 	}
 }
 
@@ -233,39 +243,16 @@ func (s *WebhookService) ProcessIncoming(body []byte) (string, error) {
 		message.ChannelName = resolvedName
 	}
 
-	savedMessage := s.persistenceService.PersistUnifiedMessage(context.Background(), message)
-	decision := &commanddecision.Decision{IsMentionedBot: message.MentionsUser(botUserID)}
-	if strings.EqualFold(strings.TrimSpace(message.ChannelType), "private") {
-		decision.IsPrivateChannel = true
-	}
-	decision.IsEffectiveMentionedBot = decision.IsMentionedBot
-	if s.decisionService != nil {
-		decision = s.decisionService.DecideMessage(context.Background(), message, savedMessage, botUserID)
-		if decision != nil && strings.EqualFold(strings.TrimSpace(message.ChannelType), "private") {
-			decision.IsPrivateChannel = true
-		}
-	}
-	if decision == nil || !decision.IsCommand() {
-		s.handleRealtimeNonCommandServices(
-			message,
-			savedMessage,
-			strings.TrimSpace(req.Event.User),
-			resolveSlackReplyRef(*req.Event),
-		)
+	if s.messagePipeline == nil {
 		return "", nil
 	}
-
-	if s.commandFlow == nil {
-		return "", nil
-	}
-	s.commandFlow.ProcessCommand(
-		runtimecontext.WithBotSenderID(WithWorkspaceTeamID(context.Background(), strings.TrimSpace(message.PlatformTenantID)), botUserID),
-		message,
-		savedMessage,
-		strings.TrimSpace(message.SenderID),
-		resolveSlackReplyRef(*req.Event),
-		"",
-	)
+	s.messagePipeline.Process(messagepipeline.Input{
+		Context:        runtimecontext.WithBotSenderID(WithWorkspaceTeamID(context.Background(), strings.TrimSpace(message.PlatformTenantID)), botUserID),
+		Message:        message,
+		BotUserID:      botUserID,
+		PlatformUserID: strings.TrimSpace(req.Event.User),
+		ReplyRef:       resolveSlackReplyRef(*req.Event),
+	})
 	return "", nil
 }
 
@@ -343,27 +330,6 @@ func (m slackOutboundMessenger) SendText(ctx context.Context, chatID string, use
 		return "", nil
 	}
 	return m.sender.SendTextToChat(ctx, chatID, userID, text, replyRef, quoteRef)
-}
-
-func (s *WebhookService) handleRealtimeNonCommandServices(message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, slackUserID string, quoteRef string) {
-	if s == nil || message == nil {
-		return
-	}
-	if s.nonCommandDispatcher == nil {
-		return
-	}
-	botUserID, err := s.resolveWorkspaceBotUserID(context.Background(), strings.TrimSpace(message.PlatformTenantID))
-	if err != nil {
-		return
-	}
-	// 這裡只負責把 Slack 事件轉成共用 realtime context，避免 webhook 入口塞進太多 side-effect。
-	// 如果未來再加其他非指令服務，也應該掛在 dispatcher 內，而不是在這裡分支擴張。
-	s.nonCommandDispatcher.Handle(runtimecontext.WithBotSenderID(WithWorkspaceTeamID(context.Background(), strings.TrimSpace(message.PlatformTenantID)), botUserID), realtime.MessageContext{
-		Message:        message,
-		SavedMessage:   savedMessage,
-		PlatformUserID: slackUserID,
-		QuoteRef:       quoteRef,
-	})
 }
 
 func (s *WebhookService) resolveWorkspaceBotUserID(ctx context.Context, teamID string) (string, error) {
