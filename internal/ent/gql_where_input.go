@@ -1596,13 +1596,14 @@ type ChannelMessageWhereInput struct {
 	ChannelIDIn    []uuid.UUID `json:"channelIDIn,omitempty"`
 	ChannelIDNotIn []uuid.UUID `json:"channelIDNotIn,omitempty"`
 
-	// "related_message_id" field predicates.
-	RelatedMessageID       *uuid.UUID  `json:"relatedMessageID,omitempty"`
-	RelatedMessageIDNEQ    *uuid.UUID  `json:"relatedMessageIDNEQ,omitempty"`
-	RelatedMessageIDIn     []uuid.UUID `json:"relatedMessageIDIn,omitempty"`
-	RelatedMessageIDNotIn  []uuid.UUID `json:"relatedMessageIDNotIn,omitempty"`
-	RelatedMessageIDIsNil  bool        `json:"relatedMessageIDIsNil,omitempty"`
-	RelatedMessageIDNotNil bool        `json:"relatedMessageIDNotNil,omitempty"`
+	// "triggered_message_id" field predicates.
+	// 中文說明：用於篩選「由某則訊息觸發的系統訊息」，不要與平台 reply_to_msg_id 混用。
+	TriggeredMessageID       *uuid.UUID  `json:"triggeredMessageID,omitempty"`
+	TriggeredMessageIDNEQ    *uuid.UUID  `json:"triggeredMessageIDNEQ,omitempty"`
+	TriggeredMessageIDIn     []uuid.UUID `json:"triggeredMessageIDIn,omitempty"`
+	TriggeredMessageIDNotIn  []uuid.UUID `json:"triggeredMessageIDNotIn,omitempty"`
+	TriggeredMessageIDIsNil  bool        `json:"triggeredMessageIDIsNil,omitempty"`
+	TriggeredMessageIDNotNil bool        `json:"triggeredMessageIDNotNil,omitempty"`
 
 	// "platform_tenant_id" field predicates.
 	PlatformTenantID             *string  `json:"platformTenantID,omitempty"`
@@ -1730,13 +1731,15 @@ type ChannelMessageWhereInput struct {
 	HasChannel     *bool                `json:"hasChannel,omitempty"`
 	HasChannelWith []*ChannelWhereInput `json:"hasChannelWith,omitempty"`
 
-	// "related_message" edge predicates.
-	HasRelatedMessage     *bool                       `json:"hasRelatedMessage,omitempty"`
-	HasRelatedMessageWith []*ChannelMessageWhereInput `json:"hasRelatedMessageWith,omitempty"`
+	// "triggered_message" edge predicates.
+	// 中文說明：篩選是否存在觸發來源，或限制來源訊息本身的條件。
+	HasTriggeredMessage     *bool                       `json:"hasTriggeredMessage,omitempty"`
+	HasTriggeredMessageWith []*ChannelMessageWhereInput `json:"hasTriggeredMessageWith,omitempty"`
 
-	// "replies" edge predicates.
-	HasReplies     *bool                       `json:"hasReplies,omitempty"`
-	HasRepliesWith []*ChannelMessageWhereInput `json:"hasRepliesWith,omitempty"`
+	// "triggered_messages" edge predicates.
+	// 中文說明：篩選是否曾觸發系統訊息，或限制被觸發出的系統訊息條件。
+	HasTriggeredMessages     *bool                       `json:"hasTriggeredMessages,omitempty"`
+	HasTriggeredMessagesWith []*ChannelMessageWhereInput `json:"hasTriggeredMessagesWith,omitempty"`
 }
 
 // AddPredicates adds custom predicates to the where input to be used during the filtering phase.
@@ -1933,23 +1936,23 @@ func (i *ChannelMessageWhereInput) P() (predicate.ChannelMessage, error) {
 	if len(i.ChannelIDNotIn) > 0 {
 		predicates = append(predicates, channelmessage.ChannelIDNotIn(i.ChannelIDNotIn...))
 	}
-	if i.RelatedMessageID != nil {
-		predicates = append(predicates, channelmessage.RelatedMessageIDEQ(*i.RelatedMessageID))
+	if i.TriggeredMessageID != nil {
+		predicates = append(predicates, channelmessage.TriggeredMessageIDEQ(*i.TriggeredMessageID))
 	}
-	if i.RelatedMessageIDNEQ != nil {
-		predicates = append(predicates, channelmessage.RelatedMessageIDNEQ(*i.RelatedMessageIDNEQ))
+	if i.TriggeredMessageIDNEQ != nil {
+		predicates = append(predicates, channelmessage.TriggeredMessageIDNEQ(*i.TriggeredMessageIDNEQ))
 	}
-	if len(i.RelatedMessageIDIn) > 0 {
-		predicates = append(predicates, channelmessage.RelatedMessageIDIn(i.RelatedMessageIDIn...))
+	if len(i.TriggeredMessageIDIn) > 0 {
+		predicates = append(predicates, channelmessage.TriggeredMessageIDIn(i.TriggeredMessageIDIn...))
 	}
-	if len(i.RelatedMessageIDNotIn) > 0 {
-		predicates = append(predicates, channelmessage.RelatedMessageIDNotIn(i.RelatedMessageIDNotIn...))
+	if len(i.TriggeredMessageIDNotIn) > 0 {
+		predicates = append(predicates, channelmessage.TriggeredMessageIDNotIn(i.TriggeredMessageIDNotIn...))
 	}
-	if i.RelatedMessageIDIsNil {
-		predicates = append(predicates, channelmessage.RelatedMessageIDIsNil())
+	if i.TriggeredMessageIDIsNil {
+		predicates = append(predicates, channelmessage.TriggeredMessageIDIsNil())
 	}
-	if i.RelatedMessageIDNotNil {
-		predicates = append(predicates, channelmessage.RelatedMessageIDNotNil())
+	if i.TriggeredMessageIDNotNil {
+		predicates = append(predicates, channelmessage.TriggeredMessageIDNotNil())
 	}
 	if i.PlatformTenantID != nil {
 		predicates = append(predicates, channelmessage.PlatformTenantIDEQ(*i.PlatformTenantID))
@@ -2288,41 +2291,41 @@ func (i *ChannelMessageWhereInput) P() (predicate.ChannelMessage, error) {
 		}
 		predicates = append(predicates, channelmessage.HasChannelWith(with...))
 	}
-	if i.HasRelatedMessage != nil {
-		p := channelmessage.HasRelatedMessage()
-		if !*i.HasRelatedMessage {
+	if i.HasTriggeredMessage != nil {
+		p := channelmessage.HasTriggeredMessage()
+		if !*i.HasTriggeredMessage {
 			p = channelmessage.Not(p)
 		}
 		predicates = append(predicates, p)
 	}
-	if len(i.HasRelatedMessageWith) > 0 {
-		with := make([]predicate.ChannelMessage, 0, len(i.HasRelatedMessageWith))
-		for _, w := range i.HasRelatedMessageWith {
+	if len(i.HasTriggeredMessageWith) > 0 {
+		with := make([]predicate.ChannelMessage, 0, len(i.HasTriggeredMessageWith))
+		for _, w := range i.HasTriggeredMessageWith {
 			p, err := w.P()
 			if err != nil {
-				return nil, fmt.Errorf("%w: field 'HasRelatedMessageWith'", err)
+				return nil, fmt.Errorf("%w: field 'HasTriggeredMessageWith'", err)
 			}
 			with = append(with, p)
 		}
-		predicates = append(predicates, channelmessage.HasRelatedMessageWith(with...))
+		predicates = append(predicates, channelmessage.HasTriggeredMessageWith(with...))
 	}
-	if i.HasReplies != nil {
-		p := channelmessage.HasReplies()
-		if !*i.HasReplies {
+	if i.HasTriggeredMessages != nil {
+		p := channelmessage.HasTriggeredMessages()
+		if !*i.HasTriggeredMessages {
 			p = channelmessage.Not(p)
 		}
 		predicates = append(predicates, p)
 	}
-	if len(i.HasRepliesWith) > 0 {
-		with := make([]predicate.ChannelMessage, 0, len(i.HasRepliesWith))
-		for _, w := range i.HasRepliesWith {
+	if len(i.HasTriggeredMessagesWith) > 0 {
+		with := make([]predicate.ChannelMessage, 0, len(i.HasTriggeredMessagesWith))
+		for _, w := range i.HasTriggeredMessagesWith {
 			p, err := w.P()
 			if err != nil {
-				return nil, fmt.Errorf("%w: field 'HasRepliesWith'", err)
+				return nil, fmt.Errorf("%w: field 'HasTriggeredMessagesWith'", err)
 			}
 			with = append(with, p)
 		}
-		predicates = append(predicates, channelmessage.HasRepliesWith(with...))
+		predicates = append(predicates, channelmessage.HasTriggeredMessagesWith(with...))
 	}
 	switch len(predicates) {
 	case 0:

@@ -960,6 +960,7 @@ func (c *ChannelClient) mutate(ctx context.Context, m *ChannelMutation) (Value, 
 }
 
 // ChannelMessageClient is a client for the ChannelMessage schema.
+// 中文說明：此 client 會操作含 triggered_message_id 的訊息模型，讓系統輸出可以追溯觸發來源。
 type ChannelMessageClient struct {
 	config
 }
@@ -1083,15 +1084,15 @@ func (c *ChannelMessageClient) QueryChannel(_m *ChannelMessage) *ChannelQuery {
 	return query
 }
 
-// QueryRelatedMessage queries the related_message edge of a ChannelMessage.
-func (c *ChannelMessageClient) QueryRelatedMessage(_m *ChannelMessage) *ChannelMessageQuery {
+// QueryTriggeredMessage queries the triggered_message edge of a ChannelMessage.
+func (c *ChannelMessageClient) QueryTriggeredMessage(_m *ChannelMessage) *ChannelMessageQuery {
 	query := (&ChannelMessageClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(channelmessage.Table, channelmessage.FieldID, id),
 			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, channelmessage.RelatedMessageTable, channelmessage.RelatedMessageColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, channelmessage.TriggeredMessageTable, channelmessage.TriggeredMessageColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -1099,15 +1100,15 @@ func (c *ChannelMessageClient) QueryRelatedMessage(_m *ChannelMessage) *ChannelM
 	return query
 }
 
-// QueryReplies queries the replies edge of a ChannelMessage.
-func (c *ChannelMessageClient) QueryReplies(_m *ChannelMessage) *ChannelMessageQuery {
+// QueryTriggeredMessages queries the triggered_messages edge of a ChannelMessage.
+func (c *ChannelMessageClient) QueryTriggeredMessages(_m *ChannelMessage) *ChannelMessageQuery {
 	query := (&ChannelMessageClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(channelmessage.Table, channelmessage.FieldID, id),
 			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, true, channelmessage.RepliesTable, channelmessage.RepliesColumn),
+			sqlgraph.Edge(sqlgraph.O2M, true, channelmessage.TriggeredMessagesTable, channelmessage.TriggeredMessagesColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil

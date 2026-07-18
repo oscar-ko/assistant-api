@@ -21,16 +21,16 @@ import (
 // ChannelMessageQuery is the builder for querying ChannelMessage entities.
 type ChannelMessageQuery struct {
 	config
-	ctx                *QueryContext
-	order              []channelmessage.OrderOption
-	inters             []Interceptor
-	predicates         []predicate.ChannelMessage
-	withChannel        *ChannelQuery
-	withRelatedMessage *ChannelMessageQuery
-	withReplies        *ChannelMessageQuery
-	modifiers          []func(*sql.Selector)
-	loadTotal          []func(context.Context, []*ChannelMessage) error
-	withNamedReplies   map[string]*ChannelMessageQuery
+	ctx                        *QueryContext
+	order                      []channelmessage.OrderOption
+	inters                     []Interceptor
+	predicates                 []predicate.ChannelMessage
+	withChannel                *ChannelQuery
+	withTriggeredMessage       *ChannelMessageQuery
+	withTriggeredMessages      *ChannelMessageQuery
+	modifiers                  []func(*sql.Selector)
+	loadTotal                  []func(context.Context, []*ChannelMessage) error
+	withNamedTriggeredMessages map[string]*ChannelMessageQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -89,8 +89,9 @@ func (_q *ChannelMessageQuery) QueryChannel() *ChannelQuery {
 	return query
 }
 
-// QueryRelatedMessage chains the current query on the "related_message" edge.
-func (_q *ChannelMessageQuery) QueryRelatedMessage() *ChannelMessageQuery {
+// QueryTriggeredMessage chains the current query on the "triggered_message" edge.
+// 中文說明：從系統訊息往回查觸發它的來源訊息，避免把平台 reply_to_msg_id 當作內部關聯使用。
+func (_q *ChannelMessageQuery) QueryTriggeredMessage() *ChannelMessageQuery {
 	query := (&ChannelMessageClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
@@ -103,7 +104,7 @@ func (_q *ChannelMessageQuery) QueryRelatedMessage() *ChannelMessageQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(channelmessage.Table, channelmessage.FieldID, selector),
 			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, channelmessage.RelatedMessageTable, channelmessage.RelatedMessageColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, channelmessage.TriggeredMessageTable, channelmessage.TriggeredMessageColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -111,8 +112,9 @@ func (_q *ChannelMessageQuery) QueryRelatedMessage() *ChannelMessageQuery {
 	return query
 }
 
-// QueryReplies chains the current query on the "replies" edge.
-func (_q *ChannelMessageQuery) QueryReplies() *ChannelMessageQuery {
+// QueryTriggeredMessages chains the current query on the "triggered_messages" edge.
+// 中文說明：從來源訊息往外查所有由它觸發的系統訊息，例如 bot 回覆、不可用通知或自動翻譯訊息。
+func (_q *ChannelMessageQuery) QueryTriggeredMessages() *ChannelMessageQuery {
 	query := (&ChannelMessageClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
@@ -125,7 +127,7 @@ func (_q *ChannelMessageQuery) QueryReplies() *ChannelMessageQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(channelmessage.Table, channelmessage.FieldID, selector),
 			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, true, channelmessage.RepliesTable, channelmessage.RepliesColumn),
+			sqlgraph.Edge(sqlgraph.O2M, true, channelmessage.TriggeredMessagesTable, channelmessage.TriggeredMessagesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -320,14 +322,14 @@ func (_q *ChannelMessageQuery) Clone() *ChannelMessageQuery {
 		return nil
 	}
 	return &ChannelMessageQuery{
-		config:             _q.config,
-		ctx:                _q.ctx.Clone(),
-		order:              append([]channelmessage.OrderOption{}, _q.order...),
-		inters:             append([]Interceptor{}, _q.inters...),
-		predicates:         append([]predicate.ChannelMessage{}, _q.predicates...),
-		withChannel:        _q.withChannel.Clone(),
-		withRelatedMessage: _q.withRelatedMessage.Clone(),
-		withReplies:        _q.withReplies.Clone(),
+		config:                _q.config,
+		ctx:                   _q.ctx.Clone(),
+		order:                 append([]channelmessage.OrderOption{}, _q.order...),
+		inters:                append([]Interceptor{}, _q.inters...),
+		predicates:            append([]predicate.ChannelMessage{}, _q.predicates...),
+		withChannel:           _q.withChannel.Clone(),
+		withTriggeredMessage:  _q.withTriggeredMessage.Clone(),
+		withTriggeredMessages: _q.withTriggeredMessages.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -345,25 +347,27 @@ func (_q *ChannelMessageQuery) WithChannel(opts ...func(*ChannelQuery)) *Channel
 	return _q
 }
 
-// WithRelatedMessage tells the query-builder to eager-load the nodes that are connected to
-// the "related_message" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *ChannelMessageQuery) WithRelatedMessage(opts ...func(*ChannelMessageQuery)) *ChannelMessageQuery {
+// WithTriggeredMessage tells the query-builder to eager-load the nodes that are connected to
+// the "triggered_message" edge. The optional arguments are used to configure the query builder of the edge.
+// 中文說明：預載來源訊息可讓上層流程一次取得系統訊息與其觸發原因，減少額外查詢。
+func (_q *ChannelMessageQuery) WithTriggeredMessage(opts ...func(*ChannelMessageQuery)) *ChannelMessageQuery {
 	query := (&ChannelMessageClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withRelatedMessage = query
+	_q.withTriggeredMessage = query
 	return _q
 }
 
-// WithReplies tells the query-builder to eager-load the nodes that are connected to
-// the "replies" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *ChannelMessageQuery) WithReplies(opts ...func(*ChannelMessageQuery)) *ChannelMessageQuery {
+// WithTriggeredMessages tells the query-builder to eager-load the nodes that are connected to
+// the "triggered_messages" edge. The optional arguments are used to configure the query builder of the edge.
+// 中文說明：預載反向集合可檢視同一來源訊息衍生出的多筆系統輸出。
+func (_q *ChannelMessageQuery) WithTriggeredMessages(opts ...func(*ChannelMessageQuery)) *ChannelMessageQuery {
 	query := (&ChannelMessageClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withReplies = query
+	_q.withTriggeredMessages = query
 	return _q
 }
 
@@ -447,8 +451,8 @@ func (_q *ChannelMessageQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 		_spec       = _q.querySpec()
 		loadedTypes = [3]bool{
 			_q.withChannel != nil,
-			_q.withRelatedMessage != nil,
-			_q.withReplies != nil,
+			_q.withTriggeredMessage != nil,
+			_q.withTriggeredMessages != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -478,23 +482,25 @@ func (_q *ChannelMessageQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 			return nil, err
 		}
 	}
-	if query := _q.withRelatedMessage; query != nil {
-		if err := _q.loadRelatedMessage(ctx, query, nodes, nil,
-			func(n *ChannelMessage, e *ChannelMessage) { n.Edges.RelatedMessage = e }); err != nil {
+	if query := _q.withTriggeredMessage; query != nil {
+		if err := _q.loadTriggeredMessage(ctx, query, nodes, nil,
+			func(n *ChannelMessage, e *ChannelMessage) { n.Edges.TriggeredMessage = e }); err != nil {
 			return nil, err
 		}
 	}
-	if query := _q.withReplies; query != nil {
-		if err := _q.loadReplies(ctx, query, nodes,
-			func(n *ChannelMessage) { n.Edges.Replies = []*ChannelMessage{} },
-			func(n *ChannelMessage, e *ChannelMessage) { n.Edges.Replies = append(n.Edges.Replies, e) }); err != nil {
+	if query := _q.withTriggeredMessages; query != nil {
+		if err := _q.loadTriggeredMessages(ctx, query, nodes,
+			func(n *ChannelMessage) { n.Edges.TriggeredMessages = []*ChannelMessage{} },
+			func(n *ChannelMessage, e *ChannelMessage) {
+				n.Edges.TriggeredMessages = append(n.Edges.TriggeredMessages, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
-	for name, query := range _q.withNamedReplies {
-		if err := _q.loadReplies(ctx, query, nodes,
-			func(n *ChannelMessage) { n.appendNamedReplies(name) },
-			func(n *ChannelMessage, e *ChannelMessage) { n.appendNamedReplies(name, e) }); err != nil {
+	for name, query := range _q.withNamedTriggeredMessages {
+		if err := _q.loadTriggeredMessages(ctx, query, nodes,
+			func(n *ChannelMessage) { n.appendNamedTriggeredMessages(name) },
+			func(n *ChannelMessage, e *ChannelMessage) { n.appendNamedTriggeredMessages(name, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -535,14 +541,15 @@ func (_q *ChannelMessageQuery) loadChannel(ctx context.Context, query *ChannelQu
 	}
 	return nil
 }
-func (_q *ChannelMessageQuery) loadRelatedMessage(ctx context.Context, query *ChannelMessageQuery, nodes []*ChannelMessage, init func(*ChannelMessage), assign func(*ChannelMessage, *ChannelMessage)) error {
+func (_q *ChannelMessageQuery) loadTriggeredMessage(ctx context.Context, query *ChannelMessageQuery, nodes []*ChannelMessage, init func(*ChannelMessage), assign func(*ChannelMessage, *ChannelMessage)) error {
 	ids := make([]uuid.UUID, 0, len(nodes))
 	nodeids := make(map[uuid.UUID][]*ChannelMessage)
 	for i := range nodes {
-		if nodes[i].RelatedMessageID == nil {
+		// 可空值代表此訊息不是由系統內部觸發產生，跳過可避免誤查 uuid.Nil。
+		if nodes[i].TriggeredMessageID == nil {
 			continue
 		}
-		fk := *nodes[i].RelatedMessageID
+		fk := *nodes[i].TriggeredMessageID
 		if _, ok := nodeids[fk]; !ok {
 			ids = append(ids, fk)
 		}
@@ -559,7 +566,7 @@ func (_q *ChannelMessageQuery) loadRelatedMessage(ctx context.Context, query *Ch
 	for _, n := range neighbors {
 		nodes, ok := nodeids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "related_message_id" returned %v`, n.ID)
+			return fmt.Errorf(`unexpected foreign-key "triggered_message_id" returned %v`, n.ID)
 		}
 		for i := range nodes {
 			assign(nodes[i], n)
@@ -567,10 +574,11 @@ func (_q *ChannelMessageQuery) loadRelatedMessage(ctx context.Context, query *Ch
 	}
 	return nil
 }
-func (_q *ChannelMessageQuery) loadReplies(ctx context.Context, query *ChannelMessageQuery, nodes []*ChannelMessage, init func(*ChannelMessage), assign func(*ChannelMessage, *ChannelMessage)) error {
+func (_q *ChannelMessageQuery) loadTriggeredMessages(ctx context.Context, query *ChannelMessageQuery, nodes []*ChannelMessage, init func(*ChannelMessage), assign func(*ChannelMessage, *ChannelMessage)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[uuid.UUID]*ChannelMessage)
 	for i := range nodes {
+		// 反向查詢以目前訊息 ID 作為 triggered_message_id 的候選來源。
 		fks = append(fks, nodes[i].ID)
 		nodeids[nodes[i].ID] = nodes[i]
 		if init != nil {
@@ -578,23 +586,23 @@ func (_q *ChannelMessageQuery) loadReplies(ctx context.Context, query *ChannelMe
 		}
 	}
 	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(channelmessage.FieldRelatedMessageID)
+		query.ctx.AppendFieldOnce(channelmessage.FieldTriggeredMessageID)
 	}
 	query.Where(predicate.ChannelMessage(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(channelmessage.RepliesColumn), fks...))
+		s.Where(sql.InValues(s.C(channelmessage.TriggeredMessagesColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.RelatedMessageID
+		fk := n.TriggeredMessageID
 		if fk == nil {
-			return fmt.Errorf(`foreign-key "related_message_id" is nil for node %v`, n.ID)
+			return fmt.Errorf(`foreign-key "triggered_message_id" is nil for node %v`, n.ID)
 		}
 		node, ok := nodeids[*fk]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "related_message_id" returned %v for node %v`, *fk, n.ID)
+			return fmt.Errorf(`unexpected referenced foreign-key "triggered_message_id" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}
@@ -632,8 +640,9 @@ func (_q *ChannelMessageQuery) querySpec() *sqlgraph.QuerySpec {
 		if _q.withChannel != nil {
 			_spec.Node.AddColumnOnce(channelmessage.FieldChannelID)
 		}
-		if _q.withRelatedMessage != nil {
-			_spec.Node.AddColumnOnce(channelmessage.FieldRelatedMessageID)
+		if _q.withTriggeredMessage != nil {
+			// 選取部分欄位時也必須帶出 triggered_message_id，後續 eager loading 才能接回來源訊息。
+			_spec.Node.AddColumnOnce(channelmessage.FieldTriggeredMessageID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {
@@ -691,17 +700,18 @@ func (_q *ChannelMessageQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	return selector
 }
 
-// WithNamedReplies tells the query-builder to eager-load the nodes that are connected to the "replies"
+// WithNamedTriggeredMessages tells the query-builder to eager-load the nodes that are connected to the "triggered_messages"
 // edge with the given name. The optional arguments are used to configure the query builder of the edge.
-func (_q *ChannelMessageQuery) WithNamedReplies(name string, opts ...func(*ChannelMessageQuery)) *ChannelMessageQuery {
+// 中文說明：命名預載可同時查多組不同條件的系統觸發輸出，避免覆蓋同一個 edge 結果。
+func (_q *ChannelMessageQuery) WithNamedTriggeredMessages(name string, opts ...func(*ChannelMessageQuery)) *ChannelMessageQuery {
 	query := (&ChannelMessageClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	if _q.withNamedReplies == nil {
-		_q.withNamedReplies = make(map[string]*ChannelMessageQuery)
+	if _q.withNamedTriggeredMessages == nil {
+		_q.withNamedTriggeredMessages = make(map[string]*ChannelMessageQuery)
 	}
-	_q.withNamedReplies[name] = query
+	_q.withNamedTriggeredMessages[name] = query
 	return _q
 }
 

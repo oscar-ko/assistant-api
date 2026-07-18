@@ -32,7 +32,9 @@ func (m mockStore) FindLatestActionOperationByMessageID(ctx context.Context, mes
 
 func TestIsCommandChainMessage(t *testing.T) {
 	// 建立一條 seed -> child -> grandchild 的訊息鍊，
-	// 用來驗證 mention seed、related fallback、reply fallback 三種路徑。
+	// 用來驗證 mention seed、triggered fallback、reply fallback 三種路徑。
+	// child 模擬系統訊息：靠 triggered_message_id 回到 seed；
+	// grandchild 模擬使用者平台 reply：靠 reply_to_msg_id 回到 child。
 	channelID := uuid.New()
 	seedID := uuid.New()
 	childID := uuid.New()
@@ -40,7 +42,7 @@ func TestIsCommandChainMessage(t *testing.T) {
 	unrelatedID := uuid.New()
 
 	seed := &ent.ChannelMessage{ID: seedID, ChannelID: channelID, PlatformMessageID: "m-seed"}
-	child := &ent.ChannelMessage{ID: childID, ChannelID: channelID, PlatformMessageID: "m-child", RelatedMessageID: &seedID}
+	child := &ent.ChannelMessage{ID: childID, ChannelID: channelID, PlatformMessageID: "m-child", TriggeredMessageID: &seedID}
 	grandchild := &ent.ChannelMessage{ID: grandchildID, ChannelID: channelID, ReplyToMsgID: "m-child", PlatformMessageID: "m-grand"}
 	unrelated := &ent.ChannelMessage{ID: unrelatedID, ChannelID: channelID, PlatformMessageID: "m-other"}
 
@@ -101,12 +103,14 @@ func TestIsCommandChainMessage(t *testing.T) {
 func TestIsCommandChainMessageHitsAncestorActionResult(t *testing.T) {
 	// 模擬「父訊息已有 action_result operation，子訊息是回覆」場景，
 	// 期待子訊息可直接判定在 command chain 上。
+	// 這裡使用 triggered_message_id 表示子訊息是系統鏈路延伸，
+	// 不需要另外建立平台 reply mapping 也能命中祖先 action_result。
 	channelID := uuid.New()
 	parentID := uuid.New()
 	childID := uuid.New()
 
 	parent := &ent.ChannelMessage{ID: parentID, ChannelID: channelID, PlatformMessageID: "m-parent"}
-	child := &ent.ChannelMessage{ID: childID, ChannelID: channelID, PlatformMessageID: "m-child", RelatedMessageID: &parentID}
+	child := &ent.ChannelMessage{ID: childID, ChannelID: channelID, PlatformMessageID: "m-child", TriggeredMessageID: &parentID}
 
 	store := mockStore{
 		byID: map[uuid.UUID]*ent.ChannelMessage{

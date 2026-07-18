@@ -62,16 +62,18 @@ func (_c *ChannelMessageCreate) SetChannelID(v uuid.UUID) *ChannelMessageCreate 
 	return _c
 }
 
-// SetRelatedMessageID sets the "related_message_id" field.
-func (_c *ChannelMessageCreate) SetRelatedMessageID(v uuid.UUID) *ChannelMessageCreate {
-	_c.mutation.SetRelatedMessageID(v)
+// SetTriggeredMessageID sets the "triggered_message_id" field.
+// 中文說明：建立系統送出訊息時，用此欄位保存觸發它的來源訊息 ID；使用者平台回覆則走 reply_to_msg_id。
+func (_c *ChannelMessageCreate) SetTriggeredMessageID(v uuid.UUID) *ChannelMessageCreate {
+	_c.mutation.SetTriggeredMessageID(v)
 	return _c
 }
 
-// SetNillableRelatedMessageID sets the "related_message_id" field if the given value is not nil.
-func (_c *ChannelMessageCreate) SetNillableRelatedMessageID(v *uuid.UUID) *ChannelMessageCreate {
+// SetNillableTriggeredMessageID sets the "triggered_message_id" field if the given value is not nil.
+// 中文說明：nil 代表沒有內部觸發來源，避免把空值誤寫成有效關聯。
+func (_c *ChannelMessageCreate) SetNillableTriggeredMessageID(v *uuid.UUID) *ChannelMessageCreate {
 	if v != nil {
-		_c.SetRelatedMessageID(*v)
+		_c.SetTriggeredMessageID(*v)
 	}
 	return _c
 }
@@ -199,24 +201,27 @@ func (_c *ChannelMessageCreate) SetChannel(v *Channel) *ChannelMessageCreate {
 	return _c.SetChannelID(v.ID)
 }
 
-// SetRelatedMessage sets the "related_message" edge to the ChannelMessage entity.
-func (_c *ChannelMessageCreate) SetRelatedMessage(v *ChannelMessage) *ChannelMessageCreate {
-	return _c.SetRelatedMessageID(v.ID)
+// SetTriggeredMessage sets the "triggered_message" edge to the ChannelMessage entity.
+// 中文說明：透過 Ent edge 設定來源訊息，底層仍會寫入 triggered_message_id。
+func (_c *ChannelMessageCreate) SetTriggeredMessage(v *ChannelMessage) *ChannelMessageCreate {
+	return _c.SetTriggeredMessageID(v.ID)
 }
 
-// AddReplyIDs adds the "replies" edge to the ChannelMessage entity by IDs.
-func (_c *ChannelMessageCreate) AddReplyIDs(ids ...uuid.UUID) *ChannelMessageCreate {
-	_c.mutation.AddReplyIDs(ids...)
+// AddTriggeredMessageIDs adds the "triggered_messages" edge to the ChannelMessage entity by IDs.
+// 中文說明：反向把多筆系統訊息掛到目前來源訊息下，供 eager loading 與查詢使用。
+func (_c *ChannelMessageCreate) AddTriggeredMessageIDs(ids ...uuid.UUID) *ChannelMessageCreate {
+	_c.mutation.AddTriggeredMessageIDs(ids...)
 	return _c
 }
 
-// AddReplies adds the "replies" edges to the ChannelMessage entity.
-func (_c *ChannelMessageCreate) AddReplies(v ...*ChannelMessage) *ChannelMessageCreate {
+// AddTriggeredMessages adds the "triggered_messages" edges to the ChannelMessage entity.
+// 中文說明：以實體物件形式建立反向觸發關聯，語意等同 AddTriggeredMessageIDs。
+func (_c *ChannelMessageCreate) AddTriggeredMessages(v ...*ChannelMessage) *ChannelMessageCreate {
 	ids := make([]uuid.UUID, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _c.AddReplyIDs(ids...)
+	return _c.AddTriggeredMessageIDs(ids...)
 }
 
 // Mutation returns the ChannelMessageMutation object of the builder.
@@ -396,12 +401,12 @@ func (_c *ChannelMessageCreate) createSpec() (*ChannelMessage, *sqlgraph.CreateS
 		_node.ChannelID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.RelatedMessageIDs(); len(nodes) > 0 {
+	if nodes := _c.mutation.TriggeredMessageIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   channelmessage.RelatedMessageTable,
-			Columns: []string{channelmessage.RelatedMessageColumn},
+			Table:   channelmessage.TriggeredMessageTable,
+			Columns: []string{channelmessage.TriggeredMessageColumn},
 			Bidi:    true,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
@@ -410,15 +415,15 @@ func (_c *ChannelMessageCreate) createSpec() (*ChannelMessage, *sqlgraph.CreateS
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.RelatedMessageID = &nodes[0]
+		_node.TriggeredMessageID = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.RepliesIDs(); len(nodes) > 0 {
+	if nodes := _c.mutation.TriggeredMessagesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
-			Table:   channelmessage.RepliesTable,
-			Columns: []string{channelmessage.RepliesColumn},
+			Table:   channelmessage.TriggeredMessagesTable,
+			Columns: []string{channelmessage.TriggeredMessagesColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),

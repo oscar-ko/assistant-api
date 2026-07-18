@@ -409,9 +409,15 @@ func (o *Orchestrator) sendServiceUnavailableNotice(ctx context.Context, message
 		return
 	}
 
-	sentPlatformMessageID, err := o.deps.Messenger.SendText(ctx, chatID, userID, text, strings.TrimSpace(replyRef), strings.TrimSpace(quoteRef))
+	trimmedReplyRef := strings.TrimSpace(replyRef)
+	// 先嘗試用平台 reply 送出，讓「服務暫不可用」訊息留在使用者原本的對話脈絡。
+	sentPlatformMessageID, err := o.deps.Messenger.SendText(ctx, chatID, userID, text, trimmedReplyRef, strings.TrimSpace(quoteRef))
+	usedReply := err == nil && trimmedReplyRef != ""
 	if err != nil {
+		// reply token 可能逾時或平台不支援；改用 push/direct 仍要回覆使用者。
+		// usedReply=false 會讓落庫時不寫 reply_to_msg_id，避免保存不存在的平台 reply 關係。
 		sentPlatformMessageID, err = o.deps.Messenger.SendText(ctx, chatID, userID, text, "", strings.TrimSpace(quoteRef))
+		usedReply = false
 	}
 	if err != nil {
 		zap.L().Warn(o.logKey("service unavailable notice send failed"),
@@ -440,6 +446,7 @@ func (o *Orchestrator) sendServiceUnavailableNotice(ctx context.Context, message
 		botSenderID,
 		"",
 		sentPlatformMessageID,
+		outboundReplyToMsgID(message, usedReply),
 		text,
 		"text",
 		time.Now().UnixMilli(),
@@ -452,6 +459,15 @@ func (o *Orchestrator) sendServiceUnavailableNotice(ctx context.Context, message
 			zap.Error(saveErr),
 		)
 	}
+}
+
+func outboundReplyToMsgID(message *unifiedmessage.Message, usedReply bool) string {
+	// 只有確定平台 reply API 成功時，才把原訊息 platform_message_id 寫成 reply_to_msg_id。
+	// 若實際送法是 push/direct，DB 中必須保留空值，避免之後被解析成平台回覆鏈。
+	if !usedReply || message == nil {
+		return ""
+	}
+	return strings.TrimSpace(message.PlatformMessageID)
 }
 
 func errorMessage(err error) string {
@@ -774,8 +790,9 @@ func (o *Orchestrator) sendActionSuccessNotice(ctx context.Context, message *uni
 		// 持久化採 best-effort，不可阻塞使用者可見回覆。
 		return
 	}
-	// 將成功通知落庫，related_message_id 指回觸發指令，
-	// 便於前後端做對話鏈追溯與稽核。
+	// 將成功通知落庫，triggered_message_id 指回觸發指令，
+	// reply_to_msg_id 只在 usedReply=true 時寫入，兩者分別對應內部觸發與平台回覆。
+	// 便於前後端做對話鏈追溯與稽核，也避免 push fallback 產生假的平台 reply。
 	botSenderID := o.resolveBotSenderID(ctx)
 	if _, err := o.deps.Repo.SaveSentMessage(
 		context.Background(),
@@ -783,6 +800,7 @@ func (o *Orchestrator) sendActionSuccessNotice(ctx context.Context, message *uni
 		botSenderID,
 		"",
 		sentPlatformMessageID,
+		outboundReplyToMsgID(message, usedReply),
 		text,
 		"text",
 		time.Now().UnixMilli(),
@@ -945,6 +963,7 @@ func (o *Orchestrator) sendClarifyingQuestion(ctx context.Context, message *unif
 		botSenderID,
 		"",
 		sentPlatformMessageID,
+		"",
 		question,
 		"text",
 		time.Now().UnixMilli(),
@@ -1008,6 +1027,7 @@ func (o *Orchestrator) sendQuestionAnswer(ctx context.Context, message *unifiedm
 		botSenderID,
 		"",
 		sentPlatformMessageID,
+		"",
 		answer,
 		"text",
 		time.Now().UnixMilli(),

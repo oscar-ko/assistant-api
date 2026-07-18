@@ -291,6 +291,9 @@ func (s *AutoTranslateService) persistSentMessage(ctx context.Context, savedMess
 		botSenderID,
 		"",
 		sentPlatformMessageID,
+		// 自動翻譯訊息目前以一般 outbound 保存，不宣告平台 reply 目標；
+		// 內部來源仍由最後一個參數 savedMessage.ID 建立 triggered_message_id。
+		"",
 		text,
 		"text",
 		s.now().UnixMilli(),

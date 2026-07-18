@@ -76,9 +76,10 @@ func ChannelID(v uuid.UUID) predicate.ChannelMessage {
 	return predicate.ChannelMessage(sql.FieldEQ(FieldChannelID, v))
 }
 
-// RelatedMessageID applies equality check predicate on the "related_message_id" field. It's identical to RelatedMessageIDEQ.
-func RelatedMessageID(v uuid.UUID) predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldEQ(FieldRelatedMessageID, v))
+// TriggeredMessageID applies equality check predicate on the "triggered_message_id" field. It's identical to TriggeredMessageIDEQ.
+// 中文說明：查詢由特定訊息觸發出的系統訊息時使用；平台使用者回覆請改查 reply_to_msg_id。
+func TriggeredMessageID(v uuid.UUID) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldEQ(FieldTriggeredMessageID, v))
 }
 
 // PlatformTenantID applies equality check predicate on the "platform_tenant_id" field. It's identical to PlatformTenantIDEQ.
@@ -286,34 +287,34 @@ func ChannelIDNotIn(vs ...uuid.UUID) predicate.ChannelMessage {
 	return predicate.ChannelMessage(sql.FieldNotIn(FieldChannelID, vs...))
 }
 
-// RelatedMessageIDEQ applies the EQ predicate on the "related_message_id" field.
-func RelatedMessageIDEQ(v uuid.UUID) predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldEQ(FieldRelatedMessageID, v))
+// TriggeredMessageIDEQ applies the EQ predicate on the "triggered_message_id" field.
+func TriggeredMessageIDEQ(v uuid.UUID) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldEQ(FieldTriggeredMessageID, v))
 }
 
-// RelatedMessageIDNEQ applies the NEQ predicate on the "related_message_id" field.
-func RelatedMessageIDNEQ(v uuid.UUID) predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldNEQ(FieldRelatedMessageID, v))
+// TriggeredMessageIDNEQ applies the NEQ predicate on the "triggered_message_id" field.
+func TriggeredMessageIDNEQ(v uuid.UUID) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldNEQ(FieldTriggeredMessageID, v))
 }
 
-// RelatedMessageIDIn applies the In predicate on the "related_message_id" field.
-func RelatedMessageIDIn(vs ...uuid.UUID) predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldIn(FieldRelatedMessageID, vs...))
+// TriggeredMessageIDIn applies the In predicate on the "triggered_message_id" field.
+func TriggeredMessageIDIn(vs ...uuid.UUID) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldIn(FieldTriggeredMessageID, vs...))
 }
 
-// RelatedMessageIDNotIn applies the NotIn predicate on the "related_message_id" field.
-func RelatedMessageIDNotIn(vs ...uuid.UUID) predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldNotIn(FieldRelatedMessageID, vs...))
+// TriggeredMessageIDNotIn applies the NotIn predicate on the "triggered_message_id" field.
+func TriggeredMessageIDNotIn(vs ...uuid.UUID) predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldNotIn(FieldTriggeredMessageID, vs...))
 }
 
-// RelatedMessageIDIsNil applies the IsNil predicate on the "related_message_id" field.
-func RelatedMessageIDIsNil() predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldIsNull(FieldRelatedMessageID))
+// TriggeredMessageIDIsNil applies the IsNil predicate on the "triggered_message_id" field.
+func TriggeredMessageIDIsNil() predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldIsNull(FieldTriggeredMessageID))
 }
 
-// RelatedMessageIDNotNil applies the NotNil predicate on the "related_message_id" field.
-func RelatedMessageIDNotNil() predicate.ChannelMessage {
-	return predicate.ChannelMessage(sql.FieldNotNull(FieldRelatedMessageID))
+// TriggeredMessageIDNotNil applies the NotNil predicate on the "triggered_message_id" field.
+func TriggeredMessageIDNotNil() predicate.ChannelMessage {
+	return predicate.ChannelMessage(sql.FieldNotNull(FieldTriggeredMessageID))
 }
 
 // PlatformTenantIDEQ applies the EQ predicate on the "platform_tenant_id" field.
@@ -869,21 +870,21 @@ func HasChannelWith(preds ...predicate.Channel) predicate.ChannelMessage {
 	})
 }
 
-// HasRelatedMessage applies the HasEdge predicate on the "related_message" edge.
-func HasRelatedMessage() predicate.ChannelMessage {
+// HasTriggeredMessage applies the HasEdge predicate on the "triggered_message" edge.
+func HasTriggeredMessage() predicate.ChannelMessage {
 	return predicate.ChannelMessage(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, RelatedMessageTable, RelatedMessageColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, TriggeredMessageTable, TriggeredMessageColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})
 }
 
-// HasRelatedMessageWith applies the HasEdge predicate on the "related_message" edge with a given conditions (other predicates).
-func HasRelatedMessageWith(preds ...predicate.ChannelMessage) predicate.ChannelMessage {
+// HasTriggeredMessageWith applies the HasEdge predicate on the "triggered_message" edge with a given conditions (other predicates).
+func HasTriggeredMessageWith(preds ...predicate.ChannelMessage) predicate.ChannelMessage {
 	return predicate.ChannelMessage(func(s *sql.Selector) {
-		step := newRelatedMessageStep()
+		step := newTriggeredMessageStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)
@@ -892,21 +893,21 @@ func HasRelatedMessageWith(preds ...predicate.ChannelMessage) predicate.ChannelM
 	})
 }
 
-// HasReplies applies the HasEdge predicate on the "replies" edge.
-func HasReplies() predicate.ChannelMessage {
+// HasTriggeredMessages applies the HasEdge predicate on the "triggered_messages" edge.
+func HasTriggeredMessages() predicate.ChannelMessage {
 	return predicate.ChannelMessage(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, true, RepliesTable, RepliesColumn),
+			sqlgraph.Edge(sqlgraph.O2M, true, TriggeredMessagesTable, TriggeredMessagesColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})
 }
 
-// HasRepliesWith applies the HasEdge predicate on the "replies" edge with a given conditions (other predicates).
-func HasRepliesWith(preds ...predicate.ChannelMessage) predicate.ChannelMessage {
+// HasTriggeredMessagesWith applies the HasEdge predicate on the "triggered_messages" edge with a given conditions (other predicates).
+func HasTriggeredMessagesWith(preds ...predicate.ChannelMessage) predicate.ChannelMessage {
 	return predicate.ChannelMessage(func(s *sql.Selector) {
-		step := newRepliesStep()
+		step := newTriggeredMessagesStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

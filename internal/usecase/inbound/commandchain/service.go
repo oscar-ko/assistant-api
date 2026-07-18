@@ -43,8 +43,11 @@ func NewService(store MessageStore) Service {
 // IsCommandChainMessage 依規則判斷訊息是否在指令訊息鍊上：
 // 1) 本訊息提及 bot。
 // 2) 回覆到 (1) 或其後續鍊上的訊息。
-// 3) 手動回覆但已建立 related_message_id 關聯。
+// 3) 系統訊息透過 triggered_message_id 指回某個鍊上訊息。
 // 4) 回覆任一鍊上訊息的後續回覆。
+//
+// 注意：reply_to_msg_id 與 triggered_message_id 都可能形成可追溯父節點，
+// 但前者來自平台互動，後者來自系統送出訊息時的內部落庫關係。
 func (s *service) IsCommandChainMessage(ctx context.Context, message *ent.ChannelMessage, mentionedBot bool) (bool, error) {
 	if s == nil || s.store == nil || message == nil {
 		return false, nil
@@ -76,8 +79,8 @@ func (s *service) IsCommandChainMessage(ctx context.Context, message *ent.Channe
 
 	for {
 		// 依優先序解析父訊息：
-		// 1) related_message_id（內部關聯，準確度最高）
-		// 2) reply_to_msg_id（平台回覆 ID，作為 fallback）
+		// 1) triggered_message_id（系統觸發來源）
+		// 2) reply_to_msg_id（平台回覆目標）
 		parent, err := s.resolveParent(ctx, current)
 		if err != nil {
 			// 查詢失敗交給上層處理，不在此吞錯以免掩蓋資料問題。
@@ -134,13 +137,14 @@ func (s *service) resolveParent(ctx context.Context, message *ent.ChannelMessage
 		return nil, nil
 	}
 
-	// 優先讀 related_message_id。
-	// 這代表系統已完成關聯映射，可直接用內部 ID 取父訊息。
-	if message.RelatedMessageID != nil && *message.RelatedMessageID != uuid.Nil {
-		return s.store.GetMessageByID(ctx, *message.RelatedMessageID)
+	// 優先讀 triggered_message_id。
+	// 這代表系統訊息由某訊息觸發，可直接用內部 ID 取來源訊息。
+	if message.TriggeredMessageID != nil && *message.TriggeredMessageID != uuid.Nil {
+		return s.store.GetMessageByID(ctx, *message.TriggeredMessageID)
 	}
 
-	// 若尚未建立 related 關聯，退回以平台回覆 ID 在同 channel 查找。
+	// 一般使用者 reply 不寫 triggered 關聯，直接以平台回覆 ID 在同 channel 查找。
+	// 這能讓「補參數」這類手動回覆延續指令鍊，同時不污染系統觸發語意。
 	if replyToMsgID := strings.TrimSpace(message.ReplyToMsgID); replyToMsgID != "" {
 		return s.store.FindMessageByPlatformMessageID(ctx, message.ChannelID, replyToMsgID)
 	}

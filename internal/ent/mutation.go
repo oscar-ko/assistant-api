@@ -3045,32 +3045,32 @@ func (m *ChannelMutation) ResetEdge(name string) error {
 // ChannelMessageMutation represents an operation that mutates the ChannelMessage nodes in the graph.
 type ChannelMessageMutation struct {
 	config
-	op                     Op
-	typ                    string
-	id                     *uuid.UUID
-	created_at             *time.Time
-	updated_at             *time.Time
-	content                *string
-	platform_tenant_id     *string
-	sender_id              *string
-	sender_user_id         *uuid.UUID
-	sender_name            *string
-	platform_message_id    *string
-	reply_to_msg_id        *string
-	message_type           *string
-	platform_timestamp     *int64
-	addplatform_timestamp  *int64
-	clearedFields          map[string]struct{}
-	channel                *uuid.UUID
-	clearedchannel         bool
-	related_message        *uuid.UUID
-	clearedrelated_message bool
-	replies                map[uuid.UUID]struct{}
-	removedreplies         map[uuid.UUID]struct{}
-	clearedreplies         bool
-	done                   bool
-	oldValue               func(context.Context) (*ChannelMessage, error)
-	predicates             []predicate.ChannelMessage
+	op                        Op
+	typ                       string
+	id                        *uuid.UUID
+	created_at                *time.Time
+	updated_at                *time.Time
+	content                   *string
+	platform_tenant_id        *string
+	sender_id                 *string
+	sender_user_id            *uuid.UUID
+	sender_name               *string
+	platform_message_id       *string
+	reply_to_msg_id           *string
+	message_type              *string
+	platform_timestamp        *int64
+	addplatform_timestamp     *int64
+	clearedFields             map[string]struct{}
+	channel                   *uuid.UUID
+	clearedchannel            bool
+	triggered_message         *uuid.UUID
+	clearedtriggered_message  bool
+	triggered_messages        map[uuid.UUID]struct{}
+	removedtriggered_messages map[uuid.UUID]struct{}
+	clearedtriggered_messages bool
+	done                      bool
+	oldValue                  func(context.Context) (*ChannelMessage, error)
+	predicates                []predicate.ChannelMessage
 }
 
 var _ ent.Mutation = (*ChannelMessageMutation)(nil)
@@ -3321,53 +3321,56 @@ func (m *ChannelMessageMutation) ResetChannelID() {
 	m.channel = nil
 }
 
-// SetRelatedMessageID sets the "related_message_id" field.
-func (m *ChannelMessageMutation) SetRelatedMessageID(u uuid.UUID) {
-	m.related_message = &u
+// SetTriggeredMessageID sets the "triggered_message_id" field.
+// 中文說明：mutation 內以單一 UUID 保存系統觸發來源，代表本訊息是由哪一則訊息衍生。
+func (m *ChannelMessageMutation) SetTriggeredMessageID(u uuid.UUID) {
+	m.triggered_message = &u
 }
 
-// RelatedMessageID returns the value of the "related_message_id" field in the mutation.
-func (m *ChannelMessageMutation) RelatedMessageID() (r uuid.UUID, exists bool) {
-	v := m.related_message
+// TriggeredMessageID returns the value of the "triggered_message_id" field in the mutation.
+func (m *ChannelMessageMutation) TriggeredMessageID() (r uuid.UUID, exists bool) {
+	v := m.triggered_message
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldRelatedMessageID returns the old "related_message_id" field's value of the ChannelMessage entity.
+// OldTriggeredMessageID returns the old "triggered_message_id" field's value of the ChannelMessage entity.
+// 中文說明：更新前讀舊值可判斷系統訊息原本是否已有來源關聯。
 // If the ChannelMessage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ChannelMessageMutation) OldRelatedMessageID(ctx context.Context) (v *uuid.UUID, err error) {
+func (m *ChannelMessageMutation) OldTriggeredMessageID(ctx context.Context) (v *uuid.UUID, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldRelatedMessageID is only allowed on UpdateOne operations")
+		return v, errors.New("OldTriggeredMessageID is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldRelatedMessageID requires an ID field in the mutation")
+		return v, errors.New("OldTriggeredMessageID requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldRelatedMessageID: %w", err)
+		return v, fmt.Errorf("querying old value for OldTriggeredMessageID: %w", err)
 	}
-	return oldValue.RelatedMessageID, nil
+	return oldValue.TriggeredMessageID, nil
 }
 
-// ClearRelatedMessageID clears the value of the "related_message_id" field.
-func (m *ChannelMessageMutation) ClearRelatedMessageID() {
-	m.related_message = nil
-	m.clearedFields[channelmessage.FieldRelatedMessageID] = struct{}{}
+// ClearTriggeredMessageID clears the value of the "triggered_message_id" field.
+// 中文說明：清空後此訊息將不再被視為由另一則訊息觸發。
+func (m *ChannelMessageMutation) ClearTriggeredMessageID() {
+	m.triggered_message = nil
+	m.clearedFields[channelmessage.FieldTriggeredMessageID] = struct{}{}
 }
 
-// RelatedMessageIDCleared returns if the "related_message_id" field was cleared in this mutation.
-func (m *ChannelMessageMutation) RelatedMessageIDCleared() bool {
-	_, ok := m.clearedFields[channelmessage.FieldRelatedMessageID]
+// TriggeredMessageIDCleared returns if the "triggered_message_id" field was cleared in this mutation.
+func (m *ChannelMessageMutation) TriggeredMessageIDCleared() bool {
+	_, ok := m.clearedFields[channelmessage.FieldTriggeredMessageID]
 	return ok
 }
 
-// ResetRelatedMessageID resets all changes to the "related_message_id" field.
-func (m *ChannelMessageMutation) ResetRelatedMessageID() {
-	m.related_message = nil
-	delete(m.clearedFields, channelmessage.FieldRelatedMessageID)
+// ResetTriggeredMessageID resets all changes to the "triggered_message_id" field.
+func (m *ChannelMessageMutation) ResetTriggeredMessageID() {
+	m.triggered_message = nil
+	delete(m.clearedFields, channelmessage.FieldTriggeredMessageID)
 }
 
 // SetPlatformTenantID sets the "platform_tenant_id" field.
@@ -3784,85 +3787,87 @@ func (m *ChannelMessageMutation) ResetChannel() {
 	m.clearedchannel = false
 }
 
-// ClearRelatedMessage clears the "related_message" edge to the ChannelMessage entity.
-func (m *ChannelMessageMutation) ClearRelatedMessage() {
-	m.clearedrelated_message = true
-	m.clearedFields[channelmessage.FieldRelatedMessageID] = struct{}{}
+// ClearTriggeredMessage clears the "triggered_message" edge to the ChannelMessage entity.
+// 中文說明：edge 清除與欄位清除同步，避免來源訊息 edge 與 triggered_message_id 狀態不一致。
+func (m *ChannelMessageMutation) ClearTriggeredMessage() {
+	m.clearedtriggered_message = true
+	m.clearedFields[channelmessage.FieldTriggeredMessageID] = struct{}{}
 }
 
-// RelatedMessageCleared reports if the "related_message" edge to the ChannelMessage entity was cleared.
-func (m *ChannelMessageMutation) RelatedMessageCleared() bool {
-	return m.RelatedMessageIDCleared() || m.clearedrelated_message
+// TriggeredMessageCleared reports if the "triggered_message" edge to the ChannelMessage entity was cleared.
+func (m *ChannelMessageMutation) TriggeredMessageCleared() bool {
+	return m.TriggeredMessageIDCleared() || m.clearedtriggered_message
 }
 
-// RelatedMessageIDs returns the "related_message" edge IDs in the mutation.
+// TriggeredMessageIDs returns the "triggered_message" edge IDs in the mutation.
 // Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
-// RelatedMessageID instead. It exists only for internal usage by the builders.
-func (m *ChannelMessageMutation) RelatedMessageIDs() (ids []uuid.UUID) {
-	if id := m.related_message; id != nil {
+// TriggeredMessageID instead. It exists only for internal usage by the builders.
+func (m *ChannelMessageMutation) TriggeredMessageIDs() (ids []uuid.UUID) {
+	if id := m.triggered_message; id != nil {
 		ids = append(ids, *id)
 	}
 	return
 }
 
-// ResetRelatedMessage resets all changes to the "related_message" edge.
-func (m *ChannelMessageMutation) ResetRelatedMessage() {
-	m.related_message = nil
-	m.clearedrelated_message = false
+// ResetTriggeredMessage resets all changes to the "triggered_message" edge.
+func (m *ChannelMessageMutation) ResetTriggeredMessage() {
+	m.triggered_message = nil
+	m.clearedtriggered_message = false
 }
 
-// AddReplyIDs adds the "replies" edge to the ChannelMessage entity by ids.
-func (m *ChannelMessageMutation) AddReplyIDs(ids ...uuid.UUID) {
-	if m.replies == nil {
-		m.replies = make(map[uuid.UUID]struct{})
+// AddTriggeredMessageIDs adds the "triggered_messages" edge to the ChannelMessage entity by ids.
+// 中文說明：把目前訊息登記為多筆系統訊息的觸發來源。
+func (m *ChannelMessageMutation) AddTriggeredMessageIDs(ids ...uuid.UUID) {
+	if m.triggered_messages == nil {
+		m.triggered_messages = make(map[uuid.UUID]struct{})
 	}
 	for i := range ids {
-		m.replies[ids[i]] = struct{}{}
+		m.triggered_messages[ids[i]] = struct{}{}
 	}
 }
 
-// ClearReplies clears the "replies" edge to the ChannelMessage entity.
-func (m *ChannelMessageMutation) ClearReplies() {
-	m.clearedreplies = true
+// ClearTriggeredMessages clears the "triggered_messages" edge to the ChannelMessage entity.
+func (m *ChannelMessageMutation) ClearTriggeredMessages() {
+	m.clearedtriggered_messages = true
 }
 
-// RepliesCleared reports if the "replies" edge to the ChannelMessage entity was cleared.
-func (m *ChannelMessageMutation) RepliesCleared() bool {
-	return m.clearedreplies
+// TriggeredMessagesCleared reports if the "triggered_messages" edge to the ChannelMessage entity was cleared.
+func (m *ChannelMessageMutation) TriggeredMessagesCleared() bool {
+	return m.clearedtriggered_messages
 }
 
-// RemoveReplyIDs removes the "replies" edge to the ChannelMessage entity by IDs.
-func (m *ChannelMessageMutation) RemoveReplyIDs(ids ...uuid.UUID) {
-	if m.removedreplies == nil {
-		m.removedreplies = make(map[uuid.UUID]struct{})
+// RemoveTriggeredMessageIDs removes the "triggered_messages" edge to the ChannelMessage entity by IDs.
+func (m *ChannelMessageMutation) RemoveTriggeredMessageIDs(ids ...uuid.UUID) {
+	if m.removedtriggered_messages == nil {
+		m.removedtriggered_messages = make(map[uuid.UUID]struct{})
 	}
 	for i := range ids {
-		delete(m.replies, ids[i])
-		m.removedreplies[ids[i]] = struct{}{}
+		delete(m.triggered_messages, ids[i])
+		m.removedtriggered_messages[ids[i]] = struct{}{}
 	}
 }
 
-// RemovedReplies returns the removed IDs of the "replies" edge to the ChannelMessage entity.
-func (m *ChannelMessageMutation) RemovedRepliesIDs() (ids []uuid.UUID) {
-	for id := range m.removedreplies {
+// RemovedTriggeredMessages returns the removed IDs of the "triggered_messages" edge to the ChannelMessage entity.
+func (m *ChannelMessageMutation) RemovedTriggeredMessagesIDs() (ids []uuid.UUID) {
+	for id := range m.removedtriggered_messages {
 		ids = append(ids, id)
 	}
 	return
 }
 
-// RepliesIDs returns the "replies" edge IDs in the mutation.
-func (m *ChannelMessageMutation) RepliesIDs() (ids []uuid.UUID) {
-	for id := range m.replies {
+// TriggeredMessagesIDs returns the "triggered_messages" edge IDs in the mutation.
+func (m *ChannelMessageMutation) TriggeredMessagesIDs() (ids []uuid.UUID) {
+	for id := range m.triggered_messages {
 		ids = append(ids, id)
 	}
 	return
 }
 
-// ResetReplies resets all changes to the "replies" edge.
-func (m *ChannelMessageMutation) ResetReplies() {
-	m.replies = nil
-	m.clearedreplies = false
-	m.removedreplies = nil
+// ResetTriggeredMessages resets all changes to the "triggered_messages" edge.
+func (m *ChannelMessageMutation) ResetTriggeredMessages() {
+	m.triggered_messages = nil
+	m.clearedtriggered_messages = false
+	m.removedtriggered_messages = nil
 }
 
 // Where appends a list predicates to the ChannelMessageMutation builder.
@@ -3912,8 +3917,8 @@ func (m *ChannelMessageMutation) Fields() []string {
 	if m.channel != nil {
 		fields = append(fields, channelmessage.FieldChannelID)
 	}
-	if m.related_message != nil {
-		fields = append(fields, channelmessage.FieldRelatedMessageID)
+	if m.triggered_message != nil {
+		fields = append(fields, channelmessage.FieldTriggeredMessageID)
 	}
 	if m.platform_tenant_id != nil {
 		fields = append(fields, channelmessage.FieldPlatformTenantID)
@@ -3955,8 +3960,8 @@ func (m *ChannelMessageMutation) Field(name string) (ent.Value, bool) {
 		return m.Content()
 	case channelmessage.FieldChannelID:
 		return m.ChannelID()
-	case channelmessage.FieldRelatedMessageID:
-		return m.RelatedMessageID()
+	case channelmessage.FieldTriggeredMessageID:
+		return m.TriggeredMessageID()
 	case channelmessage.FieldPlatformTenantID:
 		return m.PlatformTenantID()
 	case channelmessage.FieldSenderID:
@@ -3990,8 +3995,8 @@ func (m *ChannelMessageMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldContent(ctx)
 	case channelmessage.FieldChannelID:
 		return m.OldChannelID(ctx)
-	case channelmessage.FieldRelatedMessageID:
-		return m.OldRelatedMessageID(ctx)
+	case channelmessage.FieldTriggeredMessageID:
+		return m.OldTriggeredMessageID(ctx)
 	case channelmessage.FieldPlatformTenantID:
 		return m.OldPlatformTenantID(ctx)
 	case channelmessage.FieldSenderID:
@@ -4045,12 +4050,12 @@ func (m *ChannelMessageMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetChannelID(v)
 		return nil
-	case channelmessage.FieldRelatedMessageID:
+	case channelmessage.FieldTriggeredMessageID:
 		v, ok := value.(uuid.UUID)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetRelatedMessageID(v)
+		m.SetTriggeredMessageID(v)
 		return nil
 	case channelmessage.FieldPlatformTenantID:
 		v, ok := value.(string)
@@ -4153,8 +4158,8 @@ func (m *ChannelMessageMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *ChannelMessageMutation) ClearedFields() []string {
 	var fields []string
-	if m.FieldCleared(channelmessage.FieldRelatedMessageID) {
-		fields = append(fields, channelmessage.FieldRelatedMessageID)
+	if m.FieldCleared(channelmessage.FieldTriggeredMessageID) {
+		fields = append(fields, channelmessage.FieldTriggeredMessageID)
 	}
 	if m.FieldCleared(channelmessage.FieldPlatformTenantID) {
 		fields = append(fields, channelmessage.FieldPlatformTenantID)
@@ -4188,8 +4193,8 @@ func (m *ChannelMessageMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *ChannelMessageMutation) ClearField(name string) error {
 	switch name {
-	case channelmessage.FieldRelatedMessageID:
-		m.ClearRelatedMessageID()
+	case channelmessage.FieldTriggeredMessageID:
+		m.ClearTriggeredMessageID()
 		return nil
 	case channelmessage.FieldPlatformTenantID:
 		m.ClearPlatformTenantID()
@@ -4229,8 +4234,8 @@ func (m *ChannelMessageMutation) ResetField(name string) error {
 	case channelmessage.FieldChannelID:
 		m.ResetChannelID()
 		return nil
-	case channelmessage.FieldRelatedMessageID:
-		m.ResetRelatedMessageID()
+	case channelmessage.FieldTriggeredMessageID:
+		m.ResetTriggeredMessageID()
 		return nil
 	case channelmessage.FieldPlatformTenantID:
 		m.ResetPlatformTenantID()
@@ -4266,11 +4271,11 @@ func (m *ChannelMessageMutation) AddedEdges() []string {
 	if m.channel != nil {
 		edges = append(edges, channelmessage.EdgeChannel)
 	}
-	if m.related_message != nil {
-		edges = append(edges, channelmessage.EdgeRelatedMessage)
+	if m.triggered_message != nil {
+		edges = append(edges, channelmessage.EdgeTriggeredMessage)
 	}
-	if m.replies != nil {
-		edges = append(edges, channelmessage.EdgeReplies)
+	if m.triggered_messages != nil {
+		edges = append(edges, channelmessage.EdgeTriggeredMessages)
 	}
 	return edges
 }
@@ -4283,13 +4288,13 @@ func (m *ChannelMessageMutation) AddedIDs(name string) []ent.Value {
 		if id := m.channel; id != nil {
 			return []ent.Value{*id}
 		}
-	case channelmessage.EdgeRelatedMessage:
-		if id := m.related_message; id != nil {
+	case channelmessage.EdgeTriggeredMessage:
+		if id := m.triggered_message; id != nil {
 			return []ent.Value{*id}
 		}
-	case channelmessage.EdgeReplies:
-		ids := make([]ent.Value, 0, len(m.replies))
-		for id := range m.replies {
+	case channelmessage.EdgeTriggeredMessages:
+		ids := make([]ent.Value, 0, len(m.triggered_messages))
+		for id := range m.triggered_messages {
 			ids = append(ids, id)
 		}
 		return ids
@@ -4300,8 +4305,8 @@ func (m *ChannelMessageMutation) AddedIDs(name string) []ent.Value {
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ChannelMessageMutation) RemovedEdges() []string {
 	edges := make([]string, 0, 3)
-	if m.removedreplies != nil {
-		edges = append(edges, channelmessage.EdgeReplies)
+	if m.removedtriggered_messages != nil {
+		edges = append(edges, channelmessage.EdgeTriggeredMessages)
 	}
 	return edges
 }
@@ -4310,9 +4315,9 @@ func (m *ChannelMessageMutation) RemovedEdges() []string {
 // the given name in this mutation.
 func (m *ChannelMessageMutation) RemovedIDs(name string) []ent.Value {
 	switch name {
-	case channelmessage.EdgeReplies:
-		ids := make([]ent.Value, 0, len(m.removedreplies))
-		for id := range m.removedreplies {
+	case channelmessage.EdgeTriggeredMessages:
+		ids := make([]ent.Value, 0, len(m.removedtriggered_messages))
+		for id := range m.removedtriggered_messages {
 			ids = append(ids, id)
 		}
 		return ids
@@ -4326,11 +4331,11 @@ func (m *ChannelMessageMutation) ClearedEdges() []string {
 	if m.clearedchannel {
 		edges = append(edges, channelmessage.EdgeChannel)
 	}
-	if m.clearedrelated_message {
-		edges = append(edges, channelmessage.EdgeRelatedMessage)
+	if m.clearedtriggered_message {
+		edges = append(edges, channelmessage.EdgeTriggeredMessage)
 	}
-	if m.clearedreplies {
-		edges = append(edges, channelmessage.EdgeReplies)
+	if m.clearedtriggered_messages {
+		edges = append(edges, channelmessage.EdgeTriggeredMessages)
 	}
 	return edges
 }
@@ -4341,10 +4346,10 @@ func (m *ChannelMessageMutation) EdgeCleared(name string) bool {
 	switch name {
 	case channelmessage.EdgeChannel:
 		return m.clearedchannel
-	case channelmessage.EdgeRelatedMessage:
-		return m.clearedrelated_message
-	case channelmessage.EdgeReplies:
-		return m.clearedreplies
+	case channelmessage.EdgeTriggeredMessage:
+		return m.clearedtriggered_message
+	case channelmessage.EdgeTriggeredMessages:
+		return m.clearedtriggered_messages
 	}
 	return false
 }
@@ -4356,8 +4361,8 @@ func (m *ChannelMessageMutation) ClearEdge(name string) error {
 	case channelmessage.EdgeChannel:
 		m.ClearChannel()
 		return nil
-	case channelmessage.EdgeRelatedMessage:
-		m.ClearRelatedMessage()
+	case channelmessage.EdgeTriggeredMessage:
+		m.ClearTriggeredMessage()
 		return nil
 	}
 	return fmt.Errorf("unknown ChannelMessage unique edge %s", name)
@@ -4370,11 +4375,11 @@ func (m *ChannelMessageMutation) ResetEdge(name string) error {
 	case channelmessage.EdgeChannel:
 		m.ResetChannel()
 		return nil
-	case channelmessage.EdgeRelatedMessage:
-		m.ResetRelatedMessage()
+	case channelmessage.EdgeTriggeredMessage:
+		m.ResetTriggeredMessage()
 		return nil
-	case channelmessage.EdgeReplies:
-		m.ResetReplies()
+	case channelmessage.EdgeTriggeredMessages:
+		m.ResetTriggeredMessages()
 		return nil
 	}
 	return fmt.Errorf("unknown ChannelMessage edge %s", name)

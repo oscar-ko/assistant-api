@@ -533,7 +533,8 @@ func (_q *ChannelMessageQuery) collectField(ctx context.Context, oneNode bool, o
 				fieldSeen[channelmessage.FieldChannelID] = struct{}{}
 			}
 
-		case "relatedMessage":
+		case "triggeredMessage":
+			// GraphQL 查詢 requested triggeredMessage 時，需要一併選出 triggered_message_id 才能預載來源訊息。
 			var (
 				alias = field.Alias
 				path  = append(path, alias)
@@ -542,13 +543,14 @@ func (_q *ChannelMessageQuery) collectField(ctx context.Context, oneNode bool, o
 			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, channelmessageImplementors)...); err != nil {
 				return err
 			}
-			_q.withRelatedMessage = query
-			if _, ok := fieldSeen[channelmessage.FieldRelatedMessageID]; !ok {
-				selectedFields = append(selectedFields, channelmessage.FieldRelatedMessageID)
-				fieldSeen[channelmessage.FieldRelatedMessageID] = struct{}{}
+			_q.withTriggeredMessage = query
+			if _, ok := fieldSeen[channelmessage.FieldTriggeredMessageID]; !ok {
+				selectedFields = append(selectedFields, channelmessage.FieldTriggeredMessageID)
+				fieldSeen[channelmessage.FieldTriggeredMessageID] = struct{}{}
 			}
 
-		case "replies":
+		case "triggeredMessages":
+			// 反向 edge 代表「目前訊息觸發出的系統訊息」，使用 named edge 保留 alias 查詢結果。
 			var (
 				alias = field.Alias
 				path  = append(path, alias)
@@ -557,7 +559,7 @@ func (_q *ChannelMessageQuery) collectField(ctx context.Context, oneNode bool, o
 			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, channelmessageImplementors)...); err != nil {
 				return err
 			}
-			_q.WithNamedReplies(alias, func(wq *ChannelMessageQuery) {
+			_q.WithNamedTriggeredMessages(alias, func(wq *ChannelMessageQuery) {
 				*wq = *query
 			})
 		case "createdAt":
@@ -580,10 +582,11 @@ func (_q *ChannelMessageQuery) collectField(ctx context.Context, oneNode bool, o
 				selectedFields = append(selectedFields, channelmessage.FieldChannelID)
 				fieldSeen[channelmessage.FieldChannelID] = struct{}{}
 			}
-		case "relatedMessageID":
-			if _, ok := fieldSeen[channelmessage.FieldRelatedMessageID]; !ok {
-				selectedFields = append(selectedFields, channelmessage.FieldRelatedMessageID)
-				fieldSeen[channelmessage.FieldRelatedMessageID] = struct{}{}
+		case "triggeredMessageID":
+			// 單純查欄位時也要納入 selectedFields，避免 select 最小化時遺漏內部觸發來源。
+			if _, ok := fieldSeen[channelmessage.FieldTriggeredMessageID]; !ok {
+				selectedFields = append(selectedFields, channelmessage.FieldTriggeredMessageID)
+				fieldSeen[channelmessage.FieldTriggeredMessageID] = struct{}{}
 			}
 		case "platformTenantID":
 			if _, ok := fieldSeen[channelmessage.FieldPlatformTenantID]; !ok {

@@ -61,7 +61,9 @@ func (s *service) DecideMessage(ctx context.Context, message *unifiedmessage.Mes
 	// reply context 規則：
 	// 即使本訊息沒有 mention / 非 private，只要它是回覆鏈的一部分，
 	// 仍需進一步進 command chain 判斷，避免把補參數訊息誤判成一般對話。
-	hasReplyContext := savedMessage != nil && ((savedMessage.RelatedMessageID != nil && *savedMessage.RelatedMessageID != uuid.Nil) || strings.TrimSpace(savedMessage.ReplyToMsgID) != "")
+	// triggered_message_id 表示系統觸發鏈，reply_to_msg_id 表示平台回覆鏈；
+	// 任一存在都代表此訊息可能需要沿父節點重用既有指令。
+	hasReplyContext := savedMessage != nil && ((savedMessage.TriggeredMessageID != nil && *savedMessage.TriggeredMessageID != uuid.Nil) || strings.TrimSpace(savedMessage.ReplyToMsgID) != "")
 	// 只有「非 commandMode 且非 reply context」才提早返回。
 	if !commandMode && !hasReplyContext {
 		return decision

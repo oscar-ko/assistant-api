@@ -23,8 +23,9 @@ const (
 	FieldContent = "content"
 	// FieldChannelID holds the string denoting the channel_id field in the database.
 	FieldChannelID = "channel_id"
-	// FieldRelatedMessageID holds the string denoting the related_message_id field in the database.
-	FieldRelatedMessageID = "related_message_id"
+	// FieldTriggeredMessageID holds the string denoting the triggered_message_id field in the database.
+	// 中文說明：記錄系統訊息由哪一則既有訊息觸發，與平台 reply_to_msg_id 的外部回覆語意分開保存。
+	FieldTriggeredMessageID = "triggered_message_id"
 	// FieldPlatformTenantID holds the string denoting the platform_tenant_id field in the database.
 	FieldPlatformTenantID = "platform_tenant_id"
 	// FieldSenderID holds the string denoting the sender_id field in the database.
@@ -43,10 +44,12 @@ const (
 	FieldPlatformTimestamp = "platform_timestamp"
 	// EdgeChannel holds the string denoting the channel edge name in mutations.
 	EdgeChannel = "channel"
-	// EdgeRelatedMessage holds the string denoting the related_message edge name in mutations.
-	EdgeRelatedMessage = "related_message"
-	// EdgeReplies holds the string denoting the replies edge name in mutations.
-	EdgeReplies = "replies"
+	// EdgeTriggeredMessage holds the string denoting the triggered_message edge name in mutations.
+	// 中文說明：指向觸發本系統訊息的來源訊息，供 command chain 與通知落庫回溯使用。
+	EdgeTriggeredMessage = "triggered_message"
+	// EdgeTriggeredMessages holds the string denoting the triggered_messages edge name in mutations.
+	// 中文說明：反向查詢由某則訊息所觸發的所有系統訊息。
+	EdgeTriggeredMessages = "triggered_messages"
 	// Table holds the table name of the channelmessage in the database.
 	Table = "channel_messages"
 	// ChannelTable is the table that holds the channel relation/edge.
@@ -56,14 +59,16 @@ const (
 	ChannelInverseTable = "channels"
 	// ChannelColumn is the table column denoting the channel relation/edge.
 	ChannelColumn = "channel_id"
-	// RelatedMessageTable is the table that holds the related_message relation/edge.
-	RelatedMessageTable = "channel_messages"
-	// RelatedMessageColumn is the table column denoting the related_message relation/edge.
-	RelatedMessageColumn = "related_message_id"
-	// RepliesTable is the table that holds the replies relation/edge.
-	RepliesTable = "channel_messages"
-	// RepliesColumn is the table column denoting the replies relation/edge.
-	RepliesColumn = "related_message_id"
+	// TriggeredMessageTable is the table that holds the triggered_message relation/edge.
+	TriggeredMessageTable = "channel_messages"
+	// TriggeredMessageColumn is the table column denoting the triggered_message relation/edge.
+	// 中文說明：此欄位承載內部觸發關聯，不再混用平台回覆 ID。
+	TriggeredMessageColumn = "triggered_message_id"
+	// TriggeredMessagesTable is the table that holds the triggered_messages relation/edge.
+	TriggeredMessagesTable = "channel_messages"
+	// TriggeredMessagesColumn is the table column denoting the triggered_messages relation/edge.
+	// 中文說明：反向 edge 也共用 triggered_message_id，代表來源訊息到系統訊息的一對多關係。
+	TriggeredMessagesColumn = "triggered_message_id"
 )
 
 // Columns holds all SQL columns for channelmessage fields.
@@ -73,7 +78,7 @@ var Columns = []string{
 	FieldUpdatedAt,
 	FieldContent,
 	FieldChannelID,
-	FieldRelatedMessageID,
+	FieldTriggeredMessageID,
 	FieldPlatformTenantID,
 	FieldSenderID,
 	FieldSenderUserID,
@@ -137,9 +142,10 @@ func ByChannelID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldChannelID, opts...).ToFunc()
 }
 
-// ByRelatedMessageID orders the results by the related_message_id field.
-func ByRelatedMessageID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldRelatedMessageID, opts...).ToFunc()
+// ByTriggeredMessageID orders the results by the triggered_message_id field.
+// 中文說明：依系統觸發來源排序，方便檢視同一來源訊息衍生出的輸出順序。
+func ByTriggeredMessageID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTriggeredMessageID, opts...).ToFunc()
 }
 
 // ByPlatformTenantID orders the results by the platform_tenant_id field.
@@ -189,24 +195,27 @@ func ByChannelField(field string, opts ...sql.OrderTermOption) OrderOption {
 	}
 }
 
-// ByRelatedMessageField orders the results by related_message field.
-func ByRelatedMessageField(field string, opts ...sql.OrderTermOption) OrderOption {
+// ByTriggeredMessageField orders the results by triggered_message field.
+// 中文說明：依觸發來源訊息的欄位排序，適合跨訊息鏈查詢。
+func ByTriggeredMessageField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newRelatedMessageStep(), sql.OrderByField(field, opts...))
+		sqlgraph.OrderByNeighborTerms(s, newTriggeredMessageStep(), sql.OrderByField(field, opts...))
 	}
 }
 
-// ByRepliesCount orders the results by replies count.
-func ByRepliesCount(opts ...sql.OrderTermOption) OrderOption {
+// ByTriggeredMessagesCount orders the results by triggered_messages count.
+// 中文說明：依被觸發出的系統訊息數量排序，可用於找出產生最多系統回覆的來源訊息。
+func ByTriggeredMessagesCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newRepliesStep(), opts...)
+		sqlgraph.OrderByNeighborsCount(s, newTriggeredMessagesStep(), opts...)
 	}
 }
 
-// ByReplies orders the results by replies terms.
-func ByReplies(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+// ByTriggeredMessages orders the results by triggered_messages terms.
+// 中文說明：依反向觸發訊息集合的條件排序，保持 GraphQL/Ent 查詢能力完整。
+func ByTriggeredMessages(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newRepliesStep(), append([]sql.OrderTerm{term}, terms...)...)
+		sqlgraph.OrderByNeighborTerms(s, newTriggeredMessagesStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
 func newChannelStep() *sqlgraph.Step {
@@ -216,17 +225,17 @@ func newChannelStep() *sqlgraph.Step {
 		sqlgraph.Edge(sqlgraph.M2O, true, ChannelTable, ChannelColumn),
 	)
 }
-func newRelatedMessageStep() *sqlgraph.Step {
+func newTriggeredMessageStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(Table, FieldID),
-		sqlgraph.Edge(sqlgraph.M2O, false, RelatedMessageTable, RelatedMessageColumn),
+		sqlgraph.Edge(sqlgraph.M2O, false, TriggeredMessageTable, TriggeredMessageColumn),
 	)
 }
-func newRepliesStep() *sqlgraph.Step {
+func newTriggeredMessagesStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(Table, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, true, RepliesTable, RepliesColumn),
+		sqlgraph.Edge(sqlgraph.O2M, true, TriggeredMessagesTable, TriggeredMessagesColumn),
 	)
 }

@@ -129,9 +129,11 @@ func TestDecideMessageSkipsComparisonOutsideCommandMode(t *testing.T) {
 func TestDecideMessageReplyContextChecksCommandChain(t *testing.T) {
 	// 非 mention、非 private 的訊息，只要具有 reply context，
 	// 仍需觸發 command chain 判斷，避免補參數訊息被錯誤略過。
+	// 此測試用 triggered_message_id 覆蓋系統觸發鏈路；
+	// 平台 reply_to_msg_id 也會走相同的 reply context gate。
 	parentID := uuid.New()
 	message := &unifiedmessage.Message{ChannelType: "group", Text: "補參數"}
-	saved := &ent.ChannelMessage{ID: uuid.New(), RelatedMessageID: &parentID}
+	saved := &ent.ChannelMessage{ID: uuid.New(), TriggeredMessageID: &parentID}
 	chain := &mockCommandChain{onChain: true}
 
 	decision := (&service{commandChain: chain}).DecideMessage(context.Background(), message, saved, "BOT001")

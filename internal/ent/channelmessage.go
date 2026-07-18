@@ -28,8 +28,9 @@ type ChannelMessage struct {
 	Content string `json:"content,omitempty"`
 	// 所屬頻道 ID
 	ChannelID uuid.UUID `json:"channel_id,omitempty"`
-	// 關聯上一則訊息 ID
-	RelatedMessageID *uuid.UUID `json:"related_message_id,omitempty"`
+	// 系統訊息觸發來源訊息 ID。
+	// 只有由系統送出的回應、通知或自動翻譯等訊息會填入此欄位；一般使用者 reply 仍保留在 reply_to_msg_id。
+	TriggeredMessageID *uuid.UUID `json:"triggered_message_id,omitempty"`
 	// 平台租戶/工作區識別（例如 Slack team ID、Teams tenant ID）
 	PlatformTenantID string `json:"platform_tenant_id,omitempty"`
 	// 訊息發送者平台 ID
@@ -56,17 +57,17 @@ type ChannelMessage struct {
 type ChannelMessageEdges struct {
 	// 訊息所屬頻道
 	Channel *Channel `json:"channel,omitempty"`
-	// 關聯到被回覆/引用的上一則訊息
-	RelatedMessage *ChannelMessage `json:"related_message,omitempty"`
-	// 以本訊息為基準的回覆訊息
-	Replies []*ChannelMessage `json:"replies,omitempty"`
+	// 此系統訊息由哪一則訊息觸發；用來回溯 bot 回覆、系統通知與原始使用者訊息之間的內部關係。
+	TriggeredMessage *ChannelMessage `json:"triggered_message,omitempty"`
+	// 由此訊息觸發產生的系統訊息集合；可用來查詢某則使用者訊息衍生出的所有系統輸出。
+	TriggeredMessages []*ChannelMessage `json:"triggered_messages,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [3]bool
 	// totalCount holds the count of the edges above.
 	totalCount [3]map[string]int
 
-	namedReplies map[string][]*ChannelMessage
+	namedTriggeredMessages map[string][]*ChannelMessage
 }
 
 // ChannelOrErr returns the Channel value or an error if the edge
@@ -80,24 +81,24 @@ func (e ChannelMessageEdges) ChannelOrErr() (*Channel, error) {
 	return nil, &NotLoadedError{edge: "channel"}
 }
 
-// RelatedMessageOrErr returns the RelatedMessage value or an error if the edge
+// TriggeredMessageOrErr returns the TriggeredMessage value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
-func (e ChannelMessageEdges) RelatedMessageOrErr() (*ChannelMessage, error) {
-	if e.RelatedMessage != nil {
-		return e.RelatedMessage, nil
+func (e ChannelMessageEdges) TriggeredMessageOrErr() (*ChannelMessage, error) {
+	if e.TriggeredMessage != nil {
+		return e.TriggeredMessage, nil
 	} else if e.loadedTypes[1] {
 		return nil, &NotFoundError{label: channelmessage.Label}
 	}
-	return nil, &NotLoadedError{edge: "related_message"}
+	return nil, &NotLoadedError{edge: "triggered_message"}
 }
 
-// RepliesOrErr returns the Replies value or an error if the edge
+// TriggeredMessagesOrErr returns the TriggeredMessages value or an error if the edge
 // was not loaded in eager-loading.
-func (e ChannelMessageEdges) RepliesOrErr() ([]*ChannelMessage, error) {
+func (e ChannelMessageEdges) TriggeredMessagesOrErr() ([]*ChannelMessage, error) {
 	if e.loadedTypes[2] {
-		return e.Replies, nil
+		return e.TriggeredMessages, nil
 	}
-	return nil, &NotLoadedError{edge: "replies"}
+	return nil, &NotLoadedError{edge: "triggered_messages"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -105,7 +106,7 @@ func (*ChannelMessage) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case channelmessage.FieldRelatedMessageID, channelmessage.FieldSenderUserID:
+		case channelmessage.FieldTriggeredMessageID, channelmessage.FieldSenderUserID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case channelmessage.FieldPlatformTimestamp:
 			values[i] = new(sql.NullInt64)
@@ -160,12 +161,13 @@ func (_m *ChannelMessage) assignValues(columns []string, values []any) error {
 			} else if value != nil {
 				_m.ChannelID = *value
 			}
-		case channelmessage.FieldRelatedMessageID:
+		case channelmessage.FieldTriggeredMessageID:
+			// triggered_message_id 是可空 UUID，掃描時需先用 NullScanner 保留「未設定」與 uuid.Nil 的差異。
 			if value, ok := values[i].(*sql.NullScanner); !ok {
-				return fmt.Errorf("unexpected type %T for field related_message_id", values[i])
+				return fmt.Errorf("unexpected type %T for field triggered_message_id", values[i])
 			} else if value.Valid {
-				_m.RelatedMessageID = new(uuid.UUID)
-				*_m.RelatedMessageID = *value.S.(*uuid.UUID)
+				_m.TriggeredMessageID = new(uuid.UUID)
+				*_m.TriggeredMessageID = *value.S.(*uuid.UUID)
 			}
 		case channelmessage.FieldPlatformTenantID:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -234,14 +236,14 @@ func (_m *ChannelMessage) QueryChannel() *ChannelQuery {
 	return NewChannelMessageClient(_m.config).QueryChannel(_m)
 }
 
-// QueryRelatedMessage queries the "related_message" edge of the ChannelMessage entity.
-func (_m *ChannelMessage) QueryRelatedMessage() *ChannelMessageQuery {
-	return NewChannelMessageClient(_m.config).QueryRelatedMessage(_m)
+// QueryTriggeredMessage queries the "triggered_message" edge of the ChannelMessage entity.
+func (_m *ChannelMessage) QueryTriggeredMessage() *ChannelMessageQuery {
+	return NewChannelMessageClient(_m.config).QueryTriggeredMessage(_m)
 }
 
-// QueryReplies queries the "replies" edge of the ChannelMessage entity.
-func (_m *ChannelMessage) QueryReplies() *ChannelMessageQuery {
-	return NewChannelMessageClient(_m.config).QueryReplies(_m)
+// QueryTriggeredMessages queries the "triggered_messages" edge of the ChannelMessage entity.
+func (_m *ChannelMessage) QueryTriggeredMessages() *ChannelMessageQuery {
+	return NewChannelMessageClient(_m.config).QueryTriggeredMessages(_m)
 }
 
 // Update returns a builder for updating this ChannelMessage.
@@ -279,8 +281,8 @@ func (_m *ChannelMessage) String() string {
 	builder.WriteString("channel_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ChannelID))
 	builder.WriteString(", ")
-	if v := _m.RelatedMessageID; v != nil {
-		builder.WriteString("related_message_id=")
+	if v := _m.TriggeredMessageID; v != nil {
+		builder.WriteString("triggered_message_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
@@ -313,27 +315,27 @@ func (_m *ChannelMessage) String() string {
 	return builder.String()
 }
 
-// NamedReplies returns the Replies named value or an error if the edge was not
+// NamedTriggeredMessages returns the TriggeredMessages named value or an error if the edge was not
 // loaded in eager-loading with this name.
-func (_m *ChannelMessage) NamedReplies(name string) ([]*ChannelMessage, error) {
-	if _m.Edges.namedReplies == nil {
+func (_m *ChannelMessage) NamedTriggeredMessages(name string) ([]*ChannelMessage, error) {
+	if _m.Edges.namedTriggeredMessages == nil {
 		return nil, &NotLoadedError{edge: name}
 	}
-	nodes, ok := _m.Edges.namedReplies[name]
+	nodes, ok := _m.Edges.namedTriggeredMessages[name]
 	if !ok {
 		return nil, &NotLoadedError{edge: name}
 	}
 	return nodes, nil
 }
 
-func (_m *ChannelMessage) appendNamedReplies(name string, edges ...*ChannelMessage) {
-	if _m.Edges.namedReplies == nil {
-		_m.Edges.namedReplies = make(map[string][]*ChannelMessage)
+func (_m *ChannelMessage) appendNamedTriggeredMessages(name string, edges ...*ChannelMessage) {
+	if _m.Edges.namedTriggeredMessages == nil {
+		_m.Edges.namedTriggeredMessages = make(map[string][]*ChannelMessage)
 	}
 	if len(edges) == 0 {
-		_m.Edges.namedReplies[name] = []*ChannelMessage{}
+		_m.Edges.namedTriggeredMessages[name] = []*ChannelMessage{}
 	} else {
-		_m.Edges.namedReplies[name] = append(_m.Edges.namedReplies[name], edges...)
+		_m.Edges.namedTriggeredMessages[name] = append(_m.Edges.namedTriggeredMessages[name], edges...)
 	}
 }
 

@@ -49,23 +49,26 @@ func (_u *ChannelMessageUpdate) SetNillableContent(v *string) *ChannelMessageUpd
 	return _u
 }
 
-// SetRelatedMessageID sets the "related_message_id" field.
-func (_u *ChannelMessageUpdate) SetRelatedMessageID(v uuid.UUID) *ChannelMessageUpdate {
-	_u.mutation.SetRelatedMessageID(v)
+// SetTriggeredMessageID sets the "triggered_message_id" field.
+// 中文說明：更新系統訊息來源時寫入內部訊息 ID，和平台 reply_to_msg_id 保持不同語意。
+func (_u *ChannelMessageUpdate) SetTriggeredMessageID(v uuid.UUID) *ChannelMessageUpdate {
+	_u.mutation.SetTriggeredMessageID(v)
 	return _u
 }
 
-// SetNillableRelatedMessageID sets the "related_message_id" field if the given value is not nil.
-func (_u *ChannelMessageUpdate) SetNillableRelatedMessageID(v *uuid.UUID) *ChannelMessageUpdate {
+// SetNillableTriggeredMessageID sets the "triggered_message_id" field if the given value is not nil.
+// 中文說明：nil 代表不變更來源關聯，避免更新流程意外清空既有觸發來源。
+func (_u *ChannelMessageUpdate) SetNillableTriggeredMessageID(v *uuid.UUID) *ChannelMessageUpdate {
 	if v != nil {
-		_u.SetRelatedMessageID(*v)
+		_u.SetTriggeredMessageID(*v)
 	}
 	return _u
 }
 
-// ClearRelatedMessageID clears the value of the "related_message_id" field.
-func (_u *ChannelMessageUpdate) ClearRelatedMessageID() *ChannelMessageUpdate {
-	_u.mutation.ClearRelatedMessageID()
+// ClearTriggeredMessageID clears the value of the "triggered_message_id" field.
+// 中文說明：只有確認系統訊息不應再連回來源訊息時才清除此欄位。
+func (_u *ChannelMessageUpdate) ClearTriggeredMessageID() *ChannelMessageUpdate {
+	_u.mutation.ClearTriggeredMessageID()
 	return _u
 }
 
@@ -224,24 +227,26 @@ func (_u *ChannelMessageUpdate) ClearPlatformTimestamp() *ChannelMessageUpdate {
 	return _u
 }
 
-// SetRelatedMessage sets the "related_message" edge to the ChannelMessage entity.
-func (_u *ChannelMessageUpdate) SetRelatedMessage(v *ChannelMessage) *ChannelMessageUpdate {
-	return _u.SetRelatedMessageID(v.ID)
+// SetTriggeredMessage sets the "triggered_message" edge to the ChannelMessage entity.
+// 中文說明：以 edge 形式設定來源訊息，底層仍會落到 triggered_message_id 欄位。
+func (_u *ChannelMessageUpdate) SetTriggeredMessage(v *ChannelMessage) *ChannelMessageUpdate {
+	return _u.SetTriggeredMessageID(v.ID)
 }
 
-// AddReplyIDs adds the "replies" edge to the ChannelMessage entity by IDs.
-func (_u *ChannelMessageUpdate) AddReplyIDs(ids ...uuid.UUID) *ChannelMessageUpdate {
-	_u.mutation.AddReplyIDs(ids...)
+// AddTriggeredMessageIDs adds the "triggered_messages" edge to the ChannelMessage entity by IDs.
+// 中文說明：將多筆系統輸出掛回目前訊息，建立來源訊息到系統訊息的一對多關係。
+func (_u *ChannelMessageUpdate) AddTriggeredMessageIDs(ids ...uuid.UUID) *ChannelMessageUpdate {
+	_u.mutation.AddTriggeredMessageIDs(ids...)
 	return _u
 }
 
-// AddReplies adds the "replies" edges to the ChannelMessage entity.
-func (_u *ChannelMessageUpdate) AddReplies(v ...*ChannelMessage) *ChannelMessageUpdate {
+// AddTriggeredMessages adds the "triggered_messages" edges to the ChannelMessage entity.
+func (_u *ChannelMessageUpdate) AddTriggeredMessages(v ...*ChannelMessage) *ChannelMessageUpdate {
 	ids := make([]uuid.UUID, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.AddReplyIDs(ids...)
+	return _u.AddTriggeredMessageIDs(ids...)
 }
 
 // Mutation returns the ChannelMessageMutation object of the builder.
@@ -249,31 +254,33 @@ func (_u *ChannelMessageUpdate) Mutation() *ChannelMessageMutation {
 	return _u.mutation
 }
 
-// ClearRelatedMessage clears the "related_message" edge to the ChannelMessage entity.
-func (_u *ChannelMessageUpdate) ClearRelatedMessage() *ChannelMessageUpdate {
-	_u.mutation.ClearRelatedMessage()
+// ClearTriggeredMessage clears the "triggered_message" edge to the ChannelMessage entity.
+// 中文說明：清除本訊息指向來源訊息的內部觸發 edge。
+func (_u *ChannelMessageUpdate) ClearTriggeredMessage() *ChannelMessageUpdate {
+	_u.mutation.ClearTriggeredMessage()
 	return _u
 }
 
-// ClearReplies clears all "replies" edges to the ChannelMessage entity.
-func (_u *ChannelMessageUpdate) ClearReplies() *ChannelMessageUpdate {
-	_u.mutation.ClearReplies()
+// ClearTriggeredMessages clears all "triggered_messages" edges to the ChannelMessage entity.
+// 中文說明：移除所有由目前訊息觸發出的系統訊息反向關聯。
+func (_u *ChannelMessageUpdate) ClearTriggeredMessages() *ChannelMessageUpdate {
+	_u.mutation.ClearTriggeredMessages()
 	return _u
 }
 
-// RemoveReplyIDs removes the "replies" edge to ChannelMessage entities by IDs.
-func (_u *ChannelMessageUpdate) RemoveReplyIDs(ids ...uuid.UUID) *ChannelMessageUpdate {
-	_u.mutation.RemoveReplyIDs(ids...)
+// RemoveTriggeredMessageIDs removes the "triggered_messages" edge to ChannelMessage entities by IDs.
+func (_u *ChannelMessageUpdate) RemoveTriggeredMessageIDs(ids ...uuid.UUID) *ChannelMessageUpdate {
+	_u.mutation.RemoveTriggeredMessageIDs(ids...)
 	return _u
 }
 
-// RemoveReplies removes "replies" edges to ChannelMessage entities.
-func (_u *ChannelMessageUpdate) RemoveReplies(v ...*ChannelMessage) *ChannelMessageUpdate {
+// RemoveTriggeredMessages removes "triggered_messages" edges to ChannelMessage entities.
+func (_u *ChannelMessageUpdate) RemoveTriggeredMessages(v ...*ChannelMessage) *ChannelMessageUpdate {
 	ids := make([]uuid.UUID, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.RemoveReplyIDs(ids...)
+	return _u.RemoveTriggeredMessageIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -388,12 +395,12 @@ func (_u *ChannelMessageUpdate) sqlSave(ctx context.Context) (_node int, err err
 	if _u.mutation.PlatformTimestampCleared() {
 		_spec.ClearField(channelmessage.FieldPlatformTimestamp, field.TypeInt64)
 	}
-	if _u.mutation.RelatedMessageCleared() {
+	if _u.mutation.TriggeredMessageCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   channelmessage.RelatedMessageTable,
-			Columns: []string{channelmessage.RelatedMessageColumn},
+			Table:   channelmessage.TriggeredMessageTable,
+			Columns: []string{channelmessage.TriggeredMessageColumn},
 			Bidi:    true,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
@@ -401,12 +408,12 @@ func (_u *ChannelMessageUpdate) sqlSave(ctx context.Context) (_node int, err err
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RelatedMessageIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.TriggeredMessageIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   channelmessage.RelatedMessageTable,
-			Columns: []string{channelmessage.RelatedMessageColumn},
+			Table:   channelmessage.TriggeredMessageTable,
+			Columns: []string{channelmessage.TriggeredMessageColumn},
 			Bidi:    true,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
@@ -417,12 +424,12 @@ func (_u *ChannelMessageUpdate) sqlSave(ctx context.Context) (_node int, err err
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.RepliesCleared() {
+	if _u.mutation.TriggeredMessagesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
-			Table:   channelmessage.RepliesTable,
-			Columns: []string{channelmessage.RepliesColumn},
+			Table:   channelmessage.TriggeredMessagesTable,
+			Columns: []string{channelmessage.TriggeredMessagesColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
@@ -430,12 +437,12 @@ func (_u *ChannelMessageUpdate) sqlSave(ctx context.Context) (_node int, err err
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedRepliesIDs(); len(nodes) > 0 && !_u.mutation.RepliesCleared() {
+	if nodes := _u.mutation.RemovedTriggeredMessagesIDs(); len(nodes) > 0 && !_u.mutation.TriggeredMessagesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
-			Table:   channelmessage.RepliesTable,
-			Columns: []string{channelmessage.RepliesColumn},
+			Table:   channelmessage.TriggeredMessagesTable,
+			Columns: []string{channelmessage.TriggeredMessagesColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
@@ -446,12 +453,12 @@ func (_u *ChannelMessageUpdate) sqlSave(ctx context.Context) (_node int, err err
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RepliesIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.TriggeredMessagesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
-			Table:   channelmessage.RepliesTable,
-			Columns: []string{channelmessage.RepliesColumn},
+			Table:   channelmessage.TriggeredMessagesTable,
+			Columns: []string{channelmessage.TriggeredMessagesColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
@@ -502,23 +509,23 @@ func (_u *ChannelMessageUpdateOne) SetNillableContent(v *string) *ChannelMessage
 	return _u
 }
 
-// SetRelatedMessageID sets the "related_message_id" field.
-func (_u *ChannelMessageUpdateOne) SetRelatedMessageID(v uuid.UUID) *ChannelMessageUpdateOne {
-	_u.mutation.SetRelatedMessageID(v)
+// SetTriggeredMessageID sets the "triggered_message_id" field.
+func (_u *ChannelMessageUpdateOne) SetTriggeredMessageID(v uuid.UUID) *ChannelMessageUpdateOne {
+	_u.mutation.SetTriggeredMessageID(v)
 	return _u
 }
 
-// SetNillableRelatedMessageID sets the "related_message_id" field if the given value is not nil.
-func (_u *ChannelMessageUpdateOne) SetNillableRelatedMessageID(v *uuid.UUID) *ChannelMessageUpdateOne {
+// SetNillableTriggeredMessageID sets the "triggered_message_id" field if the given value is not nil.
+func (_u *ChannelMessageUpdateOne) SetNillableTriggeredMessageID(v *uuid.UUID) *ChannelMessageUpdateOne {
 	if v != nil {
-		_u.SetRelatedMessageID(*v)
+		_u.SetTriggeredMessageID(*v)
 	}
 	return _u
 }
 
-// ClearRelatedMessageID clears the value of the "related_message_id" field.
-func (_u *ChannelMessageUpdateOne) ClearRelatedMessageID() *ChannelMessageUpdateOne {
-	_u.mutation.ClearRelatedMessageID()
+// ClearTriggeredMessageID clears the value of the "triggered_message_id" field.
+func (_u *ChannelMessageUpdateOne) ClearTriggeredMessageID() *ChannelMessageUpdateOne {
+	_u.mutation.ClearTriggeredMessageID()
 	return _u
 }
 
@@ -677,24 +684,24 @@ func (_u *ChannelMessageUpdateOne) ClearPlatformTimestamp() *ChannelMessageUpdat
 	return _u
 }
 
-// SetRelatedMessage sets the "related_message" edge to the ChannelMessage entity.
-func (_u *ChannelMessageUpdateOne) SetRelatedMessage(v *ChannelMessage) *ChannelMessageUpdateOne {
-	return _u.SetRelatedMessageID(v.ID)
+// SetTriggeredMessage sets the "triggered_message" edge to the ChannelMessage entity.
+func (_u *ChannelMessageUpdateOne) SetTriggeredMessage(v *ChannelMessage) *ChannelMessageUpdateOne {
+	return _u.SetTriggeredMessageID(v.ID)
 }
 
-// AddReplyIDs adds the "replies" edge to the ChannelMessage entity by IDs.
-func (_u *ChannelMessageUpdateOne) AddReplyIDs(ids ...uuid.UUID) *ChannelMessageUpdateOne {
-	_u.mutation.AddReplyIDs(ids...)
+// AddTriggeredMessageIDs adds the "triggered_messages" edge to the ChannelMessage entity by IDs.
+func (_u *ChannelMessageUpdateOne) AddTriggeredMessageIDs(ids ...uuid.UUID) *ChannelMessageUpdateOne {
+	_u.mutation.AddTriggeredMessageIDs(ids...)
 	return _u
 }
 
-// AddReplies adds the "replies" edges to the ChannelMessage entity.
-func (_u *ChannelMessageUpdateOne) AddReplies(v ...*ChannelMessage) *ChannelMessageUpdateOne {
+// AddTriggeredMessages adds the "triggered_messages" edges to the ChannelMessage entity.
+func (_u *ChannelMessageUpdateOne) AddTriggeredMessages(v ...*ChannelMessage) *ChannelMessageUpdateOne {
 	ids := make([]uuid.UUID, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.AddReplyIDs(ids...)
+	return _u.AddTriggeredMessageIDs(ids...)
 }
 
 // Mutation returns the ChannelMessageMutation object of the builder.
@@ -702,31 +709,31 @@ func (_u *ChannelMessageUpdateOne) Mutation() *ChannelMessageMutation {
 	return _u.mutation
 }
 
-// ClearRelatedMessage clears the "related_message" edge to the ChannelMessage entity.
-func (_u *ChannelMessageUpdateOne) ClearRelatedMessage() *ChannelMessageUpdateOne {
-	_u.mutation.ClearRelatedMessage()
+// ClearTriggeredMessage clears the "triggered_message" edge to the ChannelMessage entity.
+func (_u *ChannelMessageUpdateOne) ClearTriggeredMessage() *ChannelMessageUpdateOne {
+	_u.mutation.ClearTriggeredMessage()
 	return _u
 }
 
-// ClearReplies clears all "replies" edges to the ChannelMessage entity.
-func (_u *ChannelMessageUpdateOne) ClearReplies() *ChannelMessageUpdateOne {
-	_u.mutation.ClearReplies()
+// ClearTriggeredMessages clears all "triggered_messages" edges to the ChannelMessage entity.
+func (_u *ChannelMessageUpdateOne) ClearTriggeredMessages() *ChannelMessageUpdateOne {
+	_u.mutation.ClearTriggeredMessages()
 	return _u
 }
 
-// RemoveReplyIDs removes the "replies" edge to ChannelMessage entities by IDs.
-func (_u *ChannelMessageUpdateOne) RemoveReplyIDs(ids ...uuid.UUID) *ChannelMessageUpdateOne {
-	_u.mutation.RemoveReplyIDs(ids...)
+// RemoveTriggeredMessageIDs removes the "triggered_messages" edge to ChannelMessage entities by IDs.
+func (_u *ChannelMessageUpdateOne) RemoveTriggeredMessageIDs(ids ...uuid.UUID) *ChannelMessageUpdateOne {
+	_u.mutation.RemoveTriggeredMessageIDs(ids...)
 	return _u
 }
 
-// RemoveReplies removes "replies" edges to ChannelMessage entities.
-func (_u *ChannelMessageUpdateOne) RemoveReplies(v ...*ChannelMessage) *ChannelMessageUpdateOne {
+// RemoveTriggeredMessages removes "triggered_messages" edges to ChannelMessage entities.
+func (_u *ChannelMessageUpdateOne) RemoveTriggeredMessages(v ...*ChannelMessage) *ChannelMessageUpdateOne {
 	ids := make([]uuid.UUID, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.RemoveReplyIDs(ids...)
+	return _u.RemoveTriggeredMessageIDs(ids...)
 }
 
 // Where appends a list predicates to the ChannelMessageUpdate builder.
@@ -871,12 +878,12 @@ func (_u *ChannelMessageUpdateOne) sqlSave(ctx context.Context) (_node *ChannelM
 	if _u.mutation.PlatformTimestampCleared() {
 		_spec.ClearField(channelmessage.FieldPlatformTimestamp, field.TypeInt64)
 	}
-	if _u.mutation.RelatedMessageCleared() {
+	if _u.mutation.TriggeredMessageCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   channelmessage.RelatedMessageTable,
-			Columns: []string{channelmessage.RelatedMessageColumn},
+			Table:   channelmessage.TriggeredMessageTable,
+			Columns: []string{channelmessage.TriggeredMessageColumn},
 			Bidi:    true,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
@@ -884,12 +891,12 @@ func (_u *ChannelMessageUpdateOne) sqlSave(ctx context.Context) (_node *ChannelM
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RelatedMessageIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.TriggeredMessageIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   channelmessage.RelatedMessageTable,
-			Columns: []string{channelmessage.RelatedMessageColumn},
+			Table:   channelmessage.TriggeredMessageTable,
+			Columns: []string{channelmessage.TriggeredMessageColumn},
 			Bidi:    true,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
@@ -900,12 +907,12 @@ func (_u *ChannelMessageUpdateOne) sqlSave(ctx context.Context) (_node *ChannelM
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.RepliesCleared() {
+	if _u.mutation.TriggeredMessagesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
-			Table:   channelmessage.RepliesTable,
-			Columns: []string{channelmessage.RepliesColumn},
+			Table:   channelmessage.TriggeredMessagesTable,
+			Columns: []string{channelmessage.TriggeredMessagesColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
@@ -913,12 +920,12 @@ func (_u *ChannelMessageUpdateOne) sqlSave(ctx context.Context) (_node *ChannelM
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedRepliesIDs(); len(nodes) > 0 && !_u.mutation.RepliesCleared() {
+	if nodes := _u.mutation.RemovedTriggeredMessagesIDs(); len(nodes) > 0 && !_u.mutation.TriggeredMessagesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
-			Table:   channelmessage.RepliesTable,
-			Columns: []string{channelmessage.RepliesColumn},
+			Table:   channelmessage.TriggeredMessagesTable,
+			Columns: []string{channelmessage.TriggeredMessagesColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
@@ -929,12 +936,12 @@ func (_u *ChannelMessageUpdateOne) sqlSave(ctx context.Context) (_node *ChannelM
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RepliesIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.TriggeredMessagesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: true,
-			Table:   channelmessage.RepliesTable,
-			Columns: []string{channelmessage.RepliesColumn},
+			Table:   channelmessage.TriggeredMessagesTable,
+			Columns: []string{channelmessage.TriggeredMessagesColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),

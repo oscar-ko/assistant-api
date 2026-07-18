@@ -28,9 +28,6 @@ type ChannelMessageStore interface {
 		messageType string,
 		platformTimestamp int64,
 	) (*ent.ChannelMessage, error)
-	// LinkRelatedMessageByReply 依平台 reply id 補上 related_message_id。
-	// 目的：把「平台層回覆關係」轉成資料庫內可遞迴追蹤的訊息鍊關聯。
-	LinkRelatedMessageByReply(ctx context.Context, message *ent.ChannelMessage) (*ent.ChannelMessage, error)
 }
 
 // SenderNameResolver 定義不同 provider 解析 sender 顯示名稱的擴充點。
@@ -181,20 +178,9 @@ func (s Service) PersistUnifiedMessage(ctx context.Context, message *unifiedmess
 		return nil
 	}
 
-	// 第二階段補關聯：若此訊息是回覆，嘗試把 related_message_id 連到父訊息。
-	// 這讓後續「是否在指令鍊上」可以用結構化關聯遞迴判斷。
-	// 注意：關聯失敗不回滾主訊息，避免因補鏈失敗導致訊息遺失。
-	if linkedItem, linkErr := s.store.LinkRelatedMessageByReply(ctx, item); linkErr != nil {
-		zap.L().Warn("link related message failed",
-			zap.String("platform", platform),
-			zap.String("channel_id", ch.ID.String()),
-			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
-			zap.Error(linkErr),
-		)
-		return item
-	} else if linkedItem != nil {
-		item = linkedItem
-	}
-
+	// 入站 reply 只保存 reply_to_msg_id，不自動寫 triggered_message_id。
+	// triggered_message_id 保留給「系統訊息由某訊息觸發」的內部追蹤語意；
+	// 若把一般使用者 reply 也轉成 triggered，會混淆「平台回覆」與「系統觸發」兩種關係。
+	// 後續需要判斷 command chain 時，會在 repository/service 層依優先序解析父節點。
 	return item
 }

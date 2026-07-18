@@ -169,7 +169,8 @@ var (
 		{Name: "message_type", Type: field.TypeString, Default: "text"},
 		{Name: "platform_timestamp", Type: field.TypeInt64, Nullable: true},
 		{Name: "channel_id", Type: field.TypeUUID},
-		{Name: "related_message_id", Type: field.TypeUUID, Nullable: true},
+		// triggered_message_id 是內部觸發來源，僅系統訊息需要；平台回覆目標仍由 reply_to_msg_id 保存。
+		{Name: "triggered_message_id", Type: field.TypeUUID, Nullable: true},
 	}
 	// ChannelMessagesTable holds the schema information for the "channel_messages" table.
 	ChannelMessagesTable = &schema.Table{
@@ -184,7 +185,8 @@ var (
 				OnDelete:   schema.NoAction,
 			},
 			{
-				Symbol:     "channel_messages_channel_messages_related_message",
+				Symbol: "channel_messages_channel_messages_triggered_message",
+				// 來源訊息刪除時將關聯設為 NULL，保留系統訊息本體但中斷已失效的觸發鏈。
 				Columns:    []*schema.Column{ChannelMessagesColumns[13]},
 				RefColumns: []*schema.Column{ChannelMessagesColumns[0]},
 				OnDelete:   schema.SetNull,
