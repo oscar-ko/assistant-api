@@ -19,6 +19,7 @@ type ChannelMessageStore interface {
 	SaveReceivedMessage(
 		ctx context.Context,
 		channelID uuid.UUID,
+		platform string,
 		platformTenantID string,
 		senderID string,
 		senderName string,
@@ -159,6 +160,7 @@ func (s Service) PersistUnifiedMessage(ctx context.Context, message *unifiedmess
 	item, err := s.store.SaveReceivedMessage(
 		ctx,
 		ch.ID,
+		platform,
 		platformTenantID,
 		senderID,
 		strings.TrimSpace(senderName),

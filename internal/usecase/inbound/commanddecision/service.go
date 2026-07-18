@@ -13,6 +13,7 @@ import (
 
 // Decision 表示單則訊息的共用判斷結果。
 type Decision struct {
+	IsMember                bool
 	IsMentionedBot          bool
 	IsOnCommandChain        bool
 	IsEffectiveMentionedBot bool
@@ -23,6 +24,9 @@ type Decision struct {
 // IsCommand 回傳這則訊息是否屬於 command 類型。
 func (d *Decision) IsCommand() bool {
 	if d == nil {
+		return false
+	}
+	if !d.IsMember {
 		return false
 	}
 	return d.IsPrivateChannel || d.IsMentionedBot || d.IsOnCommandChain
@@ -53,9 +57,12 @@ func (s *service) DecideMessage(ctx context.Context, message *unifiedmessage.Mes
 	}
 
 	// 第一階段：先判斷訊息是否直接 mention bot。
-	decision := &Decision{IsMentionedBot: message.MentionsUser(botUserID)}
+	decision := &Decision{IsMember: hasSenderUser(savedMessage), IsMentionedBot: message.MentionsUser(botUserID)}
 	if strings.EqualFold(strings.TrimSpace(message.ChannelType), "private") {
 		decision.IsPrivateChannel = true
+	}
+	if !decision.IsMember {
+		return decision
 	}
 	commandMode := decision.IsPrivateChannel || decision.IsMentionedBot
 	// reply context 規則：
@@ -87,4 +94,8 @@ func (s *service) DecideMessage(ctx context.Context, message *unifiedmessage.Mes
 	}
 
 	return decision
+}
+
+func hasSenderUser(message *ent.ChannelMessage) bool {
+	return message != nil && message.SenderUserID != nil && *message.SenderUserID != uuid.Nil
 }

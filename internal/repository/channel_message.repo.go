@@ -14,6 +14,7 @@ import (
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
+	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
@@ -121,6 +122,43 @@ func (r *ChannelMessageRepo) ResolveUserIDByPlatformUserID(ctx context.Context, 
 		return uuid.Nil, nil
 	}
 	return member.UserID, nil
+}
+
+// ResolveBoundUserIDByPlatformIdentity resolves a platform account binding to the system user UUID.
+func (r *ChannelMessageRepo) ResolveBoundUserIDByPlatformIdentity(ctx context.Context, platform string, platformTenantID string, platformUserID string) (uuid.UUID, error) {
+	if r == nil || r.db == nil {
+		return uuid.Nil, fmt.Errorf("channel repository not initialized")
+	}
+	platform = strings.ToLower(strings.TrimSpace(platform))
+	platformTenantID = strings.TrimSpace(platformTenantID)
+	platformUserID = strings.TrimSpace(platformUserID)
+	if platformUserID == "" {
+		return uuid.Nil, nil
+	}
+
+	switch channel.Platform(platform) {
+	case channel.PlatformLine:
+		return r.ResolveUserIDByLineUserID(ctx, platformUserID)
+	case channel.PlatformSlack:
+		if platformTenantID == "" {
+			return uuid.Nil, nil
+		}
+		boundUser, err := r.db.User.Query().
+			Where(user.HasSlackWith(slack.PlatformTeamIDEQ(platformTenantID), slack.PlatformUserIDEQ(platformUserID))).
+			Only(ctx)
+		if err != nil {
+			if ent.IsNotFound(err) {
+				return uuid.Nil, nil
+			}
+			return uuid.Nil, fmt.Errorf("query user by slack identity failed: %w", err)
+		}
+		if boundUser == nil {
+			return uuid.Nil, nil
+		}
+		return boundUser.ID, nil
+	default:
+		return uuid.Nil, nil
+	}
 }
 
 // ResolveSkillIDByCode resolves skill UUID from skill_code.
@@ -337,6 +375,7 @@ func (r *ChannelMessageRepo) UpdateChannelDisplayNameByID(ctx context.Context, c
 func (r *ChannelMessageRepo) SaveReceivedMessage(
 	ctx context.Context,
 	channelID uuid.UUID,
+	platform string,
 	platformTenantID string,
 	senderID string,
 	senderName string,
@@ -385,6 +424,11 @@ func (r *ChannelMessageRepo) SaveReceivedMessage(
 	}
 	if platformTimestamp > 0 {
 		builder = builder.SetPlatformTimestamp(platformTimestamp)
+	}
+	if ownerUserID, resolveErr := r.ResolveBoundUserIDByPlatformIdentity(ctx, platform, platformTenantID, senderID); resolveErr != nil {
+		return nil, fmt.Errorf("resolve sender user id failed: %w", resolveErr)
+	} else if ownerUserID != uuid.Nil {
+		builder = builder.SetSenderUserID(ownerUserID)
 	}
 
 	item, err := builder.Save(ctx)

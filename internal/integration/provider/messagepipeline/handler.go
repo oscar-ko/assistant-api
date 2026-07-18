@@ -11,6 +11,7 @@ import (
 	"assistant-api/internal/usecase/inbound/conversationflow"
 	"assistant-api/internal/usecase/inbound/messagepersist"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -99,7 +100,7 @@ func (h *Handler) Process(input Input) *ent.ChannelMessage {
 
 	// 先建立最小 decision，確保 Decision service 未注入時仍有明確且保守的判斷。
 	// private channel 視為 command mode；群組訊息則至少要 mention bot 才進 command。
-	decision := &commanddecision.Decision{IsMentionedBot: input.Message.MentionsUser(input.BotUserID)}
+	decision := &commanddecision.Decision{IsMember: isMemberMessage(savedMessage), IsMentionedBot: input.Message.MentionsUser(input.BotUserID)}
 	if strings.EqualFold(strings.TrimSpace(input.Message.ChannelType), "private") {
 		decision.IsPrivateChannel = true
 	}
@@ -158,4 +159,8 @@ func (h *Handler) Process(input Input) *ent.ChannelMessage {
 		)
 	}
 	return savedMessage
+}
+
+func isMemberMessage(message *ent.ChannelMessage) bool {
+	return message != nil && message.SenderUserID != nil && *message.SenderUserID != uuid.Nil
 }

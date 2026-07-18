@@ -26,7 +26,7 @@ func (m *mockCommandChain) IsCommandChainMessage(ctx context.Context, message *e
 
 func TestDecideMessageMentionAndChain(t *testing.T) {
 	message := &unifiedmessage.Message{Mentions: []unifiedmessage.Mention{{UserID: "BOT001"}}}
-	saved := &ent.ChannelMessage{ID: uuid.New()}
+	saved := memberMessage()
 
 	chain := &mockCommandChain{onChain: true}
 	svc := NewService(chain)
@@ -51,7 +51,7 @@ func TestDecideMessageMentionAndChain(t *testing.T) {
 
 func TestDecideMessageChainErrorDoesNotBlockCommandMode(t *testing.T) {
 	message := &unifiedmessage.Message{Text: "help", Mentions: []unifiedmessage.Mention{{UserID: "BOT001"}}}
-	saved := &ent.ChannelMessage{ID: uuid.New()}
+	saved := memberMessage()
 
 	chain := &mockCommandChain{err: context.Canceled}
 	svc := NewService(chain)
@@ -86,7 +86,7 @@ func TestDecideMessageNilMessage(t *testing.T) {
 
 func TestDecideMessagePrivateChannelForcesCommandMode(t *testing.T) {
 	message := &unifiedmessage.Message{ChannelType: "private", Text: "hello"}
-	saved := &ent.ChannelMessage{ID: uuid.New()}
+	saved := memberMessage()
 
 	decision := (&service{}).DecideMessage(context.Background(), message, saved, "BOT001")
 	if decision == nil {
@@ -108,7 +108,7 @@ func TestDecideMessagePrivateChannelForcesCommandMode(t *testing.T) {
 
 func TestDecideMessageSkipsComparisonOutsideCommandMode(t *testing.T) {
 	message := &unifiedmessage.Message{ChannelType: "group", Text: "hello"}
-	saved := &ent.ChannelMessage{ID: uuid.New()}
+	saved := memberMessage()
 	chain := &mockCommandChain{}
 
 	decision := (&service{commandChain: chain}).DecideMessage(context.Background(), message, saved, "BOT001")
@@ -133,7 +133,8 @@ func TestDecideMessageReplyContextChecksCommandChain(t *testing.T) {
 	// 平台 reply_to_msg_id 也會走相同的 reply context gate。
 	parentID := uuid.New()
 	message := &unifiedmessage.Message{ChannelType: "group", Text: "補參數"}
-	saved := &ent.ChannelMessage{ID: uuid.New(), TriggeredMessageID: &parentID}
+	saved := memberMessage()
+	saved.TriggeredMessageID = &parentID
 	chain := &mockCommandChain{onChain: true}
 
 	decision := (&service{commandChain: chain}).DecideMessage(context.Background(), message, saved, "BOT001")
@@ -149,4 +150,47 @@ func TestDecideMessageReplyContextChecksCommandChain(t *testing.T) {
 	if !decision.IsCommand() {
 		t.Fatal("expected reply context on command chain to enter command mode")
 	}
+}
+
+func TestDecideMessageNonMemberMentionDoesNotEnterCommandMode(t *testing.T) {
+	message := &unifiedmessage.Message{ChannelType: "group", Text: "help", Mentions: []unifiedmessage.Mention{{UserID: "BOT001"}}}
+	saved := &ent.ChannelMessage{ID: uuid.New()}
+	chain := &mockCommandChain{onChain: true}
+
+	decision := (&service{commandChain: chain}).DecideMessage(context.Background(), message, saved, "BOT001")
+	if decision == nil {
+		t.Fatal("expected decision")
+	}
+	if decision.IsMember {
+		t.Fatal("expected non-member decision")
+	}
+	if decision.IsCommand() {
+		t.Fatal("expected non-member mention to stay out of command mode")
+	}
+	if chain.called {
+		t.Fatal("expected command chain to be skipped for non-member")
+	}
+}
+
+func TestDecideMessageNonMemberReplyContextDoesNotEnterCommandMode(t *testing.T) {
+	parentID := uuid.New()
+	message := &unifiedmessage.Message{ChannelType: "group", Text: "補參數"}
+	saved := &ent.ChannelMessage{ID: uuid.New(), TriggeredMessageID: &parentID}
+	chain := &mockCommandChain{onChain: true}
+
+	decision := (&service{commandChain: chain}).DecideMessage(context.Background(), message, saved, "BOT001")
+	if decision == nil {
+		t.Fatal("expected decision")
+	}
+	if decision.IsCommand() {
+		t.Fatal("expected non-member reply context to stay out of command mode")
+	}
+	if chain.called {
+		t.Fatal("expected command chain to be skipped for non-member reply context")
+	}
+}
+
+func memberMessage() *ent.ChannelMessage {
+	userID := uuid.New()
+	return &ent.ChannelMessage{ID: uuid.New(), SenderUserID: &userID}
 }

@@ -111,6 +111,13 @@ func (o *Orchestrator) ProcessCommand(ctx context.Context, message *unifiedmessa
 	if o == nil || message == nil {
 		return
 	}
+	if !isCommandMemberMessage(savedMessage) {
+		zap.L().Info(o.logKey("message command skipped: sender is not member"),
+			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+		)
+		return
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -371,6 +378,10 @@ func (o *Orchestrator) decideFinalActionWithRetry(ctx context.Context, text stri
 		return nil, nil
 	}
 	return o.deps.LLM.DecideFinalAction(ctx, text, candidates)
+}
+
+func isCommandMemberMessage(message *ent.ChannelMessage) bool {
+	return message != nil && message.SenderUserID != nil && *message.SenderUserID != uuid.Nil
 }
 
 func isDecisionTimeoutError(err error) bool {
