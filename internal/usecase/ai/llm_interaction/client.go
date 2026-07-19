@@ -157,8 +157,8 @@ type InteractionClient interface {
 
 type interactionClient struct {
 	baseURL string
-	// modelName 只對本地 9003 LLM interaction 有意義。
-	// 空值代表沿用 9003 啟動時的 OLLAMA_MODEL；非空值會隨 request 傳入，讓同一個服務可依 profile 切換 9B/2B 等模型。
+	// modelName 只對本地 LLM interaction 有意義。
+	// 空值代表沿用服務啟動時的預設模型；非空值會隨 request 傳入，讓同一個服務可依 profile 切換模型。
 	modelName          string
 	actionDecisionPath string
 	questionAnswerPath string
@@ -167,7 +167,7 @@ type interactionClient struct {
 
 type classificationRequest struct {
 	Prompt string `json:"prompt"`
-	// ModelName 是本地 9003 的 per-request model selector。
+	// ModelName 是本地 LLM interaction 的 per-request model selector。
 	// 不把它放進 prompt，避免模型選擇變成自然語言規則；它必須是 transport contract 的結構化欄位。
 	ModelName             string `json:"model_name,omitempty"`
 	JSONDecodeRetryPrompt string `json:"json_decode_retry_prompt"`
@@ -220,7 +220,7 @@ func NewInteractionClientWithPaths(baseURL string, timeoutSeconds int, actionDec
 
 // NewInteractionClientWithModel 建立可指定本地 endpoint path 與 Ollama model 的通用 LLM 互動 client。
 // 這個建構子用在 local provider profile：profile.model_name 會被轉成 9003 request 的 model_name，
-// 因此不需要為 qwen 9B / 2B 另外開 9004、9005 等服務，只需新增 provider profile。
+// 因此不需要為不同模型另外開不同服務，只需新增 provider profile。
 func NewInteractionClientWithModel(baseURL string, timeoutSeconds int, modelName string, actionDecisionPath string, questionAnswerPath string) InteractionClient {
 	trimmed := strings.TrimSpace(baseURL)
 	if trimmed == "" {

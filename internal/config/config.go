@@ -69,11 +69,12 @@ type LLMInteractionConfig struct {
 	Chat LLMRoleConfig `mapstructure:"chat" yaml:"chat"`
 	// Translate 指定翻譯流程使用的 target。
 	Translate LLMRoleConfig `mapstructure:"translate" yaml:"translate"`
-	// TodoExtractor 指定待辦提醒上下文抽取使用的 target。
-	// 它和 decision/chat/translate 一樣走 llm_providers profile；差別在於用途只限 realtime todo reminder 的 bounded context extraction。
-	// 這讓同一個 9003 LLM interaction 服務可以用較小模型處理待辦抽取，而 action decision 仍保留較大模型。
-	TodoExtractor LLMRoleConfig `mapstructure:"todo_extractor" yaml:"todo_extractor"`
-	ChatGPT       ChatGPTConfig `mapstructure:"chatgpt" yaml:"chatgpt"`
+	// ContextAnalyzer 指定「短文本 + 近端上下文」分析使用的 target。
+	// 它和 decision/chat/translate 一樣走 llm_providers profile；差別在於用途不是完整對話決策，
+	// 而是給 realtime 服務在 bounded context 內做輕量判斷，例如 todo 補欄位、calendar 補資訊、follow-up 判斷等。
+	// 這讓同一個 LLM interaction 服務可以依 profile 使用不同模型，而不把模型選型寫死在業務流程中。
+	ContextAnalyzer LLMRoleConfig `mapstructure:"context_analyzer" yaml:"context_analyzer"`
+	ChatGPT         ChatGPTConfig `mapstructure:"chatgpt" yaml:"chatgpt"`
 	// CommandConfidenceThreshold 決定 final action 信心值低於多少時，
 	// 直接視為對話意圖（非指令 action）。0 代表關閉此門檻判斷。
 	CommandConfidenceThreshold float64 `mapstructure:"command_confidence_threshold" yaml:"command_confidence_threshold"`
@@ -297,8 +298,8 @@ func MustLoad() {
 		viper.SetDefault("ai.llm_interaction.decision.profile", "local")
 		viper.SetDefault("ai.llm_interaction.chat.profile", "local")
 		viper.SetDefault("ai.llm_interaction.translate.profile", "local")
-		// todo_extractor 是待辦提醒專用角色；預設仍沿用 local，實際部署應在 provider profile 指定 9003 + model_name。
-		viper.SetDefault("ai.llm_interaction.todo_extractor.profile", "local")
+		// context_analyzer 是短文本上下文分析角色；預設仍沿用 local，實際部署應在 provider profile 指定 endpoint 與 model_name。
+		viper.SetDefault("ai.llm_interaction.context_analyzer.profile", "local")
 		viper.SetDefault("ai.llm_interaction.chatgpt.url", "https://api.openai.com/v1")
 		viper.SetDefault("ai.llm_interaction.chatgpt.token", "")
 		viper.SetDefault("ai.llm_interaction.chatgpt.profiles.default.model_name", "gpt-4o-mini")

@@ -24,8 +24,8 @@ func NewLocalContractInteractionClient(baseURL string, timeoutSeconds int, actio
 	return usecasellminteraction.NewInteractionClientWithPaths(baseURL, timeoutSeconds, actionDecisionPath, questionAnswerPath)
 }
 
-// NewLocalContractInteractionClientWithModel 允許同一個 9003 服務依 profile 指定 Ollama model。
-// integration 層只轉接設定，不把 qwen 2B/9B 這類模型名稱硬編在 usecase 或 provider webhook 裡。
+// NewLocalContractInteractionClientWithModel 允許同一個本地 LLM interaction 服務依 profile 指定模型。
+// integration 層只轉接設定，不把具體模型名稱硬編在 usecase 或 provider webhook 裡。
 func NewLocalContractInteractionClientWithModel(baseURL string, timeoutSeconds int, modelName string, actionDecisionPath string, questionAnswerPath string) InteractionClient {
 	return usecasellminteraction.NewInteractionClientWithModel(baseURL, timeoutSeconds, modelName, actionDecisionPath, questionAnswerPath)
 }

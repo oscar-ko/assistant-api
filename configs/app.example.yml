@@ -64,8 +64,8 @@ ai:
             timeout: 120
             max_token: 1024
             temperature: 0.2
-        todo_extractor:
-            profile: "aistant.todo_extractor"
+        context_analyzer:
+            profile: "aistant.context_analyzer"
             timeout: 60
             max_token: 512
             temperature: 0.1
@@ -110,7 +110,7 @@ llm_providers:
                 action_decision_path: "/predict/action_decision"
                 question_answer_path: "/predict/question_answer"
                 translate_path: "/translate"
-            todo_extractor:
+            context_analyzer:
                 url: "http://127.0.0.1:9003"
                 model_name: "qwen3.5:2b"
                 timeout_seconds: 60
