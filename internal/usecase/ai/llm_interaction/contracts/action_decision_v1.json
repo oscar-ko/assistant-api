@@ -28,7 +28,7 @@
       "name": "action_params",
       "type": "object",
       "required": true,
-      "notes": "include only parameters required by chosen api_operation; must be empty object when next_step=answer_question"
+      "notes": "machine-readable execution parameters only; include only parameters required by chosen api_operation; parameter values must use the exact JSON type required by the chosen operation prompt; must be empty object when next_step=answer_question"
     },
     {
       "name": "missing_parameters",
@@ -47,7 +47,7 @@
       "name": "reason",
       "type": "string",
       "required": true,
-      "notes": "plain text sentence only"
+      "notes": "plain text decision explanation only; must not contain JSON fragments, key=value pairs, or executable parameter payloads"
     }
   ]
 }

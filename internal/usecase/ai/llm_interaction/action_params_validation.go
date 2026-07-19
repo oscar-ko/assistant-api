@@ -44,6 +44,7 @@ func AsDecisionValidationError(err error) *DecisionValidationError {
 }
 
 var actionParamKeyPattern = regexp.MustCompile(`action_params\.([a-zA-Z0-9_]+)`)
+var reasonKeyValuePattern = regexp.MustCompile(`\b[a-zA-Z_][a-zA-Z0-9_]*\s*=`)
 
 // InferMissingParametersFromReason extracts missing parameter keys from contract error messages.
 func InferMissingParametersFromReason(reason string) []string {
@@ -101,6 +102,9 @@ func validateActionDecision(decision *ActionDecision) error {
 	decision.NextStep = nextStep
 	decision.APIOperation = strings.TrimSpace(decision.APIOperation)
 	decision.Reason = strings.TrimSpace(decision.Reason)
+	if err := validateDecisionReason(decision.Reason); err != nil {
+		return err
+	}
 
 	if nextStep == NextStepExecuteAction && decision.APIOperation == "" {
 		return fmt.Errorf("action decision api_operation is required when next_step=execute_action")
@@ -133,6 +137,20 @@ func validateActionDecision(decision *ActionDecision) error {
 		if err := normalizeLocaleActionParams(decision); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func validateDecisionReason(reason string) error {
+	trimmed := strings.TrimSpace(reason)
+	if trimmed == "" {
+		return nil
+	}
+	if strings.ContainsAny(trimmed, "{}[]\"`") {
+		return fmt.Errorf("action decision reason must be plain text and must not contain JSON fragments or quoted parameter payloads")
+	}
+	if reasonKeyValuePattern.MatchString(trimmed) {
+		return fmt.Errorf("action decision reason must not contain key=value parameter payloads")
 	}
 	return nil
 }

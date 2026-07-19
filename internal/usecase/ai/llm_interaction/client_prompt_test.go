@@ -49,6 +49,18 @@ func TestBuildFinalActionPromptIncludesActionPromptGuidance(t *testing.T) {
 	if !strings.Contains(prompt, "next_step: string, required, enum=execute_action|ask_clarifying_question|answer_question") {
 		t.Fatalf("expected next_step enum constraints in prompt, got: %s", prompt)
 	}
+	if !strings.Contains(prompt, "machine-readable execution parameters only") {
+		t.Fatalf("expected action_params contract to describe machine-readable parameters, got: %s", prompt)
+	}
+	if !strings.Contains(prompt, "plain text decision explanation only") {
+		t.Fatalf("expected reason contract to describe plain text explanation only, got: %s", prompt)
+	}
+	if !strings.Contains(prompt, "action_params 是唯一可承載執行參數的機器可讀欄位") {
+		t.Fatalf("expected prompt to separate execution parameters from semantic explanation, got: %s", prompt)
+	}
+	if !strings.Contains(prompt, "reason 只能說明決策理由，不可承載或替代 action_params") {
+		t.Fatalf("expected prompt to forbid parameter payloads in reason, got: %s", prompt)
+	}
 	globalSkillSpecificRules := []string{
 		"翻譯類 action",
 		"target_locales 必須輸出",

@@ -307,6 +307,8 @@ func BuildFinalActionPrompt(candidates []ActionCandidate) string {
 - 若 next_step=answer_question：api_operation 必須為空字串，action_params 必須為空物件
 - missing_parameters 非空時，next_step 必須是 ask_clarifying_question
 - 不可把 route_text、skill、score、operation 這類候選描述欄位複製到 action_params
+- action_params 是唯一可承載執行參數的機器可讀欄位；所有執行參數都必須依被選中 operation 的動態規則放在 action_params，且型別必須完全符合該規則
+- reason 只能說明決策理由，不可承載或替代 action_params，不可包含 JSON 片段、key=value、參數清單或可被下游解析為執行參數的內容
 - 缺少必要參數時不可猜測
 - 若使用者訊息語意明顯對應某個候選，即使非分數最高也應選語意最貼合者
 - confidence 為 0 到 1，表示對「下一步判斷」的把握程度
