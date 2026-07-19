@@ -931,6 +931,9 @@ func (r *ChannelMessageRepo) createTodoCandidate(ctx context.Context, input Save
 	if err := r.syncTodoCandidateMentionAssignees(ctx, item.ID, input.MessageID); err != nil {
 		return nil, err
 	}
+	if err := r.syncTodoCandidateAnalyzerAssignees(ctx, item.ID, input.ChannelID, input.Assignees); err != nil {
+		return nil, err
+	}
 	return item, nil
 }
 
@@ -969,6 +972,9 @@ func (r *ChannelMessageRepo) updateTodoCandidate(ctx context.Context, candidateI
 		return nil, fmt.Errorf("update todo candidate failed: %w", err)
 	}
 	if err := r.syncTodoCandidateMentionAssignees(ctx, item.ID, input.MessageID); err != nil {
+		return nil, err
+	}
+	if err := r.syncTodoCandidateAnalyzerAssignees(ctx, item.ID, input.ChannelID, input.Assignees); err != nil {
 		return nil, err
 	}
 	return item, nil
@@ -1030,6 +1036,108 @@ func (r *ChannelMessageRepo) syncTodoCandidateMentionAssignees(ctx context.Conte
 		return fmt.Errorf("save todo candidate mention assignees failed: %w", err)
 	}
 	return nil
+}
+
+func (r *ChannelMessageRepo) syncTodoCandidateAnalyzerAssignees(ctx context.Context, candidateID uuid.UUID, channelID uuid.UUID, assignees []string) error {
+	if candidateID == uuid.Nil || channelID == uuid.Nil {
+		return nil
+	}
+	normalizedAssignees := normalizeStringSlice(assignees)
+	if _, err := r.db.TodoCandidateAssignee.Delete().
+		Where(
+			todocandidateassignee.CandidateIDEQ(candidateID),
+			todocandidateassignee.SourceEQ(todocandidateassignee.SourceAnalyzer),
+		).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("clear todo candidate analyzer assignees failed: %w", err)
+	}
+	if len(normalizedAssignees) == 0 {
+		return nil
+	}
+	platformValue, err := r.todoAssigneePlatformByChannelID(ctx, channelID)
+	if err != nil {
+		return err
+	}
+
+	creates := make([]*ent.TodoCandidateAssigneeCreate, 0, len(normalizedAssignees))
+	for _, assignee := range normalizedAssignees {
+		matchedUserID, status, reason, err := r.resolveAnalyzerAssigneeByChannelSenderName(ctx, channelID, assignee)
+		if err != nil {
+			return err
+		}
+		create := r.db.TodoCandidateAssignee.Create().
+			SetCandidateID(candidateID).
+			SetSource(todocandidateassignee.SourceAnalyzer).
+			SetPlatform(platformValue).
+			SetDisplayText(assignee).
+			SetIdentityKind(todocandidateassignee.IdentityKindUser).
+			SetIsBot(false).
+			SetResolutionStatus(status).
+			SetReason(reason)
+		if matchedUserID != uuid.Nil {
+			create.SetUserID(matchedUserID)
+		}
+		creates = append(creates, create)
+	}
+	if len(creates) == 0 {
+		return nil
+	}
+	if err := r.db.TodoCandidateAssignee.CreateBulk(creates...).Exec(ctx); err != nil {
+		return fmt.Errorf("save todo candidate analyzer assignees failed: %w", err)
+	}
+	return nil
+}
+
+func (r *ChannelMessageRepo) todoAssigneePlatformByChannelID(ctx context.Context, channelID uuid.UUID) (todocandidateassignee.Platform, error) {
+	item, err := r.db.Channel.Get(ctx, channelID)
+	if err != nil {
+		return "", fmt.Errorf("query todo assignee channel platform failed: %w", err)
+	}
+	switch item.Platform {
+	case channel.PlatformWhatsapp:
+		return todocandidateassignee.PlatformWhatsapp, nil
+	case channel.PlatformSlack:
+		return todocandidateassignee.PlatformSlack, nil
+	case channel.PlatformTelegram:
+		return todocandidateassignee.PlatformTelegram, nil
+	default:
+		return todocandidateassignee.PlatformLine, nil
+	}
+}
+
+func (r *ChannelMessageRepo) resolveAnalyzerAssigneeByChannelSenderName(ctx context.Context, channelID uuid.UUID, assignee string) (uuid.UUID, todocandidateassignee.ResolutionStatus, string, error) {
+	assignee = strings.TrimSpace(assignee)
+	if assignee == "" {
+		return uuid.Nil, todocandidateassignee.ResolutionStatusUnsupported, "empty analyzer assignee", nil
+	}
+	items, err := r.db.ChannelMessage.Query().
+		Where(
+			channelmessage.ChannelIDEQ(channelID),
+			channelmessage.SenderNameEqualFold(assignee),
+			channelmessage.SenderUserIDNotNil(),
+		).
+		Order(ent.Desc(channelmessage.FieldCreatedAt)).
+		Limit(50).
+		All(ctx)
+	if err != nil {
+		return uuid.Nil, "", "", fmt.Errorf("query analyzer assignee sender matches failed: %w", err)
+	}
+	uniqueUserIDs := make(map[uuid.UUID]struct{}, len(items))
+	for _, item := range items {
+		if item == nil || item.SenderUserID == nil || *item.SenderUserID == uuid.Nil {
+			continue
+		}
+		uniqueUserIDs[*item.SenderUserID] = struct{}{}
+	}
+	switch len(uniqueUserIDs) {
+	case 0:
+		return uuid.Nil, todocandidateassignee.ResolutionStatusUnresolved, "no channel sender matched analyzer assignee display text", nil
+	case 1:
+		for userID := range uniqueUserIDs {
+			return userID, todocandidateassignee.ResolutionStatusResolved, "matched unique channel sender display name", nil
+		}
+	}
+	return uuid.Nil, todocandidateassignee.ResolutionStatusAmbiguous, "multiple channel senders matched analyzer assignee display text", nil
 }
 
 func (r *ChannelMessageRepo) findTodoCandidateByLinkedMessage(ctx context.Context, channelID uuid.UUID, linkedMessageID uuid.UUID) (*ent.TodoCandidate, error) {
