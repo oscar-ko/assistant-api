@@ -9,12 +9,11 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	usecaserealtime "assistant-api/internal/usecase/inbound/realtime"
 )
 
-// Translator defines translation capability.
-type Translator interface {
-	Translate(ctx context.Context, text string, targetLocales []string) (map[string]string, error)
-}
+type Translator = usecaserealtime.Translator
 
 // LocalTranslateClient calls a local JSON-contract translation endpoint.
 type LocalTranslateClient struct {

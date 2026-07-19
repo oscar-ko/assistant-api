@@ -9,20 +9,12 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	usecaserealtime "assistant-api/internal/usecase/inbound/realtime"
 )
 
-// Classifier tags a message with a service-oriented category.
-type Classifier interface {
-	Classify(ctx context.Context, text string) (*ClassificationResult, error)
-}
-
-// ClassificationResult is the strict subset of the classifier response needed by realtime services.
-type ClassificationResult struct {
-	Tag       string
-	Labels    []string
-	Scores    map[string]float64
-	ModelName string
-}
+type Classifier = usecaserealtime.Classifier
+type ClassificationResult = usecaserealtime.ClassificationResult
 
 // classifierPrompt 暫放在 client：目前它是 venv classifier 的 transport contract，
 // 不是可由部署環境調整的設定。等分類 prompt 穩定後，再視需要抽到 prompt registry。

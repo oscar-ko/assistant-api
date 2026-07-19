@@ -14,7 +14,7 @@ import (
 	"assistant-api/internal/config"
 	aillminteraction "assistant-api/internal/integration/ai/llm_interaction"
 	aitopkfilter "assistant-api/internal/integration/ai/topkfilter"
-	"assistant-api/internal/integration/provider/realtime"
+	realtimeclient "assistant-api/internal/integration/provider/realtime"
 	webhooklog "assistant-api/internal/integration/provider/webhooklog"
 	"assistant-api/internal/integration/runtimecontext"
 	"assistant-api/internal/integration/unifiedmessage"
@@ -25,6 +25,7 @@ import (
 	"assistant-api/internal/usecase/inbound/conversationflow"
 	"assistant-api/internal/usecase/inbound/messagepersist"
 	"assistant-api/internal/usecase/inbound/messagepipeline"
+	"assistant-api/internal/usecase/inbound/realtime"
 
 	"github.com/google/uuid"
 )
@@ -84,11 +85,11 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 	chainSvc := commandchain.NewService(repo)
 	decisionSvc := commanddecision.NewService(chainSvc)
 	dispatcher := actionpost.NewDefaultDispatcher(repo)
-	translateClient, translateProfile, err := realtime.BuildTranslatorFromConfig(config.AI, config.LLMProviders)
+	translateClient, translateProfile, err := realtimeclient.BuildTranslatorFromConfig(config.AI, config.LLMProviders)
 	if err != nil {
 		panic(err)
 	}
-	classifierClient, classifierProfile, err := realtime.BuildClassifierFromConfig(config.AI)
+	classifierClient, classifierProfile, err := realtimeclient.BuildClassifierFromConfig(config.AI)
 	if err != nil {
 		panic(err)
 	}

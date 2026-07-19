@@ -5,11 +5,11 @@ import (
 	"strings"
 
 	"assistant-api/internal/ent"
-	"assistant-api/internal/integration/provider/realtime"
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/usecase/inbound/commanddecision"
 	"assistant-api/internal/usecase/inbound/conversationflow"
 	"assistant-api/internal/usecase/inbound/messagepersist"
+	"assistant-api/internal/usecase/inbound/realtime"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
