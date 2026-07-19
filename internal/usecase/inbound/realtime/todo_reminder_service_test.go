@@ -135,6 +135,26 @@ func TestTodoReminderServiceSkipsImplicitReplyWhenExplicitReplyExists(t *testing
 	}
 }
 
+func TestTodoReminderServiceSkipsImplicitReplyWhenRecentLimitNotConfigured(t *testing.T) {
+	// recentLimit 的預設值屬於 config 層；usecase 不應再偷偷補 8。
+	// 若測試或啟動流程沒有注入有效值，就直接略過 implicit linker，讓設定錯誤能在 log 中被看見。
+	repo := &stubRecentMessageStore{}
+	analyzer := &stubContextAnalyzer{}
+	service := NewTodoReminderService(TodoReminderServiceOptions{Repo: repo, LLM: analyzer, PlatformLabel: "test"})
+
+	service.HandleClassification(context.Background(), MessageContext{
+		Message:      &unifiedmessage.Message{ChannelID: "channel-1", PlatformMessageID: "m-2", MessageType: "text", Text: "我晚點弄"},
+		SavedMessage: &ent.ChannelMessage{ID: uuid.New(), ChannelID: uuid.New(), Content: "我晚點弄", CreatedAt: time.Now()},
+	}, ClassificationResult{Tag: "todo", Signal: ClassificationSignalCandidate})
+
+	if repo.calls != 0 {
+		t.Fatalf("expected missing recent limit to skip recent message query, got %d calls", repo.calls)
+	}
+	if analyzer.calls != 0 {
+		t.Fatalf("expected missing recent limit to skip todo analyzer, got %d calls", analyzer.calls)
+	}
+}
+
 func TestTodoReminderServiceUsesRerankedImplicitReplyCandidates(t *testing.T) {
 	// 驗證「召回窗口」和「語意排序」是兩階段：repository 先回時間序候選，
 	// reranker 再依目前訊息把更相關的候選排前面，最後 prompt 必須使用精排後順序。

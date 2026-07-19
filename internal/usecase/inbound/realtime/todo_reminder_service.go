@@ -43,17 +43,14 @@ type TodoReminderServiceOptions struct {
 
 // NewTodoReminderService 建立待辦提醒即時服務。
 func NewTodoReminderService(options TodoReminderServiceOptions) *TodoReminderService {
-	recentLimit := options.RecentLimit
-	if recentLimit <= 0 {
-		// implicit reply 通常只跨一到數則訊息；預設抓近 8 則，兼顧召回率與 prompt 成本。
-		recentLimit = 8
-	}
 	return &TodoReminderService{
 		platformLabel: strings.TrimSpace(options.PlatformLabel),
 		repo:          options.Repo,
 		llm:           options.LLM,
 		ranker:        options.Ranker,
-		recentLimit:   recentLimit,
+		// RecentLimit 必須由 config 層解析後注入；預設值集中在 ai.history_context.recent_message_limit，
+		// usecase 不再內建 8，避免未來調整召回窗口時出現「設定檔一份、程式碼一份」的漂移。
+		recentLimit: options.RecentLimit,
 	}
 }
 
@@ -93,6 +90,17 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 	}
 	if strings.TrimSpace(messageCtx.Message.ReplyToMsgID) != "" {
 		// 顯式平台 reply 會走既有 reply chain；這裡只處理「沒有按 reply」的隱式接續。
+		return
+	}
+	if s.recentLimit <= 0 {
+		// recentLimit 是 config-driven；如果設定解析後仍無效，寧可略過 implicit linker，
+		// 不用 usecase 自行補預設值，避免隱性覆蓋部署環境的設定錯誤。
+		zap.L().Warn("todo reminder implicit reply context skipped: recent limit is not configured",
+			zap.String("platform", s.platformLabel),
+			zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+			zap.Int("recent_limit", s.recentLimit),
+		)
 		return
 	}
 
