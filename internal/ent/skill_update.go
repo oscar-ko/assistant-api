@@ -79,6 +79,34 @@ func (_u *SkillUpdate) ClearDescription() *SkillUpdate {
 	return _u
 }
 
+// SetIsRealtime sets the "is_realtime" field.
+func (_u *SkillUpdate) SetIsRealtime(v bool) *SkillUpdate {
+	_u.mutation.SetIsRealtime(v)
+	return _u
+}
+
+// SetNillableIsRealtime sets the "is_realtime" field if the given value is not nil.
+func (_u *SkillUpdate) SetNillableIsRealtime(v *bool) *SkillUpdate {
+	if v != nil {
+		_u.SetIsRealtime(*v)
+	}
+	return _u
+}
+
+// SetRequiresTextScan sets the "requires_text_scan" field.
+func (_u *SkillUpdate) SetRequiresTextScan(v bool) *SkillUpdate {
+	_u.mutation.SetRequiresTextScan(v)
+	return _u
+}
+
+// SetNillableRequiresTextScan sets the "requires_text_scan" field if the given value is not nil.
+func (_u *SkillUpdate) SetNillableRequiresTextScan(v *bool) *SkillUpdate {
+	if v != nil {
+		_u.SetRequiresTextScan(*v)
+	}
+	return _u
+}
+
 // AddActionIDs adds the "actions" edge to the Action entity by IDs.
 func (_u *SkillUpdate) AddActionIDs(ids ...uuid.UUID) *SkillUpdate {
 	_u.mutation.AddActionIDs(ids...)
@@ -257,6 +285,12 @@ func (_u *SkillUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.DescriptionCleared() {
 		_spec.ClearField(skill.FieldDescription, field.TypeString)
+	}
+	if value, ok := _u.mutation.IsRealtime(); ok {
+		_spec.SetField(skill.FieldIsRealtime, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RequiresTextScan(); ok {
+		_spec.SetField(skill.FieldRequiresTextScan, field.TypeBool, value)
 	}
 	if _u.mutation.ActionsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -458,6 +492,34 @@ func (_u *SkillUpdateOne) SetNillableDescription(v *string) *SkillUpdateOne {
 // ClearDescription clears the value of the "description" field.
 func (_u *SkillUpdateOne) ClearDescription() *SkillUpdateOne {
 	_u.mutation.ClearDescription()
+	return _u
+}
+
+// SetIsRealtime sets the "is_realtime" field.
+func (_u *SkillUpdateOne) SetIsRealtime(v bool) *SkillUpdateOne {
+	_u.mutation.SetIsRealtime(v)
+	return _u
+}
+
+// SetNillableIsRealtime sets the "is_realtime" field if the given value is not nil.
+func (_u *SkillUpdateOne) SetNillableIsRealtime(v *bool) *SkillUpdateOne {
+	if v != nil {
+		_u.SetIsRealtime(*v)
+	}
+	return _u
+}
+
+// SetRequiresTextScan sets the "requires_text_scan" field.
+func (_u *SkillUpdateOne) SetRequiresTextScan(v bool) *SkillUpdateOne {
+	_u.mutation.SetRequiresTextScan(v)
+	return _u
+}
+
+// SetNillableRequiresTextScan sets the "requires_text_scan" field if the given value is not nil.
+func (_u *SkillUpdateOne) SetNillableRequiresTextScan(v *bool) *SkillUpdateOne {
+	if v != nil {
+		_u.SetRequiresTextScan(*v)
+	}
 	return _u
 }
 
@@ -669,6 +731,12 @@ func (_u *SkillUpdateOne) sqlSave(ctx context.Context) (_node *Skill, err error)
 	}
 	if _u.mutation.DescriptionCleared() {
 		_spec.ClearField(skill.FieldDescription, field.TypeString)
+	}
+	if value, ok := _u.mutation.IsRealtime(); ok {
+		_spec.SetField(skill.FieldIsRealtime, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RequiresTextScan(); ok {
+		_spec.SetField(skill.FieldRequiresTextScan, field.TypeBool, value)
 	}
 	if _u.mutation.ActionsCleared() {
 		edge := &sqlgraph.EdgeSpec{

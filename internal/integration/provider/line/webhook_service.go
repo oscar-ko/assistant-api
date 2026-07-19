@@ -111,6 +111,7 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 		PlatformLabel: "line:" + strings.TrimSpace(translateProfile),
 	})
 	messageClassifier := realtime.NewMessageClassificationService(realtime.MessageClassificationServiceOptions{
+		TextScanGate:  repo,
 		Classifier:    classifierClient,
 		PlatformLabel: "line:" + strings.TrimSpace(classifierProfile),
 	})

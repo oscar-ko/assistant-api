@@ -1597,7 +1597,6 @@ type ChannelMessageWhereInput struct {
 	ChannelIDNotIn []uuid.UUID `json:"channelIDNotIn,omitempty"`
 
 	// "triggered_message_id" field predicates.
-	// 中文說明：用於篩選「由某則訊息觸發的系統訊息」，不要與平台 reply_to_msg_id 混用。
 	TriggeredMessageID       *uuid.UUID  `json:"triggeredMessageID,omitempty"`
 	TriggeredMessageIDNEQ    *uuid.UUID  `json:"triggeredMessageIDNEQ,omitempty"`
 	TriggeredMessageIDIn     []uuid.UUID `json:"triggeredMessageIDIn,omitempty"`
@@ -1732,12 +1731,10 @@ type ChannelMessageWhereInput struct {
 	HasChannelWith []*ChannelWhereInput `json:"hasChannelWith,omitempty"`
 
 	// "triggered_message" edge predicates.
-	// 中文說明：篩選是否存在觸發來源，或限制來源訊息本身的條件。
 	HasTriggeredMessage     *bool                       `json:"hasTriggeredMessage,omitempty"`
 	HasTriggeredMessageWith []*ChannelMessageWhereInput `json:"hasTriggeredMessageWith,omitempty"`
 
 	// "triggered_messages" edge predicates.
-	// 中文說明：篩選是否曾觸發系統訊息，或限制被觸發出的系統訊息條件。
 	HasTriggeredMessages     *bool                       `json:"hasTriggeredMessages,omitempty"`
 	HasTriggeredMessagesWith []*ChannelMessageWhereInput `json:"hasTriggeredMessagesWith,omitempty"`
 }
@@ -3117,6 +3114,14 @@ type SkillWhereInput struct {
 	DescriptionEqualFold    *string  `json:"descriptionEqualFold,omitempty"`
 	DescriptionContainsFold *string  `json:"descriptionContainsFold,omitempty"`
 
+	// "is_realtime" field predicates.
+	IsRealtime    *bool `json:"isRealtime,omitempty"`
+	IsRealtimeNEQ *bool `json:"isRealtimeNEQ,omitempty"`
+
+	// "requires_text_scan" field predicates.
+	RequiresTextScan    *bool `json:"requiresTextScan,omitempty"`
+	RequiresTextScanNEQ *bool `json:"requiresTextScanNEQ,omitempty"`
+
 	// "actions" edge predicates.
 	HasActions     *bool               `json:"hasActions,omitempty"`
 	HasActionsWith []*ActionWhereInput `json:"hasActionsWith,omitempty"`
@@ -3347,6 +3352,18 @@ func (i *SkillWhereInput) P() (predicate.Skill, error) {
 	}
 	if i.DescriptionContainsFold != nil {
 		predicates = append(predicates, skill.DescriptionContainsFold(*i.DescriptionContainsFold))
+	}
+	if i.IsRealtime != nil {
+		predicates = append(predicates, skill.IsRealtimeEQ(*i.IsRealtime))
+	}
+	if i.IsRealtimeNEQ != nil {
+		predicates = append(predicates, skill.IsRealtimeNEQ(*i.IsRealtimeNEQ))
+	}
+	if i.RequiresTextScan != nil {
+		predicates = append(predicates, skill.RequiresTextScanEQ(*i.RequiresTextScan))
+	}
+	if i.RequiresTextScanNEQ != nil {
+		predicates = append(predicates, skill.RequiresTextScanNEQ(*i.RequiresTextScanNEQ))
 	}
 
 	if i.HasActions != nil {

@@ -70,6 +70,16 @@ func Description(v string) predicate.Skill {
 	return predicate.Skill(sql.FieldEQ(FieldDescription, v))
 }
 
+// IsRealtime applies equality check predicate on the "is_realtime" field. It's identical to IsRealtimeEQ.
+func IsRealtime(v bool) predicate.Skill {
+	return predicate.Skill(sql.FieldEQ(FieldIsRealtime, v))
+}
+
+// RequiresTextScan applies equality check predicate on the "requires_text_scan" field. It's identical to RequiresTextScanEQ.
+func RequiresTextScan(v bool) predicate.Skill {
+	return predicate.Skill(sql.FieldEQ(FieldRequiresTextScan, v))
+}
+
 // SkillCodeEQ applies the EQ predicate on the "skill_code" field.
 func SkillCodeEQ(v string) predicate.Skill {
 	return predicate.Skill(sql.FieldEQ(FieldSkillCode, v))
@@ -273,6 +283,26 @@ func DescriptionEqualFold(v string) predicate.Skill {
 // DescriptionContainsFold applies the ContainsFold predicate on the "description" field.
 func DescriptionContainsFold(v string) predicate.Skill {
 	return predicate.Skill(sql.FieldContainsFold(FieldDescription, v))
+}
+
+// IsRealtimeEQ applies the EQ predicate on the "is_realtime" field.
+func IsRealtimeEQ(v bool) predicate.Skill {
+	return predicate.Skill(sql.FieldEQ(FieldIsRealtime, v))
+}
+
+// IsRealtimeNEQ applies the NEQ predicate on the "is_realtime" field.
+func IsRealtimeNEQ(v bool) predicate.Skill {
+	return predicate.Skill(sql.FieldNEQ(FieldIsRealtime, v))
+}
+
+// RequiresTextScanEQ applies the EQ predicate on the "requires_text_scan" field.
+func RequiresTextScanEQ(v bool) predicate.Skill {
+	return predicate.Skill(sql.FieldEQ(FieldRequiresTextScan, v))
+}
+
+// RequiresTextScanNEQ applies the NEQ predicate on the "requires_text_scan" field.
+func RequiresTextScanNEQ(v bool) predicate.Skill {
+	return predicate.Skill(sql.FieldNEQ(FieldRequiresTextScan, v))
 }
 
 // HasActions applies the HasEdge predicate on the "actions" edge.

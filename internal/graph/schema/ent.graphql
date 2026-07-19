@@ -876,6 +876,16 @@ input SkillWhereInput {
     descriptionEqualFold: String
     descriptionContainsFold: String
     """
+    is_realtime field predicates
+    """
+    isRealtime: Boolean
+    isRealtimeNEQ: Boolean
+    """
+    requires_text_scan field predicates
+    """
+    requiresTextScan: Boolean
+    requiresTextScanNEQ: Boolean
+    """
     actions edge predicates
     """
     hasActions: Boolean

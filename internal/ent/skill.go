@@ -24,6 +24,10 @@ type Skill struct {
 	Name string `json:"name,omitempty"`
 	// 技能描述
 	Description *string `json:"description,omitempty"`
+	// 是否會在非指令訊息進來時即時處理
+	IsRealtime bool `json:"is_realtime,omitempty"`
+	// 是否需要對非指令文字訊息做分類掃描
+	RequiresTextScan bool `json:"requires_text_scan,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the SkillQuery when eager-loading is set.
 	Edges        SkillEdges `json:"edges"`
@@ -81,6 +85,8 @@ func (*Skill) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case skill.FieldIsRealtime, skill.FieldRequiresTextScan:
+			values[i] = new(sql.NullBool)
 		case skill.FieldSkillCode, skill.FieldName, skill.FieldDescription:
 			values[i] = new(sql.NullString)
 		case skill.FieldID:
@@ -124,6 +130,18 @@ func (_m *Skill) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Description = new(string)
 				*_m.Description = value.String
+			}
+		case skill.FieldIsRealtime:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_realtime", values[i])
+			} else if value.Valid {
+				_m.IsRealtime = value.Bool
+			}
+		case skill.FieldRequiresTextScan:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field requires_text_scan", values[i])
+			} else if value.Valid {
+				_m.RequiresTextScan = value.Bool
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -186,6 +204,12 @@ func (_m *Skill) String() string {
 		builder.WriteString("description=")
 		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	builder.WriteString("is_realtime=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IsRealtime))
+	builder.WriteString(", ")
+	builder.WriteString("requires_text_scan=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RequiresTextScan))
 	builder.WriteByte(')')
 	return builder.String()
 }

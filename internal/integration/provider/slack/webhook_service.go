@@ -107,6 +107,7 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 		PlatformLabel: "slack:" + strings.TrimSpace(translateProfile),
 	})
 	messageClassifier := realtime.NewMessageClassificationService(realtime.MessageClassificationServiceOptions{
+		TextScanGate:  repo,
 		Classifier:    classifierClient,
 		PlatformLabel: "slack:" + strings.TrimSpace(classifierProfile),
 	})

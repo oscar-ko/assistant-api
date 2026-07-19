@@ -19,6 +19,10 @@ const (
 	FieldName = "name"
 	// FieldDescription holds the string denoting the description field in the database.
 	FieldDescription = "description"
+	// FieldIsRealtime holds the string denoting the is_realtime field in the database.
+	FieldIsRealtime = "is_realtime"
+	// FieldRequiresTextScan holds the string denoting the requires_text_scan field in the database.
+	FieldRequiresTextScan = "requires_text_scan"
 	// EdgeActions holds the string denoting the actions edge name in mutations.
 	EdgeActions = "actions"
 	// EdgeChannelServiceMembers holds the string denoting the channel_service_members edge name in mutations.
@@ -56,6 +60,8 @@ var Columns = []string{
 	FieldSkillCode,
 	FieldName,
 	FieldDescription,
+	FieldIsRealtime,
+	FieldRequiresTextScan,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -73,6 +79,10 @@ var (
 	SkillCodeValidator func(string) error
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
+	// DefaultIsRealtime holds the default value on creation for the "is_realtime" field.
+	DefaultIsRealtime bool
+	// DefaultRequiresTextScan holds the default value on creation for the "requires_text_scan" field.
+	DefaultRequiresTextScan bool
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
@@ -98,6 +108,16 @@ func ByName(opts ...sql.OrderTermOption) OrderOption {
 // ByDescription orders the results by the description field.
 func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDescription, opts...).ToFunc()
+}
+
+// ByIsRealtime orders the results by the is_realtime field.
+func ByIsRealtime(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsRealtime, opts...).ToFunc()
+}
+
+// ByRequiresTextScan orders the results by the requires_text_scan field.
+func ByRequiresTextScan(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequiresTextScan, opts...).ToFunc()
 }
 
 // ByActionsCount orders the results by actions count.

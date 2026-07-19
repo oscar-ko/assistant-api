@@ -189,6 +189,14 @@ func init() {
 	skillDescName := skillFields[1].Descriptor()
 	// skill.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	skill.NameValidator = skillDescName.Validators[0].(func(string) error)
+	// skillDescIsRealtime is the schema descriptor for is_realtime field.
+	skillDescIsRealtime := skillFields[3].Descriptor()
+	// skill.DefaultIsRealtime holds the default value on creation for the is_realtime field.
+	skill.DefaultIsRealtime = skillDescIsRealtime.Default.(bool)
+	// skillDescRequiresTextScan is the schema descriptor for requires_text_scan field.
+	skillDescRequiresTextScan := skillFields[4].Descriptor()
+	// skill.DefaultRequiresTextScan holds the default value on creation for the requires_text_scan field.
+	skill.DefaultRequiresTextScan = skillDescRequiresTextScan.Default.(bool)
 	// skillDescID is the schema descriptor for id field.
 	skillDescID := skillMixinFields0[0].Descriptor()
 	// skill.DefaultID holds the default value on creation for the id field.

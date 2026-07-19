@@ -14,8 +14,8 @@ import (
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
-	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/skill"
+	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 
@@ -858,6 +858,45 @@ func (r *ChannelMessageRepo) HasChannelServiceMember(ctx context.Context, channe
 		Exist(ctx)
 	if err != nil {
 		return false, fmt.Errorf("failed to query service member: %w", err)
+	}
+	return exists, nil
+}
+
+// HasChannelRealtimeTextScanService 回傳 channel 是否存在任何「已被使用者啟用、且需要文字掃描」的即時服務。
+//
+// 這個查詢用在非指令訊息進 classifier 前的 coarse gate。
+// 它刻意從 channel_service_members 出發，而不是只查 skills：
+// - skill.is_realtime / skill.requires_text_scan 只代表「這種服務具備什麼能力」。
+// - channel_service_members 才代表「這個 channel 裡有人真的開啟了這項服務」。
+//
+// 因此只有同時符合下列條件時才回傳 true：
+// 1) channel_service_members.channel_id 等於目前訊息所在 channel。
+// 2) 該啟用紀錄關聯的 skill 是 realtime skill。
+// 3) 該 skill 需要對非指令文字做分類掃描。
+//
+// 若 channel 裡沒有任何使用者啟用這類服務，就算系統內存在 requires_text_scan 的 skill，
+// 也不應呼叫 classifier，避免每則普通訊息都產生不必要的 DB/模型成本。
+// 查詢使用 EXISTS，搭配 channel_service_members(channel_id, skill_id) 索引即可快速回答「有沒有」；
+// 不需要載入完整 member 清單，也不需要逐一檢查每個 service。
+func (r *ChannelMessageRepo) HasChannelRealtimeTextScanService(ctx context.Context, channelID uuid.UUID) (bool, error) {
+	if r == nil || r.db == nil {
+		return false, fmt.Errorf("channel repository not initialized")
+	}
+	if channelID == uuid.Nil {
+		return false, fmt.Errorf("channel id is required")
+	}
+
+	exists, err := r.db.ChannelServiceMember.Query().
+		Where(
+			channelservicemember.ChannelIDEQ(channelID),
+			channelservicemember.HasSkillWith(
+				skill.IsRealtimeEQ(true),
+				skill.RequiresTextScanEQ(true),
+			),
+		).
+		Exist(ctx)
+	if err != nil {
+		return false, fmt.Errorf("failed to query realtime text scan service: %w", err)
 	}
 	return exists, nil
 }

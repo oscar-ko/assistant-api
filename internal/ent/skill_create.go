@@ -49,6 +49,34 @@ func (_c *SkillCreate) SetNillableDescription(v *string) *SkillCreate {
 	return _c
 }
 
+// SetIsRealtime sets the "is_realtime" field.
+func (_c *SkillCreate) SetIsRealtime(v bool) *SkillCreate {
+	_c.mutation.SetIsRealtime(v)
+	return _c
+}
+
+// SetNillableIsRealtime sets the "is_realtime" field if the given value is not nil.
+func (_c *SkillCreate) SetNillableIsRealtime(v *bool) *SkillCreate {
+	if v != nil {
+		_c.SetIsRealtime(*v)
+	}
+	return _c
+}
+
+// SetRequiresTextScan sets the "requires_text_scan" field.
+func (_c *SkillCreate) SetRequiresTextScan(v bool) *SkillCreate {
+	_c.mutation.SetRequiresTextScan(v)
+	return _c
+}
+
+// SetNillableRequiresTextScan sets the "requires_text_scan" field if the given value is not nil.
+func (_c *SkillCreate) SetNillableRequiresTextScan(v *bool) *SkillCreate {
+	if v != nil {
+		_c.SetRequiresTextScan(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *SkillCreate) SetID(v uuid.UUID) *SkillCreate {
 	_c.mutation.SetID(v)
@@ -143,6 +171,14 @@ func (_c *SkillCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *SkillCreate) defaults() {
+	if _, ok := _c.mutation.IsRealtime(); !ok {
+		v := skill.DefaultIsRealtime
+		_c.mutation.SetIsRealtime(v)
+	}
+	if _, ok := _c.mutation.RequiresTextScan(); !ok {
+		v := skill.DefaultRequiresTextScan
+		_c.mutation.SetRequiresTextScan(v)
+	}
 	if _, ok := _c.mutation.ID(); !ok {
 		v := skill.DefaultID()
 		_c.mutation.SetID(v)
@@ -166,6 +202,12 @@ func (_c *SkillCreate) check() error {
 		if err := skill.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Skill.name": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.IsRealtime(); !ok {
+		return &ValidationError{Name: "is_realtime", err: errors.New(`ent: missing required field "Skill.is_realtime"`)}
+	}
+	if _, ok := _c.mutation.RequiresTextScan(); !ok {
+		return &ValidationError{Name: "requires_text_scan", err: errors.New(`ent: missing required field "Skill.requires_text_scan"`)}
 	}
 	return nil
 }
@@ -213,6 +255,14 @@ func (_c *SkillCreate) createSpec() (*Skill, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Description(); ok {
 		_spec.SetField(skill.FieldDescription, field.TypeString, value)
 		_node.Description = &value
+	}
+	if value, ok := _c.mutation.IsRealtime(); ok {
+		_spec.SetField(skill.FieldIsRealtime, field.TypeBool, value)
+		_node.IsRealtime = value
+	}
+	if value, ok := _c.mutation.RequiresTextScan(); ok {
+		_spec.SetField(skill.FieldRequiresTextScan, field.TypeBool, value)
+		_node.RequiresTextScan = value
 	}
 	if nodes := _c.mutation.ActionsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

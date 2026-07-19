@@ -534,7 +534,6 @@ func (_q *ChannelMessageQuery) collectField(ctx context.Context, oneNode bool, o
 			}
 
 		case "triggeredMessage":
-			// GraphQL 查詢 requested triggeredMessage 時，需要一併選出 triggered_message_id 才能預載來源訊息。
 			var (
 				alias = field.Alias
 				path  = append(path, alias)
@@ -550,7 +549,6 @@ func (_q *ChannelMessageQuery) collectField(ctx context.Context, oneNode bool, o
 			}
 
 		case "triggeredMessages":
-			// 反向 edge 代表「目前訊息觸發出的系統訊息」，使用 named edge 保留 alias 查詢結果。
 			var (
 				alias = field.Alias
 				path  = append(path, alias)
@@ -583,7 +581,6 @@ func (_q *ChannelMessageQuery) collectField(ctx context.Context, oneNode bool, o
 				fieldSeen[channelmessage.FieldChannelID] = struct{}{}
 			}
 		case "triggeredMessageID":
-			// 單純查欄位時也要納入 selectedFields，避免 select 最小化時遺漏內部觸發來源。
 			if _, ok := fieldSeen[channelmessage.FieldTriggeredMessageID]; !ok {
 				selectedFields = append(selectedFields, channelmessage.FieldTriggeredMessageID)
 				fieldSeen[channelmessage.FieldTriggeredMessageID] = struct{}{}
@@ -977,6 +974,16 @@ func (_q *SkillQuery) collectField(ctx context.Context, oneNode bool, opCtx *gra
 			if _, ok := fieldSeen[skill.FieldDescription]; !ok {
 				selectedFields = append(selectedFields, skill.FieldDescription)
 				fieldSeen[skill.FieldDescription] = struct{}{}
+			}
+		case "isRealtime":
+			if _, ok := fieldSeen[skill.FieldIsRealtime]; !ok {
+				selectedFields = append(selectedFields, skill.FieldIsRealtime)
+				fieldSeen[skill.FieldIsRealtime] = struct{}{}
+			}
+		case "requiresTextScan":
+			if _, ok := fieldSeen[skill.FieldRequiresTextScan]; !ok {
+				selectedFields = append(selectedFields, skill.FieldRequiresTextScan)
+				fieldSeen[skill.FieldRequiresTextScan] = struct{}{}
 			}
 		case "id":
 		case "__typename":

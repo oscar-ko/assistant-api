@@ -169,7 +169,6 @@ var (
 		{Name: "message_type", Type: field.TypeString, Default: "text"},
 		{Name: "platform_timestamp", Type: field.TypeInt64, Nullable: true},
 		{Name: "channel_id", Type: field.TypeUUID},
-		// triggered_message_id 是內部觸發來源，僅系統訊息需要；平台回覆目標仍由 reply_to_msg_id 保存。
 		{Name: "triggered_message_id", Type: field.TypeUUID, Nullable: true},
 	}
 	// ChannelMessagesTable holds the schema information for the "channel_messages" table.
@@ -185,8 +184,7 @@ var (
 				OnDelete:   schema.NoAction,
 			},
 			{
-				Symbol: "channel_messages_channel_messages_triggered_message",
-				// 來源訊息刪除時將關聯設為 NULL，保留系統訊息本體但中斷已失效的觸發鏈。
+				Symbol:     "channel_messages_channel_messages_triggered_message",
 				Columns:    []*schema.Column{ChannelMessagesColumns[13]},
 				RefColumns: []*schema.Column{ChannelMessagesColumns[0]},
 				OnDelete:   schema.SetNull,
@@ -291,6 +289,8 @@ var (
 		{Name: "skill_code", Type: field.TypeString},
 		{Name: "name", Type: field.TypeString},
 		{Name: "description", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"mysql": "TEXT", "postgres": "text"}},
+		{Name: "is_realtime", Type: field.TypeBool, Default: false},
+		{Name: "requires_text_scan", Type: field.TypeBool, Default: false},
 	}
 	// SkillsTable holds the schema information for the "skills" table.
 	SkillsTable = &schema.Table{

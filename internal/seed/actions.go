@@ -21,10 +21,12 @@ import (
 // defaultSkillSeed 描述一個 skill 的初始化資料。
 // 這個結構僅用於 seeding 階段，對應 skill 與其底下 action 的宣告式配置。
 type defaultSkillSeed struct {
-	SkillCode   string
-	Name        string
-	Description string
-	Actions     []defaultActionSeed
+	SkillCode        string
+	Name             string
+	Description      string
+	IsRealtime       bool
+	RequiresTextScan bool
+	Actions          []defaultActionSeed
 }
 
 // defaultActionSeed 描述單一 action 的初始化資料。
@@ -49,9 +51,11 @@ type defaultActionSeed struct {
 func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 	seeds := []defaultSkillSeed{
 		{
-			SkillCode:   "todo.reminder",
-			Name:        "Todo Reminder Skill",
-			Description: "Enable or disable todo reminder behaviors for channels.",
+			SkillCode:        "todo.reminder",
+			Name:             "Todo Reminder Skill",
+			Description:      "Enable or disable todo reminder behaviors for channels.",
+			IsRealtime:       true,
+			RequiresTextScan: true,
 			Actions: []defaultActionSeed{
 				{
 					ActionCode:     action.ActionCodeEnable,
@@ -72,9 +76,11 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 			},
 		},
 		{
-			SkillCode:   "channel.translation",
-			Name:        "Channel Translation Skill",
-			Description: "Enable/disable translation features for channels.",
+			SkillCode:        "channel.translation",
+			Name:             "Channel Translation Skill",
+			Description:      "Enable/disable translation features for channels.",
+			IsRealtime:       true,
+			RequiresTextScan: false,
 			Actions: []defaultActionSeed{
 				{
 					ActionCode:     action.ActionCodeEnable,
@@ -189,14 +195,21 @@ func upsertSeedSkill(ctx context.Context, client *ent.Client, seed defaultSkillS
 		if !ent.IsNotFound(err) {
 			return nil, err
 		}
-		create := client.Skill.Create().SetSkillCode(skillCode).SetName(strings.TrimSpace(seed.Name))
+		create := client.Skill.Create().
+			SetSkillCode(skillCode).
+			SetName(strings.TrimSpace(seed.Name)).
+			SetIsRealtime(seed.IsRealtime).
+			SetRequiresTextScan(seed.RequiresTextScan)
 		if desc != "" {
 			create.SetDescription(desc)
 		}
 		return create.Save(ctx)
 	}
 
-	update := client.Skill.UpdateOneID(node.ID).SetName(strings.TrimSpace(seed.Name))
+	update := client.Skill.UpdateOneID(node.ID).
+		SetName(strings.TrimSpace(seed.Name)).
+		SetIsRealtime(seed.IsRealtime).
+		SetRequiresTextScan(seed.RequiresTextScan)
 	if desc != "" {
 		update.SetDescription(desc)
 	}

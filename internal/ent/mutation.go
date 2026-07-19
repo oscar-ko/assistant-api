@@ -3322,7 +3322,6 @@ func (m *ChannelMessageMutation) ResetChannelID() {
 }
 
 // SetTriggeredMessageID sets the "triggered_message_id" field.
-// 中文說明：mutation 內以單一 UUID 保存系統觸發來源，代表本訊息是由哪一則訊息衍生。
 func (m *ChannelMessageMutation) SetTriggeredMessageID(u uuid.UUID) {
 	m.triggered_message = &u
 }
@@ -3337,7 +3336,6 @@ func (m *ChannelMessageMutation) TriggeredMessageID() (r uuid.UUID, exists bool)
 }
 
 // OldTriggeredMessageID returns the old "triggered_message_id" field's value of the ChannelMessage entity.
-// 中文說明：更新前讀舊值可判斷系統訊息原本是否已有來源關聯。
 // If the ChannelMessage object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
 func (m *ChannelMessageMutation) OldTriggeredMessageID(ctx context.Context) (v *uuid.UUID, err error) {
@@ -3355,7 +3353,6 @@ func (m *ChannelMessageMutation) OldTriggeredMessageID(ctx context.Context) (v *
 }
 
 // ClearTriggeredMessageID clears the value of the "triggered_message_id" field.
-// 中文說明：清空後此訊息將不再被視為由另一則訊息觸發。
 func (m *ChannelMessageMutation) ClearTriggeredMessageID() {
 	m.triggered_message = nil
 	m.clearedFields[channelmessage.FieldTriggeredMessageID] = struct{}{}
@@ -3788,7 +3785,6 @@ func (m *ChannelMessageMutation) ResetChannel() {
 }
 
 // ClearTriggeredMessage clears the "triggered_message" edge to the ChannelMessage entity.
-// 中文說明：edge 清除與欄位清除同步，避免來源訊息 edge 與 triggered_message_id 狀態不一致。
 func (m *ChannelMessageMutation) ClearTriggeredMessage() {
 	m.clearedtriggered_message = true
 	m.clearedFields[channelmessage.FieldTriggeredMessageID] = struct{}{}
@@ -3816,7 +3812,6 @@ func (m *ChannelMessageMutation) ResetTriggeredMessage() {
 }
 
 // AddTriggeredMessageIDs adds the "triggered_messages" edge to the ChannelMessage entity by ids.
-// 中文說明：把目前訊息登記為多筆系統訊息的觸發來源。
 func (m *ChannelMessageMutation) AddTriggeredMessageIDs(ids ...uuid.UUID) {
 	if m.triggered_messages == nil {
 		m.triggered_messages = make(map[uuid.UUID]struct{})
@@ -5753,6 +5748,8 @@ type SkillMutation struct {
 	skill_code                     *string
 	name                           *string
 	description                    *string
+	is_realtime                    *bool
+	requires_text_scan             *bool
 	clearedFields                  map[string]struct{}
 	actions                        map[uuid.UUID]struct{}
 	removedactions                 map[uuid.UUID]struct{}
@@ -5993,6 +5990,78 @@ func (m *SkillMutation) ResetDescription() {
 	delete(m.clearedFields, skill.FieldDescription)
 }
 
+// SetIsRealtime sets the "is_realtime" field.
+func (m *SkillMutation) SetIsRealtime(b bool) {
+	m.is_realtime = &b
+}
+
+// IsRealtime returns the value of the "is_realtime" field in the mutation.
+func (m *SkillMutation) IsRealtime() (r bool, exists bool) {
+	v := m.is_realtime
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsRealtime returns the old "is_realtime" field's value of the Skill entity.
+// If the Skill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SkillMutation) OldIsRealtime(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsRealtime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsRealtime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsRealtime: %w", err)
+	}
+	return oldValue.IsRealtime, nil
+}
+
+// ResetIsRealtime resets all changes to the "is_realtime" field.
+func (m *SkillMutation) ResetIsRealtime() {
+	m.is_realtime = nil
+}
+
+// SetRequiresTextScan sets the "requires_text_scan" field.
+func (m *SkillMutation) SetRequiresTextScan(b bool) {
+	m.requires_text_scan = &b
+}
+
+// RequiresTextScan returns the value of the "requires_text_scan" field in the mutation.
+func (m *SkillMutation) RequiresTextScan() (r bool, exists bool) {
+	v := m.requires_text_scan
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequiresTextScan returns the old "requires_text_scan" field's value of the Skill entity.
+// If the Skill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SkillMutation) OldRequiresTextScan(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequiresTextScan is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequiresTextScan requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequiresTextScan: %w", err)
+	}
+	return oldValue.RequiresTextScan, nil
+}
+
+// ResetRequiresTextScan resets all changes to the "requires_text_scan" field.
+func (m *SkillMutation) ResetRequiresTextScan() {
+	m.requires_text_scan = nil
+}
+
 // AddActionIDs adds the "actions" edge to the Action entity by ids.
 func (m *SkillMutation) AddActionIDs(ids ...uuid.UUID) {
 	if m.actions == nil {
@@ -6189,7 +6258,7 @@ func (m *SkillMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SkillMutation) Fields() []string {
-	fields := make([]string, 0, 3)
+	fields := make([]string, 0, 5)
 	if m.skill_code != nil {
 		fields = append(fields, skill.FieldSkillCode)
 	}
@@ -6198,6 +6267,12 @@ func (m *SkillMutation) Fields() []string {
 	}
 	if m.description != nil {
 		fields = append(fields, skill.FieldDescription)
+	}
+	if m.is_realtime != nil {
+		fields = append(fields, skill.FieldIsRealtime)
+	}
+	if m.requires_text_scan != nil {
+		fields = append(fields, skill.FieldRequiresTextScan)
 	}
 	return fields
 }
@@ -6213,6 +6288,10 @@ func (m *SkillMutation) Field(name string) (ent.Value, bool) {
 		return m.Name()
 	case skill.FieldDescription:
 		return m.Description()
+	case skill.FieldIsRealtime:
+		return m.IsRealtime()
+	case skill.FieldRequiresTextScan:
+		return m.RequiresTextScan()
 	}
 	return nil, false
 }
@@ -6228,6 +6307,10 @@ func (m *SkillMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldName(ctx)
 	case skill.FieldDescription:
 		return m.OldDescription(ctx)
+	case skill.FieldIsRealtime:
+		return m.OldIsRealtime(ctx)
+	case skill.FieldRequiresTextScan:
+		return m.OldRequiresTextScan(ctx)
 	}
 	return nil, fmt.Errorf("unknown Skill field %s", name)
 }
@@ -6257,6 +6340,20 @@ func (m *SkillMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDescription(v)
+		return nil
+	case skill.FieldIsRealtime:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsRealtime(v)
+		return nil
+	case skill.FieldRequiresTextScan:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequiresTextScan(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Skill field %s", name)
@@ -6324,6 +6421,12 @@ func (m *SkillMutation) ResetField(name string) error {
 		return nil
 	case skill.FieldDescription:
 		m.ResetDescription()
+		return nil
+	case skill.FieldIsRealtime:
+		m.ResetIsRealtime()
+		return nil
+	case skill.FieldRequiresTextScan:
+		m.ResetRequiresTextScan()
 		return nil
 	}
 	return fmt.Errorf("unknown Skill field %s", name)
