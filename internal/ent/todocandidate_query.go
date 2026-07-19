@@ -6,8 +6,8 @@ import (
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/predicate"
+	"assistant-api/internal/ent/todocandidate"
 	"context"
-	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -18,57 +18,57 @@ import (
 	"github.com/google/uuid"
 )
 
-// ChannelMessageQuery is the builder for querying ChannelMessage entities.
-type ChannelMessageQuery struct {
+// TodoCandidateQuery is the builder for querying TodoCandidate entities.
+type TodoCandidateQuery struct {
 	config
-	ctx                        *QueryContext
-	order                      []channelmessage.OrderOption
-	inters                     []Interceptor
-	predicates                 []predicate.ChannelMessage
-	withChannel                *ChannelQuery
-	withTriggeredMessage       *ChannelMessageQuery
-	withTriggeredMessages      *ChannelMessageQuery
-	modifiers                  []func(*sql.Selector)
-	loadTotal                  []func(context.Context, []*ChannelMessage) error
-	withNamedTriggeredMessages map[string]*ChannelMessageQuery
+	ctx               *QueryContext
+	order             []todocandidate.OrderOption
+	inters            []Interceptor
+	predicates        []predicate.TodoCandidate
+	withChannel       *ChannelQuery
+	withSourceMessage *ChannelMessageQuery
+	withLastMessage   *ChannelMessageQuery
+	withLinkedMessage *ChannelMessageQuery
+	modifiers         []func(*sql.Selector)
+	loadTotal         []func(context.Context, []*TodoCandidate) error
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
-// Where adds a new predicate for the ChannelMessageQuery builder.
-func (_q *ChannelMessageQuery) Where(ps ...predicate.ChannelMessage) *ChannelMessageQuery {
+// Where adds a new predicate for the TodoCandidateQuery builder.
+func (_q *TodoCandidateQuery) Where(ps ...predicate.TodoCandidate) *TodoCandidateQuery {
 	_q.predicates = append(_q.predicates, ps...)
 	return _q
 }
 
 // Limit the number of records to be returned by this query.
-func (_q *ChannelMessageQuery) Limit(limit int) *ChannelMessageQuery {
+func (_q *TodoCandidateQuery) Limit(limit int) *TodoCandidateQuery {
 	_q.ctx.Limit = &limit
 	return _q
 }
 
 // Offset to start from.
-func (_q *ChannelMessageQuery) Offset(offset int) *ChannelMessageQuery {
+func (_q *TodoCandidateQuery) Offset(offset int) *TodoCandidateQuery {
 	_q.ctx.Offset = &offset
 	return _q
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
-func (_q *ChannelMessageQuery) Unique(unique bool) *ChannelMessageQuery {
+func (_q *TodoCandidateQuery) Unique(unique bool) *TodoCandidateQuery {
 	_q.ctx.Unique = &unique
 	return _q
 }
 
 // Order specifies how the records should be ordered.
-func (_q *ChannelMessageQuery) Order(o ...channelmessage.OrderOption) *ChannelMessageQuery {
+func (_q *TodoCandidateQuery) Order(o ...todocandidate.OrderOption) *TodoCandidateQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
 
 // QueryChannel chains the current query on the "channel" edge.
-func (_q *ChannelMessageQuery) QueryChannel() *ChannelQuery {
+func (_q *TodoCandidateQuery) QueryChannel() *ChannelQuery {
 	query := (&ChannelClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
@@ -79,9 +79,9 @@ func (_q *ChannelMessageQuery) QueryChannel() *ChannelQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(channelmessage.Table, channelmessage.FieldID, selector),
+			sqlgraph.From(todocandidate.Table, todocandidate.FieldID, selector),
 			sqlgraph.To(channel.Table, channel.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, channelmessage.ChannelTable, channelmessage.ChannelColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, todocandidate.ChannelTable, todocandidate.ChannelColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -89,8 +89,8 @@ func (_q *ChannelMessageQuery) QueryChannel() *ChannelQuery {
 	return query
 }
 
-// QueryTriggeredMessage chains the current query on the "triggered_message" edge.
-func (_q *ChannelMessageQuery) QueryTriggeredMessage() *ChannelMessageQuery {
+// QuerySourceMessage chains the current query on the "source_message" edge.
+func (_q *TodoCandidateQuery) QuerySourceMessage() *ChannelMessageQuery {
 	query := (&ChannelMessageClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
@@ -101,9 +101,9 @@ func (_q *ChannelMessageQuery) QueryTriggeredMessage() *ChannelMessageQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(channelmessage.Table, channelmessage.FieldID, selector),
+			sqlgraph.From(todocandidate.Table, todocandidate.FieldID, selector),
 			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, channelmessage.TriggeredMessageTable, channelmessage.TriggeredMessageColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, todocandidate.SourceMessageTable, todocandidate.SourceMessageColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -111,8 +111,8 @@ func (_q *ChannelMessageQuery) QueryTriggeredMessage() *ChannelMessageQuery {
 	return query
 }
 
-// QueryTriggeredMessages chains the current query on the "triggered_messages" edge.
-func (_q *ChannelMessageQuery) QueryTriggeredMessages() *ChannelMessageQuery {
+// QueryLastMessage chains the current query on the "last_message" edge.
+func (_q *TodoCandidateQuery) QueryLastMessage() *ChannelMessageQuery {
 	query := (&ChannelMessageClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
@@ -123,9 +123,9 @@ func (_q *ChannelMessageQuery) QueryTriggeredMessages() *ChannelMessageQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(channelmessage.Table, channelmessage.FieldID, selector),
+			sqlgraph.From(todocandidate.Table, todocandidate.FieldID, selector),
 			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, true, channelmessage.TriggeredMessagesTable, channelmessage.TriggeredMessagesColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, todocandidate.LastMessageTable, todocandidate.LastMessageColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -133,21 +133,43 @@ func (_q *ChannelMessageQuery) QueryTriggeredMessages() *ChannelMessageQuery {
 	return query
 }
 
-// First returns the first ChannelMessage entity from the query.
-// Returns a *NotFoundError when no ChannelMessage was found.
-func (_q *ChannelMessageQuery) First(ctx context.Context) (*ChannelMessage, error) {
+// QueryLinkedMessage chains the current query on the "linked_message" edge.
+func (_q *TodoCandidateQuery) QueryLinkedMessage() *ChannelMessageQuery {
+	query := (&ChannelMessageClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(todocandidate.Table, todocandidate.FieldID, selector),
+			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, todocandidate.LinkedMessageTable, todocandidate.LinkedMessageColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// First returns the first TodoCandidate entity from the query.
+// Returns a *NotFoundError when no TodoCandidate was found.
+func (_q *TodoCandidateQuery) First(ctx context.Context) (*TodoCandidate, error) {
 	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{channelmessage.Label}
+		return nil, &NotFoundError{todocandidate.Label}
 	}
 	return nodes[0], nil
 }
 
 // FirstX is like First, but panics if an error occurs.
-func (_q *ChannelMessageQuery) FirstX(ctx context.Context) *ChannelMessage {
+func (_q *TodoCandidateQuery) FirstX(ctx context.Context) *TodoCandidate {
 	node, err := _q.First(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -155,22 +177,22 @@ func (_q *ChannelMessageQuery) FirstX(ctx context.Context) *ChannelMessage {
 	return node
 }
 
-// FirstID returns the first ChannelMessage ID from the query.
-// Returns a *NotFoundError when no ChannelMessage ID was found.
-func (_q *ChannelMessageQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
+// FirstID returns the first TodoCandidate ID from the query.
+// Returns a *NotFoundError when no TodoCandidate ID was found.
+func (_q *TodoCandidateQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
 	var ids []uuid.UUID
 	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{channelmessage.Label}
+		err = &NotFoundError{todocandidate.Label}
 		return
 	}
 	return ids[0], nil
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *ChannelMessageQuery) FirstIDX(ctx context.Context) uuid.UUID {
+func (_q *TodoCandidateQuery) FirstIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -178,10 +200,10 @@ func (_q *ChannelMessageQuery) FirstIDX(ctx context.Context) uuid.UUID {
 	return id
 }
 
-// Only returns a single ChannelMessage entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when more than one ChannelMessage entity is found.
-// Returns a *NotFoundError when no ChannelMessage entities are found.
-func (_q *ChannelMessageQuery) Only(ctx context.Context) (*ChannelMessage, error) {
+// Only returns a single TodoCandidate entity found by the query, ensuring it only returns one.
+// Returns a *NotSingularError when more than one TodoCandidate entity is found.
+// Returns a *NotFoundError when no TodoCandidate entities are found.
+func (_q *TodoCandidateQuery) Only(ctx context.Context) (*TodoCandidate, error) {
 	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
@@ -190,14 +212,14 @@ func (_q *ChannelMessageQuery) Only(ctx context.Context) (*ChannelMessage, error
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{channelmessage.Label}
+		return nil, &NotFoundError{todocandidate.Label}
 	default:
-		return nil, &NotSingularError{channelmessage.Label}
+		return nil, &NotSingularError{todocandidate.Label}
 	}
 }
 
 // OnlyX is like Only, but panics if an error occurs.
-func (_q *ChannelMessageQuery) OnlyX(ctx context.Context) *ChannelMessage {
+func (_q *TodoCandidateQuery) OnlyX(ctx context.Context) *TodoCandidate {
 	node, err := _q.Only(ctx)
 	if err != nil {
 		panic(err)
@@ -205,10 +227,10 @@ func (_q *ChannelMessageQuery) OnlyX(ctx context.Context) *ChannelMessage {
 	return node
 }
 
-// OnlyID is like Only, but returns the only ChannelMessage ID in the query.
-// Returns a *NotSingularError when more than one ChannelMessage ID is found.
+// OnlyID is like Only, but returns the only TodoCandidate ID in the query.
+// Returns a *NotSingularError when more than one TodoCandidate ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *ChannelMessageQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
+func (_q *TodoCandidateQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
 	var ids []uuid.UUID
 	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
@@ -217,15 +239,15 @@ func (_q *ChannelMessageQuery) OnlyID(ctx context.Context) (id uuid.UUID, err er
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{channelmessage.Label}
+		err = &NotFoundError{todocandidate.Label}
 	default:
-		err = &NotSingularError{channelmessage.Label}
+		err = &NotSingularError{todocandidate.Label}
 	}
 	return
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *ChannelMessageQuery) OnlyIDX(ctx context.Context) uuid.UUID {
+func (_q *TodoCandidateQuery) OnlyIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -233,18 +255,18 @@ func (_q *ChannelMessageQuery) OnlyIDX(ctx context.Context) uuid.UUID {
 	return id
 }
 
-// All executes the query and returns a list of ChannelMessages.
-func (_q *ChannelMessageQuery) All(ctx context.Context) ([]*ChannelMessage, error) {
+// All executes the query and returns a list of TodoCandidates.
+func (_q *TodoCandidateQuery) All(ctx context.Context) ([]*TodoCandidate, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*ChannelMessage, *ChannelMessageQuery]()
-	return withInterceptors[[]*ChannelMessage](ctx, _q, qr, _q.inters)
+	qr := querierAll[[]*TodoCandidate, *TodoCandidateQuery]()
+	return withInterceptors[[]*TodoCandidate](ctx, _q, qr, _q.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
-func (_q *ChannelMessageQuery) AllX(ctx context.Context) []*ChannelMessage {
+func (_q *TodoCandidateQuery) AllX(ctx context.Context) []*TodoCandidate {
 	nodes, err := _q.All(ctx)
 	if err != nil {
 		panic(err)
@@ -252,20 +274,20 @@ func (_q *ChannelMessageQuery) AllX(ctx context.Context) []*ChannelMessage {
 	return nodes
 }
 
-// IDs executes the query and returns a list of ChannelMessage IDs.
-func (_q *ChannelMessageQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
+// IDs executes the query and returns a list of TodoCandidate IDs.
+func (_q *TodoCandidateQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(channelmessage.FieldID).Scan(ctx, &ids); err != nil {
+	if err = _q.Select(todocandidate.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *ChannelMessageQuery) IDsX(ctx context.Context) []uuid.UUID {
+func (_q *TodoCandidateQuery) IDsX(ctx context.Context) []uuid.UUID {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -274,16 +296,16 @@ func (_q *ChannelMessageQuery) IDsX(ctx context.Context) []uuid.UUID {
 }
 
 // Count returns the count of the given query.
-func (_q *ChannelMessageQuery) Count(ctx context.Context) (int, error) {
+func (_q *TodoCandidateQuery) Count(ctx context.Context) (int, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*ChannelMessageQuery](), _q.inters)
+	return withInterceptors[int](ctx, _q, querierCount[*TodoCandidateQuery](), _q.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
-func (_q *ChannelMessageQuery) CountX(ctx context.Context) int {
+func (_q *TodoCandidateQuery) CountX(ctx context.Context) int {
 	count, err := _q.Count(ctx)
 	if err != nil {
 		panic(err)
@@ -292,7 +314,7 @@ func (_q *ChannelMessageQuery) CountX(ctx context.Context) int {
 }
 
 // Exist returns true if the query has elements in the graph.
-func (_q *ChannelMessageQuery) Exist(ctx context.Context) (bool, error) {
+func (_q *TodoCandidateQuery) Exist(ctx context.Context) (bool, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
@@ -305,7 +327,7 @@ func (_q *ChannelMessageQuery) Exist(ctx context.Context) (bool, error) {
 }
 
 // ExistX is like Exist, but panics if an error occurs.
-func (_q *ChannelMessageQuery) ExistX(ctx context.Context) bool {
+func (_q *TodoCandidateQuery) ExistX(ctx context.Context) bool {
 	exist, err := _q.Exist(ctx)
 	if err != nil {
 		panic(err)
@@ -313,21 +335,22 @@ func (_q *ChannelMessageQuery) ExistX(ctx context.Context) bool {
 	return exist
 }
 
-// Clone returns a duplicate of the ChannelMessageQuery builder, including all associated steps. It can be
+// Clone returns a duplicate of the TodoCandidateQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
-func (_q *ChannelMessageQuery) Clone() *ChannelMessageQuery {
+func (_q *TodoCandidateQuery) Clone() *TodoCandidateQuery {
 	if _q == nil {
 		return nil
 	}
-	return &ChannelMessageQuery{
-		config:                _q.config,
-		ctx:                   _q.ctx.Clone(),
-		order:                 append([]channelmessage.OrderOption{}, _q.order...),
-		inters:                append([]Interceptor{}, _q.inters...),
-		predicates:            append([]predicate.ChannelMessage{}, _q.predicates...),
-		withChannel:           _q.withChannel.Clone(),
-		withTriggeredMessage:  _q.withTriggeredMessage.Clone(),
-		withTriggeredMessages: _q.withTriggeredMessages.Clone(),
+	return &TodoCandidateQuery{
+		config:            _q.config,
+		ctx:               _q.ctx.Clone(),
+		order:             append([]todocandidate.OrderOption{}, _q.order...),
+		inters:            append([]Interceptor{}, _q.inters...),
+		predicates:        append([]predicate.TodoCandidate{}, _q.predicates...),
+		withChannel:       _q.withChannel.Clone(),
+		withSourceMessage: _q.withSourceMessage.Clone(),
+		withLastMessage:   _q.withLastMessage.Clone(),
+		withLinkedMessage: _q.withLinkedMessage.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -336,7 +359,7 @@ func (_q *ChannelMessageQuery) Clone() *ChannelMessageQuery {
 
 // WithChannel tells the query-builder to eager-load the nodes that are connected to
 // the "channel" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *ChannelMessageQuery) WithChannel(opts ...func(*ChannelQuery)) *ChannelMessageQuery {
+func (_q *TodoCandidateQuery) WithChannel(opts ...func(*ChannelQuery)) *TodoCandidateQuery {
 	query := (&ChannelClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
@@ -345,25 +368,36 @@ func (_q *ChannelMessageQuery) WithChannel(opts ...func(*ChannelQuery)) *Channel
 	return _q
 }
 
-// WithTriggeredMessage tells the query-builder to eager-load the nodes that are connected to
-// the "triggered_message" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *ChannelMessageQuery) WithTriggeredMessage(opts ...func(*ChannelMessageQuery)) *ChannelMessageQuery {
+// WithSourceMessage tells the query-builder to eager-load the nodes that are connected to
+// the "source_message" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TodoCandidateQuery) WithSourceMessage(opts ...func(*ChannelMessageQuery)) *TodoCandidateQuery {
 	query := (&ChannelMessageClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withTriggeredMessage = query
+	_q.withSourceMessage = query
 	return _q
 }
 
-// WithTriggeredMessages tells the query-builder to eager-load the nodes that are connected to
-// the "triggered_messages" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *ChannelMessageQuery) WithTriggeredMessages(opts ...func(*ChannelMessageQuery)) *ChannelMessageQuery {
+// WithLastMessage tells the query-builder to eager-load the nodes that are connected to
+// the "last_message" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TodoCandidateQuery) WithLastMessage(opts ...func(*ChannelMessageQuery)) *TodoCandidateQuery {
 	query := (&ChannelMessageClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withTriggeredMessages = query
+	_q.withLastMessage = query
+	return _q
+}
+
+// WithLinkedMessage tells the query-builder to eager-load the nodes that are connected to
+// the "linked_message" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TodoCandidateQuery) WithLinkedMessage(opts ...func(*ChannelMessageQuery)) *TodoCandidateQuery {
+	query := (&ChannelMessageClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withLinkedMessage = query
 	return _q
 }
 
@@ -377,15 +411,15 @@ func (_q *ChannelMessageQuery) WithTriggeredMessages(opts ...func(*ChannelMessag
 //		Count int `json:"count,omitempty"`
 //	}
 //
-//	client.ChannelMessage.Query().
-//		GroupBy(channelmessage.FieldCreatedAt).
+//	client.TodoCandidate.Query().
+//		GroupBy(todocandidate.FieldCreatedAt).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *ChannelMessageQuery) GroupBy(field string, fields ...string) *ChannelMessageGroupBy {
+func (_q *TodoCandidateQuery) GroupBy(field string, fields ...string) *TodoCandidateGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &ChannelMessageGroupBy{build: _q}
+	grbuild := &TodoCandidateGroupBy{build: _q}
 	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = channelmessage.Label
+	grbuild.label = todocandidate.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
 }
@@ -399,23 +433,23 @@ func (_q *ChannelMessageQuery) GroupBy(field string, fields ...string) *ChannelM
 //		CreatedAt time.Time `json:"created_at,omitempty"`
 //	}
 //
-//	client.ChannelMessage.Query().
-//		Select(channelmessage.FieldCreatedAt).
+//	client.TodoCandidate.Query().
+//		Select(todocandidate.FieldCreatedAt).
 //		Scan(ctx, &v)
-func (_q *ChannelMessageQuery) Select(fields ...string) *ChannelMessageSelect {
+func (_q *TodoCandidateQuery) Select(fields ...string) *TodoCandidateSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &ChannelMessageSelect{ChannelMessageQuery: _q}
-	sbuild.label = channelmessage.Label
+	sbuild := &TodoCandidateSelect{TodoCandidateQuery: _q}
+	sbuild.label = todocandidate.Label
 	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
 
-// Aggregate returns a ChannelMessageSelect configured with the given aggregations.
-func (_q *ChannelMessageQuery) Aggregate(fns ...AggregateFunc) *ChannelMessageSelect {
+// Aggregate returns a TodoCandidateSelect configured with the given aggregations.
+func (_q *TodoCandidateQuery) Aggregate(fns ...AggregateFunc) *TodoCandidateSelect {
 	return _q.Select().Aggregate(fns...)
 }
 
-func (_q *ChannelMessageQuery) prepareQuery(ctx context.Context) error {
+func (_q *TodoCandidateQuery) prepareQuery(ctx context.Context) error {
 	for _, inter := range _q.inters {
 		if inter == nil {
 			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
@@ -427,7 +461,7 @@ func (_q *ChannelMessageQuery) prepareQuery(ctx context.Context) error {
 		}
 	}
 	for _, f := range _q.ctx.Fields {
-		if !channelmessage.ValidColumn(f) {
+		if !todocandidate.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
@@ -441,21 +475,22 @@ func (_q *ChannelMessageQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (_q *ChannelMessageQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*ChannelMessage, error) {
+func (_q *TodoCandidateQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*TodoCandidate, error) {
 	var (
-		nodes       = []*ChannelMessage{}
+		nodes       = []*TodoCandidate{}
 		_spec       = _q.querySpec()
-		loadedTypes = [3]bool{
+		loadedTypes = [4]bool{
 			_q.withChannel != nil,
-			_q.withTriggeredMessage != nil,
-			_q.withTriggeredMessages != nil,
+			_q.withSourceMessage != nil,
+			_q.withLastMessage != nil,
+			_q.withLinkedMessage != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
-		return (*ChannelMessage).scanValues(nil, columns)
+		return (*TodoCandidate).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
-		node := &ChannelMessage{config: _q.config}
+		node := &TodoCandidate{config: _q.config}
 		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
@@ -474,29 +509,25 @@ func (_q *ChannelMessageQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 	}
 	if query := _q.withChannel; query != nil {
 		if err := _q.loadChannel(ctx, query, nodes, nil,
-			func(n *ChannelMessage, e *Channel) { n.Edges.Channel = e }); err != nil {
+			func(n *TodoCandidate, e *Channel) { n.Edges.Channel = e }); err != nil {
 			return nil, err
 		}
 	}
-	if query := _q.withTriggeredMessage; query != nil {
-		if err := _q.loadTriggeredMessage(ctx, query, nodes, nil,
-			func(n *ChannelMessage, e *ChannelMessage) { n.Edges.TriggeredMessage = e }); err != nil {
+	if query := _q.withSourceMessage; query != nil {
+		if err := _q.loadSourceMessage(ctx, query, nodes, nil,
+			func(n *TodoCandidate, e *ChannelMessage) { n.Edges.SourceMessage = e }); err != nil {
 			return nil, err
 		}
 	}
-	if query := _q.withTriggeredMessages; query != nil {
-		if err := _q.loadTriggeredMessages(ctx, query, nodes,
-			func(n *ChannelMessage) { n.Edges.TriggeredMessages = []*ChannelMessage{} },
-			func(n *ChannelMessage, e *ChannelMessage) {
-				n.Edges.TriggeredMessages = append(n.Edges.TriggeredMessages, e)
-			}); err != nil {
+	if query := _q.withLastMessage; query != nil {
+		if err := _q.loadLastMessage(ctx, query, nodes, nil,
+			func(n *TodoCandidate, e *ChannelMessage) { n.Edges.LastMessage = e }); err != nil {
 			return nil, err
 		}
 	}
-	for name, query := range _q.withNamedTriggeredMessages {
-		if err := _q.loadTriggeredMessages(ctx, query, nodes,
-			func(n *ChannelMessage) { n.appendNamedTriggeredMessages(name) },
-			func(n *ChannelMessage, e *ChannelMessage) { n.appendNamedTriggeredMessages(name, e) }); err != nil {
+	if query := _q.withLinkedMessage; query != nil {
+		if err := _q.loadLinkedMessage(ctx, query, nodes, nil,
+			func(n *TodoCandidate, e *ChannelMessage) { n.Edges.LinkedMessage = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -508,9 +539,9 @@ func (_q *ChannelMessageQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 	return nodes, nil
 }
 
-func (_q *ChannelMessageQuery) loadChannel(ctx context.Context, query *ChannelQuery, nodes []*ChannelMessage, init func(*ChannelMessage), assign func(*ChannelMessage, *Channel)) error {
+func (_q *TodoCandidateQuery) loadChannel(ctx context.Context, query *ChannelQuery, nodes []*TodoCandidate, init func(*TodoCandidate), assign func(*TodoCandidate, *Channel)) error {
 	ids := make([]uuid.UUID, 0, len(nodes))
-	nodeids := make(map[uuid.UUID][]*ChannelMessage)
+	nodeids := make(map[uuid.UUID][]*TodoCandidate)
 	for i := range nodes {
 		fk := nodes[i].ChannelID
 		if _, ok := nodeids[fk]; !ok {
@@ -537,14 +568,11 @@ func (_q *ChannelMessageQuery) loadChannel(ctx context.Context, query *ChannelQu
 	}
 	return nil
 }
-func (_q *ChannelMessageQuery) loadTriggeredMessage(ctx context.Context, query *ChannelMessageQuery, nodes []*ChannelMessage, init func(*ChannelMessage), assign func(*ChannelMessage, *ChannelMessage)) error {
+func (_q *TodoCandidateQuery) loadSourceMessage(ctx context.Context, query *ChannelMessageQuery, nodes []*TodoCandidate, init func(*TodoCandidate), assign func(*TodoCandidate, *ChannelMessage)) error {
 	ids := make([]uuid.UUID, 0, len(nodes))
-	nodeids := make(map[uuid.UUID][]*ChannelMessage)
+	nodeids := make(map[uuid.UUID][]*TodoCandidate)
 	for i := range nodes {
-		if nodes[i].TriggeredMessageID == nil {
-			continue
-		}
-		fk := *nodes[i].TriggeredMessageID
+		fk := nodes[i].SourceMessageID
 		if _, ok := nodeids[fk]; !ok {
 			ids = append(ids, fk)
 		}
@@ -561,7 +589,7 @@ func (_q *ChannelMessageQuery) loadTriggeredMessage(ctx context.Context, query *
 	for _, n := range neighbors {
 		nodes, ok := nodeids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "triggered_message_id" returned %v`, n.ID)
+			return fmt.Errorf(`unexpected foreign-key "source_message_id" returned %v`, n.ID)
 		}
 		for i := range nodes {
 			assign(nodes[i], n)
@@ -569,41 +597,69 @@ func (_q *ChannelMessageQuery) loadTriggeredMessage(ctx context.Context, query *
 	}
 	return nil
 }
-func (_q *ChannelMessageQuery) loadTriggeredMessages(ctx context.Context, query *ChannelMessageQuery, nodes []*ChannelMessage, init func(*ChannelMessage), assign func(*ChannelMessage, *ChannelMessage)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[uuid.UUID]*ChannelMessage)
+func (_q *TodoCandidateQuery) loadLastMessage(ctx context.Context, query *ChannelMessageQuery, nodes []*TodoCandidate, init func(*TodoCandidate), assign func(*TodoCandidate, *ChannelMessage)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*TodoCandidate)
 	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
+		fk := nodes[i].LastMessageID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
 		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
 	}
-	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(channelmessage.FieldTriggeredMessageID)
+	if len(ids) == 0 {
+		return nil
 	}
-	query.Where(predicate.ChannelMessage(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(channelmessage.TriggeredMessagesColumn), fks...))
-	}))
+	query.Where(channelmessage.IDIn(ids...))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.TriggeredMessageID
-		if fk == nil {
-			return fmt.Errorf(`foreign-key "triggered_message_id" is nil for node %v`, n.ID)
-		}
-		node, ok := nodeids[*fk]
+		nodes, ok := nodeids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "triggered_message_id" returned %v for node %v`, *fk, n.ID)
+			return fmt.Errorf(`unexpected foreign-key "last_message_id" returned %v`, n.ID)
 		}
-		assign(node, n)
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
+func (_q *TodoCandidateQuery) loadLinkedMessage(ctx context.Context, query *ChannelMessageQuery, nodes []*TodoCandidate, init func(*TodoCandidate), assign func(*TodoCandidate, *ChannelMessage)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*TodoCandidate)
+	for i := range nodes {
+		if nodes[i].LinkedMessageID == nil {
+			continue
+		}
+		fk := *nodes[i].LinkedMessageID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(channelmessage.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "linked_message_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
 	}
 	return nil
 }
 
-func (_q *ChannelMessageQuery) sqlCount(ctx context.Context) (int, error) {
+func (_q *TodoCandidateQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
 	if len(_q.modifiers) > 0 {
 		_spec.Modifiers = _q.modifiers
@@ -615,8 +671,8 @@ func (_q *ChannelMessageQuery) sqlCount(ctx context.Context) (int, error) {
 	return sqlgraph.CountNodes(ctx, _q.driver, _spec)
 }
 
-func (_q *ChannelMessageQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(channelmessage.Table, channelmessage.Columns, sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID))
+func (_q *TodoCandidateQuery) querySpec() *sqlgraph.QuerySpec {
+	_spec := sqlgraph.NewQuerySpec(todocandidate.Table, todocandidate.Columns, sqlgraph.NewFieldSpec(todocandidate.FieldID, field.TypeUUID))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -625,17 +681,23 @@ func (_q *ChannelMessageQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, channelmessage.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, todocandidate.FieldID)
 		for i := range fields {
-			if fields[i] != channelmessage.FieldID {
+			if fields[i] != todocandidate.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
 		}
 		if _q.withChannel != nil {
-			_spec.Node.AddColumnOnce(channelmessage.FieldChannelID)
+			_spec.Node.AddColumnOnce(todocandidate.FieldChannelID)
 		}
-		if _q.withTriggeredMessage != nil {
-			_spec.Node.AddColumnOnce(channelmessage.FieldTriggeredMessageID)
+		if _q.withSourceMessage != nil {
+			_spec.Node.AddColumnOnce(todocandidate.FieldSourceMessageID)
+		}
+		if _q.withLastMessage != nil {
+			_spec.Node.AddColumnOnce(todocandidate.FieldLastMessageID)
+		}
+		if _q.withLinkedMessage != nil {
+			_spec.Node.AddColumnOnce(todocandidate.FieldLinkedMessageID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {
@@ -661,12 +723,12 @@ func (_q *ChannelMessageQuery) querySpec() *sqlgraph.QuerySpec {
 	return _spec
 }
 
-func (_q *ChannelMessageQuery) sqlQuery(ctx context.Context) *sql.Selector {
+func (_q *TodoCandidateQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(_q.driver.Dialect())
-	t1 := builder.Table(channelmessage.Table)
+	t1 := builder.Table(todocandidate.Table)
 	columns := _q.ctx.Fields
 	if len(columns) == 0 {
-		columns = channelmessage.Columns
+		columns = todocandidate.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if _q.sql != nil {
@@ -693,42 +755,28 @@ func (_q *ChannelMessageQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	return selector
 }
 
-// WithNamedTriggeredMessages tells the query-builder to eager-load the nodes that are connected to the "triggered_messages"
-// edge with the given name. The optional arguments are used to configure the query builder of the edge.
-func (_q *ChannelMessageQuery) WithNamedTriggeredMessages(name string, opts ...func(*ChannelMessageQuery)) *ChannelMessageQuery {
-	query := (&ChannelMessageClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	if _q.withNamedTriggeredMessages == nil {
-		_q.withNamedTriggeredMessages = make(map[string]*ChannelMessageQuery)
-	}
-	_q.withNamedTriggeredMessages[name] = query
-	return _q
-}
-
-// ChannelMessageGroupBy is the group-by builder for ChannelMessage entities.
-type ChannelMessageGroupBy struct {
+// TodoCandidateGroupBy is the group-by builder for TodoCandidate entities.
+type TodoCandidateGroupBy struct {
 	selector
-	build *ChannelMessageQuery
+	build *TodoCandidateQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
-func (_g *ChannelMessageGroupBy) Aggregate(fns ...AggregateFunc) *ChannelMessageGroupBy {
+func (_g *TodoCandidateGroupBy) Aggregate(fns ...AggregateFunc) *TodoCandidateGroupBy {
 	_g.fns = append(_g.fns, fns...)
 	return _g
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_g *ChannelMessageGroupBy) Scan(ctx context.Context, v any) error {
+func (_g *TodoCandidateGroupBy) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
 	if err := _g.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*ChannelMessageQuery, *ChannelMessageGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return scanWithInterceptors[*TodoCandidateQuery, *TodoCandidateGroupBy](ctx, _g.build, _g, _g.build.inters, v)
 }
 
-func (_g *ChannelMessageGroupBy) sqlScan(ctx context.Context, root *ChannelMessageQuery, v any) error {
+func (_g *TodoCandidateGroupBy) sqlScan(ctx context.Context, root *TodoCandidateQuery, v any) error {
 	selector := root.sqlQuery(ctx).Select()
 	aggregation := make([]string, 0, len(_g.fns))
 	for _, fn := range _g.fns {
@@ -755,28 +803,28 @@ func (_g *ChannelMessageGroupBy) sqlScan(ctx context.Context, root *ChannelMessa
 	return sql.ScanSlice(rows, v)
 }
 
-// ChannelMessageSelect is the builder for selecting fields of ChannelMessage entities.
-type ChannelMessageSelect struct {
-	*ChannelMessageQuery
+// TodoCandidateSelect is the builder for selecting fields of TodoCandidate entities.
+type TodoCandidateSelect struct {
+	*TodoCandidateQuery
 	selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
-func (_s *ChannelMessageSelect) Aggregate(fns ...AggregateFunc) *ChannelMessageSelect {
+func (_s *TodoCandidateSelect) Aggregate(fns ...AggregateFunc) *TodoCandidateSelect {
 	_s.fns = append(_s.fns, fns...)
 	return _s
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_s *ChannelMessageSelect) Scan(ctx context.Context, v any) error {
+func (_s *TodoCandidateSelect) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
 	if err := _s.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*ChannelMessageQuery, *ChannelMessageSelect](ctx, _s.ChannelMessageQuery, _s, _s.inters, v)
+	return scanWithInterceptors[*TodoCandidateQuery, *TodoCandidateSelect](ctx, _s.TodoCandidateQuery, _s, _s.inters, v)
 }
 
-func (_s *ChannelMessageSelect) sqlScan(ctx context.Context, root *ChannelMessageQuery, v any) error {
+func (_s *TodoCandidateSelect) sqlScan(ctx context.Context, root *TodoCandidateQuery, v any) error {
 	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(_s.fns))
 	for _, fn := range _s.fns {

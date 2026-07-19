@@ -99,7 +99,6 @@ func (_m *ChannelMessage) Channel(ctx context.Context) (*Channel, error) {
 func (_m *ChannelMessage) TriggeredMessage(ctx context.Context) (*ChannelMessage, error) {
 	result, err := _m.Edges.TriggeredMessageOrErr()
 	if IsNotLoaded(err) {
-		// 未預載時回查來源訊息；查無來源會被 MaskNotFound 轉成 nil，符合可空觸發關聯語意。
 		result, err = _m.QueryTriggeredMessage().Only(ctx)
 	}
 	return result, MaskNotFound(err)
@@ -107,13 +106,11 @@ func (_m *ChannelMessage) TriggeredMessage(ctx context.Context) (*ChannelMessage
 
 func (_m *ChannelMessage) TriggeredMessages(ctx context.Context) (result []*ChannelMessage, err error) {
 	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
-		// GraphQL alias 可能代表不同條件的 triggeredMessages，需從 named edge 取對應結果。
 		result, err = _m.NamedTriggeredMessages(graphql.GetFieldContext(ctx).Field.Alias)
 	} else {
 		result, err = _m.Edges.TriggeredMessagesOrErr()
 	}
 	if IsNotLoaded(err) {
-		// 未預載時才查反向集合，避免重複查詢並保留「一則來源訊息可觸發多筆系統訊息」的語意。
 		result, err = _m.QueryTriggeredMessages().All(ctx)
 	}
 	return result, err
@@ -193,6 +190,38 @@ func (_m *Slack) User(ctx context.Context) (*User, error) {
 		result, err = _m.QueryUser().Only(ctx)
 	}
 	return result, err
+}
+
+func (_m *TodoCandidate) Channel(ctx context.Context) (*Channel, error) {
+	result, err := _m.Edges.ChannelOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryChannel().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *TodoCandidate) SourceMessage(ctx context.Context) (*ChannelMessage, error) {
+	result, err := _m.Edges.SourceMessageOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QuerySourceMessage().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *TodoCandidate) LastMessage(ctx context.Context) (*ChannelMessage, error) {
+	result, err := _m.Edges.LastMessageOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryLastMessage().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *TodoCandidate) LinkedMessage(ctx context.Context) (*ChannelMessage, error) {
+	result, err := _m.Edges.LinkedMessageOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryLinkedMessage().Only(ctx)
+	}
+	return result, MaskNotFound(err)
 }
 
 func (_m *TranslationLocale) Channel(ctx context.Context) (*Channel, error) {

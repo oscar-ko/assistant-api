@@ -21,6 +21,7 @@ import (
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/slackworkspace"
+	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 
@@ -56,6 +57,8 @@ type Client struct {
 	Slack *SlackClient
 	// SlackWorkspace is the client for interacting with the SlackWorkspace builders.
 	SlackWorkspace *SlackWorkspaceClient
+	// TodoCandidate is the client for interacting with the TodoCandidate builders.
+	TodoCandidate *TodoCandidateClient
 	// TranslationLocale is the client for interacting with the TranslationLocale builders.
 	TranslationLocale *TranslationLocaleClient
 	// User is the client for interacting with the User builders.
@@ -81,6 +84,7 @@ func (c *Client) init() {
 	c.Skill = NewSkillClient(c.config)
 	c.Slack = NewSlackClient(c.config)
 	c.SlackWorkspace = NewSlackWorkspaceClient(c.config)
+	c.TodoCandidate = NewTodoCandidateClient(c.config)
 	c.TranslationLocale = NewTranslationLocaleClient(c.config)
 	c.User = NewUserClient(c.config)
 }
@@ -185,6 +189,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Skill:                NewSkillClient(cfg),
 		Slack:                NewSlackClient(cfg),
 		SlackWorkspace:       NewSlackWorkspaceClient(cfg),
+		TodoCandidate:        NewTodoCandidateClient(cfg),
 		TranslationLocale:    NewTranslationLocaleClient(cfg),
 		User:                 NewUserClient(cfg),
 	}, nil
@@ -216,6 +221,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Skill:                NewSkillClient(cfg),
 		Slack:                NewSlackClient(cfg),
 		SlackWorkspace:       NewSlackWorkspaceClient(cfg),
+		TodoCandidate:        NewTodoCandidateClient(cfg),
 		TranslationLocale:    NewTranslationLocaleClient(cfg),
 		User:                 NewUserClient(cfg),
 	}, nil
@@ -249,7 +255,7 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Action, c.ActionResult, c.ActionRoute, c.Channel, c.ChannelMessage,
 		c.ChannelServiceMember, c.Line, c.Skill, c.Slack, c.SlackWorkspace,
-		c.TranslationLocale, c.User,
+		c.TodoCandidate, c.TranslationLocale, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -261,7 +267,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Action, c.ActionResult, c.ActionRoute, c.Channel, c.ChannelMessage,
 		c.ChannelServiceMember, c.Line, c.Skill, c.Slack, c.SlackWorkspace,
-		c.TranslationLocale, c.User,
+		c.TodoCandidate, c.TranslationLocale, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -290,6 +296,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Slack.mutate(ctx, m)
 	case *SlackWorkspaceMutation:
 		return c.SlackWorkspace.mutate(ctx, m)
+	case *TodoCandidateMutation:
+		return c.TodoCandidate.mutate(ctx, m)
 	case *TranslationLocaleMutation:
 		return c.TranslationLocale.mutate(ctx, m)
 	case *UserMutation:
@@ -960,7 +968,6 @@ func (c *ChannelClient) mutate(ctx context.Context, m *ChannelMutation) (Value, 
 }
 
 // ChannelMessageClient is a client for the ChannelMessage schema.
-// 中文說明：此 client 會操作含 triggered_message_id 的訊息模型，讓系統輸出可以追溯觸發來源。
 type ChannelMessageClient struct {
 	config
 }
@@ -1934,6 +1941,203 @@ func (c *SlackWorkspaceClient) mutate(ctx context.Context, m *SlackWorkspaceMuta
 	}
 }
 
+// TodoCandidateClient is a client for the TodoCandidate schema.
+type TodoCandidateClient struct {
+	config
+}
+
+// NewTodoCandidateClient returns a client for the TodoCandidate from the given config.
+func NewTodoCandidateClient(c config) *TodoCandidateClient {
+	return &TodoCandidateClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `todocandidate.Hooks(f(g(h())))`.
+func (c *TodoCandidateClient) Use(hooks ...Hook) {
+	c.hooks.TodoCandidate = append(c.hooks.TodoCandidate, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `todocandidate.Intercept(f(g(h())))`.
+func (c *TodoCandidateClient) Intercept(interceptors ...Interceptor) {
+	c.inters.TodoCandidate = append(c.inters.TodoCandidate, interceptors...)
+}
+
+// Create returns a builder for creating a TodoCandidate entity.
+func (c *TodoCandidateClient) Create() *TodoCandidateCreate {
+	mutation := newTodoCandidateMutation(c.config, OpCreate)
+	return &TodoCandidateCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of TodoCandidate entities.
+func (c *TodoCandidateClient) CreateBulk(builders ...*TodoCandidateCreate) *TodoCandidateCreateBulk {
+	return &TodoCandidateCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *TodoCandidateClient) MapCreateBulk(slice any, setFunc func(*TodoCandidateCreate, int)) *TodoCandidateCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &TodoCandidateCreateBulk{err: fmt.Errorf("calling to TodoCandidateClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*TodoCandidateCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &TodoCandidateCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for TodoCandidate.
+func (c *TodoCandidateClient) Update() *TodoCandidateUpdate {
+	mutation := newTodoCandidateMutation(c.config, OpUpdate)
+	return &TodoCandidateUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *TodoCandidateClient) UpdateOne(_m *TodoCandidate) *TodoCandidateUpdateOne {
+	mutation := newTodoCandidateMutation(c.config, OpUpdateOne, withTodoCandidate(_m))
+	return &TodoCandidateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *TodoCandidateClient) UpdateOneID(id uuid.UUID) *TodoCandidateUpdateOne {
+	mutation := newTodoCandidateMutation(c.config, OpUpdateOne, withTodoCandidateID(id))
+	return &TodoCandidateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for TodoCandidate.
+func (c *TodoCandidateClient) Delete() *TodoCandidateDelete {
+	mutation := newTodoCandidateMutation(c.config, OpDelete)
+	return &TodoCandidateDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *TodoCandidateClient) DeleteOne(_m *TodoCandidate) *TodoCandidateDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *TodoCandidateClient) DeleteOneID(id uuid.UUID) *TodoCandidateDeleteOne {
+	builder := c.Delete().Where(todocandidate.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &TodoCandidateDeleteOne{builder}
+}
+
+// Query returns a query builder for TodoCandidate.
+func (c *TodoCandidateClient) Query() *TodoCandidateQuery {
+	return &TodoCandidateQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeTodoCandidate},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a TodoCandidate entity by its id.
+func (c *TodoCandidateClient) Get(ctx context.Context, id uuid.UUID) (*TodoCandidate, error) {
+	return c.Query().Where(todocandidate.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *TodoCandidateClient) GetX(ctx context.Context, id uuid.UUID) *TodoCandidate {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryChannel queries the channel edge of a TodoCandidate.
+func (c *TodoCandidateClient) QueryChannel(_m *TodoCandidate) *ChannelQuery {
+	query := (&ChannelClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(todocandidate.Table, todocandidate.FieldID, id),
+			sqlgraph.To(channel.Table, channel.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, todocandidate.ChannelTable, todocandidate.ChannelColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySourceMessage queries the source_message edge of a TodoCandidate.
+func (c *TodoCandidateClient) QuerySourceMessage(_m *TodoCandidate) *ChannelMessageQuery {
+	query := (&ChannelMessageClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(todocandidate.Table, todocandidate.FieldID, id),
+			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, todocandidate.SourceMessageTable, todocandidate.SourceMessageColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryLastMessage queries the last_message edge of a TodoCandidate.
+func (c *TodoCandidateClient) QueryLastMessage(_m *TodoCandidate) *ChannelMessageQuery {
+	query := (&ChannelMessageClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(todocandidate.Table, todocandidate.FieldID, id),
+			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, todocandidate.LastMessageTable, todocandidate.LastMessageColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryLinkedMessage queries the linked_message edge of a TodoCandidate.
+func (c *TodoCandidateClient) QueryLinkedMessage(_m *TodoCandidate) *ChannelMessageQuery {
+	query := (&ChannelMessageClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(todocandidate.Table, todocandidate.FieldID, id),
+			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, todocandidate.LinkedMessageTable, todocandidate.LinkedMessageColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *TodoCandidateClient) Hooks() []Hook {
+	return c.hooks.TodoCandidate
+}
+
+// Interceptors returns the client interceptors.
+func (c *TodoCandidateClient) Interceptors() []Interceptor {
+	return c.inters.TodoCandidate
+}
+
+func (c *TodoCandidateClient) mutate(ctx context.Context, m *TodoCandidateMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&TodoCandidateCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&TodoCandidateUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&TodoCandidateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&TodoCandidateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown TodoCandidate mutation op: %q", m.Op())
+	}
+}
+
 // TranslationLocaleClient is a client for the TranslationLocale schema.
 type TranslationLocaleClient struct {
 	config
@@ -2316,12 +2520,12 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 type (
 	hooks struct {
 		Action, ActionResult, ActionRoute, Channel, ChannelMessage,
-		ChannelServiceMember, Line, Skill, Slack, SlackWorkspace, TranslationLocale,
-		User []ent.Hook
+		ChannelServiceMember, Line, Skill, Slack, SlackWorkspace, TodoCandidate,
+		TranslationLocale, User []ent.Hook
 	}
 	inters struct {
 		Action, ActionResult, ActionRoute, Channel, ChannelMessage,
-		ChannelServiceMember, Line, Skill, Slack, SlackWorkspace, TranslationLocale,
-		User []ent.Interceptor
+		ChannelServiceMember, Line, Skill, Slack, SlackWorkspace, TodoCandidate,
+		TranslationLocale, User []ent.Interceptor
 	}
 )

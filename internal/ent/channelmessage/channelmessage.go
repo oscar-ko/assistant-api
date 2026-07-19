@@ -24,7 +24,6 @@ const (
 	// FieldChannelID holds the string denoting the channel_id field in the database.
 	FieldChannelID = "channel_id"
 	// FieldTriggeredMessageID holds the string denoting the triggered_message_id field in the database.
-	// 中文說明：記錄系統訊息由哪一則既有訊息觸發，與平台 reply_to_msg_id 的外部回覆語意分開保存。
 	FieldTriggeredMessageID = "triggered_message_id"
 	// FieldPlatformTenantID holds the string denoting the platform_tenant_id field in the database.
 	FieldPlatformTenantID = "platform_tenant_id"
@@ -45,10 +44,8 @@ const (
 	// EdgeChannel holds the string denoting the channel edge name in mutations.
 	EdgeChannel = "channel"
 	// EdgeTriggeredMessage holds the string denoting the triggered_message edge name in mutations.
-	// 中文說明：指向觸發本系統訊息的來源訊息，供 command chain 與通知落庫回溯使用。
 	EdgeTriggeredMessage = "triggered_message"
 	// EdgeTriggeredMessages holds the string denoting the triggered_messages edge name in mutations.
-	// 中文說明：反向查詢由某則訊息所觸發的所有系統訊息。
 	EdgeTriggeredMessages = "triggered_messages"
 	// Table holds the table name of the channelmessage in the database.
 	Table = "channel_messages"
@@ -62,12 +59,10 @@ const (
 	// TriggeredMessageTable is the table that holds the triggered_message relation/edge.
 	TriggeredMessageTable = "channel_messages"
 	// TriggeredMessageColumn is the table column denoting the triggered_message relation/edge.
-	// 中文說明：此欄位承載內部觸發關聯，不再混用平台回覆 ID。
 	TriggeredMessageColumn = "triggered_message_id"
 	// TriggeredMessagesTable is the table that holds the triggered_messages relation/edge.
 	TriggeredMessagesTable = "channel_messages"
 	// TriggeredMessagesColumn is the table column denoting the triggered_messages relation/edge.
-	// 中文說明：反向 edge 也共用 triggered_message_id，代表來源訊息到系統訊息的一對多關係。
 	TriggeredMessagesColumn = "triggered_message_id"
 )
 
@@ -143,7 +138,6 @@ func ByChannelID(opts ...sql.OrderTermOption) OrderOption {
 }
 
 // ByTriggeredMessageID orders the results by the triggered_message_id field.
-// 中文說明：依系統觸發來源排序，方便檢視同一來源訊息衍生出的輸出順序。
 func ByTriggeredMessageID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTriggeredMessageID, opts...).ToFunc()
 }
@@ -196,7 +190,6 @@ func ByChannelField(field string, opts ...sql.OrderTermOption) OrderOption {
 }
 
 // ByTriggeredMessageField orders the results by triggered_message field.
-// 中文說明：依觸發來源訊息的欄位排序，適合跨訊息鏈查詢。
 func ByTriggeredMessageField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newTriggeredMessageStep(), sql.OrderByField(field, opts...))
@@ -204,7 +197,6 @@ func ByTriggeredMessageField(field string, opts ...sql.OrderTermOption) OrderOpt
 }
 
 // ByTriggeredMessagesCount orders the results by triggered_messages count.
-// 中文說明：依被觸發出的系統訊息數量排序，可用於找出產生最多系統回覆的來源訊息。
 func ByTriggeredMessagesCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborsCount(s, newTriggeredMessagesStep(), opts...)
@@ -212,7 +204,6 @@ func ByTriggeredMessagesCount(opts ...sql.OrderTermOption) OrderOption {
 }
 
 // ByTriggeredMessages orders the results by triggered_messages terms.
-// 中文說明：依反向觸發訊息集合的條件排序，保持 GraphQL/Ent 查詢能力完整。
 func ByTriggeredMessages(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newTriggeredMessagesStep(), append([]sql.OrderTerm{term}, terms...)...)

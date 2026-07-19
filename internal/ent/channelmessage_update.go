@@ -50,14 +50,12 @@ func (_u *ChannelMessageUpdate) SetNillableContent(v *string) *ChannelMessageUpd
 }
 
 // SetTriggeredMessageID sets the "triggered_message_id" field.
-// 中文說明：更新系統訊息來源時寫入內部訊息 ID，和平台 reply_to_msg_id 保持不同語意。
 func (_u *ChannelMessageUpdate) SetTriggeredMessageID(v uuid.UUID) *ChannelMessageUpdate {
 	_u.mutation.SetTriggeredMessageID(v)
 	return _u
 }
 
 // SetNillableTriggeredMessageID sets the "triggered_message_id" field if the given value is not nil.
-// 中文說明：nil 代表不變更來源關聯，避免更新流程意外清空既有觸發來源。
 func (_u *ChannelMessageUpdate) SetNillableTriggeredMessageID(v *uuid.UUID) *ChannelMessageUpdate {
 	if v != nil {
 		_u.SetTriggeredMessageID(*v)
@@ -66,7 +64,6 @@ func (_u *ChannelMessageUpdate) SetNillableTriggeredMessageID(v *uuid.UUID) *Cha
 }
 
 // ClearTriggeredMessageID clears the value of the "triggered_message_id" field.
-// 中文說明：只有確認系統訊息不應再連回來源訊息時才清除此欄位。
 func (_u *ChannelMessageUpdate) ClearTriggeredMessageID() *ChannelMessageUpdate {
 	_u.mutation.ClearTriggeredMessageID()
 	return _u
@@ -228,13 +225,11 @@ func (_u *ChannelMessageUpdate) ClearPlatformTimestamp() *ChannelMessageUpdate {
 }
 
 // SetTriggeredMessage sets the "triggered_message" edge to the ChannelMessage entity.
-// 中文說明：以 edge 形式設定來源訊息，底層仍會落到 triggered_message_id 欄位。
 func (_u *ChannelMessageUpdate) SetTriggeredMessage(v *ChannelMessage) *ChannelMessageUpdate {
 	return _u.SetTriggeredMessageID(v.ID)
 }
 
 // AddTriggeredMessageIDs adds the "triggered_messages" edge to the ChannelMessage entity by IDs.
-// 中文說明：將多筆系統輸出掛回目前訊息，建立來源訊息到系統訊息的一對多關係。
 func (_u *ChannelMessageUpdate) AddTriggeredMessageIDs(ids ...uuid.UUID) *ChannelMessageUpdate {
 	_u.mutation.AddTriggeredMessageIDs(ids...)
 	return _u
@@ -255,14 +250,12 @@ func (_u *ChannelMessageUpdate) Mutation() *ChannelMessageMutation {
 }
 
 // ClearTriggeredMessage clears the "triggered_message" edge to the ChannelMessage entity.
-// 中文說明：清除本訊息指向來源訊息的內部觸發 edge。
 func (_u *ChannelMessageUpdate) ClearTriggeredMessage() *ChannelMessageUpdate {
 	_u.mutation.ClearTriggeredMessage()
 	return _u
 }
 
 // ClearTriggeredMessages clears all "triggered_messages" edges to the ChannelMessage entity.
-// 中文說明：移除所有由目前訊息觸發出的系統訊息反向關聯。
 func (_u *ChannelMessageUpdate) ClearTriggeredMessages() *ChannelMessageUpdate {
 	_u.mutation.ClearTriggeredMessages()
 	return _u

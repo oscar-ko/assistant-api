@@ -16,6 +16,7 @@ import (
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/slack"
+	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 
@@ -25,6 +26,21 @@ import (
 // ChannelMessageRepo handles channel and inbound message persistence.
 type ChannelMessageRepo struct {
 	db *ent.Client
+}
+
+// SaveTodoCandidateInput 是 Todo Reminder structured analyzer 落庫的最小輸入契約。
+// repository 不重新判斷語意，只負責把 usecase 已驗證過的 decision/status 寫成可追蹤資料。
+type SaveTodoCandidateInput struct {
+	ChannelID       uuid.UUID
+	MessageID       uuid.UUID
+	LinkedMessageID uuid.UUID
+	Decision        string
+	Summary         string
+	Assignees       []string
+	DueText         string
+	MissingFields   []string
+	Confidence      float64
+	Reason          string
 }
 
 func NewChannelMessageRepo(db *ent.Client) *ChannelMessageRepo {
@@ -682,6 +698,156 @@ func (r *ChannelMessageRepo) FindLatestActionResultByMessageID(ctx context.Conte
 		return nil, fmt.Errorf("query action result by message id failed: %w", err)
 	}
 	return item, nil
+}
+
+// SaveTodoCandidateFromAnalysis 依 Todo analyzer 的結構化輸出建立或更新候選待辦。
+//
+// 寫入策略：
+// - create_candidate / needs_more_info：以目前訊息建立新的 candidate。
+// - update_candidate / acknowledge / cancel_candidate：優先用 linked_message_id 在同 channel 找既有 candidate，找到就更新最新狀態。
+// - 找不到 linked candidate 時回錯誤，讓上層 log 出資料連結缺口；不靜默建立錯誤候選。
+func (r *ChannelMessageRepo) SaveTodoCandidateFromAnalysis(ctx context.Context, input SaveTodoCandidateInput) (*ent.TodoCandidate, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("channel repository not initialized")
+	}
+	if input.ChannelID == uuid.Nil {
+		return nil, fmt.Errorf("todo candidate channel id is required")
+	}
+	if input.MessageID == uuid.Nil {
+		return nil, fmt.Errorf("todo candidate message id is required")
+	}
+
+	decision := todocandidate.LastDecision(strings.TrimSpace(input.Decision))
+	status, err := todoCandidateStatusFromDecision(decision)
+	if err != nil {
+		return nil, err
+	}
+	if decision == todocandidate.LastDecisionCreateCandidate || decision == todocandidate.LastDecisionNeedsMoreInfo {
+		return r.createTodoCandidate(ctx, input, decision, status)
+	}
+
+	if input.LinkedMessageID == uuid.Nil {
+		return nil, fmt.Errorf("todo candidate linked message id is required for decision %s", decision)
+	}
+	existing, err := r.findTodoCandidateByLinkedMessage(ctx, input.ChannelID, input.LinkedMessageID)
+	if err != nil {
+		return nil, err
+	}
+	if existing == nil {
+		return nil, fmt.Errorf("todo candidate linked message %s has no existing candidate", input.LinkedMessageID)
+	}
+	return r.updateTodoCandidate(ctx, existing.ID, input, decision, status)
+}
+
+func (r *ChannelMessageRepo) createTodoCandidate(ctx context.Context, input SaveTodoCandidateInput, decision todocandidate.LastDecision, status todocandidate.Status) (*ent.TodoCandidate, error) {
+	create := r.db.TodoCandidate.Create().
+		SetChannelID(input.ChannelID).
+		SetSourceMessageID(input.MessageID).
+		SetLastMessageID(input.MessageID).
+		SetStatus(status).
+		SetLastDecision(decision).
+		SetSummary(strings.TrimSpace(input.Summary)).
+		SetAssignees(normalizeStringSlice(input.Assignees)).
+		SetDueText(strings.TrimSpace(input.DueText)).
+		SetMissingFields(normalizeStringSlice(input.MissingFields)).
+		SetConfidence(input.Confidence).
+		SetReason(strings.TrimSpace(input.Reason))
+	if input.LinkedMessageID != uuid.Nil {
+		create.SetLinkedMessageID(input.LinkedMessageID)
+	}
+	item, err := create.Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("create todo candidate failed: %w", err)
+	}
+	return item, nil
+}
+
+func (r *ChannelMessageRepo) updateTodoCandidate(ctx context.Context, candidateID uuid.UUID, input SaveTodoCandidateInput, decision todocandidate.LastDecision, status todocandidate.Status) (*ent.TodoCandidate, error) {
+	update := r.db.TodoCandidate.UpdateOneID(candidateID).
+		SetLastMessageID(input.MessageID).
+		SetStatus(status).
+		SetLastDecision(decision).
+		SetSummary(strings.TrimSpace(input.Summary)).
+		SetAssignees(normalizeStringSlice(input.Assignees)).
+		SetDueText(strings.TrimSpace(input.DueText)).
+		SetMissingFields(normalizeStringSlice(input.MissingFields)).
+		SetConfidence(input.Confidence).
+		SetReason(strings.TrimSpace(input.Reason))
+	if input.LinkedMessageID != uuid.Nil {
+		update.SetLinkedMessageID(input.LinkedMessageID)
+	} else {
+		update.ClearLinkedMessageID()
+	}
+	item, err := update.Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("update todo candidate failed: %w", err)
+	}
+	return item, nil
+}
+
+func (r *ChannelMessageRepo) findTodoCandidateByLinkedMessage(ctx context.Context, channelID uuid.UUID, linkedMessageID uuid.UUID) (*ent.TodoCandidate, error) {
+	item, err := r.db.TodoCandidate.Query().
+		Where(
+			todocandidate.ChannelIDEQ(channelID),
+			todocandidate.SourceMessageIDEQ(linkedMessageID),
+		).
+		Only(ctx)
+	if err == nil {
+		return item, nil
+	}
+	if !ent.IsNotFound(err) {
+		return nil, fmt.Errorf("query todo candidate by source message failed: %w", err)
+	}
+
+	item, err = r.db.TodoCandidate.Query().
+		Where(
+			todocandidate.ChannelIDEQ(channelID),
+			todocandidate.LastMessageIDEQ(linkedMessageID),
+		).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("query todo candidate by last message failed: %w", err)
+	}
+	return item, nil
+}
+
+func todoCandidateStatusFromDecision(decision todocandidate.LastDecision) (todocandidate.Status, error) {
+	switch decision {
+	case todocandidate.LastDecisionCreateCandidate, todocandidate.LastDecisionUpdateCandidate:
+		return todocandidate.StatusCandidate, nil
+	case todocandidate.LastDecisionNeedsMoreInfo:
+		return todocandidate.StatusNeedsMoreInfo, nil
+	case todocandidate.LastDecisionAcknowledge:
+		return todocandidate.StatusAcknowledged, nil
+	case todocandidate.LastDecisionCancelCandidate:
+		return todocandidate.StatusCancelled, nil
+	default:
+		return "", fmt.Errorf("todo candidate decision %q is not persistable", decision)
+	}
+}
+
+func normalizeStringSlice(values []string) []string {
+	if len(values) == 0 {
+		return []string{}
+	}
+	out := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		key := strings.ToLower(trimmed)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, trimmed)
+	}
+	return out
 }
 
 // ResolveSkillCodeByAPIOperation 由 api_operation 反查 skill_code。

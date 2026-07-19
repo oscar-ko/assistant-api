@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"assistant-api/internal/config"
+	"assistant-api/internal/ent"
 	realtimeclient "assistant-api/internal/integration/provider/realtime"
 	webhooklog "assistant-api/internal/integration/provider/webhooklog"
 	"assistant-api/internal/integration/unifiedmessage"
@@ -119,7 +120,28 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 	})
 	// RecentLimit 使用中性的 history_context 設定，而不是 todo_reminder 專用 key。
 	// 原因是未來摘要、客服、行事曆補欄位等服務都可能需要同一個「近端歷史訊息召回窗口」。
-	todoReminder := realtime.NewTodoReminderService(realtime.TodoReminderServiceOptions{PlatformLabel: "line", Repo: repo, LLM: options.LLMInteraction, Ranker: rerankerClient, RecentLimit: config.AI.HistoryContext.RecentMessageLimit})
+	todoReminder := realtime.NewTodoReminderService(realtime.TodoReminderServiceOptions{
+		PlatformLabel: "line",
+		Repo:          repo,
+		PersistTodoCandidate: func(ctx context.Context, input realtime.TodoCandidateInput) (*ent.TodoCandidate, error) {
+			// provider 層只做型別轉接：usecase 決定何時落庫，repository 決定如何寫入 Ent。
+			return repo.SaveTodoCandidateFromAnalysis(ctx, repository.SaveTodoCandidateInput{
+				ChannelID:       input.ChannelID,
+				MessageID:       input.MessageID,
+				LinkedMessageID: input.LinkedMessageID,
+				Decision:        input.Decision,
+				Summary:         input.Summary,
+				Assignees:       input.Assignees,
+				DueText:         input.DueText,
+				MissingFields:   input.MissingFields,
+				Confidence:      input.Confidence,
+				Reason:          input.Reason,
+			})
+		},
+		LLM:         options.LLMInteraction,
+		Ranker:      rerankerClient,
+		RecentLimit: config.AI.HistoryContext.RecentMessageLimit,
+	})
 	messageClassifier := realtime.NewMessageClassificationService(realtime.MessageClassificationServiceOptions{
 		TextScanGate:  repo,
 		Classifier:    classifierClient,

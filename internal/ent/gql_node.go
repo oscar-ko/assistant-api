@@ -13,6 +13,7 @@ import (
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/slackworkspace"
+	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -78,6 +79,11 @@ var slackworkspaceImplementors = []string{"SlackWorkspace", "Node"}
 
 // IsNode implements the Node interface check for GQLGen.
 func (*SlackWorkspace) IsNode() {}
+
+var todocandidateImplementors = []string{"TodoCandidate", "Node"}
+
+// IsNode implements the Node interface check for GQLGen.
+func (*TodoCandidate) IsNode() {}
 
 var translationlocaleImplementors = []string{"TranslationLocale", "Node"}
 
@@ -233,6 +239,15 @@ func (c *Client) noder(ctx context.Context, table string, id uuid.UUID) (Noder, 
 			Where(slackworkspace.ID(id))
 		if fc := graphql.GetFieldContext(ctx); fc != nil {
 			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, slackworkspaceImplementors...); err != nil {
+				return nil, err
+			}
+		}
+		return query.Only(ctx)
+	case todocandidate.Table:
+		query := c.TodoCandidate.Query().
+			Where(todocandidate.ID(id))
+		if fc := graphql.GetFieldContext(ctx); fc != nil {
+			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, todocandidateImplementors...); err != nil {
 				return nil, err
 			}
 		}
@@ -476,6 +491,22 @@ func (c *Client) noders(ctx context.Context, table string, ids []uuid.UUID) ([]N
 		query := c.SlackWorkspace.Query().
 			Where(slackworkspace.IDIn(ids...))
 		query, err := query.CollectFields(ctx, slackworkspaceImplementors...)
+		if err != nil {
+			return nil, err
+		}
+		nodes, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, node := range nodes {
+			for _, noder := range idmap[node.ID] {
+				*noder = node
+			}
+		}
+	case todocandidate.Table:
+		query := c.TodoCandidate.Query().
+			Where(todocandidate.IDIn(ids...))
+		query, err := query.CollectFields(ctx, todocandidateImplementors...)
 		if err != nil {
 			return nil, err
 		}

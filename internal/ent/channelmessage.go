@@ -28,8 +28,7 @@ type ChannelMessage struct {
 	Content string `json:"content,omitempty"`
 	// 所屬頻道 ID
 	ChannelID uuid.UUID `json:"channel_id,omitempty"`
-	// 系統訊息觸發來源訊息 ID。
-	// 只有由系統送出的回應、通知或自動翻譯等訊息會填入此欄位；一般使用者 reply 仍保留在 reply_to_msg_id。
+	// 系統訊息觸發來源訊息 ID；只記錄內部系統輸出由哪則訊息衍生，平台回覆目標仍使用 reply_to_msg_id
 	TriggeredMessageID *uuid.UUID `json:"triggered_message_id,omitempty"`
 	// 平台租戶/工作區識別（例如 Slack team ID、Teams tenant ID）
 	PlatformTenantID string `json:"platform_tenant_id,omitempty"`
@@ -57,9 +56,9 @@ type ChannelMessage struct {
 type ChannelMessageEdges struct {
 	// 訊息所屬頻道
 	Channel *Channel `json:"channel,omitempty"`
-	// 此系統訊息由哪一則訊息觸發；用來回溯 bot 回覆、系統通知與原始使用者訊息之間的內部關係。
+	// 此系統訊息由哪一則訊息觸發；用於 command chain 與系統通知回溯
 	TriggeredMessage *ChannelMessage `json:"triggered_message,omitempty"`
-	// 由此訊息觸發產生的系統訊息集合；可用來查詢某則使用者訊息衍生出的所有系統輸出。
+	// 由此訊息觸發產生的系統訊息集合；同一來源可觸發多筆輸出
 	TriggeredMessages []*ChannelMessage `json:"triggered_messages,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
@@ -162,7 +161,6 @@ func (_m *ChannelMessage) assignValues(columns []string, values []any) error {
 				_m.ChannelID = *value
 			}
 		case channelmessage.FieldTriggeredMessageID:
-			// triggered_message_id 是可空 UUID，掃描時需先用 NullScanner 保留「未設定」與 uuid.Nil 的差異。
 			if value, ok := values[i].(*sql.NullScanner); !ok {
 				return fmt.Errorf("unexpected type %T for field triggered_message_id", values[i])
 			} else if value.Valid {

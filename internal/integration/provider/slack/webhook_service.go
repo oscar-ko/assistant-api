@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"assistant-api/internal/config"
+	"assistant-api/internal/ent"
 	aillminteraction "assistant-api/internal/integration/ai/llm_interaction"
 	aitopkfilter "assistant-api/internal/integration/ai/topkfilter"
 	realtimeclient "assistant-api/internal/integration/provider/realtime"
@@ -114,7 +115,28 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 	})
 	// RecentLimit 讀取共用 history_context，讓 Slack 與 LINE 對「往前抓幾則訊息」維持一致語意。
 	// 若未來不同服務需要不同窗口，應在服務自己的 options 裡覆寫，而不是在 provider webhook 裡硬分支。
-	todoReminder := realtime.NewTodoReminderService(realtime.TodoReminderServiceOptions{PlatformLabel: "slack", Repo: repo, LLM: options.LLMInteraction, Ranker: rerankerClient, RecentLimit: config.AI.HistoryContext.RecentMessageLimit})
+	todoReminder := realtime.NewTodoReminderService(realtime.TodoReminderServiceOptions{
+		PlatformLabel: "slack",
+		Repo:          repo,
+		PersistTodoCandidate: func(ctx context.Context, input realtime.TodoCandidateInput) (*ent.TodoCandidate, error) {
+			// provider 層只做型別轉接：usecase 決定何時落庫，repository 決定如何寫入 Ent。
+			return repo.SaveTodoCandidateFromAnalysis(ctx, repository.SaveTodoCandidateInput{
+				ChannelID:       input.ChannelID,
+				MessageID:       input.MessageID,
+				LinkedMessageID: input.LinkedMessageID,
+				Decision:        input.Decision,
+				Summary:         input.Summary,
+				Assignees:       input.Assignees,
+				DueText:         input.DueText,
+				MissingFields:   input.MissingFields,
+				Confidence:      input.Confidence,
+				Reason:          input.Reason,
+			})
+		},
+		LLM:         options.LLMInteraction,
+		Ranker:      rerankerClient,
+		RecentLimit: config.AI.HistoryContext.RecentMessageLimit,
+	})
 	messageClassifier := realtime.NewMessageClassificationService(realtime.MessageClassificationServiceOptions{
 		TextScanGate:  repo,
 		Classifier:    classifierClient,

@@ -30,9 +30,10 @@ func (s *stubRecentMessageStore) FindRecentMessagesBefore(ctx context.Context, m
 }
 
 type stubContextAnalyzer struct {
-	calls  int
-	prompt string
-	text   string
+	calls      int
+	prompt     string
+	text       string
+	todoResult *llminteraction.TodoAnalysis
 }
 
 type stubImplicitReplyRanker struct {
@@ -74,6 +75,9 @@ func (s *stubContextAnalyzer) AnalyzeTodo(ctx context.Context, prompt string, te
 	s.calls++
 	s.prompt = prompt
 	s.text = text
+	if s.todoResult != nil {
+		return s.todoResult, nil
+	}
 	return &llminteraction.TodoAnalysis{SchemaVersion: "v1", Decision: "update_candidate", LinkedMessageID: "recent-message", Summary: "補報價單", Confidence: 0.82, Reason: "接續前文待辦"}, nil
 }
 
@@ -112,6 +116,94 @@ func TestTodoReminderServiceAnalyzesImplicitReplyContext(t *testing.T) {
 	}
 	if !strings.Contains(analyzer.prompt, "todo_analysis JSON contract") {
 		t.Fatalf("expected prompt to use todo analysis contract, got %q", analyzer.prompt)
+	}
+}
+
+func TestTodoReminderServicePersistsTodoCandidateAnalysis(t *testing.T) {
+	// structured analyzer 已經完成語意判斷後，realtime service 只把固定 schema 轉成 candidate persistence input；
+	// 這裡鎖住 create_candidate 會用目前訊息當 source/last message，不再停留在純 log-only。
+	channelID := uuid.New()
+	currentMessageID := uuid.New()
+	recentMessageID := uuid.New()
+	repo := &stubRecentMessageStore{items: []*ent.ChannelMessage{
+		{ID: recentMessageID, ChannelID: channelID, SenderName: "阿明", Content: "明天記得交報價單", CreatedAt: time.Now().Add(-time.Minute)},
+	}}
+	analyzer := &stubContextAnalyzer{todoResult: &llminteraction.TodoAnalysis{
+		SchemaVersion: "v1",
+		Decision:      "create_candidate",
+		Summary:       "明天交報價單",
+		Assignees:     []string{"我"},
+		DueText:       "明天",
+		Confidence:    0.91,
+		Reason:        "message describes a todo",
+	}}
+	var persisted TodoCandidateInput
+	persistCalls := 0
+	service := NewTodoReminderService(TodoReminderServiceOptions{
+		Repo:          repo,
+		LLM:           analyzer,
+		PlatformLabel: "test",
+		RecentLimit:   4,
+		PersistTodoCandidate: func(ctx context.Context, input TodoCandidateInput) (*ent.TodoCandidate, error) {
+			_ = ctx
+			persistCalls++
+			persisted = input
+			return &ent.TodoCandidate{ID: uuid.New()}, nil
+		},
+	})
+
+	service.HandleClassification(context.Background(), MessageContext{
+		Message:      &unifiedmessage.Message{ChannelID: "channel-1", PlatformMessageID: "m-2", MessageType: "text", Text: "明天我來交報價單"},
+		SavedMessage: &ent.ChannelMessage{ID: currentMessageID, ChannelID: channelID, Content: "明天我來交報價單", CreatedAt: time.Now()},
+	}, ClassificationResult{Tag: "todo", Signal: ClassificationSignalCandidate, Confidence: 0.9})
+
+	if persistCalls != 1 {
+		t.Fatalf("expected candidate persistence to be called once, got %d", persistCalls)
+	}
+	if persisted.ChannelID != channelID || persisted.MessageID != currentMessageID {
+		t.Fatalf("unexpected persistence message identity: %+v", persisted)
+	}
+	if persisted.Decision != "create_candidate" || persisted.Summary != "明天交報價單" || persisted.DueText != "明天" {
+		t.Fatalf("unexpected persistence payload: %+v", persisted)
+	}
+	if len(persisted.Assignees) != 1 || persisted.Assignees[0] != "我" {
+		t.Fatalf("unexpected assignees: %+v", persisted.Assignees)
+	}
+}
+
+func TestTodoReminderServiceDoesNotPersistNoAction(t *testing.T) {
+	// no_action 是 analyzer 明確判斷不要啟動 Todo Reminder；即使有 persistence function，也不能寫入候選表。
+	channelID := uuid.New()
+	repo := &stubRecentMessageStore{items: []*ent.ChannelMessage{
+		{ID: uuid.New(), ChannelID: channelID, SenderName: "阿明", Content: "晚上吃什麼", CreatedAt: time.Now().Add(-time.Minute)},
+	}}
+	analyzer := &stubContextAnalyzer{todoResult: &llminteraction.TodoAnalysis{
+		SchemaVersion: "v1",
+		Decision:      "no_action",
+		Confidence:    0.2,
+		Reason:        "chat only",
+	}}
+	persistCalls := 0
+	service := NewTodoReminderService(TodoReminderServiceOptions{
+		Repo:          repo,
+		LLM:           analyzer,
+		PlatformLabel: "test",
+		RecentLimit:   4,
+		PersistTodoCandidate: func(ctx context.Context, input TodoCandidateInput) (*ent.TodoCandidate, error) {
+			_ = ctx
+			_ = input
+			persistCalls++
+			return &ent.TodoCandidate{ID: uuid.New()}, nil
+		},
+	})
+
+	service.HandleClassification(context.Background(), MessageContext{
+		Message:      &unifiedmessage.Message{ChannelID: "channel-1", PlatformMessageID: "m-2", MessageType: "text", Text: "哈哈好"},
+		SavedMessage: &ent.ChannelMessage{ID: uuid.New(), ChannelID: channelID, Content: "哈哈好", CreatedAt: time.Now()},
+	}, ClassificationResult{Tag: "todo", Signal: ClassificationSignalCandidate, Confidence: 0.9})
+
+	if persistCalls != 0 {
+		t.Fatalf("expected no_action to skip candidate persistence, got %d calls", persistCalls)
 	}
 }
 

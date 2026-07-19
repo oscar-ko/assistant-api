@@ -63,14 +63,12 @@ func (_c *ChannelMessageCreate) SetChannelID(v uuid.UUID) *ChannelMessageCreate 
 }
 
 // SetTriggeredMessageID sets the "triggered_message_id" field.
-// 中文說明：建立系統送出訊息時，用此欄位保存觸發它的來源訊息 ID；使用者平台回覆則走 reply_to_msg_id。
 func (_c *ChannelMessageCreate) SetTriggeredMessageID(v uuid.UUID) *ChannelMessageCreate {
 	_c.mutation.SetTriggeredMessageID(v)
 	return _c
 }
 
 // SetNillableTriggeredMessageID sets the "triggered_message_id" field if the given value is not nil.
-// 中文說明：nil 代表沒有內部觸發來源，避免把空值誤寫成有效關聯。
 func (_c *ChannelMessageCreate) SetNillableTriggeredMessageID(v *uuid.UUID) *ChannelMessageCreate {
 	if v != nil {
 		_c.SetTriggeredMessageID(*v)
@@ -202,20 +200,17 @@ func (_c *ChannelMessageCreate) SetChannel(v *Channel) *ChannelMessageCreate {
 }
 
 // SetTriggeredMessage sets the "triggered_message" edge to the ChannelMessage entity.
-// 中文說明：透過 Ent edge 設定來源訊息，底層仍會寫入 triggered_message_id。
 func (_c *ChannelMessageCreate) SetTriggeredMessage(v *ChannelMessage) *ChannelMessageCreate {
 	return _c.SetTriggeredMessageID(v.ID)
 }
 
 // AddTriggeredMessageIDs adds the "triggered_messages" edge to the ChannelMessage entity by IDs.
-// 中文說明：反向把多筆系統訊息掛到目前來源訊息下，供 eager loading 與查詢使用。
 func (_c *ChannelMessageCreate) AddTriggeredMessageIDs(ids ...uuid.UUID) *ChannelMessageCreate {
 	_c.mutation.AddTriggeredMessageIDs(ids...)
 	return _c
 }
 
 // AddTriggeredMessages adds the "triggered_messages" edges to the ChannelMessage entity.
-// 中文說明：以實體物件形式建立反向觸發關聯，語意等同 AddTriggeredMessageIDs。
 func (_c *ChannelMessageCreate) AddTriggeredMessages(v ...*ChannelMessage) *ChannelMessageCreate {
 	ids := make([]uuid.UUID, len(v))
 	for i := range v {

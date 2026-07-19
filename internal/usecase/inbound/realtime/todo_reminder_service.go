@@ -9,6 +9,7 @@ import (
 	llminteraction "assistant-api/internal/usecase/ai/llm_interaction"
 	"assistant-api/internal/usecase/ai/reranker"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -18,6 +19,25 @@ type RecentMessageStore interface {
 	FindRecentMessagesBefore(ctx context.Context, message *ent.ChannelMessage, limit int) ([]*ent.ChannelMessage, error)
 }
 
+// TodoCandidateInput 是 Todo Reminder usecase 傳給 repository 的落庫資料。
+// 欄位對齊 llminteraction.TodoAnalysis，但保留 ent UUID，避免 repository 再解析目前訊息與 linked message。
+type TodoCandidateInput struct {
+	ChannelID       uuid.UUID
+	MessageID       uuid.UUID
+	LinkedMessageID uuid.UUID
+	Decision        string
+	Summary         string
+	Assignees       []string
+	DueText         string
+	MissingFields   []string
+	Confidence      float64
+	Reason          string
+}
+
+// PersistTodoCandidateFunc 由 provider 層注入，負責把 Todo analyzer 結果寫入實際 repository。
+// 這裡使用 function 而不是 repository concrete type，避免 realtime usecase 反向依賴 repository package。
+type PersistTodoCandidateFunc func(ctx context.Context, input TodoCandidateInput) (*ent.TodoCandidate, error)
+
 // TodoReminderService 是待辦提醒的即時訊息服務。
 //
 // 目前第一階段只做觀測：當非指令訊息完成 classification 後，
@@ -25,29 +45,32 @@ type RecentMessageStore interface {
 // 後續真正建立提醒、解析時間、寫入資料庫時，應該從這個 handler 往下擴充，
 // 不要回到 provider webhook 裡做平台專屬邏輯。
 type TodoReminderService struct {
-	platformLabel string
-	repo          RecentMessageStore
-	llm           llminteraction.InteractionService
-	ranker        reranker.Service
-	recentLimit   int
+	platformLabel        string
+	repo                 RecentMessageStore
+	persistTodoCandidate PersistTodoCandidateFunc
+	llm                  llminteraction.InteractionService
+	ranker               reranker.Service
+	recentLimit          int
 }
 
 // TodoReminderServiceOptions 提供待辦提醒服務的可觀測性設定。
 type TodoReminderServiceOptions struct {
-	PlatformLabel string
-	Repo          RecentMessageStore
-	LLM           llminteraction.InteractionService
-	Ranker        reranker.Service
-	RecentLimit   int
+	PlatformLabel        string
+	Repo                 RecentMessageStore
+	PersistTodoCandidate PersistTodoCandidateFunc
+	LLM                  llminteraction.InteractionService
+	Ranker               reranker.Service
+	RecentLimit          int
 }
 
 // NewTodoReminderService 建立待辦提醒即時服務。
 func NewTodoReminderService(options TodoReminderServiceOptions) *TodoReminderService {
 	return &TodoReminderService{
-		platformLabel: strings.TrimSpace(options.PlatformLabel),
-		repo:          options.Repo,
-		llm:           options.LLM,
-		ranker:        options.Ranker,
+		platformLabel:        strings.TrimSpace(options.PlatformLabel),
+		repo:                 options.Repo,
+		persistTodoCandidate: options.PersistTodoCandidate,
+		llm:                  options.LLM,
+		ranker:               options.Ranker,
 		// RecentLimit 必須由 config 層解析後注入；預設值集中在 ai.history_context.recent_message_limit，
 		// usecase 不再內建 8，避免未來調整召回窗口時出現「設定檔一份、程式碼一份」的漂移。
 		recentLimit: options.RecentLimit,
@@ -198,6 +221,72 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 		zap.Strings("missing_fields", append([]string(nil), analysis.MissingFields...)),
 		zap.String("reason", strings.TrimSpace(analysis.Reason)),
 	)
+	s.persistTodoCandidateAnalysis(ctx, messageCtx, analysis)
+}
+
+func (s *TodoReminderService) persistTodoCandidateAnalysis(ctx context.Context, messageCtx MessageContext, analysis *llminteraction.TodoAnalysis) {
+	if s == nil || s.persistTodoCandidate == nil || messageCtx.SavedMessage == nil || analysis == nil {
+		// persistence function 沒注入時保留 log-only 模式，方便測試或尚未啟用資料表的環境先觀測 analyzer 結果。
+		return
+	}
+	decision := strings.TrimSpace(analysis.Decision)
+	if decision == "no_action" {
+		// no_action 是 analyzer 明確判斷不應啟動 Todo Reminder；不落庫才能避免堆積無效候選。
+		return
+	}
+	linkedMessageID, err := parseOptionalUUID(strings.TrimSpace(analysis.LinkedMessageID))
+	if err != nil {
+		zap.L().Warn("todo reminder candidate skipped: linked message id is invalid",
+			zap.String("platform", s.platformLabel),
+			zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+			zap.String("linked_message_id", strings.TrimSpace(analysis.LinkedMessageID)),
+			zap.Error(err),
+		)
+		return
+	}
+	item, err := s.persistTodoCandidate(ctx, TodoCandidateInput{
+		ChannelID:       messageCtx.SavedMessage.ChannelID,
+		MessageID:       messageCtx.SavedMessage.ID,
+		LinkedMessageID: linkedMessageID,
+		Decision:        decision,
+		Summary:         strings.TrimSpace(analysis.Summary),
+		Assignees:       append([]string(nil), analysis.Assignees...),
+		DueText:         strings.TrimSpace(analysis.DueText),
+		MissingFields:   append([]string(nil), analysis.MissingFields...),
+		Confidence:      analysis.Confidence,
+		Reason:          strings.TrimSpace(analysis.Reason),
+	})
+	if err != nil {
+		zap.L().Warn("todo reminder candidate persistence failed",
+			zap.String("platform", s.platformLabel),
+			zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+			zap.String("decision", decision),
+			zap.Error(err),
+		)
+		return
+	}
+	if item == nil {
+		return
+	}
+	zap.L().Info("todo reminder candidate persisted",
+		zap.String("platform", s.platformLabel),
+		zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+		zap.String("candidate_id", item.ID.String()),
+		zap.String("status", string(item.Status)),
+		zap.String("decision", string(item.LastDecision)),
+	)
+}
+
+func parseOptionalUUID(value string) (uuid.UUID, error) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return uuid.Nil, nil
+	}
+	parsed, err := uuid.Parse(trimmed)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return parsed, nil
 }
 
 func (s *TodoReminderService) rerankImplicitReplyCandidates(ctx context.Context, query string, recentMessages []*ent.ChannelMessage) ([]*ent.ChannelMessage, error) {

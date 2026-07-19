@@ -77,7 +77,6 @@ func ChannelID(v uuid.UUID) predicate.ChannelMessage {
 }
 
 // TriggeredMessageID applies equality check predicate on the "triggered_message_id" field. It's identical to TriggeredMessageIDEQ.
-// 中文說明：查詢由特定訊息觸發出的系統訊息時使用；平台使用者回覆請改查 reply_to_msg_id。
 func TriggeredMessageID(v uuid.UUID) predicate.ChannelMessage {
 	return predicate.ChannelMessage(sql.FieldEQ(FieldTriggeredMessageID, v))
 }
