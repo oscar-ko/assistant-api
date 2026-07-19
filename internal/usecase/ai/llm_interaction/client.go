@@ -158,6 +158,20 @@ type ContextAnalysis struct {
 	Reason          string                     `json:"reason"`
 }
 
+// TodoAnalysis 表示 Todo Reminder 專用 structured analyzer 的輸出。
+// 目前只用於 debug/log 與後續 todo_candidate 狀態機銜接，不直接建立待辦。
+type TodoAnalysis struct {
+	SchemaVersion   string   `json:"schema_version"`
+	Decision        string   `json:"decision"`
+	LinkedMessageID string   `json:"linked_message_id"`
+	Summary         string   `json:"summary"`
+	Assignees       []string `json:"assignees,omitempty"`
+	DueText         string   `json:"due_text"`
+	Confidence      float64  `json:"confidence"`
+	MissingFields   []string `json:"missing_fields,omitempty"`
+	Reason          string   `json:"reason"`
+}
+
 // InteractionClient 定義通用 LLM 互動能力。
 type InteractionClient interface {
 	// ClassifyAction 把 prompt+text 送進 actionDecisionPath，
@@ -169,6 +183,8 @@ type InteractionClient interface {
 	// AnalyzeContext 把 prompt+text 送進 contextAnalyzePath，
 	// 回應 payload 解析成 ContextAnalysis（系統內部上下文分析結果）。
 	AnalyzeContext(ctx context.Context, prompt string, text string) (*ContextAnalysis, error)
+	// AnalyzeTodo 把 prompt+text 送進 todoAnalyzePath，回應 payload 解析成 TodoAnalysis（Todo 專用結構化分析）。
+	AnalyzeTodo(ctx context.Context, prompt string, text string) (*TodoAnalysis, error)
 }
 
 type interactionClient struct {
@@ -180,7 +196,9 @@ type interactionClient struct {
 	questionAnswerPath string
 	// contextAnalyzePath 指向 dedicated context_analyze route，避免 AnalyzeContext 誤用一般問答端點。
 	contextAnalyzePath string
-	client             *http.Client
+	// todoAnalyzePath 指向 dedicated todo_analyze route，讓 Todo schema 與通用上下文分析分離。
+	todoAnalyzePath string
+	client          *http.Client
 }
 
 type classificationRequest struct {
@@ -230,6 +248,9 @@ const defaultQuestionAnswerPath = "/predict/question_answer"
 // 即使外部設定漏填 path，AnalyzeContext 仍會走 dedicated route，而不是回退到 question_answer。
 const defaultContextAnalyzePath = "/predict/context_analyze"
 
+// defaultTodoAnalyzePath 負責 Todo Reminder 專用結構化分析，與通用 context_analyze 分離。
+const defaultTodoAnalyzePath = "/predict/todo_analyze"
+
 // NewInteractionClient 建立通用 LLM 互動 client。
 func NewInteractionClient(baseURL string, timeoutSeconds int) InteractionClient {
 	return NewInteractionClientWithPaths(baseURL, timeoutSeconds, defaultActionDecisionPath, defaultQuestionAnswerPath)
@@ -237,13 +258,13 @@ func NewInteractionClient(baseURL string, timeoutSeconds int) InteractionClient 
 
 // NewInteractionClientWithPaths 建立可指定本地 endpoint path 的通用 LLM 互動 client。
 func NewInteractionClientWithPaths(baseURL string, timeoutSeconds int, actionDecisionPath string, questionAnswerPath string) InteractionClient {
-	return NewInteractionClientWithModel(baseURL, timeoutSeconds, "", actionDecisionPath, questionAnswerPath, defaultContextAnalyzePath)
+	return NewInteractionClientWithModel(baseURL, timeoutSeconds, "", actionDecisionPath, questionAnswerPath, defaultContextAnalyzePath, defaultTodoAnalyzePath)
 }
 
 // NewInteractionClientWithModel 建立可指定本地 endpoint path 與 Ollama model 的通用 LLM 互動 client。
 // 這個建構子用在 local provider profile：profile.model_name 會被轉成 9003 request 的 model_name，
 // 因此不需要為不同模型另外開不同服務，只需新增 provider profile。
-func NewInteractionClientWithModel(baseURL string, timeoutSeconds int, modelName string, actionDecisionPath string, questionAnswerPath string, contextAnalyzePath string) InteractionClient {
+func NewInteractionClientWithModel(baseURL string, timeoutSeconds int, modelName string, actionDecisionPath string, questionAnswerPath string, contextAnalyzePath string, todoAnalyzePath string) InteractionClient {
 	trimmed := strings.TrimSpace(baseURL)
 	if trimmed == "" {
 		return nil
@@ -271,12 +292,20 @@ func NewInteractionClientWithModel(baseURL string, timeoutSeconds int, modelName
 	if !strings.HasPrefix(contextPath, "/") {
 		contextPath = "/" + contextPath
 	}
+	todoPath := strings.TrimSpace(todoAnalyzePath)
+	if todoPath == "" {
+		todoPath = defaultTodoAnalyzePath
+	}
+	if !strings.HasPrefix(todoPath, "/") {
+		todoPath = "/" + todoPath
+	}
 	return &interactionClient{
 		baseURL:            strings.TrimRight(trimmed, "/"),
 		modelName:          strings.TrimSpace(modelName),
 		actionDecisionPath: actionPath,
 		questionAnswerPath: questionPath,
 		contextAnalyzePath: contextPath,
+		todoAnalyzePath:    todoPath,
 		client:             &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second},
 	}
 }
@@ -638,6 +667,51 @@ func decodeContextAnalysisResponse(resp *http.Response, path string) (*ContextAn
 	// Go 端再驗一次 contract，確保 Python 服務或雲端模型若輸出漂移，
 	// 會在 client 邊界直接失敗，而不是把不完整 decision 帶進 realtime service。
 	if err := validateContextAnalysis(&decoded); err != nil {
+		return nil, err
+	}
+
+	return &decoded, nil
+}
+
+// AnalyzeTodo 把 prompt+text 送進 todoAnalyzePath，回應解析成 TodoAnalysis。
+// 這條路徑只做 Todo Reminder 專用結構化抽取；目前不落庫、不建立待辦。
+func (c *interactionClient) AnalyzeTodo(ctx context.Context, prompt string, text string) (*TodoAnalysis, error) {
+	if c == nil {
+		return nil, fmt.Errorf("todo analysis client is not initialized")
+	}
+	if c.baseURL == "" {
+		return nil, fmt.Errorf("todo analysis client url is empty")
+	}
+
+	req, err := c.buildRequest(ctx, c.todoAnalyzePath, prompt, text)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	return decodeTodoAnalysisResponse(resp, c.todoAnalyzePath)
+}
+
+func decodeTodoAnalysisResponse(resp *http.Response, path string) (*TodoAnalysis, error) {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, decodeUpstreamError(resp, path)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var decoded TodoAnalysis
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return nil, err
+	}
+	if err := validateTodoAnalysis(&decoded); err != nil {
 		return nil, err
 	}
 

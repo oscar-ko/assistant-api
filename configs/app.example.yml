@@ -123,6 +123,8 @@ llm_providers:
                 question_answer_path: "/predict/question_answer"
                 # context_analyzer 使用獨立 route，避免內部上下文判斷誤走一般生活問答端點。
                 context_analyze_path: "/predict/context_analyze"
+                # Todo Reminder 專用 structured analyzer，輸出固定 todo_analysis contract。
+                todo_analyze_path: "/predict/todo_analyze"
                 translate_path: "/translate"
 
     openai:

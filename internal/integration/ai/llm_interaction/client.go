@@ -15,6 +15,9 @@ type QuestionAnswer = usecasellminteraction.QuestionAnswer
 // integration 層只做型別轉接，實際欄位驗證仍集中在 usecase client，避免兩層規則漂移。
 type ContextAnalysis = usecasellminteraction.ContextAnalysis
 
+// TodoAnalysis 表示 Todo Reminder 專用的結構化分析結果。
+type TodoAnalysis = usecasellminteraction.TodoAnalysis
+
 // InteractionClient 定義通用 LLM 互動能力。
 type InteractionClient = usecasellminteraction.InteractionClient
 
@@ -30,10 +33,10 @@ func NewLocalContractInteractionClient(baseURL string, timeoutSeconds int, actio
 
 // NewLocalContractInteractionClientWithModel 允許同一個本地 LLM interaction 服務依 profile 指定模型。
 // integration 層只轉接設定，不把具體模型名稱硬編在 usecase 或 provider webhook 裡。
-func NewLocalContractInteractionClientWithModel(baseURL string, timeoutSeconds int, modelName string, actionDecisionPath string, questionAnswerPath string, contextAnalyzePath string) InteractionClient {
+func NewLocalContractInteractionClientWithModel(baseURL string, timeoutSeconds int, modelName string, actionDecisionPath string, questionAnswerPath string, contextAnalyzePath string, todoAnalyzePath string) InteractionClient {
 	// contextAnalyzePath 由 context_analyzer profile 注入，讓內部上下文分析固定走 dedicated route，
 	// 不需要沿用 question_answer，也不需要在 prompt 中描述「請你扮演上下文分析器」。
-	return usecasellminteraction.NewInteractionClientWithModel(baseURL, timeoutSeconds, modelName, actionDecisionPath, questionAnswerPath, contextAnalyzePath)
+	return usecasellminteraction.NewInteractionClientWithModel(baseURL, timeoutSeconds, modelName, actionDecisionPath, questionAnswerPath, contextAnalyzePath, todoAnalyzePath)
 }
 
 // NewOpenAIInteractionClient 建立直接呼叫 OpenAI 的 interaction client。

@@ -33,6 +33,8 @@ type resolvedProviderProfile struct {
 	// contextAnalyzePath 只給 context_analyzer role 使用。
 	// profile merge 階段先保留原始設定，真正的空值補預設與斜線正規化交給 usecase client。
 	contextAnalyzePath string
+	// todoAnalyzePath 也是 context_analyzer role 的專用 route，但輸出 TodoAnalysis schema。
+	todoAnalyzePath string
 }
 
 // BuildClientFromConfig 依目前設定建立單一可重用的 LLM interaction client。
@@ -113,6 +115,7 @@ func buildRoleClient(cfg config.AIConfig, llmProviders map[string]config.LLMProv
 			resolved.actionDecisionPath,
 			resolved.questionAnswerPath,
 			resolved.contextAnalyzePath,
+			resolved.todoAnalyzePath,
 		)
 		if client == nil {
 			return nil, fmt.Errorf("failed to initialize local interaction client for provider %s", resolved.providerKey)
@@ -162,6 +165,7 @@ func mergeProfile(profile config.LLMProfileConfig, providerType string) (resolve
 		actionDecisionPath: strings.TrimSpace(profile.ActionDecisionPath),
 		questionAnswerPath: strings.TrimSpace(profile.QuestionAnswerPath),
 		contextAnalyzePath: strings.TrimSpace(profile.ContextAnalyzePath),
+		todoAnalyzePath:    strings.TrimSpace(profile.TodoAnalyzePath),
 	}, nil
 }
 

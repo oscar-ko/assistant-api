@@ -44,6 +44,14 @@ func (s *stubLocalInteraction) AnalyzeContext(ctx context.Context, prompt string
 	return nil, nil
 }
 
+func (s *stubLocalInteraction) AnalyzeTodo(ctx context.Context, prompt string, text string) (*llminteraction.TodoAnalysis, error) {
+	// llm_routing 目前不測 Todo structured analyzer；這裡只補齊介面。
+	_ = ctx
+	_ = prompt
+	_ = text
+	return nil, nil
+}
+
 func (s *stubLocalInteraction) AskClarifyingQuestion(ctx context.Context, text string, reason string) (*llminteraction.QuestionAnswer, error) {
 	_ = ctx
 	_ = text
@@ -82,6 +90,14 @@ func (s *stubCloudService) AnswerQuestion(ctx context.Context, text string) (*ll
 func (s *stubCloudService) AnalyzeContext(ctx context.Context, prompt string, text string) (*llminteraction.ContextAnalysis, error) {
 	// cloud stub 同樣只為滿足 InteractionService；若未來 routing 支援 context analyzer 升級，
 	// 再新增專門測試，不在既有問答/決策測試中混入隱式行為。
+	_ = ctx
+	_ = prompt
+	_ = text
+	return nil, nil
+}
+
+func (s *stubCloudService) AnalyzeTodo(ctx context.Context, prompt string, text string) (*llminteraction.TodoAnalysis, error) {
+	// cloud stub 同樣只為滿足 InteractionService；Todo routing 若要升級再另開測試。
 	_ = ctx
 	_ = prompt
 	_ = text

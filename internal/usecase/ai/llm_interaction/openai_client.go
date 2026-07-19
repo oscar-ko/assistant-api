@@ -145,6 +145,22 @@ func (c *openAIInteractionClient) AnalyzeContext(ctx context.Context, prompt str
 	return decoded, nil
 }
 
+func (c *openAIInteractionClient) AnalyzeTodo(ctx context.Context, prompt string, text string) (*TodoAnalysis, error) {
+	// 雲端 client 沒有本地 route path 可切；使用同一個 chatModel，但回應必須符合 TodoAnalysis contract。
+	content, err := c.completeJSON(ctx, c.chatModel, prompt, text)
+	if err != nil {
+		return nil, err
+	}
+	decoded, err := parseTodoAnalysisContent(content)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateTodoAnalysis(decoded); err != nil {
+		return nil, err
+	}
+	return decoded, nil
+}
+
 func (c *openAIInteractionClient) completeJSON(ctx context.Context, model string, prompt string, text string) (string, error) {
 	if c == nil || c.httpClient == nil {
 		return "", fmt.Errorf("openai interaction client is not initialized")
@@ -337,6 +353,15 @@ func parseQuestionAnswerContent(content string) (*QuestionAnswer, error) {
 func parseContextAnalysisContent(content string) (*ContextAnalysis, error) {
 	// parse 階段只負責 JSON decode；欄位完整性與語意限制集中交給 validateContextAnalysis。
 	var decoded ContextAnalysis
+	if err := json.Unmarshal([]byte(content), &decoded); err != nil {
+		return nil, err
+	}
+	return &decoded, nil
+}
+
+func parseTodoAnalysisContent(content string) (*TodoAnalysis, error) {
+	// parse 階段只負責 JSON decode；欄位完整性與語意限制集中交給 validateTodoAnalysis。
+	var decoded TodoAnalysis
 	if err := json.Unmarshal([]byte(content), &decoded); err != nil {
 		return nil, err
 	}

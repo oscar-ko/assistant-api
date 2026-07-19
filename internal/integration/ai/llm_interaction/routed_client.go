@@ -143,3 +143,38 @@ func (c *routedInteractionClient) AnalyzeContext(ctx context.Context, prompt str
 	)
 	return result, nil
 }
+
+func (c *routedInteractionClient) AnalyzeTodo(ctx context.Context, prompt string, text string) (*TodoAnalysis, error) {
+	if c == nil || c.contextAnalyzer == nil {
+		return nil, fmt.Errorf("todo analyzer client is not initialized")
+	}
+	label := strings.TrimSpace(c.contextAnalyzerLabel)
+	// Todo analyzer 仍使用 context_analyzer profile/model，但 route 與 response schema 是 todo_analyze。
+	zap.L().Info("ai request prompt",
+		zap.String("role", "todo_analyzer"),
+		zap.String("profile", label),
+		zap.String("prompt", strings.TrimSpace(prompt)),
+		zap.String("text", strings.TrimSpace(text)),
+	)
+	result, err := c.contextAnalyzer.AnalyzeTodo(ctx, prompt, text)
+	if err != nil {
+		return nil, fmt.Errorf("ai todo analyzer profile=%s: %w", label, err)
+	}
+	if result == nil {
+		return nil, fmt.Errorf("ai todo analyzer profile=%s returned nil result", label)
+	}
+	zap.L().Info("ai response payload",
+		zap.String("role", "todo_analyzer"),
+		zap.String("profile", label),
+		zap.String("schema_version", strings.TrimSpace(result.SchemaVersion)),
+		zap.String("decision", strings.TrimSpace(result.Decision)),
+		zap.String("linked_message_id", strings.TrimSpace(result.LinkedMessageID)),
+		zap.String("summary", strings.TrimSpace(result.Summary)),
+		zap.Strings("assignees", append([]string(nil), result.Assignees...)),
+		zap.String("due_text", strings.TrimSpace(result.DueText)),
+		zap.Strings("missing_fields", append([]string(nil), result.MissingFields...)),
+		zap.Float64("confidence", result.Confidence),
+		zap.String("reason", strings.TrimSpace(result.Reason)),
+	)
+	return result, nil
+}

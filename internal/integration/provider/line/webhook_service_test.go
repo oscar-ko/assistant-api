@@ -157,6 +157,14 @@ func (s *stubLLMInteraction) AnalyzeContext(ctx context.Context, prompt string, 
 	return nil, nil
 }
 
+func (s *stubLLMInteraction) AnalyzeTodo(ctx context.Context, prompt string, text string) (*llminteraction.TodoAnalysis, error) {
+	// LINE webhook 測試不會進入 Todo structured analyzer，這裡只補齊介面。
+	_ = ctx
+	_ = prompt
+	_ = text
+	return nil, nil
+}
+
 func (s *stubLLMInteraction) AskClarifyingQuestion(ctx context.Context, text string, reason string) (*llminteraction.QuestionAnswer, error) {
 	_ = ctx
 	_ = text

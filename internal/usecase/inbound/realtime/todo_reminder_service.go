@@ -152,10 +152,10 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 		zap.Any("ordered_candidates", formatChannelMessageLogEntries(recentMessages)),
 	)
 
-	// context analyzer 是最後一道結構化判斷：它會在 bounded context 內輸出 relevant/not_relevant/needs_more_info，
+	// todo analyzer 是最後一道結構化判斷：它會在 bounded context 內輸出 todo 專用 decision，
 	// 下游只讀 schema，不需要靠自然語言或關鍵字猜測使用者是不是在接前文。
-	prompt := buildImplicitReplyContextPrompt(recentMessages, result)
-	zap.L().Info("todo reminder context analyzer request prepared",
+	prompt := buildImplicitReplyTodoPrompt(recentMessages, result)
+	zap.L().Info("todo reminder todo analyzer request prepared",
 		zap.String("platform", s.platformLabel),
 		zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
 		zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
@@ -163,9 +163,9 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 		zap.String("prompt", prompt),
 		zap.Int("prompt_length", len([]rune(prompt))),
 	)
-	analysis, err := s.llm.AnalyzeContext(ctx, prompt, strings.TrimSpace(messageCtx.Message.Text))
+	analysis, err := s.llm.AnalyzeTodo(ctx, prompt, strings.TrimSpace(messageCtx.Message.Text))
 	if err != nil {
-		zap.L().Warn("todo reminder implicit reply context analysis failed",
+		zap.L().Warn("todo reminder implicit reply todo analysis failed",
 			zap.String("platform", s.platformLabel),
 			zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
 			zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
@@ -177,14 +177,16 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 		return
 	}
 
-	zap.L().Info("todo reminder implicit reply context analyzed",
+	zap.L().Info("todo reminder implicit reply todo analyzed",
 		zap.String("platform", s.platformLabel),
 		zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
 		zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
 		zap.String("decision", strings.TrimSpace(analysis.Decision)),
-		zap.String("target_service", strings.TrimSpace(analysis.TargetService)),
+		zap.String("linked_message_id", strings.TrimSpace(analysis.LinkedMessageID)),
+		zap.String("summary", strings.TrimSpace(analysis.Summary)),
+		zap.Strings("assignees", append([]string(nil), analysis.Assignees...)),
+		zap.String("due_text", strings.TrimSpace(analysis.DueText)),
 		zap.Float64("confidence", analysis.Confidence),
-		zap.Any("extracted_fields", analysis.ExtractedFields),
 		zap.Strings("missing_fields", append([]string(nil), analysis.MissingFields...)),
 		zap.String("reason", strings.TrimSpace(analysis.Reason)),
 	)
@@ -321,13 +323,15 @@ func formatRankedDocumentLogEntries(documents []reranker.RankedDocument) []map[s
 	return entries
 }
 
-func buildImplicitReplyContextPrompt(recentMessages []*ent.ChannelMessage, result ClassificationResult) string {
+func buildImplicitReplyTodoPrompt(recentMessages []*ent.ChannelMessage, result ClassificationResult) string {
 	var builder strings.Builder
-	builder.WriteString("你是內部 conversation linker。請判斷 Current message 是否語意上接續 Recent messages 裡某個待辦候選，即使使用者沒有按平台 reply。\n")
-	builder.WriteString("只能輸出 context_analysis JSON contract：schema_version, decision, target_service, confidence, extracted_fields, missing_fields, reason。\n")
-	builder.WriteString("decision 規則：若 Current message 明確接續/承諾/補充前文待辦，輸出 relevant；若像待辦但缺少可連結前文，輸出 needs_more_info；若只是閒聊或不相關，輸出 not_relevant。\n")
-	builder.WriteString("target_service 規則：relevant 或 needs_more_info 時使用 todo_reminder；not_relevant 時留空。\n")
-	builder.WriteString("extracted_fields 建議包含 linked_message_id、linked_message_text、relation、reply_text、classifier_tag、classifier_signal。\n\n")
+	builder.WriteString("你是 Todo Reminder 的內部 structured analyzer。請判斷 Current message 是否應形成、更新、承接或取消待辦候選，即使使用者沒有按平台 reply。\n")
+	builder.WriteString("只能輸出 todo_analysis JSON contract：schema_version, decision, linked_message_id, summary, assignees, due_text, confidence, missing_fields, reason。\n")
+	builder.WriteString("decision 只能是 create_candidate、update_candidate、acknowledge、cancel_candidate、needs_more_info、no_action。\n")
+	builder.WriteString("linked_message_id 必須來自 Recent messages 的 id；全新待辦或 no_action 時使用空字串。\n")
+	builder.WriteString("summary 是整理後的待辦內容；due_text 保留使用者原本的時間字面，不要自行正規化日期；assignees 保留訊息中可見的人名或稱呼。\n")
+	builder.WriteString("needs_more_info 時 missing_fields 必須指出缺 summary、assignees 或 due_text 等欄位；no_action 時 linked_message_id、summary、assignees、due_text、missing_fields 都必須為空。\n")
+	builder.WriteString("不可輸出額外欄位，不可用自然語言包住 JSON。\n\n")
 	builder.WriteString("Recent messages:\n")
 	for index, item := range recentMessages {
 		if item == nil {

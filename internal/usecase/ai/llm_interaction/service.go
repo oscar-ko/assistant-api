@@ -14,6 +14,8 @@ type InteractionService interface {
 	AnswerQuestion(ctx context.Context, text string) (*QuestionAnswer, error)
 	// AnalyzeContext 以呼叫端提供的 prompt 分析訊息與近端上下文，回傳內部結構化判斷。
 	AnalyzeContext(ctx context.Context, prompt string, text string) (*ContextAnalysis, error)
+	// AnalyzeTodo 以呼叫端提供的 prompt 分析 Todo Reminder 場景，回傳 Todo 專用結構化判斷。
+	AnalyzeTodo(ctx context.Context, prompt string, text string) (*TodoAnalysis, error)
 	// AskClarifyingQuestion 在 action 決策信心不足時，依原訊息與決策理由生成追問問題。
 	AskClarifyingQuestion(ctx context.Context, text string, reason string) (*QuestionAnswer, error)
 }
@@ -76,6 +78,21 @@ func (s *interactionService) AnalyzeContext(ctx context.Context, prompt string, 
 	}
 
 	return s.client.AnalyzeContext(ctx, trimmedPrompt, trimmedText)
+}
+
+// AnalyzeTodo 把呼叫端建好的 Todo prompt 與目前訊息交給 dedicated todo analyzer。
+// service 層不做 todo 規則拼接，避免呼叫端與 9003 contract 之間出現第二份隱性規則。
+func (s *interactionService) AnalyzeTodo(ctx context.Context, prompt string, text string) (*TodoAnalysis, error) {
+	if s == nil || s.client == nil {
+		return nil, nil
+	}
+	trimmedPrompt := strings.TrimSpace(prompt)
+	trimmedText := strings.TrimSpace(text)
+	if trimmedPrompt == "" || trimmedText == "" {
+		return nil, nil
+	}
+
+	return s.client.AnalyzeTodo(ctx, trimmedPrompt, trimmedText)
 }
 
 // AskClarifyingQuestion 在無法安全執行 action 時，要求模型提出一個最小必要追問。

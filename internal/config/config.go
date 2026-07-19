@@ -209,7 +209,10 @@ type LLMProfileConfig struct {
 	// ContextAnalyzePath 是 9003 內部上下文分析入口。
 	// 它刻意獨立於 question_answer，避免把系統流程判斷誤混成使用者可見的一般問答。
 	ContextAnalyzePath string `mapstructure:"context_analyze_path" yaml:"context_analyze_path"`
-	TranslatePath      string `mapstructure:"translate_path" yaml:"translate_path"`
+	// TodoAnalyzePath 是 Todo Reminder 專用結構化分析入口。
+	// 它和通用 context_analyze 分離，避免 todo candidate schema 演進時污染其他 realtime service。
+	TodoAnalyzePath string `mapstructure:"todo_analyze_path" yaml:"todo_analyze_path"`
+	TranslatePath   string `mapstructure:"translate_path" yaml:"translate_path"`
 }
 
 // PostgreSQLConfig 參照 backend 風格，集中管理 PostgreSQL 連線參數。

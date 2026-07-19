@@ -63,14 +63,18 @@ func (s *stubContextAnalyzer) AnswerQuestion(ctx context.Context, text string) (
 }
 
 func (s *stubContextAnalyzer) AnalyzeContext(ctx context.Context, prompt string, text string) (*llminteraction.ContextAnalysis, error) {
-	// context analyzer stub 會保存 prompt/text，讓測試可以直接檢查：
+	return nil, nil
+}
+
+func (s *stubContextAnalyzer) AnalyzeTodo(ctx context.Context, prompt string, text string) (*llminteraction.TodoAnalysis, error) {
+	// todo analyzer stub 會保存 prompt/text，讓測試可以直接檢查：
 	// 1. prompt 是否包含近端候選訊息。
 	// 2. text 是否仍是目前使用者輸入，而不是被替換成歷史訊息。
 	_ = ctx
 	s.calls++
 	s.prompt = prompt
 	s.text = text
-	return &llminteraction.ContextAnalysis{SchemaVersion: "v1", Decision: "relevant", TargetService: "todo_reminder", Confidence: 0.82, Reason: "接續前文待辦"}, nil
+	return &llminteraction.TodoAnalysis{SchemaVersion: "v1", Decision: "update_candidate", LinkedMessageID: "recent-message", Summary: "補報價單", Confidence: 0.82, Reason: "接續前文待辦"}, nil
 }
 
 func (s *stubContextAnalyzer) AskClarifyingQuestion(ctx context.Context, text string, reason string) (*llminteraction.QuestionAnswer, error) {
@@ -79,7 +83,7 @@ func (s *stubContextAnalyzer) AskClarifyingQuestion(ctx context.Context, text st
 
 func TestTodoReminderServiceAnalyzesImplicitReplyContext(t *testing.T) {
 	// 驗證核心中期流程：classifier 打出 candidate 後，todo reminder 會取最近訊息，
-	// 再把目前短句與候選上下文交給 context analyzer 做 structured decision。
+	// 再把目前短句與候選上下文交給 todo analyzer 做 structured decision。
 	channelID := uuid.New()
 	currentMessageID := uuid.New()
 	recentMessageID := uuid.New()
@@ -98,13 +102,16 @@ func TestTodoReminderServiceAnalyzesImplicitReplyContext(t *testing.T) {
 		t.Fatalf("expected recent message store to be called once, got %d", repo.calls)
 	}
 	if analyzer.calls != 1 {
-		t.Fatalf("expected context analyzer to be called once, got %d", analyzer.calls)
+		t.Fatalf("expected todo analyzer to be called once, got %d", analyzer.calls)
 	}
 	if analyzer.text != "我晚點弄" {
 		t.Fatalf("expected analyzer text to use current message, got %q", analyzer.text)
 	}
 	if !strings.Contains(analyzer.prompt, recentMessageID.String()) || !strings.Contains(analyzer.prompt, "那報價單今天誰處理一下") {
 		t.Fatalf("expected prompt to include recent candidate context, got %q", analyzer.prompt)
+	}
+	if !strings.Contains(analyzer.prompt, "todo_analysis JSON contract") {
+		t.Fatalf("expected prompt to use todo analysis contract, got %q", analyzer.prompt)
 	}
 }
 
@@ -124,7 +131,7 @@ func TestTodoReminderServiceSkipsImplicitReplyWhenExplicitReplyExists(t *testing
 		t.Fatalf("expected explicit reply to skip recent message query, got %d calls", repo.calls)
 	}
 	if analyzer.calls != 0 {
-		t.Fatalf("expected explicit reply to skip context analyzer, got %d calls", analyzer.calls)
+		t.Fatalf("expected explicit reply to skip todo analyzer, got %d calls", analyzer.calls)
 	}
 }
 

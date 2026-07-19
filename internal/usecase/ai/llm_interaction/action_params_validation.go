@@ -229,6 +229,68 @@ func validateContextAnalysis(result *ContextAnalysis) error {
 	return nil
 }
 
+// validateTodoAnalysis 驗證 Todo Reminder 專用結構化分析契約。
+// 這裡只允許 todo_analysis_v1.json 定義的狀態，避免模型輸出任意字串被 realtime service 誤用。
+func validateTodoAnalysis(result *TodoAnalysis) error {
+	if result == nil {
+		return nil
+	}
+
+	result.SchemaVersion = normalizeQuestionAnswerSchemaVersion(result.SchemaVersion)
+	result.Decision = strings.TrimSpace(result.Decision)
+	result.LinkedMessageID = normalizeTodoOptionalText(result.LinkedMessageID)
+	result.Summary = normalizeTodoOptionalText(result.Summary)
+	result.DueText = normalizeTodoOptionalText(result.DueText)
+	result.Reason = strings.TrimSpace(result.Reason)
+	result.Assignees = dedupeFold(result.Assignees)
+	result.MissingFields = dedupeFold(result.MissingFields)
+
+	if result.SchemaVersion == "" {
+		return fmt.Errorf("todo analysis schema_version is required")
+	}
+	if result.SchemaVersion != "v1" {
+		return fmt.Errorf("todo analysis schema_version %q is invalid", result.SchemaVersion)
+	}
+	switch result.Decision {
+	case "create_candidate", "update_candidate", "acknowledge", "cancel_candidate", "needs_more_info", "no_action":
+	default:
+		return fmt.Errorf("todo analysis decision %q is invalid", result.Decision)
+	}
+	if math.IsNaN(result.Confidence) || result.Confidence < 0 || result.Confidence > 1 {
+		return fmt.Errorf("todo analysis confidence must be between 0 and 1")
+	}
+	// needs_more_info 必須帶 missing_fields，否則後續如果要追問使用者，會不知道缺的是摘要、負責人還是時間。
+	if result.Decision == "needs_more_info" && len(result.MissingFields) == 0 {
+		return fmt.Errorf("todo analysis missing_fields is required when decision=needs_more_info")
+	}
+	// no_action 代表明確不要進 Todo Reminder；所有 todo 欄位都必須清空，避免 log-only 階段的殘值在未來落庫時被誤用。
+	if result.Decision == "no_action" && (result.LinkedMessageID != "" || result.Summary != "" || len(result.Assignees) > 0 || result.DueText != "" || len(result.MissingFields) > 0) {
+		return fmt.Errorf("todo analysis fields must be empty when decision=no_action")
+	}
+	// update/ack/cancel 都是在接續某則歷史訊息；沒有 linked_message_id 就無法安全更新或取消候選。
+	if (result.Decision == "update_candidate" || result.Decision == "acknowledge" || result.Decision == "cancel_candidate") && result.LinkedMessageID == "" {
+		return fmt.Errorf("todo analysis linked_message_id is required for linked decisions")
+	}
+	// 除了 no_action 與純追問狀態，其餘 todo decision 都應提供人可讀摘要，讓 debug log 和後續 state machine 有一致主體。
+	if result.Decision != "no_action" && result.Decision != "needs_more_info" && result.Summary == "" {
+		return fmt.Errorf("todo analysis summary is required for todo action decisions")
+	}
+	if result.Reason == "" {
+		return fmt.Errorf("todo analysis reason is required")
+	}
+	return nil
+}
+
+func normalizeTodoOptionalText(value string) string {
+	trimmed := strings.TrimSpace(value)
+	switch strings.ToLower(trimmed) {
+	case "none", "null", "n/a", "unknown":
+		return ""
+	default:
+		return trimmed
+	}
+}
+
 // normalizeQuestionAnswerSchemaVersion 負責把上游常見別名版本號正規化。
 // 目的：
 // 1) 避免因 "1.0" / "v1.0" / "2.0" 這類等價寫法造成不必要拒絕
