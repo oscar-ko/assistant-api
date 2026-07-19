@@ -5,11 +5,17 @@ import (
 	"testing"
 
 	"assistant-api/internal/config"
+	"assistant-api/internal/ent"
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
 	llminteraction "assistant-api/internal/usecase/ai/llm_interaction"
 	"assistant-api/internal/usecase/ai/topkfilter"
+	"assistant-api/internal/usecase/inbound/commanddecision"
+	"assistant-api/internal/usecase/inbound/conversationflow"
+	"assistant-api/internal/usecase/inbound/messagepersist"
+	"assistant-api/internal/usecase/inbound/messagepipeline"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
@@ -50,6 +56,70 @@ type stubPushMessageService struct {
 	text                  string
 	sentPlatformMessageID string
 	err                   error
+}
+
+type stubLineMessageStore struct{}
+
+func (stubLineMessageStore) GetChannelByPlatformGroupID(ctx context.Context, platform string, groupID string) (*ent.Channel, error) {
+	_ = ctx
+	_ = platform
+	return &ent.Channel{ID: uuid.New(), GroupID: groupID}, nil
+}
+
+func (stubLineMessageStore) UpdateChannelDisplayNameByID(ctx context.Context, channelID uuid.UUID, channelName string) error {
+	_ = ctx
+	_ = channelID
+	_ = channelName
+	return nil
+}
+
+func (stubLineMessageStore) SaveReceivedMessage(ctx context.Context, channelID uuid.UUID, platform string, platformTenantID string, senderID string, senderName string, platformMessageID string, replyToMsgID string, content string, messageType string, platformTimestamp int64) (*ent.ChannelMessage, error) {
+	_ = ctx
+	_ = platform
+	_ = platformTenantID
+	_ = senderName
+	_ = platformTimestamp
+	userID := uuid.New()
+	return &ent.ChannelMessage{
+		ID:                uuid.New(),
+		ChannelID:         channelID,
+		SenderID:          senderID,
+		SenderUserID:      &userID,
+		PlatformMessageID: platformMessageID,
+		ReplyToMsgID:      replyToMsgID,
+		Content:           content,
+		MessageType:       messageType,
+	}, nil
+}
+
+func newTestPipelineWebhookService(filter topkfilter.Service, llm llminteraction.InteractionService, push PushMessageService) *WebhookService {
+	persistSvc := messagepersist.NewService(stubLineMessageStore{}, messagepersist.NoopSenderNameResolver{})
+	decisionSvc := commanddecision.NewService(nil)
+	flow := conversationflow.NewFromFactory(conversationflow.FactoryOptions{
+		PlatformLabel:               "line",
+		BotSenderID:                 config.Line.BotUserID,
+		SuccessText:                 "指令已執行成功",
+		CommandConfidenceThreshold:  config.AI.LLMInteraction.CommandConfidenceThreshold,
+		QuestionConfidenceThreshold: config.AI.LLMInteraction.QuestionConfidenceThreshold,
+		DecisionJSONRetryCount:      config.AI.LLMInteraction.DecisionJSONRetryCount,
+		TopKFilter:                  filter,
+		LLM:                         llm,
+		Messenger:                   lineOutboundMessenger{sender: push},
+	})
+	return &WebhookService{
+		topKFilterService:     filter,
+		llmInteractionService: llm,
+		persistenceService:    persistSvc,
+		decisionService:       decisionSvc,
+		followUpSender:        push,
+		commandFlow:           flow,
+		messagePipeline: &messagepipeline.Handler{
+			PlatformLabel: "line",
+			Persistence:   persistSvc,
+			Decision:      decisionSvc,
+			CommandFlow:   flow,
+		},
+	}
 }
 
 func (s *stubPushMessageService) SendTextToChat(ctx context.Context, chatID string, lineUserID string, text string, replyToken string, quoteToken string) (string, error) {
@@ -164,7 +234,7 @@ func TestWebhookService_ProcessIncoming_CommandMessage(t *testing.T) {
 	defer zap.ReplaceGlobals(oldLogger)
 	body := []byte(`{"events":[{"type":"message","source":{"type":"private","userId":"U123"},"message":{"type":"text","text":"help"}}]}`)
 	filterStub := &stubTopKFilter{}
-	(&WebhookService{topKFilterService: filterStub}).ProcessIncoming(body, "sig")
+	newTestPipelineWebhookService(filterStub, &stubLLMInteraction{}, nil).ProcessIncoming(body, "sig")
 
 	// private channel 會被視為 command 模式，應觸發 rerank 階段。
 	if !filterStub.called {
@@ -189,7 +259,7 @@ func TestWebhookService_ProcessIncoming_FinalActionDecision(t *testing.T) {
 	}
 	decisionStub := &stubLLMInteraction{decision: &llminteraction.ActionDecision{NextStep: llminteraction.NextStepExecuteAction, APIOperation: "start_translation_locale", Confidence: 0.92, Reason: "stub reason"}}
 
-	(&WebhookService{topKFilterService: filterStub, llmInteractionService: decisionStub}).ProcessIncoming(body, "sig")
+	newTestPipelineWebhookService(filterStub, decisionStub, nil).ProcessIncoming(body, "sig")
 
 	if !decisionStub.called {
 		t.Fatalf("expected final action decision to be called")
@@ -229,7 +299,7 @@ func TestWebhookService_ProcessIncoming_FinalActionNotInCandidates(t *testing.T)
 	// 模擬模型回傳一個不在候選清單裡的 api_operation，驗證會被捕捉並告警。
 	decisionStub := &stubLLMInteraction{decision: &llminteraction.ActionDecision{NextStep: llminteraction.NextStepExecuteAction, APIOperation: "unknown_operation", Confidence: 0.5, Reason: "stub reason"}}
 
-	(&WebhookService{topKFilterService: filterStub, llmInteractionService: decisionStub}).ProcessIncoming(body, "sig")
+	newTestPipelineWebhookService(filterStub, decisionStub, nil).ProcessIncoming(body, "sig")
 
 	if observed.FilterMessage("line message final action not in candidates").Len() == 0 {
 		t.Fatalf("expected hallucination warning when operation is not among candidates")
@@ -270,7 +340,7 @@ func TestWebhookService_ProcessIncoming_LowConfidenceTreatedAsChat(t *testing.T)
 	}
 	pushStub := &stubPushMessageService{sentPlatformMessageID: "sent-123"}
 
-	(&WebhookService{topKFilterService: filterStub, llmInteractionService: decisionStub, followUpSender: pushStub}).ProcessIncoming(body, "sig")
+	newTestPipelineWebhookService(filterStub, decisionStub, pushStub).ProcessIncoming(body, "sig")
 
 	// ask_clarifying_question 但無缺參數時，應走一般問答，避免追問迴圈。
 	if decisionStub.clarifyCalled {
@@ -333,7 +403,7 @@ func TestWebhookService_ProcessIncoming_ZeroConfidenceNoMatchRoutesToQuestionAns
 	}
 	pushStub := &stubPushMessageService{sentPlatformMessageID: "sent-123"}
 
-	(&WebhookService{topKFilterService: filterStub, llmInteractionService: decisionStub, followUpSender: pushStub}).ProcessIncoming(body, "sig")
+	newTestPipelineWebhookService(filterStub, decisionStub, pushStub).ProcessIncoming(body, "sig")
 
 	// no_match 且無缺參數時，應直接走一般問答，避免追問迴圈。
 	if decisionStub.clarifyCalled {
@@ -379,7 +449,7 @@ func TestWebhookService_ProcessIncoming_AnswerQuestionNextStepUsesGenericQA(t *t
 	}
 	pushStub := &stubPushMessageService{sentPlatformMessageID: "sent-123"}
 
-	(&WebhookService{topKFilterService: filterStub, llmInteractionService: decisionStub, followUpSender: pushStub}).ProcessIncoming(body, "sig")
+	newTestPipelineWebhookService(filterStub, decisionStub, pushStub).ProcessIncoming(body, "sig")
 
 	if !decisionStub.answerCalled {
 		t.Fatalf("expected generic AnswerQuestion to be called when next_step=answer_question")

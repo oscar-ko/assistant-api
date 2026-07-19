@@ -14,7 +14,6 @@ import (
 	"assistant-api/internal/config"
 	aillminteraction "assistant-api/internal/integration/ai/llm_interaction"
 	aitopkfilter "assistant-api/internal/integration/ai/topkfilter"
-	"assistant-api/internal/integration/provider/messagepipeline"
 	"assistant-api/internal/integration/provider/realtime"
 	webhooklog "assistant-api/internal/integration/provider/webhooklog"
 	"assistant-api/internal/integration/runtimecontext"
@@ -25,6 +24,7 @@ import (
 	"assistant-api/internal/usecase/inbound/commanddecision"
 	"assistant-api/internal/usecase/inbound/conversationflow"
 	"assistant-api/internal/usecase/inbound/messagepersist"
+	"assistant-api/internal/usecase/inbound/messagepipeline"
 
 	"github.com/google/uuid"
 )

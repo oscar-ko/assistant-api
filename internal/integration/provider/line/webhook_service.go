@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"assistant-api/internal/config"
-	"assistant-api/internal/integration/provider/messagepipeline"
 	"assistant-api/internal/integration/provider/realtime"
 	webhooklog "assistant-api/internal/integration/provider/webhooklog"
 	"assistant-api/internal/integration/unifiedmessage"
@@ -19,6 +18,7 @@ import (
 	"assistant-api/internal/usecase/inbound/commanddecision"
 	"assistant-api/internal/usecase/inbound/conversationflow"
 	"assistant-api/internal/usecase/inbound/messagepersist"
+	"assistant-api/internal/usecase/inbound/messagepipeline"
 
 	"github.com/google/uuid"
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
