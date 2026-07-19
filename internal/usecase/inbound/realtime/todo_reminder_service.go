@@ -96,6 +96,19 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 		return
 	}
 
+	zap.L().Info("todo reminder implicit reply context analysis started",
+		zap.String("platform", s.platformLabel),
+		zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+		zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+		zap.String("saved_message_id", messageCtx.SavedMessage.ID.String()),
+		zap.String("current_text", strings.TrimSpace(messageCtx.Message.Text)),
+		zap.Int("recent_limit", s.recentLimit),
+		zap.String("classifier_tag", strings.TrimSpace(result.Tag)),
+		zap.String("classifier_signal", strings.TrimSpace(result.Signal)),
+		zap.Float64("classifier_confidence", result.Confidence),
+		zap.Float64("classifier_score_margin", result.ScoreMargin),
+	)
+
 	// 先做便宜的同 channel 近端召回，只限制訊息筆數，不在 repository 層判斷語意。
 	// 語意排序與是否真的相關，分別交給 reranker 與 context analyzer，避免資料層夾帶業務規則。
 	recentMessages, err := s.repo.FindRecentMessagesBefore(ctx, messageCtx.SavedMessage, s.recentLimit)
@@ -108,6 +121,14 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 		)
 		return
 	}
+	zap.L().Info("todo reminder implicit reply recent messages recalled",
+		zap.String("platform", s.platformLabel),
+		zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+		zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+		zap.Int("recent_limit", s.recentLimit),
+		zap.Int("candidate_count", len(recentMessages)),
+		zap.Any("candidates", formatChannelMessageLogEntries(recentMessages)),
+	)
 	if len(recentMessages) == 0 {
 		return
 	}
@@ -123,10 +144,25 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 		)
 		return
 	}
+	zap.L().Info("todo reminder implicit reply candidates ready for context analyzer",
+		zap.String("platform", s.platformLabel),
+		zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+		zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+		zap.Int("candidate_count", len(recentMessages)),
+		zap.Any("ordered_candidates", formatChannelMessageLogEntries(recentMessages)),
+	)
 
 	// context analyzer 是最後一道結構化判斷：它會在 bounded context 內輸出 relevant/not_relevant/needs_more_info，
 	// 下游只讀 schema，不需要靠自然語言或關鍵字猜測使用者是不是在接前文。
 	prompt := buildImplicitReplyContextPrompt(recentMessages, result)
+	zap.L().Info("todo reminder context analyzer request prepared",
+		zap.String("platform", s.platformLabel),
+		zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+		zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+		zap.String("current_text", strings.TrimSpace(messageCtx.Message.Text)),
+		zap.String("prompt", prompt),
+		zap.Int("prompt_length", len([]rune(prompt))),
+	)
 	analysis, err := s.llm.AnalyzeContext(ctx, prompt, strings.TrimSpace(messageCtx.Message.Text))
 	if err != nil {
 		zap.L().Warn("todo reminder implicit reply context analysis failed",
@@ -148,19 +184,33 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 		zap.String("decision", strings.TrimSpace(analysis.Decision)),
 		zap.String("target_service", strings.TrimSpace(analysis.TargetService)),
 		zap.Float64("confidence", analysis.Confidence),
+		zap.Any("extracted_fields", analysis.ExtractedFields),
 		zap.Strings("missing_fields", append([]string(nil), analysis.MissingFields...)),
 		zap.String("reason", strings.TrimSpace(analysis.Reason)),
 	)
 }
 
 func (s *TodoReminderService) rerankImplicitReplyCandidates(ctx context.Context, query string, recentMessages []*ent.ChannelMessage) ([]*ent.ChannelMessage, error) {
+	platformLabel := ""
+	if s != nil {
+		platformLabel = s.platformLabel
+	}
 	if s == nil || s.ranker == nil || len(recentMessages) <= 1 {
 		// 沒有 reranker 或候選不足時，保留 repository 回傳的時間序；
 		// 這不是語意 fallback，而是表示目前沒有可執行的精排依賴或排序空間。
+		zap.L().Info("todo reminder implicit reply rerank skipped",
+			zap.String("platform", platformLabel),
+			zap.Bool("ranker_configured", s != nil && s.ranker != nil),
+			zap.Int("candidate_count", len(recentMessages)),
+		)
 		return recentMessages, nil
 	}
 	query = strings.TrimSpace(query)
 	if query == "" {
+		zap.L().Info("todo reminder implicit reply rerank skipped: empty query",
+			zap.String("platform", s.platformLabel),
+			zap.Int("candidate_count", len(recentMessages)),
+		)
 		return recentMessages, nil
 	}
 
@@ -180,13 +230,31 @@ func (s *TodoReminderService) rerankImplicitReplyCandidates(ctx context.Context,
 		documents = append(documents, document)
 	}
 	if len(documents) <= 1 {
+		zap.L().Info("todo reminder implicit reply rerank skipped: insufficient non-empty documents",
+			zap.String("platform", s.platformLabel),
+			zap.String("query", query),
+			zap.Int("candidate_count", len(recentMessages)),
+			zap.Int("document_count", len(documents)),
+		)
 		return recentMessages, nil
 	}
+	zap.L().Info("todo reminder implicit reply rerank request prepared",
+		zap.String("platform", s.platformLabel),
+		zap.String("query", query),
+		zap.Int("document_count", len(documents)),
+		zap.Strings("documents", append([]string(nil), documents...)),
+	)
 
 	ranked, err := s.ranker.Rerank(ctx, query, documents, len(documents))
 	if err != nil {
 		return nil, err
 	}
+	zap.L().Info("todo reminder implicit reply rerank result received",
+		zap.String("platform", s.platformLabel),
+		zap.String("query", query),
+		zap.Int("ranked_count", len(ranked)),
+		zap.Any("ranked_documents", formatRankedDocumentLogEntries(ranked)),
+	)
 	if len(ranked) == 0 {
 		return recentMessages, nil
 	}
@@ -212,7 +280,45 @@ func (s *TodoReminderService) rerankImplicitReplyCandidates(ctx context.Context,
 	if len(reordered) == 0 {
 		return recentMessages, nil
 	}
+	zap.L().Info("todo reminder implicit reply rerank reordered candidates",
+		zap.String("platform", s.platformLabel),
+		zap.Int("candidate_count", len(reordered)),
+		zap.Any("ordered_candidates", formatChannelMessageLogEntries(reordered)),
+	)
 	return reordered, nil
+}
+
+func formatChannelMessageLogEntries(messages []*ent.ChannelMessage) []map[string]any {
+	entries := make([]map[string]any, 0, len(messages))
+	for index, message := range messages {
+		if message == nil {
+			continue
+		}
+		entries = append(entries, map[string]any{
+			"order":               index + 1,
+			"id":                  message.ID.String(),
+			"platform_message_id": strings.TrimSpace(message.PlatformMessageID),
+			"sender_id":           strings.TrimSpace(message.SenderID),
+			"sender_name":         strings.TrimSpace(message.SenderName),
+			"message_type":        strings.TrimSpace(message.MessageType),
+			"content":             strings.TrimSpace(message.Content),
+			"created_at":          message.CreatedAt,
+		})
+	}
+	return entries
+}
+
+func formatRankedDocumentLogEntries(documents []reranker.RankedDocument) []map[string]any {
+	entries := make([]map[string]any, 0, len(documents))
+	for index, document := range documents {
+		entries = append(entries, map[string]any{
+			"rank":           index + 1,
+			"document_index": document.Index,
+			"document":       strings.TrimSpace(document.Document),
+			"score":          document.Score,
+		})
+	}
+	return entries
 }
 
 func buildImplicitReplyContextPrompt(recentMessages []*ent.ChannelMessage, result ClassificationResult) string {

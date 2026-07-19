@@ -113,6 +113,27 @@ func (s *MessageClassificationService) Handle(ctx context.Context, messageCtx Me
 		)
 		return
 	}
+	if result != nil {
+		// 這筆 log 是 classifier 粗篩階段的主要觀測點。
+		// debug console 可直接看到模型回傳的 tag/signal/score，後面 todo reminder 或其他 handler 的 log
+		// 會沿用同一個 channel/message id，方便從「分類結果」一路追到「後續上下文分析」。
+		zap.L().Info("realtime classification model result",
+			zap.String("platform", s.platformLabel),
+			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			zap.String("saved_message_id", messageCtx.SavedMessage.ID.String()),
+			zap.String("text", text),
+			zap.Int("text_length", len([]rune(text))),
+			zap.String("tag", strings.TrimSpace(result.Tag)),
+			zap.String("signal", strings.TrimSpace(result.Signal)),
+			zap.Strings("labels", append([]string(nil), result.Labels...)),
+			zap.Any("scores", result.Scores),
+			zap.Any("probabilities", result.Probabilities),
+			zap.Float64("confidence", result.Confidence),
+			zap.Float64("score_margin", result.ScoreMargin),
+			zap.String("model_name", strings.TrimSpace(result.ModelName)),
+		)
+	}
 	if result == nil || strings.TrimSpace(result.Tag) == "" {
 		zap.L().Warn("realtime classification returned empty tag",
 			zap.String("platform", s.platformLabel),
