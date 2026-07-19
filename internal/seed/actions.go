@@ -63,7 +63,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Enable todo reminder in the current channel.",
 					APIOperation:   "start_todo_reminder",
 					RouteTexts:     []string{"開啟待辦提醒", "開始待辦提醒", "幫我開始提醒待辦"},
-					CommandPurpose: "用途: 協助模型判斷此指令是啟用待辦提醒。必要參數: channel_scope(目前頻道或指定頻道)。缺參策略: 若 channel_scope 不明確，先提問確認作用範圍後再執行。",
+					CommandPurpose: "用途: 啟用目前訊息所在 channel 的待辦提醒服務。必要參數: 無。作用範圍固定為目前訊息所在 channel。若使用者語意是開啟、啟用、開始待辦提醒，直接 execute_action 並輸出空 action_params。",
 				},
 				{
 					ActionCode:     action.ActionCodeDisable,
@@ -71,7 +71,7 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					Description:    "Disable todo reminder in the current channel.",
 					APIOperation:   "stop_todo_reminder",
 					RouteTexts:     []string{"關閉待辦提醒", "停止待辦提醒", "不要再提醒待辦"},
-					CommandPurpose: "用途: 協助模型判斷此指令是停用待辦提醒。必要參數: channel_scope(目前頻道或指定頻道)。缺參策略: 若未明確指出作用範圍，先提問確認再執行。",
+					CommandPurpose: "用途: 停用目前訊息所在 channel 的待辦提醒服務。必要參數: 無。作用範圍固定為目前訊息所在 channel。若使用者語意是關閉、停用、停止待辦提醒，直接 execute_action 並輸出空 action_params。",
 				},
 			},
 		},

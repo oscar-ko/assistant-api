@@ -110,9 +110,11 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 		BotSenderID:   strings.TrimSpace(config.Line.BotUserID),
 		PlatformLabel: "line:" + strings.TrimSpace(translateProfile),
 	})
+	todoReminder := realtime.NewTodoReminderService(realtime.TodoReminderServiceOptions{PlatformLabel: "line"})
 	messageClassifier := realtime.NewMessageClassificationService(realtime.MessageClassificationServiceOptions{
 		TextScanGate:  repo,
 		Classifier:    classifierClient,
+		Handlers:      []realtime.ClassificationHandler{todoReminder},
 		PlatformLabel: "line:" + strings.TrimSpace(classifierProfile),
 	})
 	nonCommandDispatcher := realtime.NewDispatcher(autoTranslate, messageClassifier)

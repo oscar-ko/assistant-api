@@ -22,6 +22,10 @@ const (
 	translationStopAllOperation = "stop_translation_all"
 	// translationStopLocaleOperation 代表移除發起者在目前 channel 建立的指定翻譯語系。
 	translationStopLocaleOperation = "stop_translation_locale"
+	// todoReminderStartOperation 代表在目前 channel 啟用待辦提醒即時文字掃描服務。
+	todoReminderStartOperation = "start_todo_reminder"
+	// todoReminderStopOperation 代表移除發起者在目前 channel 啟用的待辦提醒服務。
+	todoReminderStopOperation = "stop_todo_reminder"
 )
 
 // Handler 是 action 決策後的擴充處理函式簽名。
@@ -74,6 +78,8 @@ func NewDefaultDispatcher(repo *repository.ChannelMessageRepo) *Dispatcher {
 		translationStartOperation:      NewPersistTranslationCommandStateHandler(repo),
 		translationStopAllOperation:    NewRemoveTranslationCommandStateHandler(repo),
 		translationStopLocaleOperation: NewRemoveTranslationCommandStateHandler(repo),
+		todoReminderStartOperation:     NewPersistTodoReminderCommandStateHandler(repo),
+		todoReminderStopOperation:      NewRemoveTodoReminderCommandStateHandler(repo),
 	})
 }
 

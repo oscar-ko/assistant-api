@@ -106,9 +106,11 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 		BotSenderID:   "",
 		PlatformLabel: "slack:" + strings.TrimSpace(translateProfile),
 	})
+	todoReminder := realtime.NewTodoReminderService(realtime.TodoReminderServiceOptions{PlatformLabel: "slack"})
 	messageClassifier := realtime.NewMessageClassificationService(realtime.MessageClassificationServiceOptions{
 		TextScanGate:  repo,
 		Classifier:    classifierClient,
+		Handlers:      []realtime.ClassificationHandler{todoReminder},
 		PlatformLabel: "slack:" + strings.TrimSpace(classifierProfile),
 	})
 	nonCommandDispatcher := realtime.NewDispatcher(autoTranslate, messageClassifier)
