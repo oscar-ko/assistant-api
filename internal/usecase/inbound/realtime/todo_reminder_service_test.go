@@ -126,6 +126,19 @@ func TestTodoReminderServiceAnalyzesImplicitReplyContext(t *testing.T) {
 	}
 }
 
+func TestBuildImplicitReplyTodoPromptRequiresArrayFields(t *testing.T) {
+	// 本地小模型容易把 assignees 輸出成字串或物件；prompt 必須明確鎖住 array<string>，
+	// 讓 Python validator 的 validation retry 可以修正同一份 contract，而不是放寬解析規則。
+	prompt := buildImplicitReplyTodoPrompt(nil, ClassificationResult{Tag: "todo", Signal: ClassificationSignalCandidate, Confidence: 0.9})
+
+	if !strings.Contains(prompt, "assignees 與 missing_fields 永遠是 string array") {
+		t.Fatalf("expected prompt to require string array fields, got %q", prompt)
+	}
+	if !strings.Contains(prompt, `"assignees":[]`) || !strings.Contains(prompt, `"missing_fields":[]`) {
+		t.Fatalf("expected prompt JSON shape to show empty arrays, got %q", prompt)
+	}
+}
+
 func TestTodoReminderServicePersistsTodoCandidateAnalysis(t *testing.T) {
 	// structured analyzer 已經完成語意判斷後，realtime service 只把固定 schema 轉成 candidate persistence input；
 	// 這裡鎖住 create_candidate 會用目前訊息當 source/last message，不再停留在純 log-only。

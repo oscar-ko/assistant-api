@@ -532,7 +532,9 @@ func buildImplicitReplyTodoPrompt(recentMessages []*ent.ChannelMessage, result C
 	builder.WriteString("decision 只能是 create_candidate、update_candidate、acknowledge、cancel_candidate、needs_more_info、no_action。\n")
 	builder.WriteString("linked_message_id 必須來自 Recent messages 的 id；全新待辦或 no_action 時使用空字串。\n")
 	builder.WriteString("summary 是整理後的待辦內容；due_text 保留使用者原本的時間字面，不要自行正規化日期；assignees 保留訊息中可見的人名或稱呼。\n")
+	builder.WriteString("欄位型別必須固定：schema_version/decision/linked_message_id/summary/due_text/reason 是 string，confidence 是 number，assignees 與 missing_fields 永遠是 string array；沒有人名或缺漏欄位時輸出 []，不可輸出字串、物件或 null。\n")
 	builder.WriteString("needs_more_info 時 missing_fields 必須指出缺 summary、assignees 或 due_text 等欄位；no_action 時 linked_message_id、summary、assignees、due_text、missing_fields 都必須為空。\n")
+	builder.WriteString("JSON shape 範例：{\"schema_version\":\"v1\",\"decision\":\"no_action\",\"linked_message_id\":\"\",\"summary\":\"\",\"assignees\":[],\"due_text\":\"\",\"confidence\":0.0,\"missing_fields\":[],\"reason\":\"...\"}\n")
 	builder.WriteString("不可輸出額外欄位，不可用自然語言包住 JSON。\n\n")
 	builder.WriteString("Recent messages:\n")
 	for index, item := range recentMessages {
