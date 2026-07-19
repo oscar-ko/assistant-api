@@ -114,7 +114,8 @@ llm_providers:
                 path: "/rerank"
             llm:
                 url: "http://127.0.0.1:9003"
-                model_name: "qwen3.5:9b"
+                # 本機 action decision 預設使用 2b，避免 9b 在一般開發機上啟動 Ollama 時 OOM。
+                model_name: "qwen3.5:2b"
                 timeout_seconds: 120
                 action_decision_path: "/predict/action_decision"
                 question_answer_path: "/predict/question_answer"
