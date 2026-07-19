@@ -156,14 +156,20 @@ type InteractionClient interface {
 }
 
 type interactionClient struct {
-	baseURL            string
+	baseURL string
+	// modelName 只對本地 9003 LLM interaction 有意義。
+	// 空值代表沿用 9003 啟動時的 OLLAMA_MODEL；非空值會隨 request 傳入，讓同一個服務可依 profile 切換 9B/2B 等模型。
+	modelName          string
 	actionDecisionPath string
 	questionAnswerPath string
 	client             *http.Client
 }
 
 type classificationRequest struct {
-	Prompt                string `json:"prompt"`
+	Prompt string `json:"prompt"`
+	// ModelName 是本地 9003 的 per-request model selector。
+	// 不把它放進 prompt，避免模型選擇變成自然語言規則；它必須是 transport contract 的結構化欄位。
+	ModelName             string `json:"model_name,omitempty"`
 	JSONDecodeRetryPrompt string `json:"json_decode_retry_prompt"`
 	ValidationRetryPrompt string `json:"validation_retry_prompt"`
 }
@@ -209,6 +215,13 @@ func NewInteractionClient(baseURL string, timeoutSeconds int) InteractionClient 
 
 // NewInteractionClientWithPaths 建立可指定本地 endpoint path 的通用 LLM 互動 client。
 func NewInteractionClientWithPaths(baseURL string, timeoutSeconds int, actionDecisionPath string, questionAnswerPath string) InteractionClient {
+	return NewInteractionClientWithModel(baseURL, timeoutSeconds, "", actionDecisionPath, questionAnswerPath)
+}
+
+// NewInteractionClientWithModel 建立可指定本地 endpoint path 與 Ollama model 的通用 LLM 互動 client。
+// 這個建構子用在 local provider profile：profile.model_name 會被轉成 9003 request 的 model_name，
+// 因此不需要為 qwen 9B / 2B 另外開 9004、9005 等服務，只需新增 provider profile。
+func NewInteractionClientWithModel(baseURL string, timeoutSeconds int, modelName string, actionDecisionPath string, questionAnswerPath string) InteractionClient {
 	trimmed := strings.TrimSpace(baseURL)
 	if trimmed == "" {
 		return nil
@@ -229,6 +242,7 @@ func NewInteractionClientWithPaths(baseURL string, timeoutSeconds int, actionDec
 	}
 	return &interactionClient{
 		baseURL:            strings.TrimRight(trimmed, "/"),
+		modelName:          strings.TrimSpace(modelName),
 		actionDecisionPath: actionPath,
 		questionAnswerPath: questionPath,
 		client:             &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second},
@@ -370,7 +384,9 @@ func (c *interactionClient) buildRequest(ctx context.Context, path string, promp
 	// 讓 prompt 契約集中在 Go 端，避免 Python 服務與 API 端各維護一份規則。
 	composedPrompt := buildLocalInteractionPrompt(prompt, text)
 	payload := classificationRequest{
-		Prompt:                composedPrompt,
+		Prompt: composedPrompt,
+		// modelName 為空時會被 omitempty 省略，讓既有只靠 OLLAMA_MODEL 的本地部署仍可運作。
+		ModelName:             strings.TrimSpace(c.modelName),
 		JSONDecodeRetryPrompt: buildJSONDecodeRetryPrompt(composedPrompt),
 		ValidationRetryPrompt: buildValidationRetryPrompt(composedPrompt),
 	}

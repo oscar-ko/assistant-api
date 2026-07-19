@@ -82,9 +82,12 @@ func buildRoleClient(cfg config.AIConfig, llmProviders map[string]config.LLMProv
 		return nil, fmt.Errorf("llm_interaction cloud timeout_seconds is required for target %s.%s", resolved.providerKey, strings.TrimSpace(target.profile))
 	}
 	if resolved.isLocal {
-		client := NewLocalContractInteractionClient(
+		// local provider 不直接啟動不同 port 的模型服務；同一個 9003 服務依 request.model_name 切換模型。
+		// 因此 profile.model_name 在這裡不是雲端 API model，而是傳給 9003 的 Ollama model selector。
+		client := NewLocalContractInteractionClientWithModel(
 			resolved.url,
 			options.Timeout,
+			resolved.model,
 			resolved.actionDecisionPath,
 			resolved.questionAnswerPath,
 		)
@@ -92,6 +95,10 @@ func buildRoleClient(cfg config.AIConfig, llmProviders map[string]config.LLMProv
 			return nil, fmt.Errorf("failed to initialize local interaction client for provider %s", resolved.providerKey)
 		}
 		label := resolved.providerKey + "." + strings.TrimSpace(target.profile) + " local"
+		// log label 保留 model 名稱，方便排查 action decision 走 9B、todo extractor 走 2B 時的實際路由。
+		if strings.TrimSpace(resolved.model) != "" {
+			label += " model=" + strings.TrimSpace(resolved.model)
+		}
 		return &builtRoleClient{client: client, label: label}, nil
 	}
 	client, err := NewOpenAIInteractionClient(

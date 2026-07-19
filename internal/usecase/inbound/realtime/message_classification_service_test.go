@@ -21,12 +21,16 @@ func (g *stubTextScanGate) HasChannelRealtimeTextScanService(ctx context.Context
 }
 
 type stubClassifier struct {
-	calls int
+	calls  int
+	result *ClassificationResult
 }
 
 func (c *stubClassifier) Classify(ctx context.Context, text string) (*ClassificationResult, error) {
 	c.calls++
-	return &ClassificationResult{Tag: "todo.reminder"}, nil
+	if c.result != nil {
+		return c.result, nil
+	}
+	return &ClassificationResult{Tag: "todo", Signal: ClassificationSignalCandidate}, nil
 }
 
 type stubClassificationHandler struct {
@@ -98,6 +102,46 @@ func TestMessageClassificationServiceClassifiesWhenChannelHasTextScanService(t *
 	}
 	if handler.calls != 1 {
 		t.Fatalf("expected handler to be called once, got %d", handler.calls)
+	}
+}
+
+func TestMessageClassificationServiceDispatchesUnclearSignal(t *testing.T) {
+	gate := &stubTextScanGate{enabled: true}
+	classifier := &stubClassifier{result: &ClassificationResult{Tag: "none", Signal: ClassificationSignalUnclear}}
+	handler := &stubClassificationHandler{}
+	service := NewMessageClassificationService(MessageClassificationServiceOptions{
+		TextScanGate: gate,
+		Classifier:   classifier,
+		Handlers:     []ClassificationHandler{handler},
+	})
+
+	service.Handle(context.Background(), textMessageContext())
+
+	if classifier.calls != 1 {
+		t.Fatalf("expected classifier to be called once, got %d", classifier.calls)
+	}
+	if handler.calls != 1 {
+		t.Fatalf("expected handler to be called for unclear signal, got %d", handler.calls)
+	}
+}
+
+func TestMessageClassificationServiceSkipsHandlerOnRejectSignal(t *testing.T) {
+	gate := &stubTextScanGate{enabled: true}
+	classifier := &stubClassifier{result: &ClassificationResult{Tag: "none", Signal: ClassificationSignalReject}}
+	handler := &stubClassificationHandler{}
+	service := NewMessageClassificationService(MessageClassificationServiceOptions{
+		TextScanGate: gate,
+		Classifier:   classifier,
+		Handlers:     []ClassificationHandler{handler},
+	})
+
+	service.Handle(context.Background(), textMessageContext())
+
+	if classifier.calls != 1 {
+		t.Fatalf("expected classifier to be called once, got %d", classifier.calls)
+	}
+	if handler.calls != 0 {
+		t.Fatalf("expected handler not to be called for reject signal, got %d", handler.calls)
 	}
 }
 

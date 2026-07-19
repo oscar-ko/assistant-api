@@ -17,12 +17,23 @@ type Classifier interface {
 	Classify(ctx context.Context, text string) (*ClassificationResult, error)
 }
 
+const (
+	ClassificationSignalCandidate = "candidate"
+	ClassificationSignalUnclear   = "unclear"
+	ClassificationSignalReject    = "reject"
+)
+
 // ClassificationResult 是分類 adapter 回傳給 usecase 的最小結果集合。
 //
-// Tag 是主要分流依據；Labels/Scores/ModelName 保留觀測與後續 handler 需要的上下文。
+// Tag 是權重模型的原始 label；Signal 是 coarse gate 的處理決策。
+// candidate/unclear 會交給 handler 做後續抽取，reject 會直接停止。
 type ClassificationResult struct {
-	Tag       string
-	Labels    []string
-	Scores    map[string]float64
-	ModelName string
+	Tag           string
+	Signal        string
+	Labels        []string
+	Scores        map[string]float64
+	Probabilities map[string]float64
+	Confidence    float64
+	ScoreMargin   float64
+	ModelName     string
 }

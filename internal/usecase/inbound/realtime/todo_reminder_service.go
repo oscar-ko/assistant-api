@@ -42,6 +42,9 @@ func (s *TodoReminderService) HandleClassification(ctx context.Context, messageC
 		zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 		zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 		zap.String("tag", strings.TrimSpace(result.Tag)),
+		zap.String("signal", strings.TrimSpace(result.Signal)),
+		zap.Float64("confidence", result.Confidence),
+		zap.Float64("score_margin", result.ScoreMargin),
 		zap.Strings("labels", result.Labels),
 		zap.String("model_name", strings.TrimSpace(result.ModelName)),
 	)

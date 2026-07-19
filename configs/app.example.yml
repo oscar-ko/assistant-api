@@ -64,6 +64,11 @@ ai:
             timeout: 120
             max_token: 1024
             temperature: 0.2
+        todo_extractor:
+            profile: "aistant.todo_extractor"
+            timeout: 60
+            max_token: 512
+            temperature: 0.1
         chatgpt:
             url: "https://api.openai.com/v1"
             # 安全規範：公開版 app.yml 不放密鑰，請在 app.local.yml 填入實際 token。
@@ -100,7 +105,15 @@ llm_providers:
                 path: "/rerank"
             llm:
                 url: "http://127.0.0.1:9003"
+                model_name: "qwen3.5:9b"
                 timeout_seconds: 120
+                action_decision_path: "/predict/action_decision"
+                question_answer_path: "/predict/question_answer"
+                translate_path: "/translate"
+            todo_extractor:
+                url: "http://127.0.0.1:9003"
+                model_name: "qwen3.5:2b"
+                timeout_seconds: 60
                 action_decision_path: "/predict/action_decision"
                 question_answer_path: "/predict/question_answer"
                 translate_path: "/translate"

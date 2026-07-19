@@ -16,11 +16,6 @@ import (
 type Classifier = usecaserealtime.Classifier
 type ClassificationResult = usecaserealtime.ClassificationResult
 
-// classifierPrompt 暫放在 client：目前它是 venv classifier 的 transport contract，
-// 不是可由部署環境調整的設定。等分類 prompt 穩定後，再視需要抽到 prompt registry。
-const classifierPrompt = `Classify the incoming non-command chat message into one trained service tag.
-Use only the classifier model label space and return the predicted label from the model.`
-
 // LocalClassifierClient calls the venv classifier service at /predict/classifier.
 type LocalClassifierClient struct {
 	baseURL      string
@@ -67,19 +62,22 @@ func (c *LocalClassifierClient) Classify(ctx context.Context, text string) (*Cla
 
 	type classifyRequest struct {
 		Text   string   `json:"text"`
-		Prompt string   `json:"prompt,omitempty"`
 		Labels []string `json:"labels,omitempty"`
 	}
 	type classifyResponse struct {
-		ModelName      string             `json:"model_name"`
-		Labels         []string           `json:"labels"`
-		PredictedLabel string             `json:"predicted_label"`
-		Scores         map[string]float64 `json:"scores"`
+		ModelName            string             `json:"model_name"`
+		Labels               []string           `json:"labels"`
+		PredictedLabel       string             `json:"predicted_label"`
+		ClassificationSignal string             `json:"classification_signal"`
+		Scores               map[string]float64 `json:"scores"`
+		Probabilities        map[string]float64 `json:"probabilities"`
+		Confidence           float64            `json:"confidence"`
+		ScoreMargin          float64            `json:"score_margin"`
 	}
 
-	// prompt 由 API client 注入，venv classifier 不硬編提示詞；
+	// 9000 classifier 是 embedding + linear weights 的 coarse gate；只送原始文字，避免 prompt 污染向量空間。
 	// labels 仍可由 ai.classifier.labels 限縮本次允許的模型 label space。
-	payload, err := json.Marshal(classifyRequest{Text: inputText, Prompt: classifierPrompt, Labels: append([]string(nil), c.labels...)})
+	payload, err := json.Marshal(classifyRequest{Text: inputText, Labels: append([]string(nil), c.labels...)})
 	if err != nil {
 		return nil, err
 	}
@@ -108,11 +106,19 @@ func (c *LocalClassifierClient) Classify(ctx context.Context, text string) (*Cla
 	if tag == "" {
 		return nil, fmt.Errorf("classifier endpoint returned empty predicted_label")
 	}
+	signal := strings.TrimSpace(decoded.ClassificationSignal)
+	if signal == "" {
+		return nil, fmt.Errorf("classifier endpoint returned empty classification_signal")
+	}
 	return &ClassificationResult{
-		Tag:       tag,
-		Labels:    dedupeStrings(decoded.Labels),
-		Scores:    decoded.Scores,
-		ModelName: strings.TrimSpace(decoded.ModelName),
+		Tag:           tag,
+		Signal:        signal,
+		Labels:        dedupeStrings(decoded.Labels),
+		Scores:        decoded.Scores,
+		Probabilities: decoded.Probabilities,
+		Confidence:    decoded.Confidence,
+		ScoreMargin:   decoded.ScoreMargin,
+		ModelName:     strings.TrimSpace(decoded.ModelName),
 	}, nil
 }
 

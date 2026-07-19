@@ -121,8 +121,39 @@ func (s *MessageClassificationService) Handle(ctx context.Context, messageCtx Me
 		)
 		return
 	}
+	signal := strings.TrimSpace(result.Signal)
+	if signal == "" {
+		zap.L().Warn("realtime classification returned empty signal",
+			zap.String("platform", s.platformLabel),
+			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			zap.String("tag", strings.TrimSpace(result.Tag)),
+		)
+		return
+	}
+	if signal == ClassificationSignalReject {
+		zap.L().Info("realtime classification rejected",
+			zap.String("platform", s.platformLabel),
+			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			zap.String("tag", strings.TrimSpace(result.Tag)),
+			zap.Float64("confidence", result.Confidence),
+			zap.Float64("score_margin", result.ScoreMargin),
+		)
+		return
+	}
+	if signal != ClassificationSignalCandidate && signal != ClassificationSignalUnclear {
+		zap.L().Warn("realtime classification returned unknown signal",
+			zap.String("platform", s.platformLabel),
+			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			zap.String("tag", strings.TrimSpace(result.Tag)),
+			zap.String("signal", signal),
+		)
+		return
+	}
 
-	// tag 是模型訓練產物，名稱可能隨訓練資料演進而調整，因此不落庫。
+	// tag/signal 是模型訓練與粗篩產物，名稱可能隨訓練資料演進而調整，因此不落庫。
 	// 這裡直接 fan-out 給註冊的 handler，讓 todo/calendar 等服務即時消化分類結果。
 	for _, handler := range s.handlers {
 		handler.HandleClassification(ctx, messageCtx, *result)
@@ -133,6 +164,9 @@ func (s *MessageClassificationService) Handle(ctx context.Context, messageCtx Me
 		zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 		zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
 		zap.String("tag", strings.TrimSpace(result.Tag)),
+		zap.String("signal", signal),
+		zap.Float64("confidence", result.Confidence),
+		zap.Float64("score_margin", result.ScoreMargin),
 		zap.Int("handler_count", len(s.handlers)),
 	)
 }

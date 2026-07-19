@@ -69,7 +69,11 @@ type LLMInteractionConfig struct {
 	Chat LLMRoleConfig `mapstructure:"chat" yaml:"chat"`
 	// Translate 指定翻譯流程使用的 target。
 	Translate LLMRoleConfig `mapstructure:"translate" yaml:"translate"`
-	ChatGPT   ChatGPTConfig `mapstructure:"chatgpt" yaml:"chatgpt"`
+	// TodoExtractor 指定待辦提醒上下文抽取使用的 target。
+	// 它和 decision/chat/translate 一樣走 llm_providers profile；差別在於用途只限 realtime todo reminder 的 bounded context extraction。
+	// 這讓同一個 9003 LLM interaction 服務可以用較小模型處理待辦抽取，而 action decision 仍保留較大模型。
+	TodoExtractor LLMRoleConfig `mapstructure:"todo_extractor" yaml:"todo_extractor"`
+	ChatGPT       ChatGPTConfig `mapstructure:"chatgpt" yaml:"chatgpt"`
 	// CommandConfidenceThreshold 決定 final action 信心值低於多少時，
 	// 直接視為對話意圖（非指令 action）。0 代表關閉此門檻判斷。
 	CommandConfidenceThreshold float64 `mapstructure:"command_confidence_threshold" yaml:"command_confidence_threshold"`
@@ -293,6 +297,8 @@ func MustLoad() {
 		viper.SetDefault("ai.llm_interaction.decision.profile", "local")
 		viper.SetDefault("ai.llm_interaction.chat.profile", "local")
 		viper.SetDefault("ai.llm_interaction.translate.profile", "local")
+		// todo_extractor 是待辦提醒專用角色；預設仍沿用 local，實際部署應在 provider profile 指定 9003 + model_name。
+		viper.SetDefault("ai.llm_interaction.todo_extractor.profile", "local")
 		viper.SetDefault("ai.llm_interaction.chatgpt.url", "https://api.openai.com/v1")
 		viper.SetDefault("ai.llm_interaction.chatgpt.token", "")
 		viper.SetDefault("ai.llm_interaction.chatgpt.profiles.default.model_name", "gpt-4o-mini")
