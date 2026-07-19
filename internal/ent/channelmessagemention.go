@@ -59,7 +59,7 @@ type ChannelMessageMention struct {
 type ChannelMessageMentionEdges struct {
 	// mention 所屬訊息
 	Message *ChannelMessage `json:"message,omitempty"`
-	// 使用此 message mention 產生的 Todo assignee 快照
+	// 使用此 message mention 產生的 Todo assignee evidence
 	TodoCandidateAssignees []*TodoCandidateAssignee `json:"todo_candidate_assignees,omitempty"`
 	// mention 解析出的系統使用者；未解析或 bot 可為空
 	User *User `json:"user,omitempty"`

@@ -28,7 +28,7 @@ type TodoCandidateAssigneeQuery struct {
 	predicates               []predicate.TodoCandidateAssignee
 	withCandidate            *TodoCandidateQuery
 	withSourceMessageMention *ChannelMessageMentionQuery
-	withUser                 *UserQuery
+	withResolvedUser         *UserQuery
 	modifiers                []func(*sql.Selector)
 	loadTotal                []func(context.Context, []*TodoCandidateAssignee) error
 	// intermediate query (i.e. traversal path).
@@ -111,8 +111,8 @@ func (_q *TodoCandidateAssigneeQuery) QuerySourceMessageMention() *ChannelMessag
 	return query
 }
 
-// QueryUser chains the current query on the "user" edge.
-func (_q *TodoCandidateAssigneeQuery) QueryUser() *UserQuery {
+// QueryResolvedUser chains the current query on the "resolved_user" edge.
+func (_q *TodoCandidateAssigneeQuery) QueryResolvedUser() *UserQuery {
 	query := (&UserClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
@@ -125,7 +125,7 @@ func (_q *TodoCandidateAssigneeQuery) QueryUser() *UserQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(todocandidateassignee.Table, todocandidateassignee.FieldID, selector),
 			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, todocandidateassignee.UserTable, todocandidateassignee.UserColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, todocandidateassignee.ResolvedUserTable, todocandidateassignee.ResolvedUserColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -327,7 +327,7 @@ func (_q *TodoCandidateAssigneeQuery) Clone() *TodoCandidateAssigneeQuery {
 		predicates:               append([]predicate.TodoCandidateAssignee{}, _q.predicates...),
 		withCandidate:            _q.withCandidate.Clone(),
 		withSourceMessageMention: _q.withSourceMessageMention.Clone(),
-		withUser:                 _q.withUser.Clone(),
+		withResolvedUser:         _q.withResolvedUser.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -356,14 +356,14 @@ func (_q *TodoCandidateAssigneeQuery) WithSourceMessageMention(opts ...func(*Cha
 	return _q
 }
 
-// WithUser tells the query-builder to eager-load the nodes that are connected to
-// the "user" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *TodoCandidateAssigneeQuery) WithUser(opts ...func(*UserQuery)) *TodoCandidateAssigneeQuery {
+// WithResolvedUser tells the query-builder to eager-load the nodes that are connected to
+// the "resolved_user" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TodoCandidateAssigneeQuery) WithResolvedUser(opts ...func(*UserQuery)) *TodoCandidateAssigneeQuery {
 	query := (&UserClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withUser = query
+	_q.withResolvedUser = query
 	return _q
 }
 
@@ -448,7 +448,7 @@ func (_q *TodoCandidateAssigneeQuery) sqlAll(ctx context.Context, hooks ...query
 		loadedTypes = [3]bool{
 			_q.withCandidate != nil,
 			_q.withSourceMessageMention != nil,
-			_q.withUser != nil,
+			_q.withResolvedUser != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -484,9 +484,9 @@ func (_q *TodoCandidateAssigneeQuery) sqlAll(ctx context.Context, hooks ...query
 			return nil, err
 		}
 	}
-	if query := _q.withUser; query != nil {
-		if err := _q.loadUser(ctx, query, nodes, nil,
-			func(n *TodoCandidateAssignee, e *User) { n.Edges.User = e }); err != nil {
+	if query := _q.withResolvedUser; query != nil {
+		if err := _q.loadResolvedUser(ctx, query, nodes, nil,
+			func(n *TodoCandidateAssignee, e *User) { n.Edges.ResolvedUser = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -559,14 +559,14 @@ func (_q *TodoCandidateAssigneeQuery) loadSourceMessageMention(ctx context.Conte
 	}
 	return nil
 }
-func (_q *TodoCandidateAssigneeQuery) loadUser(ctx context.Context, query *UserQuery, nodes []*TodoCandidateAssignee, init func(*TodoCandidateAssignee), assign func(*TodoCandidateAssignee, *User)) error {
+func (_q *TodoCandidateAssigneeQuery) loadResolvedUser(ctx context.Context, query *UserQuery, nodes []*TodoCandidateAssignee, init func(*TodoCandidateAssignee), assign func(*TodoCandidateAssignee, *User)) error {
 	ids := make([]uuid.UUID, 0, len(nodes))
 	nodeids := make(map[uuid.UUID][]*TodoCandidateAssignee)
 	for i := range nodes {
-		if nodes[i].UserID == nil {
+		if nodes[i].ResolvedUserID == nil {
 			continue
 		}
-		fk := *nodes[i].UserID
+		fk := *nodes[i].ResolvedUserID
 		if _, ok := nodeids[fk]; !ok {
 			ids = append(ids, fk)
 		}
@@ -583,7 +583,7 @@ func (_q *TodoCandidateAssigneeQuery) loadUser(ctx context.Context, query *UserQ
 	for _, n := range neighbors {
 		nodes, ok := nodeids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "user_id" returned %v`, n.ID)
+			return fmt.Errorf(`unexpected foreign-key "resolved_user_id" returned %v`, n.ID)
 		}
 		for i := range nodes {
 			assign(nodes[i], n)
@@ -626,8 +626,8 @@ func (_q *TodoCandidateAssigneeQuery) querySpec() *sqlgraph.QuerySpec {
 		if _q.withSourceMessageMention != nil {
 			_spec.Node.AddColumnOnce(todocandidateassignee.FieldSourceMessageMentionID)
 		}
-		if _q.withUser != nil {
-			_spec.Node.AddColumnOnce(todocandidateassignee.FieldUserID)
+		if _q.withResolvedUser != nil {
+			_spec.Node.AddColumnOnce(todocandidateassignee.FieldResolvedUserID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

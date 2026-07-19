@@ -72,16 +72,16 @@ func (_c *TodoCandidateAssigneeCreate) SetNillableSourceMessageMentionID(v *uuid
 	return _c
 }
 
-// SetUserID sets the "user_id" field.
-func (_c *TodoCandidateAssigneeCreate) SetUserID(v uuid.UUID) *TodoCandidateAssigneeCreate {
-	_c.mutation.SetUserID(v)
+// SetResolvedUserID sets the "resolved_user_id" field.
+func (_c *TodoCandidateAssigneeCreate) SetResolvedUserID(v uuid.UUID) *TodoCandidateAssigneeCreate {
+	_c.mutation.SetResolvedUserID(v)
 	return _c
 }
 
-// SetNillableUserID sets the "user_id" field if the given value is not nil.
-func (_c *TodoCandidateAssigneeCreate) SetNillableUserID(v *uuid.UUID) *TodoCandidateAssigneeCreate {
+// SetNillableResolvedUserID sets the "resolved_user_id" field if the given value is not nil.
+func (_c *TodoCandidateAssigneeCreate) SetNillableResolvedUserID(v *uuid.UUID) *TodoCandidateAssigneeCreate {
 	if v != nil {
-		_c.SetUserID(*v)
+		_c.SetResolvedUserID(*v)
 	}
 	return _c
 }
@@ -100,72 +100,16 @@ func (_c *TodoCandidateAssigneeCreate) SetNillableSource(v *todocandidateassigne
 	return _c
 }
 
-// SetPlatform sets the "platform" field.
-func (_c *TodoCandidateAssigneeCreate) SetPlatform(v todocandidateassignee.Platform) *TodoCandidateAssigneeCreate {
-	_c.mutation.SetPlatform(v)
+// SetAssigneeText sets the "assignee_text" field.
+func (_c *TodoCandidateAssigneeCreate) SetAssigneeText(v string) *TodoCandidateAssigneeCreate {
+	_c.mutation.SetAssigneeText(v)
 	return _c
 }
 
-// SetNillablePlatform sets the "platform" field if the given value is not nil.
-func (_c *TodoCandidateAssigneeCreate) SetNillablePlatform(v *todocandidateassignee.Platform) *TodoCandidateAssigneeCreate {
+// SetNillableAssigneeText sets the "assignee_text" field if the given value is not nil.
+func (_c *TodoCandidateAssigneeCreate) SetNillableAssigneeText(v *string) *TodoCandidateAssigneeCreate {
 	if v != nil {
-		_c.SetPlatform(*v)
-	}
-	return _c
-}
-
-// SetPlatformUserID sets the "platform_user_id" field.
-func (_c *TodoCandidateAssigneeCreate) SetPlatformUserID(v string) *TodoCandidateAssigneeCreate {
-	_c.mutation.SetPlatformUserID(v)
-	return _c
-}
-
-// SetNillablePlatformUserID sets the "platform_user_id" field if the given value is not nil.
-func (_c *TodoCandidateAssigneeCreate) SetNillablePlatformUserID(v *string) *TodoCandidateAssigneeCreate {
-	if v != nil {
-		_c.SetPlatformUserID(*v)
-	}
-	return _c
-}
-
-// SetDisplayText sets the "display_text" field.
-func (_c *TodoCandidateAssigneeCreate) SetDisplayText(v string) *TodoCandidateAssigneeCreate {
-	_c.mutation.SetDisplayText(v)
-	return _c
-}
-
-// SetNillableDisplayText sets the "display_text" field if the given value is not nil.
-func (_c *TodoCandidateAssigneeCreate) SetNillableDisplayText(v *string) *TodoCandidateAssigneeCreate {
-	if v != nil {
-		_c.SetDisplayText(*v)
-	}
-	return _c
-}
-
-// SetIdentityKind sets the "identity_kind" field.
-func (_c *TodoCandidateAssigneeCreate) SetIdentityKind(v todocandidateassignee.IdentityKind) *TodoCandidateAssigneeCreate {
-	_c.mutation.SetIdentityKind(v)
-	return _c
-}
-
-// SetNillableIdentityKind sets the "identity_kind" field if the given value is not nil.
-func (_c *TodoCandidateAssigneeCreate) SetNillableIdentityKind(v *todocandidateassignee.IdentityKind) *TodoCandidateAssigneeCreate {
-	if v != nil {
-		_c.SetIdentityKind(*v)
-	}
-	return _c
-}
-
-// SetIsBot sets the "is_bot" field.
-func (_c *TodoCandidateAssigneeCreate) SetIsBot(v bool) *TodoCandidateAssigneeCreate {
-	_c.mutation.SetIsBot(v)
-	return _c
-}
-
-// SetNillableIsBot sets the "is_bot" field if the given value is not nil.
-func (_c *TodoCandidateAssigneeCreate) SetNillableIsBot(v *bool) *TodoCandidateAssigneeCreate {
-	if v != nil {
-		_c.SetIsBot(*v)
+		_c.SetAssigneeText(*v)
 	}
 	return _c
 }
@@ -222,9 +166,9 @@ func (_c *TodoCandidateAssigneeCreate) SetSourceMessageMention(v *ChannelMessage
 	return _c.SetSourceMessageMentionID(v.ID)
 }
 
-// SetUser sets the "user" edge to the User entity.
-func (_c *TodoCandidateAssigneeCreate) SetUser(v *User) *TodoCandidateAssigneeCreate {
-	return _c.SetUserID(v.ID)
+// SetResolvedUser sets the "resolved_user" edge to the User entity.
+func (_c *TodoCandidateAssigneeCreate) SetResolvedUser(v *User) *TodoCandidateAssigneeCreate {
+	return _c.SetResolvedUserID(v.ID)
 }
 
 // Mutation returns the TodoCandidateAssigneeMutation object of the builder.
@@ -274,22 +218,6 @@ func (_c *TodoCandidateAssigneeCreate) defaults() {
 		v := todocandidateassignee.DefaultSource
 		_c.mutation.SetSource(v)
 	}
-	if _, ok := _c.mutation.Platform(); !ok {
-		v := todocandidateassignee.DefaultPlatform
-		_c.mutation.SetPlatform(v)
-	}
-	if _, ok := _c.mutation.IdentityKind(); !ok {
-		v := todocandidateassignee.DefaultIdentityKind
-		_c.mutation.SetIdentityKind(v)
-	}
-	if _, ok := _c.mutation.IsBot(); !ok {
-		v := todocandidateassignee.DefaultIsBot
-		_c.mutation.SetIsBot(v)
-	}
-	if _, ok := _c.mutation.ResolutionStatus(); !ok {
-		v := todocandidateassignee.DefaultResolutionStatus
-		_c.mutation.SetResolutionStatus(v)
-	}
 	if _, ok := _c.mutation.ID(); !ok {
 		v := todocandidateassignee.DefaultID()
 		_c.mutation.SetID(v)
@@ -314,28 +242,6 @@ func (_c *TodoCandidateAssigneeCreate) check() error {
 		if err := todocandidateassignee.SourceValidator(v); err != nil {
 			return &ValidationError{Name: "source", err: fmt.Errorf(`ent: validator failed for field "TodoCandidateAssignee.source": %w`, err)}
 		}
-	}
-	if _, ok := _c.mutation.Platform(); !ok {
-		return &ValidationError{Name: "platform", err: errors.New(`ent: missing required field "TodoCandidateAssignee.platform"`)}
-	}
-	if v, ok := _c.mutation.Platform(); ok {
-		if err := todocandidateassignee.PlatformValidator(v); err != nil {
-			return &ValidationError{Name: "platform", err: fmt.Errorf(`ent: validator failed for field "TodoCandidateAssignee.platform": %w`, err)}
-		}
-	}
-	if _, ok := _c.mutation.IdentityKind(); !ok {
-		return &ValidationError{Name: "identity_kind", err: errors.New(`ent: missing required field "TodoCandidateAssignee.identity_kind"`)}
-	}
-	if v, ok := _c.mutation.IdentityKind(); ok {
-		if err := todocandidateassignee.IdentityKindValidator(v); err != nil {
-			return &ValidationError{Name: "identity_kind", err: fmt.Errorf(`ent: validator failed for field "TodoCandidateAssignee.identity_kind": %w`, err)}
-		}
-	}
-	if _, ok := _c.mutation.IsBot(); !ok {
-		return &ValidationError{Name: "is_bot", err: errors.New(`ent: missing required field "TodoCandidateAssignee.is_bot"`)}
-	}
-	if _, ok := _c.mutation.ResolutionStatus(); !ok {
-		return &ValidationError{Name: "resolution_status", err: errors.New(`ent: missing required field "TodoCandidateAssignee.resolution_status"`)}
 	}
 	if v, ok := _c.mutation.ResolutionStatus(); ok {
 		if err := todocandidateassignee.ResolutionStatusValidator(v); err != nil {
@@ -392,29 +298,13 @@ func (_c *TodoCandidateAssigneeCreate) createSpec() (*TodoCandidateAssignee, *sq
 		_spec.SetField(todocandidateassignee.FieldSource, field.TypeEnum, value)
 		_node.Source = value
 	}
-	if value, ok := _c.mutation.Platform(); ok {
-		_spec.SetField(todocandidateassignee.FieldPlatform, field.TypeEnum, value)
-		_node.Platform = value
-	}
-	if value, ok := _c.mutation.PlatformUserID(); ok {
-		_spec.SetField(todocandidateassignee.FieldPlatformUserID, field.TypeString, value)
-		_node.PlatformUserID = value
-	}
-	if value, ok := _c.mutation.DisplayText(); ok {
-		_spec.SetField(todocandidateassignee.FieldDisplayText, field.TypeString, value)
-		_node.DisplayText = value
-	}
-	if value, ok := _c.mutation.IdentityKind(); ok {
-		_spec.SetField(todocandidateassignee.FieldIdentityKind, field.TypeEnum, value)
-		_node.IdentityKind = value
-	}
-	if value, ok := _c.mutation.IsBot(); ok {
-		_spec.SetField(todocandidateassignee.FieldIsBot, field.TypeBool, value)
-		_node.IsBot = value
+	if value, ok := _c.mutation.AssigneeText(); ok {
+		_spec.SetField(todocandidateassignee.FieldAssigneeText, field.TypeString, value)
+		_node.AssigneeText = value
 	}
 	if value, ok := _c.mutation.ResolutionStatus(); ok {
 		_spec.SetField(todocandidateassignee.FieldResolutionStatus, field.TypeEnum, value)
-		_node.ResolutionStatus = value
+		_node.ResolutionStatus = &value
 	}
 	if value, ok := _c.mutation.Reason(); ok {
 		_spec.SetField(todocandidateassignee.FieldReason, field.TypeString, value)
@@ -454,12 +344,12 @@ func (_c *TodoCandidateAssigneeCreate) createSpec() (*TodoCandidateAssignee, *sq
 		_node.SourceMessageMentionID = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {
+	if nodes := _c.mutation.ResolvedUserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   todocandidateassignee.UserTable,
-			Columns: []string{todocandidateassignee.UserColumn},
+			Table:   todocandidateassignee.ResolvedUserTable,
+			Columns: []string{todocandidateassignee.ResolvedUserColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
@@ -468,7 +358,7 @@ func (_c *TodoCandidateAssigneeCreate) createSpec() (*TodoCandidateAssignee, *sq
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.UserID = &nodes[0]
+		_node.ResolvedUserID = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

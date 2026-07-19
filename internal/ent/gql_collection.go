@@ -1698,7 +1698,7 @@ func (_q *TodoCandidateAssigneeQuery) collectField(ctx context.Context, oneNode 
 				fieldSeen[todocandidateassignee.FieldSourceMessageMentionID] = struct{}{}
 			}
 
-		case "user":
+		case "resolvedUser":
 			var (
 				alias = field.Alias
 				path  = append(path, alias)
@@ -1707,10 +1707,10 @@ func (_q *TodoCandidateAssigneeQuery) collectField(ctx context.Context, oneNode 
 			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, userImplementors)...); err != nil {
 				return err
 			}
-			_q.withUser = query
-			if _, ok := fieldSeen[todocandidateassignee.FieldUserID]; !ok {
-				selectedFields = append(selectedFields, todocandidateassignee.FieldUserID)
-				fieldSeen[todocandidateassignee.FieldUserID] = struct{}{}
+			_q.withResolvedUser = query
+			if _, ok := fieldSeen[todocandidateassignee.FieldResolvedUserID]; !ok {
+				selectedFields = append(selectedFields, todocandidateassignee.FieldResolvedUserID)
+				fieldSeen[todocandidateassignee.FieldResolvedUserID] = struct{}{}
 			}
 		case "createdAt":
 			if _, ok := fieldSeen[todocandidateassignee.FieldCreatedAt]; !ok {
@@ -1732,40 +1732,20 @@ func (_q *TodoCandidateAssigneeQuery) collectField(ctx context.Context, oneNode 
 				selectedFields = append(selectedFields, todocandidateassignee.FieldSourceMessageMentionID)
 				fieldSeen[todocandidateassignee.FieldSourceMessageMentionID] = struct{}{}
 			}
-		case "userID":
-			if _, ok := fieldSeen[todocandidateassignee.FieldUserID]; !ok {
-				selectedFields = append(selectedFields, todocandidateassignee.FieldUserID)
-				fieldSeen[todocandidateassignee.FieldUserID] = struct{}{}
+		case "resolvedUserID":
+			if _, ok := fieldSeen[todocandidateassignee.FieldResolvedUserID]; !ok {
+				selectedFields = append(selectedFields, todocandidateassignee.FieldResolvedUserID)
+				fieldSeen[todocandidateassignee.FieldResolvedUserID] = struct{}{}
 			}
 		case "source":
 			if _, ok := fieldSeen[todocandidateassignee.FieldSource]; !ok {
 				selectedFields = append(selectedFields, todocandidateassignee.FieldSource)
 				fieldSeen[todocandidateassignee.FieldSource] = struct{}{}
 			}
-		case "platform":
-			if _, ok := fieldSeen[todocandidateassignee.FieldPlatform]; !ok {
-				selectedFields = append(selectedFields, todocandidateassignee.FieldPlatform)
-				fieldSeen[todocandidateassignee.FieldPlatform] = struct{}{}
-			}
-		case "platformUserID":
-			if _, ok := fieldSeen[todocandidateassignee.FieldPlatformUserID]; !ok {
-				selectedFields = append(selectedFields, todocandidateassignee.FieldPlatformUserID)
-				fieldSeen[todocandidateassignee.FieldPlatformUserID] = struct{}{}
-			}
-		case "displayText":
-			if _, ok := fieldSeen[todocandidateassignee.FieldDisplayText]; !ok {
-				selectedFields = append(selectedFields, todocandidateassignee.FieldDisplayText)
-				fieldSeen[todocandidateassignee.FieldDisplayText] = struct{}{}
-			}
-		case "identityKind":
-			if _, ok := fieldSeen[todocandidateassignee.FieldIdentityKind]; !ok {
-				selectedFields = append(selectedFields, todocandidateassignee.FieldIdentityKind)
-				fieldSeen[todocandidateassignee.FieldIdentityKind] = struct{}{}
-			}
-		case "isBot":
-			if _, ok := fieldSeen[todocandidateassignee.FieldIsBot]; !ok {
-				selectedFields = append(selectedFields, todocandidateassignee.FieldIsBot)
-				fieldSeen[todocandidateassignee.FieldIsBot] = struct{}{}
+		case "assigneeText":
+			if _, ok := fieldSeen[todocandidateassignee.FieldAssigneeText]; !ok {
+				selectedFields = append(selectedFields, todocandidateassignee.FieldAssigneeText)
+				fieldSeen[todocandidateassignee.FieldAssigneeText] = struct{}{}
 			}
 		case "resolutionStatus":
 			if _, ok := fieldSeen[todocandidateassignee.FieldResolutionStatus]; !ok {

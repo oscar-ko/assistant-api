@@ -5960,13 +5960,13 @@ type TodoCandidateAssigneeWhereInput struct {
 	SourceMessageMentionIDIsNil  bool        `json:"sourceMessageMentionIDIsNil,omitempty"`
 	SourceMessageMentionIDNotNil bool        `json:"sourceMessageMentionIDNotNil,omitempty"`
 
-	// "user_id" field predicates.
-	UserID       *uuid.UUID  `json:"userID,omitempty"`
-	UserIDNEQ    *uuid.UUID  `json:"userIDNEQ,omitempty"`
-	UserIDIn     []uuid.UUID `json:"userIDIn,omitempty"`
-	UserIDNotIn  []uuid.UUID `json:"userIDNotIn,omitempty"`
-	UserIDIsNil  bool        `json:"userIDIsNil,omitempty"`
-	UserIDNotNil bool        `json:"userIDNotNil,omitempty"`
+	// "resolved_user_id" field predicates.
+	ResolvedUserID       *uuid.UUID  `json:"resolvedUserID,omitempty"`
+	ResolvedUserIDNEQ    *uuid.UUID  `json:"resolvedUserIDNEQ,omitempty"`
+	ResolvedUserIDIn     []uuid.UUID `json:"resolvedUserIDIn,omitempty"`
+	ResolvedUserIDNotIn  []uuid.UUID `json:"resolvedUserIDNotIn,omitempty"`
+	ResolvedUserIDIsNil  bool        `json:"resolvedUserIDIsNil,omitempty"`
+	ResolvedUserIDNotNil bool        `json:"resolvedUserIDNotNil,omitempty"`
 
 	// "source" field predicates.
 	Source      *todocandidateassignee.Source  `json:"source,omitempty"`
@@ -5974,61 +5974,30 @@ type TodoCandidateAssigneeWhereInput struct {
 	SourceIn    []todocandidateassignee.Source `json:"sourceIn,omitempty"`
 	SourceNotIn []todocandidateassignee.Source `json:"sourceNotIn,omitempty"`
 
-	// "platform" field predicates.
-	Platform      *todocandidateassignee.Platform  `json:"platform,omitempty"`
-	PlatformNEQ   *todocandidateassignee.Platform  `json:"platformNEQ,omitempty"`
-	PlatformIn    []todocandidateassignee.Platform `json:"platformIn,omitempty"`
-	PlatformNotIn []todocandidateassignee.Platform `json:"platformNotIn,omitempty"`
-
-	// "platform_user_id" field predicates.
-	PlatformUserID             *string  `json:"platformUserID,omitempty"`
-	PlatformUserIDNEQ          *string  `json:"platformUserIDNEQ,omitempty"`
-	PlatformUserIDIn           []string `json:"platformUserIDIn,omitempty"`
-	PlatformUserIDNotIn        []string `json:"platformUserIDNotIn,omitempty"`
-	PlatformUserIDGT           *string  `json:"platformUserIDGT,omitempty"`
-	PlatformUserIDGTE          *string  `json:"platformUserIDGTE,omitempty"`
-	PlatformUserIDLT           *string  `json:"platformUserIDLT,omitempty"`
-	PlatformUserIDLTE          *string  `json:"platformUserIDLTE,omitempty"`
-	PlatformUserIDContains     *string  `json:"platformUserIDContains,omitempty"`
-	PlatformUserIDHasPrefix    *string  `json:"platformUserIDHasPrefix,omitempty"`
-	PlatformUserIDHasSuffix    *string  `json:"platformUserIDHasSuffix,omitempty"`
-	PlatformUserIDIsNil        bool     `json:"platformUserIDIsNil,omitempty"`
-	PlatformUserIDNotNil       bool     `json:"platformUserIDNotNil,omitempty"`
-	PlatformUserIDEqualFold    *string  `json:"platformUserIDEqualFold,omitempty"`
-	PlatformUserIDContainsFold *string  `json:"platformUserIDContainsFold,omitempty"`
-
-	// "display_text" field predicates.
-	DisplayText             *string  `json:"displayText,omitempty"`
-	DisplayTextNEQ          *string  `json:"displayTextNEQ,omitempty"`
-	DisplayTextIn           []string `json:"displayTextIn,omitempty"`
-	DisplayTextNotIn        []string `json:"displayTextNotIn,omitempty"`
-	DisplayTextGT           *string  `json:"displayTextGT,omitempty"`
-	DisplayTextGTE          *string  `json:"displayTextGTE,omitempty"`
-	DisplayTextLT           *string  `json:"displayTextLT,omitempty"`
-	DisplayTextLTE          *string  `json:"displayTextLTE,omitempty"`
-	DisplayTextContains     *string  `json:"displayTextContains,omitempty"`
-	DisplayTextHasPrefix    *string  `json:"displayTextHasPrefix,omitempty"`
-	DisplayTextHasSuffix    *string  `json:"displayTextHasSuffix,omitempty"`
-	DisplayTextIsNil        bool     `json:"displayTextIsNil,omitempty"`
-	DisplayTextNotNil       bool     `json:"displayTextNotNil,omitempty"`
-	DisplayTextEqualFold    *string  `json:"displayTextEqualFold,omitempty"`
-	DisplayTextContainsFold *string  `json:"displayTextContainsFold,omitempty"`
-
-	// "identity_kind" field predicates.
-	IdentityKind      *todocandidateassignee.IdentityKind  `json:"identityKind,omitempty"`
-	IdentityKindNEQ   *todocandidateassignee.IdentityKind  `json:"identityKindNEQ,omitempty"`
-	IdentityKindIn    []todocandidateassignee.IdentityKind `json:"identityKindIn,omitempty"`
-	IdentityKindNotIn []todocandidateassignee.IdentityKind `json:"identityKindNotIn,omitempty"`
-
-	// "is_bot" field predicates.
-	IsBot    *bool `json:"isBot,omitempty"`
-	IsBotNEQ *bool `json:"isBotNEQ,omitempty"`
+	// "assignee_text" field predicates.
+	AssigneeText             *string  `json:"assigneeText,omitempty"`
+	AssigneeTextNEQ          *string  `json:"assigneeTextNEQ,omitempty"`
+	AssigneeTextIn           []string `json:"assigneeTextIn,omitempty"`
+	AssigneeTextNotIn        []string `json:"assigneeTextNotIn,omitempty"`
+	AssigneeTextGT           *string  `json:"assigneeTextGT,omitempty"`
+	AssigneeTextGTE          *string  `json:"assigneeTextGTE,omitempty"`
+	AssigneeTextLT           *string  `json:"assigneeTextLT,omitempty"`
+	AssigneeTextLTE          *string  `json:"assigneeTextLTE,omitempty"`
+	AssigneeTextContains     *string  `json:"assigneeTextContains,omitempty"`
+	AssigneeTextHasPrefix    *string  `json:"assigneeTextHasPrefix,omitempty"`
+	AssigneeTextHasSuffix    *string  `json:"assigneeTextHasSuffix,omitempty"`
+	AssigneeTextIsNil        bool     `json:"assigneeTextIsNil,omitempty"`
+	AssigneeTextNotNil       bool     `json:"assigneeTextNotNil,omitempty"`
+	AssigneeTextEqualFold    *string  `json:"assigneeTextEqualFold,omitempty"`
+	AssigneeTextContainsFold *string  `json:"assigneeTextContainsFold,omitempty"`
 
 	// "resolution_status" field predicates.
-	ResolutionStatus      *todocandidateassignee.ResolutionStatus  `json:"resolutionStatus,omitempty"`
-	ResolutionStatusNEQ   *todocandidateassignee.ResolutionStatus  `json:"resolutionStatusNEQ,omitempty"`
-	ResolutionStatusIn    []todocandidateassignee.ResolutionStatus `json:"resolutionStatusIn,omitempty"`
-	ResolutionStatusNotIn []todocandidateassignee.ResolutionStatus `json:"resolutionStatusNotIn,omitempty"`
+	ResolutionStatus       *todocandidateassignee.ResolutionStatus  `json:"resolutionStatus,omitempty"`
+	ResolutionStatusNEQ    *todocandidateassignee.ResolutionStatus  `json:"resolutionStatusNEQ,omitempty"`
+	ResolutionStatusIn     []todocandidateassignee.ResolutionStatus `json:"resolutionStatusIn,omitempty"`
+	ResolutionStatusNotIn  []todocandidateassignee.ResolutionStatus `json:"resolutionStatusNotIn,omitempty"`
+	ResolutionStatusIsNil  bool                                     `json:"resolutionStatusIsNil,omitempty"`
+	ResolutionStatusNotNil bool                                     `json:"resolutionStatusNotNil,omitempty"`
 
 	// "reason" field predicates.
 	Reason             *string  `json:"reason,omitempty"`
@@ -6055,9 +6024,9 @@ type TodoCandidateAssigneeWhereInput struct {
 	HasSourceMessageMention     *bool                              `json:"hasSourceMessageMention,omitempty"`
 	HasSourceMessageMentionWith []*ChannelMessageMentionWhereInput `json:"hasSourceMessageMentionWith,omitempty"`
 
-	// "user" edge predicates.
-	HasUser     *bool             `json:"hasUser,omitempty"`
-	HasUserWith []*UserWhereInput `json:"hasUserWith,omitempty"`
+	// "resolved_user" edge predicates.
+	HasResolvedUser     *bool             `json:"hasResolvedUser,omitempty"`
+	HasResolvedUserWith []*UserWhereInput `json:"hasResolvedUserWith,omitempty"`
 }
 
 // AddPredicates adds custom predicates to the where input to be used during the filtering phase.
@@ -6233,23 +6202,23 @@ func (i *TodoCandidateAssigneeWhereInput) P() (predicate.TodoCandidateAssignee, 
 	if i.SourceMessageMentionIDNotNil {
 		predicates = append(predicates, todocandidateassignee.SourceMessageMentionIDNotNil())
 	}
-	if i.UserID != nil {
-		predicates = append(predicates, todocandidateassignee.UserIDEQ(*i.UserID))
+	if i.ResolvedUserID != nil {
+		predicates = append(predicates, todocandidateassignee.ResolvedUserIDEQ(*i.ResolvedUserID))
 	}
-	if i.UserIDNEQ != nil {
-		predicates = append(predicates, todocandidateassignee.UserIDNEQ(*i.UserIDNEQ))
+	if i.ResolvedUserIDNEQ != nil {
+		predicates = append(predicates, todocandidateassignee.ResolvedUserIDNEQ(*i.ResolvedUserIDNEQ))
 	}
-	if len(i.UserIDIn) > 0 {
-		predicates = append(predicates, todocandidateassignee.UserIDIn(i.UserIDIn...))
+	if len(i.ResolvedUserIDIn) > 0 {
+		predicates = append(predicates, todocandidateassignee.ResolvedUserIDIn(i.ResolvedUserIDIn...))
 	}
-	if len(i.UserIDNotIn) > 0 {
-		predicates = append(predicates, todocandidateassignee.UserIDNotIn(i.UserIDNotIn...))
+	if len(i.ResolvedUserIDNotIn) > 0 {
+		predicates = append(predicates, todocandidateassignee.ResolvedUserIDNotIn(i.ResolvedUserIDNotIn...))
 	}
-	if i.UserIDIsNil {
-		predicates = append(predicates, todocandidateassignee.UserIDIsNil())
+	if i.ResolvedUserIDIsNil {
+		predicates = append(predicates, todocandidateassignee.ResolvedUserIDIsNil())
 	}
-	if i.UserIDNotNil {
-		predicates = append(predicates, todocandidateassignee.UserIDNotNil())
+	if i.ResolvedUserIDNotNil {
+		predicates = append(predicates, todocandidateassignee.ResolvedUserIDNotNil())
 	}
 	if i.Source != nil {
 		predicates = append(predicates, todocandidateassignee.SourceEQ(*i.Source))
@@ -6263,125 +6232,50 @@ func (i *TodoCandidateAssigneeWhereInput) P() (predicate.TodoCandidateAssignee, 
 	if len(i.SourceNotIn) > 0 {
 		predicates = append(predicates, todocandidateassignee.SourceNotIn(i.SourceNotIn...))
 	}
-	if i.Platform != nil {
-		predicates = append(predicates, todocandidateassignee.PlatformEQ(*i.Platform))
+	if i.AssigneeText != nil {
+		predicates = append(predicates, todocandidateassignee.AssigneeTextEQ(*i.AssigneeText))
 	}
-	if i.PlatformNEQ != nil {
-		predicates = append(predicates, todocandidateassignee.PlatformNEQ(*i.PlatformNEQ))
+	if i.AssigneeTextNEQ != nil {
+		predicates = append(predicates, todocandidateassignee.AssigneeTextNEQ(*i.AssigneeTextNEQ))
 	}
-	if len(i.PlatformIn) > 0 {
-		predicates = append(predicates, todocandidateassignee.PlatformIn(i.PlatformIn...))
+	if len(i.AssigneeTextIn) > 0 {
+		predicates = append(predicates, todocandidateassignee.AssigneeTextIn(i.AssigneeTextIn...))
 	}
-	if len(i.PlatformNotIn) > 0 {
-		predicates = append(predicates, todocandidateassignee.PlatformNotIn(i.PlatformNotIn...))
+	if len(i.AssigneeTextNotIn) > 0 {
+		predicates = append(predicates, todocandidateassignee.AssigneeTextNotIn(i.AssigneeTextNotIn...))
 	}
-	if i.PlatformUserID != nil {
-		predicates = append(predicates, todocandidateassignee.PlatformUserIDEQ(*i.PlatformUserID))
+	if i.AssigneeTextGT != nil {
+		predicates = append(predicates, todocandidateassignee.AssigneeTextGT(*i.AssigneeTextGT))
 	}
-	if i.PlatformUserIDNEQ != nil {
-		predicates = append(predicates, todocandidateassignee.PlatformUserIDNEQ(*i.PlatformUserIDNEQ))
+	if i.AssigneeTextGTE != nil {
+		predicates = append(predicates, todocandidateassignee.AssigneeTextGTE(*i.AssigneeTextGTE))
 	}
-	if len(i.PlatformUserIDIn) > 0 {
-		predicates = append(predicates, todocandidateassignee.PlatformUserIDIn(i.PlatformUserIDIn...))
+	if i.AssigneeTextLT != nil {
+		predicates = append(predicates, todocandidateassignee.AssigneeTextLT(*i.AssigneeTextLT))
 	}
-	if len(i.PlatformUserIDNotIn) > 0 {
-		predicates = append(predicates, todocandidateassignee.PlatformUserIDNotIn(i.PlatformUserIDNotIn...))
+	if i.AssigneeTextLTE != nil {
+		predicates = append(predicates, todocandidateassignee.AssigneeTextLTE(*i.AssigneeTextLTE))
 	}
-	if i.PlatformUserIDGT != nil {
-		predicates = append(predicates, todocandidateassignee.PlatformUserIDGT(*i.PlatformUserIDGT))
+	if i.AssigneeTextContains != nil {
+		predicates = append(predicates, todocandidateassignee.AssigneeTextContains(*i.AssigneeTextContains))
 	}
-	if i.PlatformUserIDGTE != nil {
-		predicates = append(predicates, todocandidateassignee.PlatformUserIDGTE(*i.PlatformUserIDGTE))
+	if i.AssigneeTextHasPrefix != nil {
+		predicates = append(predicates, todocandidateassignee.AssigneeTextHasPrefix(*i.AssigneeTextHasPrefix))
 	}
-	if i.PlatformUserIDLT != nil {
-		predicates = append(predicates, todocandidateassignee.PlatformUserIDLT(*i.PlatformUserIDLT))
+	if i.AssigneeTextHasSuffix != nil {
+		predicates = append(predicates, todocandidateassignee.AssigneeTextHasSuffix(*i.AssigneeTextHasSuffix))
 	}
-	if i.PlatformUserIDLTE != nil {
-		predicates = append(predicates, todocandidateassignee.PlatformUserIDLTE(*i.PlatformUserIDLTE))
+	if i.AssigneeTextIsNil {
+		predicates = append(predicates, todocandidateassignee.AssigneeTextIsNil())
 	}
-	if i.PlatformUserIDContains != nil {
-		predicates = append(predicates, todocandidateassignee.PlatformUserIDContains(*i.PlatformUserIDContains))
+	if i.AssigneeTextNotNil {
+		predicates = append(predicates, todocandidateassignee.AssigneeTextNotNil())
 	}
-	if i.PlatformUserIDHasPrefix != nil {
-		predicates = append(predicates, todocandidateassignee.PlatformUserIDHasPrefix(*i.PlatformUserIDHasPrefix))
+	if i.AssigneeTextEqualFold != nil {
+		predicates = append(predicates, todocandidateassignee.AssigneeTextEqualFold(*i.AssigneeTextEqualFold))
 	}
-	if i.PlatformUserIDHasSuffix != nil {
-		predicates = append(predicates, todocandidateassignee.PlatformUserIDHasSuffix(*i.PlatformUserIDHasSuffix))
-	}
-	if i.PlatformUserIDIsNil {
-		predicates = append(predicates, todocandidateassignee.PlatformUserIDIsNil())
-	}
-	if i.PlatformUserIDNotNil {
-		predicates = append(predicates, todocandidateassignee.PlatformUserIDNotNil())
-	}
-	if i.PlatformUserIDEqualFold != nil {
-		predicates = append(predicates, todocandidateassignee.PlatformUserIDEqualFold(*i.PlatformUserIDEqualFold))
-	}
-	if i.PlatformUserIDContainsFold != nil {
-		predicates = append(predicates, todocandidateassignee.PlatformUserIDContainsFold(*i.PlatformUserIDContainsFold))
-	}
-	if i.DisplayText != nil {
-		predicates = append(predicates, todocandidateassignee.DisplayTextEQ(*i.DisplayText))
-	}
-	if i.DisplayTextNEQ != nil {
-		predicates = append(predicates, todocandidateassignee.DisplayTextNEQ(*i.DisplayTextNEQ))
-	}
-	if len(i.DisplayTextIn) > 0 {
-		predicates = append(predicates, todocandidateassignee.DisplayTextIn(i.DisplayTextIn...))
-	}
-	if len(i.DisplayTextNotIn) > 0 {
-		predicates = append(predicates, todocandidateassignee.DisplayTextNotIn(i.DisplayTextNotIn...))
-	}
-	if i.DisplayTextGT != nil {
-		predicates = append(predicates, todocandidateassignee.DisplayTextGT(*i.DisplayTextGT))
-	}
-	if i.DisplayTextGTE != nil {
-		predicates = append(predicates, todocandidateassignee.DisplayTextGTE(*i.DisplayTextGTE))
-	}
-	if i.DisplayTextLT != nil {
-		predicates = append(predicates, todocandidateassignee.DisplayTextLT(*i.DisplayTextLT))
-	}
-	if i.DisplayTextLTE != nil {
-		predicates = append(predicates, todocandidateassignee.DisplayTextLTE(*i.DisplayTextLTE))
-	}
-	if i.DisplayTextContains != nil {
-		predicates = append(predicates, todocandidateassignee.DisplayTextContains(*i.DisplayTextContains))
-	}
-	if i.DisplayTextHasPrefix != nil {
-		predicates = append(predicates, todocandidateassignee.DisplayTextHasPrefix(*i.DisplayTextHasPrefix))
-	}
-	if i.DisplayTextHasSuffix != nil {
-		predicates = append(predicates, todocandidateassignee.DisplayTextHasSuffix(*i.DisplayTextHasSuffix))
-	}
-	if i.DisplayTextIsNil {
-		predicates = append(predicates, todocandidateassignee.DisplayTextIsNil())
-	}
-	if i.DisplayTextNotNil {
-		predicates = append(predicates, todocandidateassignee.DisplayTextNotNil())
-	}
-	if i.DisplayTextEqualFold != nil {
-		predicates = append(predicates, todocandidateassignee.DisplayTextEqualFold(*i.DisplayTextEqualFold))
-	}
-	if i.DisplayTextContainsFold != nil {
-		predicates = append(predicates, todocandidateassignee.DisplayTextContainsFold(*i.DisplayTextContainsFold))
-	}
-	if i.IdentityKind != nil {
-		predicates = append(predicates, todocandidateassignee.IdentityKindEQ(*i.IdentityKind))
-	}
-	if i.IdentityKindNEQ != nil {
-		predicates = append(predicates, todocandidateassignee.IdentityKindNEQ(*i.IdentityKindNEQ))
-	}
-	if len(i.IdentityKindIn) > 0 {
-		predicates = append(predicates, todocandidateassignee.IdentityKindIn(i.IdentityKindIn...))
-	}
-	if len(i.IdentityKindNotIn) > 0 {
-		predicates = append(predicates, todocandidateassignee.IdentityKindNotIn(i.IdentityKindNotIn...))
-	}
-	if i.IsBot != nil {
-		predicates = append(predicates, todocandidateassignee.IsBotEQ(*i.IsBot))
-	}
-	if i.IsBotNEQ != nil {
-		predicates = append(predicates, todocandidateassignee.IsBotNEQ(*i.IsBotNEQ))
+	if i.AssigneeTextContainsFold != nil {
+		predicates = append(predicates, todocandidateassignee.AssigneeTextContainsFold(*i.AssigneeTextContainsFold))
 	}
 	if i.ResolutionStatus != nil {
 		predicates = append(predicates, todocandidateassignee.ResolutionStatusEQ(*i.ResolutionStatus))
@@ -6394,6 +6288,12 @@ func (i *TodoCandidateAssigneeWhereInput) P() (predicate.TodoCandidateAssignee, 
 	}
 	if len(i.ResolutionStatusNotIn) > 0 {
 		predicates = append(predicates, todocandidateassignee.ResolutionStatusNotIn(i.ResolutionStatusNotIn...))
+	}
+	if i.ResolutionStatusIsNil {
+		predicates = append(predicates, todocandidateassignee.ResolutionStatusIsNil())
+	}
+	if i.ResolutionStatusNotNil {
+		predicates = append(predicates, todocandidateassignee.ResolutionStatusNotNil())
 	}
 	if i.Reason != nil {
 		predicates = append(predicates, todocandidateassignee.ReasonEQ(*i.Reason))
@@ -6477,23 +6377,23 @@ func (i *TodoCandidateAssigneeWhereInput) P() (predicate.TodoCandidateAssignee, 
 		}
 		predicates = append(predicates, todocandidateassignee.HasSourceMessageMentionWith(with...))
 	}
-	if i.HasUser != nil {
-		p := todocandidateassignee.HasUser()
-		if !*i.HasUser {
+	if i.HasResolvedUser != nil {
+		p := todocandidateassignee.HasResolvedUser()
+		if !*i.HasResolvedUser {
 			p = todocandidateassignee.Not(p)
 		}
 		predicates = append(predicates, p)
 	}
-	if len(i.HasUserWith) > 0 {
-		with := make([]predicate.User, 0, len(i.HasUserWith))
-		for _, w := range i.HasUserWith {
+	if len(i.HasResolvedUserWith) > 0 {
+		with := make([]predicate.User, 0, len(i.HasResolvedUserWith))
+		for _, w := range i.HasResolvedUserWith {
 			p, err := w.P()
 			if err != nil {
-				return nil, fmt.Errorf("%w: field 'HasUserWith'", err)
+				return nil, fmt.Errorf("%w: field 'HasResolvedUserWith'", err)
 			}
 			with = append(with, p)
 		}
-		predicates = append(predicates, todocandidateassignee.HasUserWith(with...))
+		predicates = append(predicates, todocandidateassignee.HasResolvedUserWith(with...))
 	}
 	switch len(predicates) {
 	case 0:

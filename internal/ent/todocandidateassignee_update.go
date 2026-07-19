@@ -57,23 +57,23 @@ func (_u *TodoCandidateAssigneeUpdate) ClearSourceMessageMentionID() *TodoCandid
 	return _u
 }
 
-// SetUserID sets the "user_id" field.
-func (_u *TodoCandidateAssigneeUpdate) SetUserID(v uuid.UUID) *TodoCandidateAssigneeUpdate {
-	_u.mutation.SetUserID(v)
+// SetResolvedUserID sets the "resolved_user_id" field.
+func (_u *TodoCandidateAssigneeUpdate) SetResolvedUserID(v uuid.UUID) *TodoCandidateAssigneeUpdate {
+	_u.mutation.SetResolvedUserID(v)
 	return _u
 }
 
-// SetNillableUserID sets the "user_id" field if the given value is not nil.
-func (_u *TodoCandidateAssigneeUpdate) SetNillableUserID(v *uuid.UUID) *TodoCandidateAssigneeUpdate {
+// SetNillableResolvedUserID sets the "resolved_user_id" field if the given value is not nil.
+func (_u *TodoCandidateAssigneeUpdate) SetNillableResolvedUserID(v *uuid.UUID) *TodoCandidateAssigneeUpdate {
 	if v != nil {
-		_u.SetUserID(*v)
+		_u.SetResolvedUserID(*v)
 	}
 	return _u
 }
 
-// ClearUserID clears the value of the "user_id" field.
-func (_u *TodoCandidateAssigneeUpdate) ClearUserID() *TodoCandidateAssigneeUpdate {
-	_u.mutation.ClearUserID()
+// ClearResolvedUserID clears the value of the "resolved_user_id" field.
+func (_u *TodoCandidateAssigneeUpdate) ClearResolvedUserID() *TodoCandidateAssigneeUpdate {
+	_u.mutation.ClearResolvedUserID()
 	return _u
 }
 
@@ -91,85 +91,23 @@ func (_u *TodoCandidateAssigneeUpdate) SetNillableSource(v *todocandidateassigne
 	return _u
 }
 
-// SetPlatform sets the "platform" field.
-func (_u *TodoCandidateAssigneeUpdate) SetPlatform(v todocandidateassignee.Platform) *TodoCandidateAssigneeUpdate {
-	_u.mutation.SetPlatform(v)
+// SetAssigneeText sets the "assignee_text" field.
+func (_u *TodoCandidateAssigneeUpdate) SetAssigneeText(v string) *TodoCandidateAssigneeUpdate {
+	_u.mutation.SetAssigneeText(v)
 	return _u
 }
 
-// SetNillablePlatform sets the "platform" field if the given value is not nil.
-func (_u *TodoCandidateAssigneeUpdate) SetNillablePlatform(v *todocandidateassignee.Platform) *TodoCandidateAssigneeUpdate {
+// SetNillableAssigneeText sets the "assignee_text" field if the given value is not nil.
+func (_u *TodoCandidateAssigneeUpdate) SetNillableAssigneeText(v *string) *TodoCandidateAssigneeUpdate {
 	if v != nil {
-		_u.SetPlatform(*v)
+		_u.SetAssigneeText(*v)
 	}
 	return _u
 }
 
-// SetPlatformUserID sets the "platform_user_id" field.
-func (_u *TodoCandidateAssigneeUpdate) SetPlatformUserID(v string) *TodoCandidateAssigneeUpdate {
-	_u.mutation.SetPlatformUserID(v)
-	return _u
-}
-
-// SetNillablePlatformUserID sets the "platform_user_id" field if the given value is not nil.
-func (_u *TodoCandidateAssigneeUpdate) SetNillablePlatformUserID(v *string) *TodoCandidateAssigneeUpdate {
-	if v != nil {
-		_u.SetPlatformUserID(*v)
-	}
-	return _u
-}
-
-// ClearPlatformUserID clears the value of the "platform_user_id" field.
-func (_u *TodoCandidateAssigneeUpdate) ClearPlatformUserID() *TodoCandidateAssigneeUpdate {
-	_u.mutation.ClearPlatformUserID()
-	return _u
-}
-
-// SetDisplayText sets the "display_text" field.
-func (_u *TodoCandidateAssigneeUpdate) SetDisplayText(v string) *TodoCandidateAssigneeUpdate {
-	_u.mutation.SetDisplayText(v)
-	return _u
-}
-
-// SetNillableDisplayText sets the "display_text" field if the given value is not nil.
-func (_u *TodoCandidateAssigneeUpdate) SetNillableDisplayText(v *string) *TodoCandidateAssigneeUpdate {
-	if v != nil {
-		_u.SetDisplayText(*v)
-	}
-	return _u
-}
-
-// ClearDisplayText clears the value of the "display_text" field.
-func (_u *TodoCandidateAssigneeUpdate) ClearDisplayText() *TodoCandidateAssigneeUpdate {
-	_u.mutation.ClearDisplayText()
-	return _u
-}
-
-// SetIdentityKind sets the "identity_kind" field.
-func (_u *TodoCandidateAssigneeUpdate) SetIdentityKind(v todocandidateassignee.IdentityKind) *TodoCandidateAssigneeUpdate {
-	_u.mutation.SetIdentityKind(v)
-	return _u
-}
-
-// SetNillableIdentityKind sets the "identity_kind" field if the given value is not nil.
-func (_u *TodoCandidateAssigneeUpdate) SetNillableIdentityKind(v *todocandidateassignee.IdentityKind) *TodoCandidateAssigneeUpdate {
-	if v != nil {
-		_u.SetIdentityKind(*v)
-	}
-	return _u
-}
-
-// SetIsBot sets the "is_bot" field.
-func (_u *TodoCandidateAssigneeUpdate) SetIsBot(v bool) *TodoCandidateAssigneeUpdate {
-	_u.mutation.SetIsBot(v)
-	return _u
-}
-
-// SetNillableIsBot sets the "is_bot" field if the given value is not nil.
-func (_u *TodoCandidateAssigneeUpdate) SetNillableIsBot(v *bool) *TodoCandidateAssigneeUpdate {
-	if v != nil {
-		_u.SetIsBot(*v)
-	}
+// ClearAssigneeText clears the value of the "assignee_text" field.
+func (_u *TodoCandidateAssigneeUpdate) ClearAssigneeText() *TodoCandidateAssigneeUpdate {
+	_u.mutation.ClearAssigneeText()
 	return _u
 }
 
@@ -184,6 +122,12 @@ func (_u *TodoCandidateAssigneeUpdate) SetNillableResolutionStatus(v *todocandid
 	if v != nil {
 		_u.SetResolutionStatus(*v)
 	}
+	return _u
+}
+
+// ClearResolutionStatus clears the value of the "resolution_status" field.
+func (_u *TodoCandidateAssigneeUpdate) ClearResolutionStatus() *TodoCandidateAssigneeUpdate {
+	_u.mutation.ClearResolutionStatus()
 	return _u
 }
 
@@ -212,9 +156,9 @@ func (_u *TodoCandidateAssigneeUpdate) SetSourceMessageMention(v *ChannelMessage
 	return _u.SetSourceMessageMentionID(v.ID)
 }
 
-// SetUser sets the "user" edge to the User entity.
-func (_u *TodoCandidateAssigneeUpdate) SetUser(v *User) *TodoCandidateAssigneeUpdate {
-	return _u.SetUserID(v.ID)
+// SetResolvedUser sets the "resolved_user" edge to the User entity.
+func (_u *TodoCandidateAssigneeUpdate) SetResolvedUser(v *User) *TodoCandidateAssigneeUpdate {
+	return _u.SetResolvedUserID(v.ID)
 }
 
 // Mutation returns the TodoCandidateAssigneeMutation object of the builder.
@@ -228,9 +172,9 @@ func (_u *TodoCandidateAssigneeUpdate) ClearSourceMessageMention() *TodoCandidat
 	return _u
 }
 
-// ClearUser clears the "user" edge to the User entity.
-func (_u *TodoCandidateAssigneeUpdate) ClearUser() *TodoCandidateAssigneeUpdate {
-	_u.mutation.ClearUser()
+// ClearResolvedUser clears the "resolved_user" edge to the User entity.
+func (_u *TodoCandidateAssigneeUpdate) ClearResolvedUser() *TodoCandidateAssigneeUpdate {
+	_u.mutation.ClearResolvedUser()
 	return _u
 }
 
@@ -277,16 +221,6 @@ func (_u *TodoCandidateAssigneeUpdate) check() error {
 			return &ValidationError{Name: "source", err: fmt.Errorf(`ent: validator failed for field "TodoCandidateAssignee.source": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.Platform(); ok {
-		if err := todocandidateassignee.PlatformValidator(v); err != nil {
-			return &ValidationError{Name: "platform", err: fmt.Errorf(`ent: validator failed for field "TodoCandidateAssignee.platform": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.IdentityKind(); ok {
-		if err := todocandidateassignee.IdentityKindValidator(v); err != nil {
-			return &ValidationError{Name: "identity_kind", err: fmt.Errorf(`ent: validator failed for field "TodoCandidateAssignee.identity_kind": %w`, err)}
-		}
-	}
 	if v, ok := _u.mutation.ResolutionStatus(); ok {
 		if err := todocandidateassignee.ResolutionStatusValidator(v); err != nil {
 			return &ValidationError{Name: "resolution_status", err: fmt.Errorf(`ent: validator failed for field "TodoCandidateAssignee.resolution_status": %w`, err)}
@@ -316,29 +250,17 @@ func (_u *TodoCandidateAssigneeUpdate) sqlSave(ctx context.Context) (_node int, 
 	if value, ok := _u.mutation.Source(); ok {
 		_spec.SetField(todocandidateassignee.FieldSource, field.TypeEnum, value)
 	}
-	if value, ok := _u.mutation.Platform(); ok {
-		_spec.SetField(todocandidateassignee.FieldPlatform, field.TypeEnum, value)
+	if value, ok := _u.mutation.AssigneeText(); ok {
+		_spec.SetField(todocandidateassignee.FieldAssigneeText, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.PlatformUserID(); ok {
-		_spec.SetField(todocandidateassignee.FieldPlatformUserID, field.TypeString, value)
-	}
-	if _u.mutation.PlatformUserIDCleared() {
-		_spec.ClearField(todocandidateassignee.FieldPlatformUserID, field.TypeString)
-	}
-	if value, ok := _u.mutation.DisplayText(); ok {
-		_spec.SetField(todocandidateassignee.FieldDisplayText, field.TypeString, value)
-	}
-	if _u.mutation.DisplayTextCleared() {
-		_spec.ClearField(todocandidateassignee.FieldDisplayText, field.TypeString)
-	}
-	if value, ok := _u.mutation.IdentityKind(); ok {
-		_spec.SetField(todocandidateassignee.FieldIdentityKind, field.TypeEnum, value)
-	}
-	if value, ok := _u.mutation.IsBot(); ok {
-		_spec.SetField(todocandidateassignee.FieldIsBot, field.TypeBool, value)
+	if _u.mutation.AssigneeTextCleared() {
+		_spec.ClearField(todocandidateassignee.FieldAssigneeText, field.TypeString)
 	}
 	if value, ok := _u.mutation.ResolutionStatus(); ok {
 		_spec.SetField(todocandidateassignee.FieldResolutionStatus, field.TypeEnum, value)
+	}
+	if _u.mutation.ResolutionStatusCleared() {
+		_spec.ClearField(todocandidateassignee.FieldResolutionStatus, field.TypeEnum)
 	}
 	if value, ok := _u.mutation.Reason(); ok {
 		_spec.SetField(todocandidateassignee.FieldReason, field.TypeString, value)
@@ -375,12 +297,12 @@ func (_u *TodoCandidateAssigneeUpdate) sqlSave(ctx context.Context) (_node int, 
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.UserCleared() {
+	if _u.mutation.ResolvedUserCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   todocandidateassignee.UserTable,
-			Columns: []string{todocandidateassignee.UserColumn},
+			Table:   todocandidateassignee.ResolvedUserTable,
+			Columns: []string{todocandidateassignee.ResolvedUserColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
@@ -388,12 +310,12 @@ func (_u *TodoCandidateAssigneeUpdate) sqlSave(ctx context.Context) (_node int, 
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.UserIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.ResolvedUserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   todocandidateassignee.UserTable,
-			Columns: []string{todocandidateassignee.UserColumn},
+			Table:   todocandidateassignee.ResolvedUserTable,
+			Columns: []string{todocandidateassignee.ResolvedUserColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
@@ -450,23 +372,23 @@ func (_u *TodoCandidateAssigneeUpdateOne) ClearSourceMessageMentionID() *TodoCan
 	return _u
 }
 
-// SetUserID sets the "user_id" field.
-func (_u *TodoCandidateAssigneeUpdateOne) SetUserID(v uuid.UUID) *TodoCandidateAssigneeUpdateOne {
-	_u.mutation.SetUserID(v)
+// SetResolvedUserID sets the "resolved_user_id" field.
+func (_u *TodoCandidateAssigneeUpdateOne) SetResolvedUserID(v uuid.UUID) *TodoCandidateAssigneeUpdateOne {
+	_u.mutation.SetResolvedUserID(v)
 	return _u
 }
 
-// SetNillableUserID sets the "user_id" field if the given value is not nil.
-func (_u *TodoCandidateAssigneeUpdateOne) SetNillableUserID(v *uuid.UUID) *TodoCandidateAssigneeUpdateOne {
+// SetNillableResolvedUserID sets the "resolved_user_id" field if the given value is not nil.
+func (_u *TodoCandidateAssigneeUpdateOne) SetNillableResolvedUserID(v *uuid.UUID) *TodoCandidateAssigneeUpdateOne {
 	if v != nil {
-		_u.SetUserID(*v)
+		_u.SetResolvedUserID(*v)
 	}
 	return _u
 }
 
-// ClearUserID clears the value of the "user_id" field.
-func (_u *TodoCandidateAssigneeUpdateOne) ClearUserID() *TodoCandidateAssigneeUpdateOne {
-	_u.mutation.ClearUserID()
+// ClearResolvedUserID clears the value of the "resolved_user_id" field.
+func (_u *TodoCandidateAssigneeUpdateOne) ClearResolvedUserID() *TodoCandidateAssigneeUpdateOne {
+	_u.mutation.ClearResolvedUserID()
 	return _u
 }
 
@@ -484,85 +406,23 @@ func (_u *TodoCandidateAssigneeUpdateOne) SetNillableSource(v *todocandidateassi
 	return _u
 }
 
-// SetPlatform sets the "platform" field.
-func (_u *TodoCandidateAssigneeUpdateOne) SetPlatform(v todocandidateassignee.Platform) *TodoCandidateAssigneeUpdateOne {
-	_u.mutation.SetPlatform(v)
+// SetAssigneeText sets the "assignee_text" field.
+func (_u *TodoCandidateAssigneeUpdateOne) SetAssigneeText(v string) *TodoCandidateAssigneeUpdateOne {
+	_u.mutation.SetAssigneeText(v)
 	return _u
 }
 
-// SetNillablePlatform sets the "platform" field if the given value is not nil.
-func (_u *TodoCandidateAssigneeUpdateOne) SetNillablePlatform(v *todocandidateassignee.Platform) *TodoCandidateAssigneeUpdateOne {
+// SetNillableAssigneeText sets the "assignee_text" field if the given value is not nil.
+func (_u *TodoCandidateAssigneeUpdateOne) SetNillableAssigneeText(v *string) *TodoCandidateAssigneeUpdateOne {
 	if v != nil {
-		_u.SetPlatform(*v)
+		_u.SetAssigneeText(*v)
 	}
 	return _u
 }
 
-// SetPlatformUserID sets the "platform_user_id" field.
-func (_u *TodoCandidateAssigneeUpdateOne) SetPlatformUserID(v string) *TodoCandidateAssigneeUpdateOne {
-	_u.mutation.SetPlatformUserID(v)
-	return _u
-}
-
-// SetNillablePlatformUserID sets the "platform_user_id" field if the given value is not nil.
-func (_u *TodoCandidateAssigneeUpdateOne) SetNillablePlatformUserID(v *string) *TodoCandidateAssigneeUpdateOne {
-	if v != nil {
-		_u.SetPlatformUserID(*v)
-	}
-	return _u
-}
-
-// ClearPlatformUserID clears the value of the "platform_user_id" field.
-func (_u *TodoCandidateAssigneeUpdateOne) ClearPlatformUserID() *TodoCandidateAssigneeUpdateOne {
-	_u.mutation.ClearPlatformUserID()
-	return _u
-}
-
-// SetDisplayText sets the "display_text" field.
-func (_u *TodoCandidateAssigneeUpdateOne) SetDisplayText(v string) *TodoCandidateAssigneeUpdateOne {
-	_u.mutation.SetDisplayText(v)
-	return _u
-}
-
-// SetNillableDisplayText sets the "display_text" field if the given value is not nil.
-func (_u *TodoCandidateAssigneeUpdateOne) SetNillableDisplayText(v *string) *TodoCandidateAssigneeUpdateOne {
-	if v != nil {
-		_u.SetDisplayText(*v)
-	}
-	return _u
-}
-
-// ClearDisplayText clears the value of the "display_text" field.
-func (_u *TodoCandidateAssigneeUpdateOne) ClearDisplayText() *TodoCandidateAssigneeUpdateOne {
-	_u.mutation.ClearDisplayText()
-	return _u
-}
-
-// SetIdentityKind sets the "identity_kind" field.
-func (_u *TodoCandidateAssigneeUpdateOne) SetIdentityKind(v todocandidateassignee.IdentityKind) *TodoCandidateAssigneeUpdateOne {
-	_u.mutation.SetIdentityKind(v)
-	return _u
-}
-
-// SetNillableIdentityKind sets the "identity_kind" field if the given value is not nil.
-func (_u *TodoCandidateAssigneeUpdateOne) SetNillableIdentityKind(v *todocandidateassignee.IdentityKind) *TodoCandidateAssigneeUpdateOne {
-	if v != nil {
-		_u.SetIdentityKind(*v)
-	}
-	return _u
-}
-
-// SetIsBot sets the "is_bot" field.
-func (_u *TodoCandidateAssigneeUpdateOne) SetIsBot(v bool) *TodoCandidateAssigneeUpdateOne {
-	_u.mutation.SetIsBot(v)
-	return _u
-}
-
-// SetNillableIsBot sets the "is_bot" field if the given value is not nil.
-func (_u *TodoCandidateAssigneeUpdateOne) SetNillableIsBot(v *bool) *TodoCandidateAssigneeUpdateOne {
-	if v != nil {
-		_u.SetIsBot(*v)
-	}
+// ClearAssigneeText clears the value of the "assignee_text" field.
+func (_u *TodoCandidateAssigneeUpdateOne) ClearAssigneeText() *TodoCandidateAssigneeUpdateOne {
+	_u.mutation.ClearAssigneeText()
 	return _u
 }
 
@@ -577,6 +437,12 @@ func (_u *TodoCandidateAssigneeUpdateOne) SetNillableResolutionStatus(v *todocan
 	if v != nil {
 		_u.SetResolutionStatus(*v)
 	}
+	return _u
+}
+
+// ClearResolutionStatus clears the value of the "resolution_status" field.
+func (_u *TodoCandidateAssigneeUpdateOne) ClearResolutionStatus() *TodoCandidateAssigneeUpdateOne {
+	_u.mutation.ClearResolutionStatus()
 	return _u
 }
 
@@ -605,9 +471,9 @@ func (_u *TodoCandidateAssigneeUpdateOne) SetSourceMessageMention(v *ChannelMess
 	return _u.SetSourceMessageMentionID(v.ID)
 }
 
-// SetUser sets the "user" edge to the User entity.
-func (_u *TodoCandidateAssigneeUpdateOne) SetUser(v *User) *TodoCandidateAssigneeUpdateOne {
-	return _u.SetUserID(v.ID)
+// SetResolvedUser sets the "resolved_user" edge to the User entity.
+func (_u *TodoCandidateAssigneeUpdateOne) SetResolvedUser(v *User) *TodoCandidateAssigneeUpdateOne {
+	return _u.SetResolvedUserID(v.ID)
 }
 
 // Mutation returns the TodoCandidateAssigneeMutation object of the builder.
@@ -621,9 +487,9 @@ func (_u *TodoCandidateAssigneeUpdateOne) ClearSourceMessageMention() *TodoCandi
 	return _u
 }
 
-// ClearUser clears the "user" edge to the User entity.
-func (_u *TodoCandidateAssigneeUpdateOne) ClearUser() *TodoCandidateAssigneeUpdateOne {
-	_u.mutation.ClearUser()
+// ClearResolvedUser clears the "resolved_user" edge to the User entity.
+func (_u *TodoCandidateAssigneeUpdateOne) ClearResolvedUser() *TodoCandidateAssigneeUpdateOne {
+	_u.mutation.ClearResolvedUser()
 	return _u
 }
 
@@ -683,16 +549,6 @@ func (_u *TodoCandidateAssigneeUpdateOne) check() error {
 			return &ValidationError{Name: "source", err: fmt.Errorf(`ent: validator failed for field "TodoCandidateAssignee.source": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.Platform(); ok {
-		if err := todocandidateassignee.PlatformValidator(v); err != nil {
-			return &ValidationError{Name: "platform", err: fmt.Errorf(`ent: validator failed for field "TodoCandidateAssignee.platform": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.IdentityKind(); ok {
-		if err := todocandidateassignee.IdentityKindValidator(v); err != nil {
-			return &ValidationError{Name: "identity_kind", err: fmt.Errorf(`ent: validator failed for field "TodoCandidateAssignee.identity_kind": %w`, err)}
-		}
-	}
 	if v, ok := _u.mutation.ResolutionStatus(); ok {
 		if err := todocandidateassignee.ResolutionStatusValidator(v); err != nil {
 			return &ValidationError{Name: "resolution_status", err: fmt.Errorf(`ent: validator failed for field "TodoCandidateAssignee.resolution_status": %w`, err)}
@@ -739,29 +595,17 @@ func (_u *TodoCandidateAssigneeUpdateOne) sqlSave(ctx context.Context) (_node *T
 	if value, ok := _u.mutation.Source(); ok {
 		_spec.SetField(todocandidateassignee.FieldSource, field.TypeEnum, value)
 	}
-	if value, ok := _u.mutation.Platform(); ok {
-		_spec.SetField(todocandidateassignee.FieldPlatform, field.TypeEnum, value)
+	if value, ok := _u.mutation.AssigneeText(); ok {
+		_spec.SetField(todocandidateassignee.FieldAssigneeText, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.PlatformUserID(); ok {
-		_spec.SetField(todocandidateassignee.FieldPlatformUserID, field.TypeString, value)
-	}
-	if _u.mutation.PlatformUserIDCleared() {
-		_spec.ClearField(todocandidateassignee.FieldPlatformUserID, field.TypeString)
-	}
-	if value, ok := _u.mutation.DisplayText(); ok {
-		_spec.SetField(todocandidateassignee.FieldDisplayText, field.TypeString, value)
-	}
-	if _u.mutation.DisplayTextCleared() {
-		_spec.ClearField(todocandidateassignee.FieldDisplayText, field.TypeString)
-	}
-	if value, ok := _u.mutation.IdentityKind(); ok {
-		_spec.SetField(todocandidateassignee.FieldIdentityKind, field.TypeEnum, value)
-	}
-	if value, ok := _u.mutation.IsBot(); ok {
-		_spec.SetField(todocandidateassignee.FieldIsBot, field.TypeBool, value)
+	if _u.mutation.AssigneeTextCleared() {
+		_spec.ClearField(todocandidateassignee.FieldAssigneeText, field.TypeString)
 	}
 	if value, ok := _u.mutation.ResolutionStatus(); ok {
 		_spec.SetField(todocandidateassignee.FieldResolutionStatus, field.TypeEnum, value)
+	}
+	if _u.mutation.ResolutionStatusCleared() {
+		_spec.ClearField(todocandidateassignee.FieldResolutionStatus, field.TypeEnum)
 	}
 	if value, ok := _u.mutation.Reason(); ok {
 		_spec.SetField(todocandidateassignee.FieldReason, field.TypeString, value)
@@ -798,12 +642,12 @@ func (_u *TodoCandidateAssigneeUpdateOne) sqlSave(ctx context.Context) (_node *T
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.UserCleared() {
+	if _u.mutation.ResolvedUserCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   todocandidateassignee.UserTable,
-			Columns: []string{todocandidateassignee.UserColumn},
+			Table:   todocandidateassignee.ResolvedUserTable,
+			Columns: []string{todocandidateassignee.ResolvedUserColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
@@ -811,12 +655,12 @@ func (_u *TodoCandidateAssigneeUpdateOne) sqlSave(ctx context.Context) (_node *T
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.UserIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.ResolvedUserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: false,
-			Table:   todocandidateassignee.UserTable,
-			Columns: []string{todocandidateassignee.UserColumn},
+			Table:   todocandidateassignee.ResolvedUserTable,
+			Columns: []string{todocandidateassignee.ResolvedUserColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),

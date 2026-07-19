@@ -169,43 +169,6 @@ func normalizeMentionIdentityKind(value string, isBot bool) channelmessagementio
 	}
 }
 
-func todoAssigneePlatformFromMention(value channelmessagemention.Platform) todocandidateassignee.Platform {
-	switch value {
-	case channelmessagemention.PlatformWhatsapp:
-		return todocandidateassignee.PlatformWhatsapp
-	case channelmessagemention.PlatformSlack:
-		return todocandidateassignee.PlatformSlack
-	case channelmessagemention.PlatformTelegram:
-		return todocandidateassignee.PlatformTelegram
-	default:
-		return todocandidateassignee.PlatformLine
-	}
-}
-
-func todoAssigneeIdentityKindFromMention(value channelmessagemention.IdentityKind) todocandidateassignee.IdentityKind {
-	switch value {
-	case channelmessagemention.IdentityKindBot:
-		return todocandidateassignee.IdentityKindBot
-	case channelmessagemention.IdentityKindUnknown:
-		return todocandidateassignee.IdentityKindUnknown
-	default:
-		return todocandidateassignee.IdentityKindUser
-	}
-}
-
-func todoAssigneeResolutionStatusFromMention(value channelmessagemention.ResolutionStatus) todocandidateassignee.ResolutionStatus {
-	switch value {
-	case channelmessagemention.ResolutionStatusResolved:
-		return todocandidateassignee.ResolutionStatusResolved
-	case channelmessagemention.ResolutionStatusAmbiguous:
-		return todocandidateassignee.ResolutionStatusAmbiguous
-	case channelmessagemention.ResolutionStatusUnsupported:
-		return todocandidateassignee.ResolutionStatusUnsupported
-	default:
-		return todocandidateassignee.ResolutionStatusUnresolved
-	}
-}
-
 // ResolveLineDisplayNameByLineUserID resolves sender display name from LINE binding table.
 func (r *ChannelMessageRepo) ResolveLineDisplayNameByLineUserID(ctx context.Context, lineUserID string) (string, error) {
 	if r == nil || r.db == nil {
@@ -1013,20 +976,7 @@ func (r *ChannelMessageRepo) syncTodoCandidateMentionAssignees(ctx context.Conte
 			SetCandidateID(candidateID).
 			SetSourceMessageMentionID(mention.ID).
 			SetSource(todocandidateassignee.SourceMention).
-			SetPlatform(todoAssigneePlatformFromMention(mention.Platform)).
-			SetIdentityKind(todoAssigneeIdentityKindFromMention(mention.IdentityKind)).
-			SetIsBot(mention.IsBot).
-			SetResolutionStatus(todoAssigneeResolutionStatusFromMention(mention.ResolutionStatus)).
-			SetReason("resolved from structured message mention")
-		if platformUserID := strings.TrimSpace(mention.PlatformUserID); platformUserID != "" {
-			create.SetPlatformUserID(platformUserID)
-		}
-		if displayText := strings.TrimSpace(mention.DisplayText); displayText != "" {
-			create.SetDisplayText(displayText)
-		}
-		if mention.UserID != nil && *mention.UserID != uuid.Nil {
-			create.SetUserID(*mention.UserID)
-		}
+			SetReason("linked to structured message mention")
 		creates = append(creates, create)
 	}
 	if len(creates) == 0 {
@@ -1054,10 +1004,6 @@ func (r *ChannelMessageRepo) syncTodoCandidateAnalyzerAssignees(ctx context.Cont
 	if len(normalizedAssignees) == 0 {
 		return nil
 	}
-	platformValue, err := r.todoAssigneePlatformByChannelID(ctx, channelID)
-	if err != nil {
-		return err
-	}
 
 	creates := make([]*ent.TodoCandidateAssigneeCreate, 0, len(normalizedAssignees))
 	for _, assignee := range normalizedAssignees {
@@ -1068,14 +1014,11 @@ func (r *ChannelMessageRepo) syncTodoCandidateAnalyzerAssignees(ctx context.Cont
 		create := r.db.TodoCandidateAssignee.Create().
 			SetCandidateID(candidateID).
 			SetSource(todocandidateassignee.SourceAnalyzer).
-			SetPlatform(platformValue).
-			SetDisplayText(assignee).
-			SetIdentityKind(todocandidateassignee.IdentityKindUser).
-			SetIsBot(false).
+			SetAssigneeText(assignee).
 			SetResolutionStatus(status).
 			SetReason(reason)
 		if matchedUserID != uuid.Nil {
-			create.SetUserID(matchedUserID)
+			create.SetResolvedUserID(matchedUserID)
 		}
 		creates = append(creates, create)
 	}
@@ -1086,23 +1029,6 @@ func (r *ChannelMessageRepo) syncTodoCandidateAnalyzerAssignees(ctx context.Cont
 		return fmt.Errorf("save todo candidate analyzer assignees failed: %w", err)
 	}
 	return nil
-}
-
-func (r *ChannelMessageRepo) todoAssigneePlatformByChannelID(ctx context.Context, channelID uuid.UUID) (todocandidateassignee.Platform, error) {
-	item, err := r.db.Channel.Get(ctx, channelID)
-	if err != nil {
-		return "", fmt.Errorf("query todo assignee channel platform failed: %w", err)
-	}
-	switch item.Platform {
-	case channel.PlatformWhatsapp:
-		return todocandidateassignee.PlatformWhatsapp, nil
-	case channel.PlatformSlack:
-		return todocandidateassignee.PlatformSlack, nil
-	case channel.PlatformTelegram:
-		return todocandidateassignee.PlatformTelegram, nil
-	default:
-		return todocandidateassignee.PlatformLine, nil
-	}
 }
 
 func (r *ChannelMessageRepo) resolveAnalyzerAssigneeByChannelSenderName(ctx context.Context, channelID uuid.UUID, assignee string) (uuid.UUID, todocandidateassignee.ResolutionStatus, string, error) {

@@ -498,16 +498,12 @@ var (
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "source", Type: field.TypeEnum, Enums: []string{"mention", "analyzer", "sender", "reply_context"}, Default: "mention"},
-		{Name: "platform", Type: field.TypeEnum, Enums: []string{"line", "whatsapp", "slack", "telegram"}, Default: "line"},
-		{Name: "platform_user_id", Type: field.TypeString, Nullable: true},
-		{Name: "display_text", Type: field.TypeString, Nullable: true},
-		{Name: "identity_kind", Type: field.TypeEnum, Enums: []string{"user", "bot", "unknown"}, Default: "user"},
-		{Name: "is_bot", Type: field.TypeBool, Default: false},
-		{Name: "resolution_status", Type: field.TypeEnum, Enums: []string{"resolved", "unresolved", "ambiguous", "unsupported"}, Default: "unresolved"},
+		{Name: "assignee_text", Type: field.TypeString, Nullable: true},
+		{Name: "resolution_status", Type: field.TypeEnum, Nullable: true, Enums: []string{"resolved", "unresolved", "ambiguous", "unsupported"}},
 		{Name: "reason", Type: field.TypeString, Nullable: true},
 		{Name: "candidate_id", Type: field.TypeUUID},
 		{Name: "source_message_mention_id", Type: field.TypeUUID, Nullable: true},
-		{Name: "user_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "resolved_user_id", Type: field.TypeUUID, Nullable: true},
 	}
 	// TodoCandidateAssigneesTable holds the schema information for the "todo_candidate_assignees" table.
 	TodoCandidateAssigneesTable = &schema.Table{
@@ -517,19 +513,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "todo_candidate_assignees_todo_candidates_candidate_assignees",
-				Columns:    []*schema.Column{TodoCandidateAssigneesColumns[11]},
+				Columns:    []*schema.Column{TodoCandidateAssigneesColumns[7]},
 				RefColumns: []*schema.Column{TodoCandidatesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "todo_candidate_assignees_channel_message_mentions_source_message_mention",
-				Columns:    []*schema.Column{TodoCandidateAssigneesColumns[12]},
+				Columns:    []*schema.Column{TodoCandidateAssigneesColumns[8]},
 				RefColumns: []*schema.Column{ChannelMessageMentionsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
-				Symbol:     "todo_candidate_assignees_users_user",
-				Columns:    []*schema.Column{TodoCandidateAssigneesColumns[13]},
+				Symbol:     "todo_candidate_assignees_users_resolved_user",
+				Columns:    []*schema.Column{TodoCandidateAssigneesColumns[9]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -538,22 +534,22 @@ var (
 			{
 				Name:    "todocandidateassignee_candidate_id",
 				Unique:  false,
-				Columns: []*schema.Column{TodoCandidateAssigneesColumns[11]},
+				Columns: []*schema.Column{TodoCandidateAssigneesColumns[7]},
 			},
 			{
-				Name:    "todocandidateassignee_candidate_id_source_platform_user_id",
+				Name:    "todocandidateassignee_candidate_id_source_assignee_text",
 				Unique:  false,
-				Columns: []*schema.Column{TodoCandidateAssigneesColumns[11], TodoCandidateAssigneesColumns[3], TodoCandidateAssigneesColumns[5]},
+				Columns: []*schema.Column{TodoCandidateAssigneesColumns[7], TodoCandidateAssigneesColumns[3], TodoCandidateAssigneesColumns[4]},
 			},
 			{
 				Name:    "todocandidateassignee_source_message_mention_id",
 				Unique:  false,
-				Columns: []*schema.Column{TodoCandidateAssigneesColumns[12]},
+				Columns: []*schema.Column{TodoCandidateAssigneesColumns[8]},
 			},
 			{
-				Name:    "todocandidateassignee_user_id",
+				Name:    "todocandidateassignee_resolved_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{TodoCandidateAssigneesColumns[13]},
+				Columns: []*schema.Column{TodoCandidateAssigneesColumns[9]},
 			},
 		},
 	}

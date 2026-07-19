@@ -824,7 +824,7 @@ func (_q *UserQuery) loadTodoCandidateAssignees(ctx context.Context, query *Todo
 		}
 	}
 	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(todocandidateassignee.FieldUserID)
+		query.ctx.AppendFieldOnce(todocandidateassignee.FieldResolvedUserID)
 	}
 	query.Where(predicate.TodoCandidateAssignee(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(user.TodoCandidateAssigneesColumn), fks...))
@@ -834,13 +834,13 @@ func (_q *UserQuery) loadTodoCandidateAssignees(ctx context.Context, query *Todo
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.UserID
+		fk := n.ResolvedUserID
 		if fk == nil {
-			return fmt.Errorf(`foreign-key "user_id" is nil for node %v`, n.ID)
+			return fmt.Errorf(`foreign-key "resolved_user_id" is nil for node %v`, n.ID)
 		}
 		node, ok := nodeids[*fk]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, *fk, n.ID)
+			return fmt.Errorf(`unexpected referenced foreign-key "resolved_user_id" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

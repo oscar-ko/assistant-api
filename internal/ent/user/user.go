@@ -65,7 +65,7 @@ const (
 	// It exists in this package in order to avoid circular dependency with the "todocandidateassignee" package.
 	TodoCandidateAssigneesInverseTable = "todo_candidate_assignees"
 	// TodoCandidateAssigneesColumn is the table column denoting the todo_candidate_assignees relation/edge.
-	TodoCandidateAssigneesColumn = "user_id"
+	TodoCandidateAssigneesColumn = "resolved_user_id"
 	// OwnedTranslationLocalesTable is the table that holds the owned_translation_locales relation/edge.
 	OwnedTranslationLocalesTable = "translation_locales"
 	// OwnedTranslationLocalesInverseTable is the table name for the TranslationLocale entity.

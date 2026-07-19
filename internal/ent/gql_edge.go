@@ -292,10 +292,10 @@ func (_m *TodoCandidateAssignee) SourceMessageMention(ctx context.Context) (*Cha
 	return result, MaskNotFound(err)
 }
 
-func (_m *TodoCandidateAssignee) User(ctx context.Context) (*User, error) {
-	result, err := _m.Edges.UserOrErr()
+func (_m *TodoCandidateAssignee) ResolvedUser(ctx context.Context) (*User, error) {
+	result, err := _m.Edges.ResolvedUserOrErr()
 	if IsNotLoaded(err) {
-		result, err = _m.QueryUser().Only(ctx)
+		result, err = _m.QueryResolvedUser().Only(ctx)
 	}
 	return result, MaskNotFound(err)
 }

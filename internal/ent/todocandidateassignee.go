@@ -16,7 +16,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Todo candidate assignee 解析快照
+// Todo candidate assignee evidence
 type TodoCandidateAssignee struct {
 	config `json:"-"`
 	// ID of the ent.
@@ -30,22 +30,14 @@ type TodoCandidateAssignee struct {
 	CandidateID uuid.UUID `json:"candidate_id,omitempty"`
 	// 來源 message mention ID；非 mention 來源可為空
 	SourceMessageMentionID *uuid.UUID `json:"source_message_mention_id,omitempty"`
-	// 解析後的系統 user ID；未綁定、bot 或 ambiguous 可為空
-	UserID *uuid.UUID `json:"user_id,omitempty"`
+	// 非 mention 來源解析出的系統 user ID；mention 來源請讀 source_message_mention.user_id
+	ResolvedUserID *uuid.UUID `json:"resolved_user_id,omitempty"`
 	// assignee 來源：structured mention、模型字面、sender 或 reply context
 	Source todocandidateassignee.Source `json:"source,omitempty"`
-	// assignee 來源平台
-	Platform todocandidateassignee.Platform `json:"platform,omitempty"`
-	// 平台原始使用者 ID，例如 LINE userId 或 Slack user id
-	PlatformUserID string `json:"platform_user_id,omitempty"`
-	// assignee 顯示文字，例如 @Amy 或模型抽取的人名
-	DisplayText string `json:"display_text,omitempty"`
-	// 解析後身分種類；bot 也保存但不等於個人 todo owner
-	IdentityKind todocandidateassignee.IdentityKind `json:"identity_kind,omitempty"`
-	// 是否為機器人 assignee 快照
-	IsBot bool `json:"is_bot,omitempty"`
-	// 是否已解析成唯一系統 user
-	ResolutionStatus todocandidateassignee.ResolutionStatus `json:"resolution_status,omitempty"`
+	// 非 mention 來源的 assignee 原文，例如模型抽取的人名；mention 來源請讀 source_message_mention.display_text
+	AssigneeText string `json:"assignee_text,omitempty"`
+	// 非 mention 來源是否已解析成唯一系統 user；mention 來源請讀 source_message_mention.resolution_status
+	ResolutionStatus *todocandidateassignee.ResolutionStatus `json:"resolution_status,omitempty"`
 	// 解析理由或無法解析原因，供 debug/audit 使用
 	Reason string `json:"reason,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -60,8 +52,8 @@ type TodoCandidateAssigneeEdges struct {
 	Candidate *TodoCandidate `json:"candidate,omitempty"`
 	// 此 assignee 來源的訊息 mention；來源不是 mention 時為空
 	SourceMessageMention *ChannelMessageMention `json:"source_message_mention,omitempty"`
-	// 此 assignee 解析出的系統使用者；未解析或 bot 可為空
-	User *User `json:"user,omitempty"`
+	// 非 mention 來源解析出的系統使用者；mention 來源請讀 source_message_mention.user
+	ResolvedUser *User `json:"resolved_user,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [3]bool
@@ -91,15 +83,15 @@ func (e TodoCandidateAssigneeEdges) SourceMessageMentionOrErr() (*ChannelMessage
 	return nil, &NotLoadedError{edge: "source_message_mention"}
 }
 
-// UserOrErr returns the User value or an error if the edge
+// ResolvedUserOrErr returns the ResolvedUser value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
-func (e TodoCandidateAssigneeEdges) UserOrErr() (*User, error) {
-	if e.User != nil {
-		return e.User, nil
+func (e TodoCandidateAssigneeEdges) ResolvedUserOrErr() (*User, error) {
+	if e.ResolvedUser != nil {
+		return e.ResolvedUser, nil
 	} else if e.loadedTypes[2] {
 		return nil, &NotFoundError{label: user.Label}
 	}
-	return nil, &NotLoadedError{edge: "user"}
+	return nil, &NotLoadedError{edge: "resolved_user"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -107,11 +99,9 @@ func (*TodoCandidateAssignee) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case todocandidateassignee.FieldSourceMessageMentionID, todocandidateassignee.FieldUserID:
+		case todocandidateassignee.FieldSourceMessageMentionID, todocandidateassignee.FieldResolvedUserID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
-		case todocandidateassignee.FieldIsBot:
-			values[i] = new(sql.NullBool)
-		case todocandidateassignee.FieldSource, todocandidateassignee.FieldPlatform, todocandidateassignee.FieldPlatformUserID, todocandidateassignee.FieldDisplayText, todocandidateassignee.FieldIdentityKind, todocandidateassignee.FieldResolutionStatus, todocandidateassignee.FieldReason:
+		case todocandidateassignee.FieldSource, todocandidateassignee.FieldAssigneeText, todocandidateassignee.FieldResolutionStatus, todocandidateassignee.FieldReason:
 			values[i] = new(sql.NullString)
 		case todocandidateassignee.FieldCreatedAt, todocandidateassignee.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -163,12 +153,12 @@ func (_m *TodoCandidateAssignee) assignValues(columns []string, values []any) er
 				_m.SourceMessageMentionID = new(uuid.UUID)
 				*_m.SourceMessageMentionID = *value.S.(*uuid.UUID)
 			}
-		case todocandidateassignee.FieldUserID:
+		case todocandidateassignee.FieldResolvedUserID:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
-				return fmt.Errorf("unexpected type %T for field user_id", values[i])
+				return fmt.Errorf("unexpected type %T for field resolved_user_id", values[i])
 			} else if value.Valid {
-				_m.UserID = new(uuid.UUID)
-				*_m.UserID = *value.S.(*uuid.UUID)
+				_m.ResolvedUserID = new(uuid.UUID)
+				*_m.ResolvedUserID = *value.S.(*uuid.UUID)
 			}
 		case todocandidateassignee.FieldSource:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -176,41 +166,18 @@ func (_m *TodoCandidateAssignee) assignValues(columns []string, values []any) er
 			} else if value.Valid {
 				_m.Source = todocandidateassignee.Source(value.String)
 			}
-		case todocandidateassignee.FieldPlatform:
+		case todocandidateassignee.FieldAssigneeText:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field platform", values[i])
+				return fmt.Errorf("unexpected type %T for field assignee_text", values[i])
 			} else if value.Valid {
-				_m.Platform = todocandidateassignee.Platform(value.String)
-			}
-		case todocandidateassignee.FieldPlatformUserID:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field platform_user_id", values[i])
-			} else if value.Valid {
-				_m.PlatformUserID = value.String
-			}
-		case todocandidateassignee.FieldDisplayText:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field display_text", values[i])
-			} else if value.Valid {
-				_m.DisplayText = value.String
-			}
-		case todocandidateassignee.FieldIdentityKind:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field identity_kind", values[i])
-			} else if value.Valid {
-				_m.IdentityKind = todocandidateassignee.IdentityKind(value.String)
-			}
-		case todocandidateassignee.FieldIsBot:
-			if value, ok := values[i].(*sql.NullBool); !ok {
-				return fmt.Errorf("unexpected type %T for field is_bot", values[i])
-			} else if value.Valid {
-				_m.IsBot = value.Bool
+				_m.AssigneeText = value.String
 			}
 		case todocandidateassignee.FieldResolutionStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field resolution_status", values[i])
 			} else if value.Valid {
-				_m.ResolutionStatus = todocandidateassignee.ResolutionStatus(value.String)
+				_m.ResolutionStatus = new(todocandidateassignee.ResolutionStatus)
+				*_m.ResolutionStatus = todocandidateassignee.ResolutionStatus(value.String)
 			}
 		case todocandidateassignee.FieldReason:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -241,9 +208,9 @@ func (_m *TodoCandidateAssignee) QuerySourceMessageMention() *ChannelMessageMent
 	return NewTodoCandidateAssigneeClient(_m.config).QuerySourceMessageMention(_m)
 }
 
-// QueryUser queries the "user" edge of the TodoCandidateAssignee entity.
-func (_m *TodoCandidateAssignee) QueryUser() *UserQuery {
-	return NewTodoCandidateAssigneeClient(_m.config).QueryUser(_m)
+// QueryResolvedUser queries the "resolved_user" edge of the TodoCandidateAssignee entity.
+func (_m *TodoCandidateAssignee) QueryResolvedUser() *UserQuery {
+	return NewTodoCandidateAssigneeClient(_m.config).QueryResolvedUser(_m)
 }
 
 // Update returns a builder for updating this TodoCandidateAssignee.
@@ -283,31 +250,21 @@ func (_m *TodoCandidateAssignee) String() string {
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
-	if v := _m.UserID; v != nil {
-		builder.WriteString("user_id=")
+	if v := _m.ResolvedUserID; v != nil {
+		builder.WriteString("resolved_user_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
 	builder.WriteString("source=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Source))
 	builder.WriteString(", ")
-	builder.WriteString("platform=")
-	builder.WriteString(fmt.Sprintf("%v", _m.Platform))
+	builder.WriteString("assignee_text=")
+	builder.WriteString(_m.AssigneeText)
 	builder.WriteString(", ")
-	builder.WriteString("platform_user_id=")
-	builder.WriteString(_m.PlatformUserID)
-	builder.WriteString(", ")
-	builder.WriteString("display_text=")
-	builder.WriteString(_m.DisplayText)
-	builder.WriteString(", ")
-	builder.WriteString("identity_kind=")
-	builder.WriteString(fmt.Sprintf("%v", _m.IdentityKind))
-	builder.WriteString(", ")
-	builder.WriteString("is_bot=")
-	builder.WriteString(fmt.Sprintf("%v", _m.IsBot))
-	builder.WriteString(", ")
-	builder.WriteString("resolution_status=")
-	builder.WriteString(fmt.Sprintf("%v", _m.ResolutionStatus))
+	if v := _m.ResolutionStatus; v != nil {
+		builder.WriteString("resolution_status=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("reason=")
 	builder.WriteString(_m.Reason)

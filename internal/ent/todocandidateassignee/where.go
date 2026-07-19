@@ -76,24 +76,14 @@ func SourceMessageMentionID(v uuid.UUID) predicate.TodoCandidateAssignee {
 	return predicate.TodoCandidateAssignee(sql.FieldEQ(FieldSourceMessageMentionID, v))
 }
 
-// UserID applies equality check predicate on the "user_id" field. It's identical to UserIDEQ.
-func UserID(v uuid.UUID) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldEQ(FieldUserID, v))
+// ResolvedUserID applies equality check predicate on the "resolved_user_id" field. It's identical to ResolvedUserIDEQ.
+func ResolvedUserID(v uuid.UUID) predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldEQ(FieldResolvedUserID, v))
 }
 
-// PlatformUserID applies equality check predicate on the "platform_user_id" field. It's identical to PlatformUserIDEQ.
-func PlatformUserID(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldEQ(FieldPlatformUserID, v))
-}
-
-// DisplayText applies equality check predicate on the "display_text" field. It's identical to DisplayTextEQ.
-func DisplayText(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldEQ(FieldDisplayText, v))
-}
-
-// IsBot applies equality check predicate on the "is_bot" field. It's identical to IsBotEQ.
-func IsBot(v bool) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldEQ(FieldIsBot, v))
+// AssigneeText applies equality check predicate on the "assignee_text" field. It's identical to AssigneeTextEQ.
+func AssigneeText(v string) predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldEQ(FieldAssigneeText, v))
 }
 
 // Reason applies equality check predicate on the "reason" field. It's identical to ReasonEQ.
@@ -231,34 +221,34 @@ func SourceMessageMentionIDNotNil() predicate.TodoCandidateAssignee {
 	return predicate.TodoCandidateAssignee(sql.FieldNotNull(FieldSourceMessageMentionID))
 }
 
-// UserIDEQ applies the EQ predicate on the "user_id" field.
-func UserIDEQ(v uuid.UUID) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldEQ(FieldUserID, v))
+// ResolvedUserIDEQ applies the EQ predicate on the "resolved_user_id" field.
+func ResolvedUserIDEQ(v uuid.UUID) predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldEQ(FieldResolvedUserID, v))
 }
 
-// UserIDNEQ applies the NEQ predicate on the "user_id" field.
-func UserIDNEQ(v uuid.UUID) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldNEQ(FieldUserID, v))
+// ResolvedUserIDNEQ applies the NEQ predicate on the "resolved_user_id" field.
+func ResolvedUserIDNEQ(v uuid.UUID) predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldNEQ(FieldResolvedUserID, v))
 }
 
-// UserIDIn applies the In predicate on the "user_id" field.
-func UserIDIn(vs ...uuid.UUID) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldIn(FieldUserID, vs...))
+// ResolvedUserIDIn applies the In predicate on the "resolved_user_id" field.
+func ResolvedUserIDIn(vs ...uuid.UUID) predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldIn(FieldResolvedUserID, vs...))
 }
 
-// UserIDNotIn applies the NotIn predicate on the "user_id" field.
-func UserIDNotIn(vs ...uuid.UUID) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldNotIn(FieldUserID, vs...))
+// ResolvedUserIDNotIn applies the NotIn predicate on the "resolved_user_id" field.
+func ResolvedUserIDNotIn(vs ...uuid.UUID) predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldNotIn(FieldResolvedUserID, vs...))
 }
 
-// UserIDIsNil applies the IsNil predicate on the "user_id" field.
-func UserIDIsNil() predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldIsNull(FieldUserID))
+// ResolvedUserIDIsNil applies the IsNil predicate on the "resolved_user_id" field.
+func ResolvedUserIDIsNil() predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldIsNull(FieldResolvedUserID))
 }
 
-// UserIDNotNil applies the NotNil predicate on the "user_id" field.
-func UserIDNotNil() predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldNotNull(FieldUserID))
+// ResolvedUserIDNotNil applies the NotNil predicate on the "resolved_user_id" field.
+func ResolvedUserIDNotNil() predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldNotNull(FieldResolvedUserID))
 }
 
 // SourceEQ applies the EQ predicate on the "source" field.
@@ -281,204 +271,79 @@ func SourceNotIn(vs ...Source) predicate.TodoCandidateAssignee {
 	return predicate.TodoCandidateAssignee(sql.FieldNotIn(FieldSource, vs...))
 }
 
-// PlatformEQ applies the EQ predicate on the "platform" field.
-func PlatformEQ(v Platform) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldEQ(FieldPlatform, v))
+// AssigneeTextEQ applies the EQ predicate on the "assignee_text" field.
+func AssigneeTextEQ(v string) predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldEQ(FieldAssigneeText, v))
 }
 
-// PlatformNEQ applies the NEQ predicate on the "platform" field.
-func PlatformNEQ(v Platform) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldNEQ(FieldPlatform, v))
+// AssigneeTextNEQ applies the NEQ predicate on the "assignee_text" field.
+func AssigneeTextNEQ(v string) predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldNEQ(FieldAssigneeText, v))
 }
 
-// PlatformIn applies the In predicate on the "platform" field.
-func PlatformIn(vs ...Platform) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldIn(FieldPlatform, vs...))
+// AssigneeTextIn applies the In predicate on the "assignee_text" field.
+func AssigneeTextIn(vs ...string) predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldIn(FieldAssigneeText, vs...))
 }
 
-// PlatformNotIn applies the NotIn predicate on the "platform" field.
-func PlatformNotIn(vs ...Platform) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldNotIn(FieldPlatform, vs...))
+// AssigneeTextNotIn applies the NotIn predicate on the "assignee_text" field.
+func AssigneeTextNotIn(vs ...string) predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldNotIn(FieldAssigneeText, vs...))
 }
 
-// PlatformUserIDEQ applies the EQ predicate on the "platform_user_id" field.
-func PlatformUserIDEQ(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldEQ(FieldPlatformUserID, v))
+// AssigneeTextGT applies the GT predicate on the "assignee_text" field.
+func AssigneeTextGT(v string) predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldGT(FieldAssigneeText, v))
 }
 
-// PlatformUserIDNEQ applies the NEQ predicate on the "platform_user_id" field.
-func PlatformUserIDNEQ(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldNEQ(FieldPlatformUserID, v))
+// AssigneeTextGTE applies the GTE predicate on the "assignee_text" field.
+func AssigneeTextGTE(v string) predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldGTE(FieldAssigneeText, v))
 }
 
-// PlatformUserIDIn applies the In predicate on the "platform_user_id" field.
-func PlatformUserIDIn(vs ...string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldIn(FieldPlatformUserID, vs...))
+// AssigneeTextLT applies the LT predicate on the "assignee_text" field.
+func AssigneeTextLT(v string) predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldLT(FieldAssigneeText, v))
 }
 
-// PlatformUserIDNotIn applies the NotIn predicate on the "platform_user_id" field.
-func PlatformUserIDNotIn(vs ...string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldNotIn(FieldPlatformUserID, vs...))
+// AssigneeTextLTE applies the LTE predicate on the "assignee_text" field.
+func AssigneeTextLTE(v string) predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldLTE(FieldAssigneeText, v))
 }
 
-// PlatformUserIDGT applies the GT predicate on the "platform_user_id" field.
-func PlatformUserIDGT(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldGT(FieldPlatformUserID, v))
+// AssigneeTextContains applies the Contains predicate on the "assignee_text" field.
+func AssigneeTextContains(v string) predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldContains(FieldAssigneeText, v))
 }
 
-// PlatformUserIDGTE applies the GTE predicate on the "platform_user_id" field.
-func PlatformUserIDGTE(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldGTE(FieldPlatformUserID, v))
+// AssigneeTextHasPrefix applies the HasPrefix predicate on the "assignee_text" field.
+func AssigneeTextHasPrefix(v string) predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldHasPrefix(FieldAssigneeText, v))
 }
 
-// PlatformUserIDLT applies the LT predicate on the "platform_user_id" field.
-func PlatformUserIDLT(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldLT(FieldPlatformUserID, v))
+// AssigneeTextHasSuffix applies the HasSuffix predicate on the "assignee_text" field.
+func AssigneeTextHasSuffix(v string) predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldHasSuffix(FieldAssigneeText, v))
 }
 
-// PlatformUserIDLTE applies the LTE predicate on the "platform_user_id" field.
-func PlatformUserIDLTE(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldLTE(FieldPlatformUserID, v))
+// AssigneeTextIsNil applies the IsNil predicate on the "assignee_text" field.
+func AssigneeTextIsNil() predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldIsNull(FieldAssigneeText))
 }
 
-// PlatformUserIDContains applies the Contains predicate on the "platform_user_id" field.
-func PlatformUserIDContains(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldContains(FieldPlatformUserID, v))
+// AssigneeTextNotNil applies the NotNil predicate on the "assignee_text" field.
+func AssigneeTextNotNil() predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldNotNull(FieldAssigneeText))
 }
 
-// PlatformUserIDHasPrefix applies the HasPrefix predicate on the "platform_user_id" field.
-func PlatformUserIDHasPrefix(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldHasPrefix(FieldPlatformUserID, v))
+// AssigneeTextEqualFold applies the EqualFold predicate on the "assignee_text" field.
+func AssigneeTextEqualFold(v string) predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldEqualFold(FieldAssigneeText, v))
 }
 
-// PlatformUserIDHasSuffix applies the HasSuffix predicate on the "platform_user_id" field.
-func PlatformUserIDHasSuffix(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldHasSuffix(FieldPlatformUserID, v))
-}
-
-// PlatformUserIDIsNil applies the IsNil predicate on the "platform_user_id" field.
-func PlatformUserIDIsNil() predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldIsNull(FieldPlatformUserID))
-}
-
-// PlatformUserIDNotNil applies the NotNil predicate on the "platform_user_id" field.
-func PlatformUserIDNotNil() predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldNotNull(FieldPlatformUserID))
-}
-
-// PlatformUserIDEqualFold applies the EqualFold predicate on the "platform_user_id" field.
-func PlatformUserIDEqualFold(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldEqualFold(FieldPlatformUserID, v))
-}
-
-// PlatformUserIDContainsFold applies the ContainsFold predicate on the "platform_user_id" field.
-func PlatformUserIDContainsFold(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldContainsFold(FieldPlatformUserID, v))
-}
-
-// DisplayTextEQ applies the EQ predicate on the "display_text" field.
-func DisplayTextEQ(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldEQ(FieldDisplayText, v))
-}
-
-// DisplayTextNEQ applies the NEQ predicate on the "display_text" field.
-func DisplayTextNEQ(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldNEQ(FieldDisplayText, v))
-}
-
-// DisplayTextIn applies the In predicate on the "display_text" field.
-func DisplayTextIn(vs ...string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldIn(FieldDisplayText, vs...))
-}
-
-// DisplayTextNotIn applies the NotIn predicate on the "display_text" field.
-func DisplayTextNotIn(vs ...string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldNotIn(FieldDisplayText, vs...))
-}
-
-// DisplayTextGT applies the GT predicate on the "display_text" field.
-func DisplayTextGT(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldGT(FieldDisplayText, v))
-}
-
-// DisplayTextGTE applies the GTE predicate on the "display_text" field.
-func DisplayTextGTE(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldGTE(FieldDisplayText, v))
-}
-
-// DisplayTextLT applies the LT predicate on the "display_text" field.
-func DisplayTextLT(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldLT(FieldDisplayText, v))
-}
-
-// DisplayTextLTE applies the LTE predicate on the "display_text" field.
-func DisplayTextLTE(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldLTE(FieldDisplayText, v))
-}
-
-// DisplayTextContains applies the Contains predicate on the "display_text" field.
-func DisplayTextContains(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldContains(FieldDisplayText, v))
-}
-
-// DisplayTextHasPrefix applies the HasPrefix predicate on the "display_text" field.
-func DisplayTextHasPrefix(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldHasPrefix(FieldDisplayText, v))
-}
-
-// DisplayTextHasSuffix applies the HasSuffix predicate on the "display_text" field.
-func DisplayTextHasSuffix(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldHasSuffix(FieldDisplayText, v))
-}
-
-// DisplayTextIsNil applies the IsNil predicate on the "display_text" field.
-func DisplayTextIsNil() predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldIsNull(FieldDisplayText))
-}
-
-// DisplayTextNotNil applies the NotNil predicate on the "display_text" field.
-func DisplayTextNotNil() predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldNotNull(FieldDisplayText))
-}
-
-// DisplayTextEqualFold applies the EqualFold predicate on the "display_text" field.
-func DisplayTextEqualFold(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldEqualFold(FieldDisplayText, v))
-}
-
-// DisplayTextContainsFold applies the ContainsFold predicate on the "display_text" field.
-func DisplayTextContainsFold(v string) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldContainsFold(FieldDisplayText, v))
-}
-
-// IdentityKindEQ applies the EQ predicate on the "identity_kind" field.
-func IdentityKindEQ(v IdentityKind) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldEQ(FieldIdentityKind, v))
-}
-
-// IdentityKindNEQ applies the NEQ predicate on the "identity_kind" field.
-func IdentityKindNEQ(v IdentityKind) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldNEQ(FieldIdentityKind, v))
-}
-
-// IdentityKindIn applies the In predicate on the "identity_kind" field.
-func IdentityKindIn(vs ...IdentityKind) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldIn(FieldIdentityKind, vs...))
-}
-
-// IdentityKindNotIn applies the NotIn predicate on the "identity_kind" field.
-func IdentityKindNotIn(vs ...IdentityKind) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldNotIn(FieldIdentityKind, vs...))
-}
-
-// IsBotEQ applies the EQ predicate on the "is_bot" field.
-func IsBotEQ(v bool) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldEQ(FieldIsBot, v))
-}
-
-// IsBotNEQ applies the NEQ predicate on the "is_bot" field.
-func IsBotNEQ(v bool) predicate.TodoCandidateAssignee {
-	return predicate.TodoCandidateAssignee(sql.FieldNEQ(FieldIsBot, v))
+// AssigneeTextContainsFold applies the ContainsFold predicate on the "assignee_text" field.
+func AssigneeTextContainsFold(v string) predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldContainsFold(FieldAssigneeText, v))
 }
 
 // ResolutionStatusEQ applies the EQ predicate on the "resolution_status" field.
@@ -499,6 +364,16 @@ func ResolutionStatusIn(vs ...ResolutionStatus) predicate.TodoCandidateAssignee 
 // ResolutionStatusNotIn applies the NotIn predicate on the "resolution_status" field.
 func ResolutionStatusNotIn(vs ...ResolutionStatus) predicate.TodoCandidateAssignee {
 	return predicate.TodoCandidateAssignee(sql.FieldNotIn(FieldResolutionStatus, vs...))
+}
+
+// ResolutionStatusIsNil applies the IsNil predicate on the "resolution_status" field.
+func ResolutionStatusIsNil() predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldIsNull(FieldResolutionStatus))
+}
+
+// ResolutionStatusNotNil applies the NotNil predicate on the "resolution_status" field.
+func ResolutionStatusNotNil() predicate.TodoCandidateAssignee {
+	return predicate.TodoCandidateAssignee(sql.FieldNotNull(FieldResolutionStatus))
 }
 
 // ReasonEQ applies the EQ predicate on the "reason" field.
@@ -622,21 +497,21 @@ func HasSourceMessageMentionWith(preds ...predicate.ChannelMessageMention) predi
 	})
 }
 
-// HasUser applies the HasEdge predicate on the "user" edge.
-func HasUser() predicate.TodoCandidateAssignee {
+// HasResolvedUser applies the HasEdge predicate on the "resolved_user" edge.
+func HasResolvedUser() predicate.TodoCandidateAssignee {
 	return predicate.TodoCandidateAssignee(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, UserTable, UserColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, ResolvedUserTable, ResolvedUserColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})
 }
 
-// HasUserWith applies the HasEdge predicate on the "user" edge with a given conditions (other predicates).
-func HasUserWith(preds ...predicate.User) predicate.TodoCandidateAssignee {
+// HasResolvedUserWith applies the HasEdge predicate on the "resolved_user" edge with a given conditions (other predicates).
+func HasResolvedUserWith(preds ...predicate.User) predicate.TodoCandidateAssignee {
 	return predicate.TodoCandidateAssignee(func(s *sql.Selector) {
-		step := newUserStep()
+		step := newResolvedUserStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

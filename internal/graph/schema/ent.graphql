@@ -1370,14 +1370,14 @@ input TodoCandidateAssigneeWhereInput {
   sourceMessageMentionIDIsNil: Boolean
   sourceMessageMentionIDNotNil: Boolean
   """
-  user_id field predicates
+  resolved_user_id field predicates
   """
-  userID: ID
-  userIDNEQ: ID
-  userIDIn: [ID!]
-  userIDNotIn: [ID!]
-  userIDIsNil: Boolean
-  userIDNotNil: Boolean
+  resolvedUserID: ID
+  resolvedUserIDNEQ: ID
+  resolvedUserIDIn: [ID!]
+  resolvedUserIDNotIn: [ID!]
+  resolvedUserIDIsNil: Boolean
+  resolvedUserIDNotNil: Boolean
   """
   source field predicates
   """
@@ -1386,60 +1386,23 @@ input TodoCandidateAssigneeWhereInput {
   sourceIn: [TodoCandidateAssigneeSource!]
   sourceNotIn: [TodoCandidateAssigneeSource!]
   """
-  platform field predicates
+  assignee_text field predicates
   """
-  platform: TodoCandidateAssigneePlatform
-  platformNEQ: TodoCandidateAssigneePlatform
-  platformIn: [TodoCandidateAssigneePlatform!]
-  platformNotIn: [TodoCandidateAssigneePlatform!]
-  """
-  platform_user_id field predicates
-  """
-  platformUserID: String
-  platformUserIDNEQ: String
-  platformUserIDIn: [String!]
-  platformUserIDNotIn: [String!]
-  platformUserIDGT: String
-  platformUserIDGTE: String
-  platformUserIDLT: String
-  platformUserIDLTE: String
-  platformUserIDContains: String
-  platformUserIDHasPrefix: String
-  platformUserIDHasSuffix: String
-  platformUserIDIsNil: Boolean
-  platformUserIDNotNil: Boolean
-  platformUserIDEqualFold: String
-  platformUserIDContainsFold: String
-  """
-  display_text field predicates
-  """
-  displayText: String
-  displayTextNEQ: String
-  displayTextIn: [String!]
-  displayTextNotIn: [String!]
-  displayTextGT: String
-  displayTextGTE: String
-  displayTextLT: String
-  displayTextLTE: String
-  displayTextContains: String
-  displayTextHasPrefix: String
-  displayTextHasSuffix: String
-  displayTextIsNil: Boolean
-  displayTextNotNil: Boolean
-  displayTextEqualFold: String
-  displayTextContainsFold: String
-  """
-  identity_kind field predicates
-  """
-  identityKind: TodoCandidateAssigneeIdentityKind
-  identityKindNEQ: TodoCandidateAssigneeIdentityKind
-  identityKindIn: [TodoCandidateAssigneeIdentityKind!]
-  identityKindNotIn: [TodoCandidateAssigneeIdentityKind!]
-  """
-  is_bot field predicates
-  """
-  isBot: Boolean
-  isBotNEQ: Boolean
+  assigneeText: String
+  assigneeTextNEQ: String
+  assigneeTextIn: [String!]
+  assigneeTextNotIn: [String!]
+  assigneeTextGT: String
+  assigneeTextGTE: String
+  assigneeTextLT: String
+  assigneeTextLTE: String
+  assigneeTextContains: String
+  assigneeTextHasPrefix: String
+  assigneeTextHasSuffix: String
+  assigneeTextIsNil: Boolean
+  assigneeTextNotNil: Boolean
+  assigneeTextEqualFold: String
+  assigneeTextContainsFold: String
   """
   resolution_status field predicates
   """
@@ -1447,6 +1410,8 @@ input TodoCandidateAssigneeWhereInput {
   resolutionStatusNEQ: TodoCandidateAssigneeResolutionStatus
   resolutionStatusIn: [TodoCandidateAssigneeResolutionStatus!]
   resolutionStatusNotIn: [TodoCandidateAssigneeResolutionStatus!]
+  resolutionStatusIsNil: Boolean
+  resolutionStatusNotNil: Boolean
   """
   reason field predicates
   """
@@ -1476,10 +1441,10 @@ input TodoCandidateAssigneeWhereInput {
   hasSourceMessageMention: Boolean
   hasSourceMessageMentionWith: [ChannelMessageMentionWhereInput!]
   """
-  user edge predicates
+  resolved_user edge predicates
   """
-  hasUser: Boolean
-  hasUserWith: [UserWhereInput!]
+  hasResolvedUser: Boolean
+  hasResolvedUserWith: [UserWhereInput!]
 }
 """
 TodoCandidateWhereInput is used for filtering TodoCandidate objects.

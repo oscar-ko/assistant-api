@@ -26,20 +26,12 @@ const (
 	FieldCandidateID = "candidate_id"
 	// FieldSourceMessageMentionID holds the string denoting the source_message_mention_id field in the database.
 	FieldSourceMessageMentionID = "source_message_mention_id"
-	// FieldUserID holds the string denoting the user_id field in the database.
-	FieldUserID = "user_id"
+	// FieldResolvedUserID holds the string denoting the resolved_user_id field in the database.
+	FieldResolvedUserID = "resolved_user_id"
 	// FieldSource holds the string denoting the source field in the database.
 	FieldSource = "source"
-	// FieldPlatform holds the string denoting the platform field in the database.
-	FieldPlatform = "platform"
-	// FieldPlatformUserID holds the string denoting the platform_user_id field in the database.
-	FieldPlatformUserID = "platform_user_id"
-	// FieldDisplayText holds the string denoting the display_text field in the database.
-	FieldDisplayText = "display_text"
-	// FieldIdentityKind holds the string denoting the identity_kind field in the database.
-	FieldIdentityKind = "identity_kind"
-	// FieldIsBot holds the string denoting the is_bot field in the database.
-	FieldIsBot = "is_bot"
+	// FieldAssigneeText holds the string denoting the assignee_text field in the database.
+	FieldAssigneeText = "assignee_text"
 	// FieldResolutionStatus holds the string denoting the resolution_status field in the database.
 	FieldResolutionStatus = "resolution_status"
 	// FieldReason holds the string denoting the reason field in the database.
@@ -48,8 +40,8 @@ const (
 	EdgeCandidate = "candidate"
 	// EdgeSourceMessageMention holds the string denoting the source_message_mention edge name in mutations.
 	EdgeSourceMessageMention = "source_message_mention"
-	// EdgeUser holds the string denoting the user edge name in mutations.
-	EdgeUser = "user"
+	// EdgeResolvedUser holds the string denoting the resolved_user edge name in mutations.
+	EdgeResolvedUser = "resolved_user"
 	// Table holds the table name of the todocandidateassignee in the database.
 	Table = "todo_candidate_assignees"
 	// CandidateTable is the table that holds the candidate relation/edge.
@@ -66,13 +58,13 @@ const (
 	SourceMessageMentionInverseTable = "channel_message_mentions"
 	// SourceMessageMentionColumn is the table column denoting the source_message_mention relation/edge.
 	SourceMessageMentionColumn = "source_message_mention_id"
-	// UserTable is the table that holds the user relation/edge.
-	UserTable = "todo_candidate_assignees"
-	// UserInverseTable is the table name for the User entity.
+	// ResolvedUserTable is the table that holds the resolved_user relation/edge.
+	ResolvedUserTable = "todo_candidate_assignees"
+	// ResolvedUserInverseTable is the table name for the User entity.
 	// It exists in this package in order to avoid circular dependency with the "user" package.
-	UserInverseTable = "users"
-	// UserColumn is the table column denoting the user relation/edge.
-	UserColumn = "user_id"
+	ResolvedUserInverseTable = "users"
+	// ResolvedUserColumn is the table column denoting the resolved_user relation/edge.
+	ResolvedUserColumn = "resolved_user_id"
 )
 
 // Columns holds all SQL columns for todocandidateassignee fields.
@@ -82,13 +74,9 @@ var Columns = []string{
 	FieldUpdatedAt,
 	FieldCandidateID,
 	FieldSourceMessageMentionID,
-	FieldUserID,
+	FieldResolvedUserID,
 	FieldSource,
-	FieldPlatform,
-	FieldPlatformUserID,
-	FieldDisplayText,
-	FieldIdentityKind,
-	FieldIsBot,
+	FieldAssigneeText,
 	FieldResolutionStatus,
 	FieldReason,
 }
@@ -110,8 +98,6 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
-	// DefaultIsBot holds the default value on creation for the "is_bot" field.
-	DefaultIsBot bool
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
@@ -144,66 +130,8 @@ func SourceValidator(s Source) error {
 	}
 }
 
-// Platform defines the type for the "platform" enum field.
-type Platform string
-
-// PlatformLine is the default value of the Platform enum.
-const DefaultPlatform = PlatformLine
-
-// Platform values.
-const (
-	PlatformLine     Platform = "line"
-	PlatformWhatsapp Platform = "whatsapp"
-	PlatformSlack    Platform = "slack"
-	PlatformTelegram Platform = "telegram"
-)
-
-func (pl Platform) String() string {
-	return string(pl)
-}
-
-// PlatformValidator is a validator for the "platform" field enum values. It is called by the builders before save.
-func PlatformValidator(pl Platform) error {
-	switch pl {
-	case PlatformLine, PlatformWhatsapp, PlatformSlack, PlatformTelegram:
-		return nil
-	default:
-		return fmt.Errorf("todocandidateassignee: invalid enum value for platform field: %q", pl)
-	}
-}
-
-// IdentityKind defines the type for the "identity_kind" enum field.
-type IdentityKind string
-
-// IdentityKindUser is the default value of the IdentityKind enum.
-const DefaultIdentityKind = IdentityKindUser
-
-// IdentityKind values.
-const (
-	IdentityKindUser    IdentityKind = "user"
-	IdentityKindBot     IdentityKind = "bot"
-	IdentityKindUnknown IdentityKind = "unknown"
-)
-
-func (ik IdentityKind) String() string {
-	return string(ik)
-}
-
-// IdentityKindValidator is a validator for the "identity_kind" field enum values. It is called by the builders before save.
-func IdentityKindValidator(ik IdentityKind) error {
-	switch ik {
-	case IdentityKindUser, IdentityKindBot, IdentityKindUnknown:
-		return nil
-	default:
-		return fmt.Errorf("todocandidateassignee: invalid enum value for identity_kind field: %q", ik)
-	}
-}
-
 // ResolutionStatus defines the type for the "resolution_status" enum field.
 type ResolutionStatus string
-
-// ResolutionStatusUnresolved is the default value of the ResolutionStatus enum.
-const DefaultResolutionStatus = ResolutionStatusUnresolved
 
 // ResolutionStatus values.
 const (
@@ -255,9 +183,9 @@ func BySourceMessageMentionID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSourceMessageMentionID, opts...).ToFunc()
 }
 
-// ByUserID orders the results by the user_id field.
-func ByUserID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUserID, opts...).ToFunc()
+// ByResolvedUserID orders the results by the resolved_user_id field.
+func ByResolvedUserID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldResolvedUserID, opts...).ToFunc()
 }
 
 // BySource orders the results by the source field.
@@ -265,29 +193,9 @@ func BySource(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSource, opts...).ToFunc()
 }
 
-// ByPlatform orders the results by the platform field.
-func ByPlatform(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPlatform, opts...).ToFunc()
-}
-
-// ByPlatformUserID orders the results by the platform_user_id field.
-func ByPlatformUserID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPlatformUserID, opts...).ToFunc()
-}
-
-// ByDisplayText orders the results by the display_text field.
-func ByDisplayText(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldDisplayText, opts...).ToFunc()
-}
-
-// ByIdentityKind orders the results by the identity_kind field.
-func ByIdentityKind(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldIdentityKind, opts...).ToFunc()
-}
-
-// ByIsBot orders the results by the is_bot field.
-func ByIsBot(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldIsBot, opts...).ToFunc()
+// ByAssigneeText orders the results by the assignee_text field.
+func ByAssigneeText(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAssigneeText, opts...).ToFunc()
 }
 
 // ByResolutionStatus orders the results by the resolution_status field.
@@ -314,10 +222,10 @@ func BySourceMessageMentionField(field string, opts ...sql.OrderTermOption) Orde
 	}
 }
 
-// ByUserField orders the results by user field.
-func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
+// ByResolvedUserField orders the results by resolved_user field.
+func ByResolvedUserField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newUserStep(), sql.OrderByField(field, opts...))
+		sqlgraph.OrderByNeighborTerms(s, newResolvedUserStep(), sql.OrderByField(field, opts...))
 	}
 }
 func newCandidateStep() *sqlgraph.Step {
@@ -334,11 +242,11 @@ func newSourceMessageMentionStep() *sqlgraph.Step {
 		sqlgraph.Edge(sqlgraph.M2O, false, SourceMessageMentionTable, SourceMessageMentionColumn),
 	)
 }
-func newUserStep() *sqlgraph.Step {
+func newResolvedUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(UserInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.M2O, false, UserTable, UserColumn),
+		sqlgraph.To(ResolvedUserInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, false, ResolvedUserTable, ResolvedUserColumn),
 	)
 }
 
@@ -356,42 +264,6 @@ func (e *Source) UnmarshalGQL(val interface{}) error {
 	*e = Source(str)
 	if err := SourceValidator(*e); err != nil {
 		return fmt.Errorf("%s is not a valid Source", str)
-	}
-	return nil
-}
-
-// MarshalGQL implements graphql.Marshaler interface.
-func (e Platform) MarshalGQL(w io.Writer) {
-	io.WriteString(w, strconv.Quote(e.String()))
-}
-
-// UnmarshalGQL implements graphql.Unmarshaler interface.
-func (e *Platform) UnmarshalGQL(val interface{}) error {
-	str, ok := val.(string)
-	if !ok {
-		return fmt.Errorf("enum %T must be a string", val)
-	}
-	*e = Platform(str)
-	if err := PlatformValidator(*e); err != nil {
-		return fmt.Errorf("%s is not a valid Platform", str)
-	}
-	return nil
-}
-
-// MarshalGQL implements graphql.Marshaler interface.
-func (e IdentityKind) MarshalGQL(w io.Writer) {
-	io.WriteString(w, strconv.Quote(e.String()))
-}
-
-// UnmarshalGQL implements graphql.Unmarshaler interface.
-func (e *IdentityKind) UnmarshalGQL(val interface{}) error {
-	str, ok := val.(string)
-	if !ok {
-		return fmt.Errorf("enum %T must be a string", val)
-	}
-	*e = IdentityKind(str)
-	if err := IdentityKindValidator(*e); err != nil {
-		return fmt.Errorf("%s is not a valid IdentityKind", str)
 	}
 	return nil
 }

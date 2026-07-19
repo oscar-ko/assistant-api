@@ -38,7 +38,7 @@ type UserEdges struct {
 	ChannelServiceMembers []*ChannelServiceMember `json:"channel_service_members,omitempty"`
 	// 解析到此使用者的訊息 mention；未綁定 mention 會保留空 user_id
 	ChannelMessageMentions []*ChannelMessageMention `json:"channel_message_mentions,omitempty"`
-	// 解析到此使用者的 Todo candidate assignee 快照
+	// 非 mention 來源解析到此使用者的 Todo candidate assignee evidence
 	TodoCandidateAssignees []*TodoCandidateAssignee `json:"todo_candidate_assignees,omitempty"`
 	// 使用者新增的翻譯目標語言設定
 	OwnedTranslationLocales []*TranslationLocale `json:"owned_translation_locales,omitempty"`

@@ -10,10 +10,11 @@ import (
 	"github.com/google/uuid"
 )
 
-// TodoCandidateAssignee 保存 Todo candidate 的 assignee 解析快照。
+// TodoCandidateAssignee 保存 Todo candidate 的 assignee evidence。
 //
-// 這張表不取代 channel_message_mentions：mention 表保存訊息事實，這張表保存 Todo domain
-// 對那些訊息事實的使用結果。之後 candidate promotion 建正式個人 todo 時，會以這張表作 owner 來源。
+// mention 來源只保存 source_message_mention_id，平台 ID、顯示文字、bot flag 與 mention 解析狀態都回頭讀
+// channel_message_mentions，避免把同一份訊息事實複製到 Todo domain 表。非 mention 來源才保存
+// assignee_text / resolved_user_id / resolution_status 這些 Todo 判斷欄位。
 type TodoCandidateAssignee struct {
 	ent.Schema
 }
@@ -31,14 +32,10 @@ func (TodoCandidateAssignee) Fields() []ent.Field {
 	return []ent.Field{
 		field.UUID("candidate_id", uuid.UUID{}).Immutable().Comment("所屬 Todo candidate ID"),
 		field.UUID("source_message_mention_id", uuid.UUID{}).Optional().Nillable().Comment("來源 message mention ID；非 mention 來源可為空"),
-		field.UUID("user_id", uuid.UUID{}).Optional().Nillable().Comment("解析後的系統 user ID；未綁定、bot 或 ambiguous 可為空"),
+		field.UUID("resolved_user_id", uuid.UUID{}).Optional().Nillable().Comment("非 mention 來源解析出的系統 user ID；mention 來源請讀 source_message_mention.user_id"),
 		field.Enum("source").Values("mention", "analyzer", "sender", "reply_context").Default("mention").Comment("assignee 來源：structured mention、模型字面、sender 或 reply context"),
-		field.Enum("platform").Values("line", "whatsapp", "slack", "telegram").Default("line").Comment("assignee 來源平台"),
-		field.String("platform_user_id").Optional().Comment("平台原始使用者 ID，例如 LINE userId 或 Slack user id"),
-		field.String("display_text").Optional().Comment("assignee 顯示文字，例如 @Amy 或模型抽取的人名"),
-		field.Enum("identity_kind").Values("user", "bot", "unknown").Default("user").Comment("解析後身分種類；bot 也保存但不等於個人 todo owner"),
-		field.Bool("is_bot").Default(false).Comment("是否為機器人 assignee 快照"),
-		field.Enum("resolution_status").Values("resolved", "unresolved", "ambiguous", "unsupported").Default("unresolved").Comment("是否已解析成唯一系統 user"),
+		field.String("assignee_text").Optional().Comment("非 mention 來源的 assignee 原文，例如模型抽取的人名；mention 來源請讀 source_message_mention.display_text"),
+		field.Enum("resolution_status").Values("resolved", "unresolved", "ambiguous", "unsupported").Optional().Nillable().Comment("非 mention 來源是否已解析成唯一系統 user；mention 來源請讀 source_message_mention.resolution_status"),
 		field.String("reason").Optional().Comment("解析理由或無法解析原因，供 debug/audit 使用"),
 	}
 }
@@ -48,7 +45,7 @@ func (TodoCandidateAssignee) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("candidate", TodoCandidate.Type).Ref("candidate_assignees").Field("candidate_id").Required().Immutable().Unique().Comment("此 assignee 所屬 Todo candidate"),
 		edge.To("source_message_mention", ChannelMessageMention.Type).Unique().Field("source_message_mention_id").Comment("此 assignee 來源的訊息 mention；來源不是 mention 時為空"),
-		edge.To("user", User.Type).Unique().Field("user_id").Comment("此 assignee 解析出的系統使用者；未解析或 bot 可為空"),
+		edge.To("resolved_user", User.Type).Unique().Field("resolved_user_id").Comment("非 mention 來源解析出的系統使用者；mention 來源請讀 source_message_mention.user"),
 	}
 }
 
@@ -56,16 +53,16 @@ func (TodoCandidateAssignee) Edges() []ent.Edge {
 func (TodoCandidateAssignee) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("candidate_id"),
-		index.Fields("candidate_id", "source", "platform_user_id"),
+		index.Fields("candidate_id", "source", "assignee_text"),
 		index.Fields("source_message_mention_id"),
-		index.Fields("user_id"),
+		index.Fields("resolved_user_id"),
 	}
 }
 
 // Annotations of the TodoCandidateAssignee.
 func (TodoCandidateAssignee) Annotations() []schema.Annotation {
 	return []schema.Annotation{
-		schema.Comment("Todo candidate assignee 解析快照"),
+		schema.Comment("Todo candidate assignee evidence"),
 		entgql.QueryField(),
 	}
 }

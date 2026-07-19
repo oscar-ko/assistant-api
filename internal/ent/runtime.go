@@ -325,10 +325,6 @@ func init() {
 	todocandidateassignee.DefaultUpdatedAt = todocandidateassigneeDescUpdatedAt.Default.(func() time.Time)
 	// todocandidateassignee.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	todocandidateassignee.UpdateDefaultUpdatedAt = todocandidateassigneeDescUpdatedAt.UpdateDefault.(func() time.Time)
-	// todocandidateassigneeDescIsBot is the schema descriptor for is_bot field.
-	todocandidateassigneeDescIsBot := todocandidateassigneeFields[8].Descriptor()
-	// todocandidateassignee.DefaultIsBot holds the default value on creation for the is_bot field.
-	todocandidateassignee.DefaultIsBot = todocandidateassigneeDescIsBot.Default.(bool)
 	// todocandidateassigneeDescID is the schema descriptor for id field.
 	todocandidateassigneeDescID := todocandidateassigneeMixinFields0[0].Descriptor()
 	// todocandidateassignee.DefaultID holds the default value on creation for the id field.

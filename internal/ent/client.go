@@ -2509,15 +2509,15 @@ func (c *TodoCandidateAssigneeClient) QuerySourceMessageMention(_m *TodoCandidat
 	return query
 }
 
-// QueryUser queries the user edge of a TodoCandidateAssignee.
-func (c *TodoCandidateAssigneeClient) QueryUser(_m *TodoCandidateAssignee) *UserQuery {
+// QueryResolvedUser queries the resolved_user edge of a TodoCandidateAssignee.
+func (c *TodoCandidateAssigneeClient) QueryResolvedUser(_m *TodoCandidateAssignee) *UserQuery {
 	query := (&UserClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(todocandidateassignee.Table, todocandidateassignee.FieldID, id),
 			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, todocandidateassignee.UserTable, todocandidateassignee.UserColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, todocandidateassignee.ResolvedUserTable, todocandidateassignee.ResolvedUserColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
