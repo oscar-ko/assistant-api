@@ -198,6 +198,9 @@ type LLMProfileConfig struct {
 	Path               string `mapstructure:"path" yaml:"path"`
 	ActionDecisionPath string `mapstructure:"action_decision_path" yaml:"action_decision_path"`
 	QuestionAnswerPath string `mapstructure:"question_answer_path" yaml:"question_answer_path"`
+	// ContextAnalyzePath 是 9003 內部上下文分析入口。
+	// 它刻意獨立於 question_answer，避免把系統流程判斷誤混成使用者可見的一般問答。
+	ContextAnalyzePath string `mapstructure:"context_analyze_path" yaml:"context_analyze_path"`
 	TranslatePath      string `mapstructure:"translate_path" yaml:"translate_path"`
 }
 

@@ -30,6 +30,9 @@ type resolvedProviderProfile struct {
 	useJSONResponseFmt *bool
 	actionDecisionPath string
 	questionAnswerPath string
+	// contextAnalyzePath 只給 context_analyzer role 使用。
+	// profile merge 階段先保留原始設定，真正的空值補預設與斜線正規化交給 usecase client。
+	contextAnalyzePath string
 }
 
 // BuildClientFromConfig 依目前設定建立單一可重用的 LLM interaction client。
@@ -43,6 +46,12 @@ func BuildClientFromConfig(cfg config.AIConfig, llmProviders map[string]config.L
 	if err != nil {
 		return nil, fmt.Errorf("invalid ai.llm_interaction.chat: %w", err)
 	}
+	// context_analyzer 是第三個獨立角色：它不是 action decision，也不是使用者問答，
+	// 因此在 builder 階段就解析自己的 provider.profile，避免後續 routed client 共用錯誤端點。
+	contextAnalyzerTarget, err := parseRoleTarget(strings.TrimSpace(cfg.LLMInteraction.ContextAnalyzer.Profile))
+	if err != nil {
+		return nil, fmt.Errorf("invalid ai.llm_interaction.context_analyzer: %w", err)
+	}
 
 	decisionClient, err := buildRoleClient(cfg, llmProviders, decisionTarget, cfg.LLMInteraction.Decision)
 	if err != nil {
@@ -52,8 +61,21 @@ func BuildClientFromConfig(cfg config.AIConfig, llmProviders map[string]config.L
 	if err != nil {
 		return nil, fmt.Errorf("failed to build chat client: %w", err)
 	}
+	contextAnalyzerClient, err := buildRoleClient(cfg, llmProviders, contextAnalyzerTarget, cfg.LLMInteraction.ContextAnalyzer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build context analyzer client: %w", err)
+	}
 
-	return NewRoutedInteractionClient(decisionClient.client, decisionClient.label, chatClient.client, chatClient.label)
+	// routed client 持有三個已建好的 role client；呼叫端只看 InteractionClient 介面，
+	// 實際要用哪個 provider/model/path 則由 ClassifyAction、AnswerQuestion、AnalyzeContext 各自決定。
+	return NewRoutedInteractionClient(
+		decisionClient.client,
+		decisionClient.label,
+		chatClient.client,
+		chatClient.label,
+		contextAnalyzerClient.client,
+		contextAnalyzerClient.label,
+	)
 }
 
 func parseRoleTarget(raw string) (roleTarget, error) {
@@ -90,6 +112,7 @@ func buildRoleClient(cfg config.AIConfig, llmProviders map[string]config.LLMProv
 			resolved.model,
 			resolved.actionDecisionPath,
 			resolved.questionAnswerPath,
+			resolved.contextAnalyzePath,
 		)
 		if client == nil {
 			return nil, fmt.Errorf("failed to initialize local interaction client for provider %s", resolved.providerKey)
@@ -138,6 +161,7 @@ func mergeProfile(profile config.LLMProfileConfig, providerType string) (resolve
 		useJSONResponseFmt: profile.UseJSONResponseFmt,
 		actionDecisionPath: strings.TrimSpace(profile.ActionDecisionPath),
 		questionAnswerPath: strings.TrimSpace(profile.QuestionAnswerPath),
+		contextAnalyzePath: strings.TrimSpace(profile.ContextAnalyzePath),
 	}, nil
 }
 

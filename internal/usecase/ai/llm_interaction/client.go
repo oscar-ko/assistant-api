@@ -145,6 +145,19 @@ type QuestionAnswer struct {
 	Confidence    float64 `json:"confidence"`
 }
 
+// ContextAnalysis 表示 LLM interaction 對短文本與近端上下文的內部結構化分析結果。
+// 它只描述「目前訊息是否和某個內部服務相關」，不負責產生使用者可見回答。
+// target_service / extracted_fields 皆保持中性，讓 todo、calendar、follow-up 等 realtime service 可共用同一契約。
+type ContextAnalysis struct {
+	SchemaVersion   string                     `json:"schema_version"`
+	Decision        string                     `json:"decision"`
+	TargetService   string                     `json:"target_service"`
+	Confidence      float64                    `json:"confidence"`
+	ExtractedFields map[string]json.RawMessage `json:"extracted_fields,omitempty"`
+	MissingFields   []string                   `json:"missing_fields,omitempty"`
+	Reason          string                     `json:"reason"`
+}
+
 // InteractionClient 定義通用 LLM 互動能力。
 type InteractionClient interface {
 	// ClassifyAction 把 prompt+text 送進 actionDecisionPath，
@@ -153,6 +166,9 @@ type InteractionClient interface {
 	// AnswerQuestion 把 prompt+text 送進 questionAnswerPath，
 	// 回應 payload 解析成 QuestionAnswer（answer + confidence）。
 	AnswerQuestion(ctx context.Context, prompt string, text string) (*QuestionAnswer, error)
+	// AnalyzeContext 把 prompt+text 送進 contextAnalyzePath，
+	// 回應 payload 解析成 ContextAnalysis（系統內部上下文分析結果）。
+	AnalyzeContext(ctx context.Context, prompt string, text string) (*ContextAnalysis, error)
 }
 
 type interactionClient struct {
@@ -162,6 +178,8 @@ type interactionClient struct {
 	modelName          string
 	actionDecisionPath string
 	questionAnswerPath string
+	// contextAnalyzePath 指向 dedicated context_analyze route，避免 AnalyzeContext 誤用一般問答端點。
+	contextAnalyzePath string
 	client             *http.Client
 }
 
@@ -208,6 +226,10 @@ const defaultActionDecisionPath = "/predict/action_decision"
 // 服務端會回覆 answer 與 confidence。
 const defaultQuestionAnswerPath = "/predict/question_answer"
 
+// defaultContextAnalyzePath 負責內部短文本上下文分析，與一般使用者問答分離。
+// 即使外部設定漏填 path，AnalyzeContext 仍會走 dedicated route，而不是回退到 question_answer。
+const defaultContextAnalyzePath = "/predict/context_analyze"
+
 // NewInteractionClient 建立通用 LLM 互動 client。
 func NewInteractionClient(baseURL string, timeoutSeconds int) InteractionClient {
 	return NewInteractionClientWithPaths(baseURL, timeoutSeconds, defaultActionDecisionPath, defaultQuestionAnswerPath)
@@ -215,13 +237,13 @@ func NewInteractionClient(baseURL string, timeoutSeconds int) InteractionClient 
 
 // NewInteractionClientWithPaths 建立可指定本地 endpoint path 的通用 LLM 互動 client。
 func NewInteractionClientWithPaths(baseURL string, timeoutSeconds int, actionDecisionPath string, questionAnswerPath string) InteractionClient {
-	return NewInteractionClientWithModel(baseURL, timeoutSeconds, "", actionDecisionPath, questionAnswerPath)
+	return NewInteractionClientWithModel(baseURL, timeoutSeconds, "", actionDecisionPath, questionAnswerPath, defaultContextAnalyzePath)
 }
 
 // NewInteractionClientWithModel 建立可指定本地 endpoint path 與 Ollama model 的通用 LLM 互動 client。
 // 這個建構子用在 local provider profile：profile.model_name 會被轉成 9003 request 的 model_name，
 // 因此不需要為不同模型另外開不同服務，只需新增 provider profile。
-func NewInteractionClientWithModel(baseURL string, timeoutSeconds int, modelName string, actionDecisionPath string, questionAnswerPath string) InteractionClient {
+func NewInteractionClientWithModel(baseURL string, timeoutSeconds int, modelName string, actionDecisionPath string, questionAnswerPath string, contextAnalyzePath string) InteractionClient {
 	trimmed := strings.TrimSpace(baseURL)
 	if trimmed == "" {
 		return nil
@@ -240,11 +262,21 @@ func NewInteractionClientWithModel(baseURL string, timeoutSeconds int, modelName
 	if !strings.HasPrefix(questionPath, "/") {
 		questionPath = "/" + questionPath
 	}
+	// context path 的處理規則和 action/question 一致：允許設定檔省略前導斜線，
+	// 但空值只能補 context_analyze 預設值，不能借用 question_answer 做替代。
+	contextPath := strings.TrimSpace(contextAnalyzePath)
+	if contextPath == "" {
+		contextPath = defaultContextAnalyzePath
+	}
+	if !strings.HasPrefix(contextPath, "/") {
+		contextPath = "/" + contextPath
+	}
 	return &interactionClient{
 		baseURL:            strings.TrimRight(trimmed, "/"),
 		modelName:          strings.TrimSpace(modelName),
 		actionDecisionPath: actionPath,
 		questionAnswerPath: questionPath,
+		contextAnalyzePath: contextPath,
 		client:             &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second},
 	}
 }
@@ -559,6 +591,53 @@ func decodeQuestionAnswerResponse(resp *http.Response, path string) (*QuestionAn
 		return nil, err
 	}
 	if err := validateQuestionAnswer(&decoded); err != nil {
+		return nil, err
+	}
+
+	return &decoded, nil
+}
+
+// AnalyzeContext 把 prompt+text 送進 contextAnalyzePath，回應解析成 ContextAnalysis。
+// 這條路徑只用於系統內部上下文判斷；使用者的一般生活問答仍應呼叫 AnswerQuestion。
+func (c *interactionClient) AnalyzeContext(ctx context.Context, prompt string, text string) (*ContextAnalysis, error) {
+	if c == nil {
+		return nil, fmt.Errorf("context analysis client is not initialized")
+	}
+	if c.baseURL == "" {
+		return nil, fmt.Errorf("context analysis client url is empty")
+	}
+
+	req, err := c.buildRequest(ctx, c.contextAnalyzePath, prompt, text)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	return decodeContextAnalysisResponse(resp, c.contextAnalyzePath)
+}
+
+func decodeContextAnalysisResponse(resp *http.Response, path string) (*ContextAnalysis, error) {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, decodeUpstreamError(resp, path)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var decoded ContextAnalysis
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return nil, err
+	}
+	// Go 端再驗一次 contract，確保 Python 服務或雲端模型若輸出漂移，
+	// 會在 client 邊界直接失敗，而不是把不完整 decision 帶進 realtime service。
+	if err := validateContextAnalysis(&decoded); err != nil {
 		return nil, err
 	}
 

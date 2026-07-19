@@ -128,6 +128,23 @@ func (c *openAIInteractionClient) AnswerQuestion(ctx context.Context, prompt str
 	return decoded, nil
 }
 
+func (c *openAIInteractionClient) AnalyzeContext(ctx context.Context, prompt string, text string) (*ContextAnalysis, error) {
+	// 雲端 client 沒有本地 route path 可切，仍提供 AnalyzeContext 以滿足同一個 InteractionClient 介面。
+	// 這裡使用 chatModel，是因為 context analysis 需要產生嚴格 JSON，而不是 action-decision 專用模型語意。
+	content, err := c.completeJSON(ctx, c.chatModel, prompt, text)
+	if err != nil {
+		return nil, err
+	}
+	decoded, err := parseContextAnalysisContent(content)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateContextAnalysis(decoded); err != nil {
+		return nil, err
+	}
+	return decoded, nil
+}
+
 func (c *openAIInteractionClient) completeJSON(ctx context.Context, model string, prompt string, text string) (string, error) {
 	if c == nil || c.httpClient == nil {
 		return "", fmt.Errorf("openai interaction client is not initialized")
@@ -311,6 +328,15 @@ func parseActionDecisionContent(content string) (*ActionDecision, error) {
 
 func parseQuestionAnswerContent(content string) (*QuestionAnswer, error) {
 	var decoded QuestionAnswer
+	if err := json.Unmarshal([]byte(content), &decoded); err != nil {
+		return nil, err
+	}
+	return &decoded, nil
+}
+
+func parseContextAnalysisContent(content string) (*ContextAnalysis, error) {
+	// parse 階段只負責 JSON decode；欄位完整性與語意限制集中交給 validateContextAnalysis。
+	var decoded ContextAnalysis
 	if err := json.Unmarshal([]byte(content), &decoded); err != nil {
 		return nil, err
 	}

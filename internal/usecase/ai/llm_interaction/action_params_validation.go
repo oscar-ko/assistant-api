@@ -181,6 +181,54 @@ func validateQuestionAnswer(answer *QuestionAnswer) error {
 	return nil
 }
 
+// validateContextAnalysis 驗證內部上下文分析契約，並做最小正規化。
+// 這個契約不產生使用者可見回答，只提供 realtime service 判斷下一步。
+func validateContextAnalysis(result *ContextAnalysis) error {
+	if result == nil {
+		return nil
+	}
+
+	result.SchemaVersion = normalizeQuestionAnswerSchemaVersion(result.SchemaVersion)
+	result.Decision = strings.TrimSpace(result.Decision)
+	result.TargetService = strings.TrimSpace(result.TargetService)
+	result.Reason = strings.TrimSpace(result.Reason)
+
+	// schema_version 沿用 question_answer 的語法別名正規化，只接受已知版本，避免 contract 演進時靜默吃掉未知格式。
+	if result.SchemaVersion == "" {
+		return fmt.Errorf("context analysis schema_version is required")
+	}
+	if result.SchemaVersion != "v1" && result.SchemaVersion != "v2" {
+		return fmt.Errorf("context analysis schema_version %q is invalid", result.SchemaVersion)
+	}
+	switch result.Decision {
+	case "relevant", "not_relevant", "needs_more_info":
+	default:
+		return fmt.Errorf("context analysis decision %q is invalid", result.Decision)
+	}
+	// relevant / needs_more_info 都必須指出目標服務；not_relevant 才允許沒有 target_service。
+	if result.Decision != "not_relevant" && result.TargetService == "" {
+		return fmt.Errorf("context analysis target_service is required")
+	}
+	if math.IsNaN(result.Confidence) || result.Confidence < 0 || result.Confidence > 1 {
+		return fmt.Errorf("context analysis confidence must be between 0 and 1")
+	}
+	// needs_more_info 沒有 missing_fields 就無法產生下一步追問，因此必須明確列出缺口。
+	if result.Decision == "needs_more_info" && len(result.MissingFields) == 0 {
+		return fmt.Errorf("context analysis missing_fields is required when decision=needs_more_info")
+	}
+	// not_relevant 代表不要啟動任何內部服務；此時若還有 extracted/missing 欄位，容易被下游誤解為可執行線索。
+	if result.Decision == "not_relevant" && (len(result.ExtractedFields) > 0 || len(result.MissingFields) > 0) {
+		return fmt.Errorf("context analysis fields must be empty when decision=not_relevant")
+	}
+	if result.Reason == "" {
+		return fmt.Errorf("context analysis reason is required")
+	}
+
+	// missing_fields 去重但保留原始字面，讓 prompt 或 UI 後續仍能使用模型輸出的欄位名稱。
+	result.MissingFields = dedupeFold(result.MissingFields)
+	return nil
+}
+
 // normalizeQuestionAnswerSchemaVersion 負責把上游常見別名版本號正規化。
 // 目的：
 // 1) 避免因 "1.0" / "v1.0" / "2.0" 這類等價寫法造成不必要拒絕
