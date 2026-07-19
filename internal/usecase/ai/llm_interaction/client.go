@@ -296,6 +296,9 @@ func BuildFinalActionPrompt(candidates []ActionCandidate) string {
 - 先完成兩階段決策：
 	1) 先從候選清單選出唯一 api_operation
 	2) 再只套用該 api_operation 對應的 operation 專屬動態規則來填 action_params
+- 候選排序與 score 只代表召回/精排參考，不是最終答案；選擇 api_operation 時必須以使用者訊息的真實意圖與 operation 用途為準
+- 選擇 api_operation 前，先判斷該 operation 的必要語意條件是否已由使用者訊息明確提供；若某候選需要指定目標、範圍或參數，但使用者訊息只表達整體啟用/停用意圖，應優先選擇不需要該參數且語意涵蓋整體操作的候選
+- route_text 是召回提示語，不是使用者已提供參數的證據；包含「某、指定、特定、目標」等佔位描述的 route_text 不代表使用者訊息已指定該參數
 - 不可套用未被選中 operation 的動態規則
 - next_step 只能是 execute_action、ask_clarifying_question、answer_question 三者之一
 - api_operation 只能是候選 operation 之一；不可創造新值
@@ -305,8 +308,6 @@ func BuildFinalActionPrompt(candidates []ActionCandidate) string {
 - missing_parameters 非空時，next_step 必須是 ask_clarifying_question
 - 不可把 route_text、skill、score、operation 這類候選描述欄位複製到 action_params
 - 缺少必要參數時不可猜測
-- 翻譯類 action（例如 start_translation_locale / stop_translation_locale）若使用者已明確提到語言名稱（如 中文/英文/日文 或 Chinese/English/Japanese），視為已提供 target_locales，不可再回 missing_parameters
-- 翻譯類 action 的 action_params.target_locales 必須輸出為 BCP47/locale code（例如 zh-TW、en-US、ja-JP），不可回自然語言名稱
 - 若使用者訊息語意明顯對應某個候選，即使非分數最高也應選語意最貼合者
 - confidence 為 0 到 1，表示對「下一步判斷」的把握程度
 - reason 只允許一句純文字，不可包含雙引號、JSON 片段或候選清單原文

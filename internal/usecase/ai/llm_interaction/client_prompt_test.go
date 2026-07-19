@@ -49,6 +49,46 @@ func TestBuildFinalActionPromptIncludesActionPromptGuidance(t *testing.T) {
 	if !strings.Contains(prompt, "next_step: string, required, enum=execute_action|ask_clarifying_question|answer_question") {
 		t.Fatalf("expected next_step enum constraints in prompt, got: %s", prompt)
 	}
+	globalSkillSpecificRules := []string{
+		"翻譯類 action",
+		"target_locales 必須輸出",
+		"BCP47/locale code",
+	}
+	for _, rule := range globalSkillSpecificRules {
+		if strings.Contains(prompt, rule) {
+			t.Fatalf("expected global final action prompt not to contain skill-specific rule %q, got: %s", rule, prompt)
+		}
+	}
+}
+
+func TestBuildFinalActionPromptTellsModelNotToTreatRankAsFinalDecision(t *testing.T) {
+	candidates := []ActionCandidate{
+		{
+			Operation: "stop_translation_locale",
+			SkillCode: "channel.translation",
+			RouteText: "把某個語言的翻譯關掉",
+			Prompt:    "用途: 停用指定翻譯語系。規則: 只接受使用者明確指定的目標語系。",
+		},
+		{
+			Operation: "stop_translation_all",
+			SkillCode: "channel.translation",
+			RouteText: "關閉翻譯服務",
+			Prompt:    "用途: 關閉整體翻譯服務。規則: 不需語系參數。",
+		},
+	}
+
+	prompt := BuildFinalActionPrompt(candidates)
+	checks := []string{
+		"候選排序與 score 只代表召回/精排參考，不是最終答案",
+		"必要語意條件是否已由使用者訊息明確提供",
+		"使用者訊息只表達整體啟用/停用意圖",
+		"route_text 是召回提示語，不是使用者已提供參數的證據",
+	}
+	for _, check := range checks {
+		if !strings.Contains(prompt, check) {
+			t.Fatalf("expected prompt to contain %q, got: %s", check, prompt)
+		}
+	}
 }
 
 func TestBuildClarifyingQuestionPromptIncludesDecisionReason(t *testing.T) {
