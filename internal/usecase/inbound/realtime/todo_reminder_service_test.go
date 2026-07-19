@@ -139,6 +139,16 @@ func TestBuildImplicitReplyTodoPromptRequiresArrayFields(t *testing.T) {
 	}
 }
 
+func TestBuildImplicitReplyTodoPromptTreatsReminderLanguageAsCandidate(t *testing.T) {
+	// 使用者常用「提醒我」「記得」這類日常語氣建立待辦；prompt 必須明確要求 analyzer
+	// 依可追蹤事項判斷，而不是因為語氣不像正式指令就回 no_action。
+	prompt := buildImplicitReplyTodoPrompt(nil, ClassificationResult{Tag: "todo", Signal: ClassificationSignalCandidate, Confidence: 0.9})
+
+	if !strings.Contains(prompt, "日常提醒語氣") || !strings.Contains(prompt, "不可只因為語氣日常就判 no_action") {
+		t.Fatalf("expected prompt to treat reminder language as todo candidate, got %q", prompt)
+	}
+}
+
 func TestTodoReminderServicePersistsTodoCandidateAnalysis(t *testing.T) {
 	// structured analyzer 已經完成語意判斷後，realtime service 只把固定 schema 轉成 candidate persistence input；
 	// 這裡鎖住 create_candidate 會用目前訊息當 source/last message，不再停留在純 log-only。

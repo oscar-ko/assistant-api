@@ -531,6 +531,7 @@ func buildImplicitReplyTodoPrompt(recentMessages []*ent.ChannelMessage, result C
 	builder.WriteString("只能輸出 todo_analysis JSON contract：schema_version, decision, linked_message_id, summary, assignees, due_text, confidence, missing_fields, reason。\n")
 	builder.WriteString("decision 只能是 create_candidate、update_candidate、acknowledge、cancel_candidate、needs_more_info、no_action。\n")
 	builder.WriteString("linked_message_id 必須來自 Recent messages 的 id；全新待辦或 no_action 時使用空字串。\n")
+	builder.WriteString("提醒、請記得、到時提醒我、不要忘記、幫我記一下等日常提醒語氣，只要包含可追蹤事項、承諾、交付、時間或對象，就屬於 Todo candidate；不可只因為語氣日常就判 no_action。\n")
 	builder.WriteString("summary 是整理後的待辦內容；due_text 保留使用者原本的時間字面，不要自行正規化日期；assignees 保留訊息中可見的人名或稱呼。\n")
 	builder.WriteString("欄位型別必須固定：schema_version/decision/linked_message_id/summary/due_text/reason 是 string，confidence 是 number，assignees 與 missing_fields 永遠是 string array；沒有人名或缺漏欄位時輸出 []，不可輸出字串、物件或 null。\n")
 	builder.WriteString("needs_more_info 時 missing_fields 必須指出缺 summary、assignees 或 due_text 等欄位；no_action 時 linked_message_id、summary、assignees、due_text、missing_fields 都必須為空。\n")
