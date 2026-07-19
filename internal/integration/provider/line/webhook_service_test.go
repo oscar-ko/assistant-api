@@ -148,6 +148,15 @@ func (s *stubLLMInteraction) AnswerQuestion(ctx context.Context, text string) (*
 	return s.answer, s.answerErr
 }
 
+func (s *stubLLMInteraction) AnalyzeContext(ctx context.Context, prompt string, text string) (*llminteraction.ContextAnalysis, error) {
+	// 這組 LINE webhook 測試聚焦 command pipeline，不測 context analyzer 的行為；
+	// 補上 no-op 方法只是讓 stub 滿足新增的 InteractionService 介面，避免把測試重心拉到無關路徑。
+	_ = ctx
+	_ = prompt
+	_ = text
+	return nil, nil
+}
+
 func (s *stubLLMInteraction) AskClarifyingQuestion(ctx context.Context, text string, reason string) (*llminteraction.QuestionAnswer, error) {
 	_ = ctx
 	_ = text

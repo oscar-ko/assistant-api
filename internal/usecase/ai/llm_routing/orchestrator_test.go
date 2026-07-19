@@ -35,6 +35,15 @@ func (s *stubLocalInteraction) AnswerQuestion(ctx context.Context, text string) 
 	return s.answer, s.answerErr
 }
 
+func (s *stubLocalInteraction) AnalyzeContext(ctx context.Context, prompt string, text string) (*llminteraction.ContextAnalysis, error) {
+	// llm_routing 目前只測 action/question/clarifying 的 local/cloud 切換；
+	// context analyzer 不參與這些案例，因此 stub 以 no-op 保持介面完整即可。
+	_ = ctx
+	_ = prompt
+	_ = text
+	return nil, nil
+}
+
 func (s *stubLocalInteraction) AskClarifyingQuestion(ctx context.Context, text string, reason string) (*llminteraction.QuestionAnswer, error) {
 	_ = ctx
 	_ = text
@@ -68,6 +77,15 @@ func (s *stubCloudService) AnswerQuestion(ctx context.Context, text string) (*ll
 	_ = text
 	s.answerCalled = true
 	return s.answer, s.answerErr
+}
+
+func (s *stubCloudService) AnalyzeContext(ctx context.Context, prompt string, text string) (*llminteraction.ContextAnalysis, error) {
+	// cloud stub 同樣只為滿足 InteractionService；若未來 routing 支援 context analyzer 升級，
+	// 再新增專門測試，不在既有問答/決策測試中混入隱式行為。
+	_ = ctx
+	_ = prompt
+	_ = text
+	return nil, nil
 }
 
 func (s *stubCloudService) AskClarifyingQuestion(ctx context.Context, text string, reason string) (*llminteraction.QuestionAnswer, error) {

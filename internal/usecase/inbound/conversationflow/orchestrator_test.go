@@ -25,6 +25,12 @@ func (s *stubConversationLLM) AnswerQuestion(ctx context.Context, text string) (
 	return s.answer, nil
 }
 
+func (s *stubConversationLLM) AnalyzeContext(ctx context.Context, prompt string, text string) (*llminteraction.ContextAnalysis, error) {
+	// conversationflow 測試不會進入 realtime implicit reply linker；
+	// 這裡只補齊 InteractionService 介面，避免 unrelated test 因新能力擴充而失焦。
+	return nil, nil
+}
+
 func (s *stubConversationLLM) AskClarifyingQuestion(ctx context.Context, text string, reason string) (*llminteraction.QuestionAnswer, error) {
 	s.clarifyCalled = true
 	return s.clarify, nil

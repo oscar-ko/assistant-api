@@ -93,6 +93,12 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 	if err != nil {
 		panic(err)
 	}
+	// reranker 與 classifier/translator 一樣在 provider 啟動時建好，後續只透過 realtime service 注入使用。
+	// Slack 事件格式不應影響 implicit reply 的語意排序；平台差異只保留在 sender 與 channel metadata。
+	rerankerClient, _, err := realtimeclient.BuildRerankerFromConfig(config.AI)
+	if err != nil {
+		panic(err)
+	}
 	// Slack 也直接掛到共用 realtime 翻譯流程上，避免跟 LINE 各自維護一套非指令處理邏輯。
 	// 這裡只提供 Slack 專用的 sender 與 platform user id 來源，核心翻譯行為仍由共用模組執行。
 	autoTranslate := realtime.NewAutoTranslateService(realtime.AutoTranslateServiceOptions{
@@ -106,7 +112,9 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 		BotSenderID:   "",
 		PlatformLabel: "slack:" + strings.TrimSpace(translateProfile),
 	})
-	todoReminder := realtime.NewTodoReminderService(realtime.TodoReminderServiceOptions{PlatformLabel: "slack"})
+	// RecentLimit 讀取共用 history_context，讓 Slack 與 LINE 對「往前抓幾則訊息」維持一致語意。
+	// 若未來不同服務需要不同窗口，應在服務自己的 options 裡覆寫，而不是在 provider webhook 裡硬分支。
+	todoReminder := realtime.NewTodoReminderService(realtime.TodoReminderServiceOptions{PlatformLabel: "slack", Repo: repo, LLM: options.LLMInteraction, Ranker: rerankerClient, RecentLimit: config.AI.HistoryContext.RecentMessageLimit})
 	messageClassifier := realtime.NewMessageClassificationService(realtime.MessageClassificationServiceOptions{
 		TextScanGate:  repo,
 		Classifier:    classifierClient,

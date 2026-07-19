@@ -43,15 +43,17 @@ type DatabaseConfig struct {
 	AutoSchemaCreate bool `mapstructure:"auto_schema_create" yaml:"auto_schema_create"`
 }
 
-// AIConfig 集中管理 AI 相關子系統設定，依用途拆成三個子區塊：
+// AIConfig 集中管理 AI 相關子系統設定，依用途拆成多個子區塊：
 // - LLMInteraction：依角色路由到指定 provider/model（問答、追問、決策）
 // - Embedding：第一階段候選召回（recall）
 // - Reranker：第二階段候選精排（precision）
+// - HistoryContext：跨服務共用的近端歷史訊息召回窗口
 type AIConfig struct {
 	LLMInteraction LLMInteractionConfig `mapstructure:"llm_interaction" yaml:"llm_interaction"`
 	Embedding      EmbeddingConfig      `mapstructure:"embedding" yaml:"embedding"`
 	Reranker       RerankerConfig       `mapstructure:"reranker" yaml:"reranker"`
 	Classifier     ClassifierConfig     `mapstructure:"classifier" yaml:"classifier"`
+	HistoryContext HistoryContextConfig `mapstructure:"history_context" yaml:"history_context"`
 }
 
 // ClassifierConfig controls the local message classifier used by realtime handlers.
@@ -59,6 +61,12 @@ type ClassifierConfig struct {
 	Enabled bool     `mapstructure:"enabled" yaml:"enabled"`
 	Target  string   `mapstructure:"target" yaml:"target"`
 	Labels  []string `mapstructure:"labels" yaml:"labels"`
+}
+
+// HistoryContextConfig controls shared historical message recall windows used by realtime services.
+type HistoryContextConfig struct {
+	// RecentMessageLimit 控制需要近端對話上下文時，最多往前抓幾則同 channel 訊息當作候選。
+	RecentMessageLimit int `mapstructure:"recent_message_limit" yaml:"recent_message_limit"`
 }
 
 // LLMInteractionConfig 為角色導向的 LLM 互動設定。
@@ -317,6 +325,8 @@ func MustLoad() {
 		viper.SetDefault("ai.llm_interaction.question_confidence_threshold", 0.6)
 		// action decision JSON 格式錯誤重送次數。預設為 0，避免同一訊息被重送到 AI。
 		viper.SetDefault("ai.llm_interaction.decision_json_retry_count", 0)
+		// 歷史訊息召回窗口：單位是往前幾則同 channel 訊息，不是時間長度。
+		viper.SetDefault("ai.history_context.recent_message_limit", 8)
 		viper.SetDefault("ai.embedding.url", "http://127.0.0.1:9000")
 		viper.SetDefault("ai.embedding.target", "aistant.embedding")
 		viper.SetDefault("ai.embedding.timeout_seconds", 60)

@@ -95,6 +95,13 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 	if err != nil {
 		panic(err)
 	}
+	// reranker 是跨 realtime service 共用的第二階段語意精排能力。
+	// LINE webhook 不直接使用它，而是注入 todo reminder handler；handler 會在需要 implicit reply linking 時，
+	// 用目前訊息和近端歷史訊息做文字對重排，避免把 provider 層變成語意決策層。
+	rerankerClient, _, err := realtimeclient.BuildRerankerFromConfig(config.AI)
+	if err != nil {
+		panic(err)
+	}
 	// 這裡把翻譯能力包成共用 realtime service，而不是直接寫在 LINE webhook 裡。
 	// 這樣 Slack 也可以用同一套「非指令訊息 -> 翻譯 side-effect」流程，
 	// 差別只剩底層 sender 與平台使用者識別來源。
@@ -110,7 +117,9 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 		BotSenderID:   strings.TrimSpace(config.Line.BotUserID),
 		PlatformLabel: "line:" + strings.TrimSpace(translateProfile),
 	})
-	todoReminder := realtime.NewTodoReminderService(realtime.TodoReminderServiceOptions{PlatformLabel: "line"})
+	// RecentLimit 使用中性的 history_context 設定，而不是 todo_reminder 專用 key。
+	// 原因是未來摘要、客服、行事曆補欄位等服務都可能需要同一個「近端歷史訊息召回窗口」。
+	todoReminder := realtime.NewTodoReminderService(realtime.TodoReminderServiceOptions{PlatformLabel: "line", Repo: repo, LLM: options.LLMInteraction, Ranker: rerankerClient, RecentLimit: config.AI.HistoryContext.RecentMessageLimit})
 	messageClassifier := realtime.NewMessageClassificationService(realtime.MessageClassificationServiceOptions{
 		TextScanGate:  repo,
 		Classifier:    classifierClient,

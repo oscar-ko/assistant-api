@@ -46,6 +46,11 @@ ai:
         target: "aistant.classifier"
         labels: []
 
+    history_context:
+        # 歷史訊息召回窗口，單位是「往前幾則同 channel 訊息」，不是時間長度。
+        # 給需要近端對話上下文的服務共用，例如隱式回覆、補欄位、跨訊息語意接續判斷。
+        recent_message_limit: 8
+
     # LLM 互動服務（第三階段）
     llm_interaction:
         decision:

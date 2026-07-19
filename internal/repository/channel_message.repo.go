@@ -585,6 +585,41 @@ func (r *ChannelMessageRepo) ResolveParentMessage(ctx context.Context, message *
 	return nil, nil
 }
 
+// FindRecentMessagesBefore 取得同一 channel 內、指定訊息之前的近端訊息。
+//
+// 用途：
+// - 支援 implicit reply linking：使用者沒有使用平台 reply，但短句語意上可能接續前面某個待辦候選。
+// - 查詢只限制在同 channel，避免不同群組/私聊的訊息被拿來做上下文。
+// - 回傳順序由舊到新，方便 prompt 以自然對話順序呈現。
+func (r *ChannelMessageRepo) FindRecentMessagesBefore(ctx context.Context, message *ent.ChannelMessage, limit int) ([]*ent.ChannelMessage, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("channel repository not initialized")
+	}
+	if message == nil || message.ChannelID == uuid.Nil {
+		return nil, nil
+	}
+	if limit <= 0 {
+		return nil, nil
+	}
+
+	items, err := r.db.ChannelMessage.Query().
+		Where(
+			channelmessage.ChannelIDEQ(message.ChannelID),
+			channelmessage.IDNEQ(message.ID),
+			channelmessage.CreatedAtLTE(message.CreatedAt),
+		).
+		Order(ent.Desc(channelmessage.FieldCreatedAt)).
+		Limit(limit).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query recent channel messages failed: %w", err)
+	}
+	for left, right := 0, len(items)-1; left < right; left, right = left+1, right-1 {
+		items[left], items[right] = items[right], items[left]
+	}
+	return items, nil
+}
+
 // FindLatestActionOperationByMessageID 取得某則訊息最新的 action api_operation。
 //
 // 為什麼取「最新」：
