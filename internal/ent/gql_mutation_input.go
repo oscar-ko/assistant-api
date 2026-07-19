@@ -14,6 +14,7 @@ type CreateUserInput struct {
 	SlackIDs                  []uuid.UUID
 	ChannelServiceMemberIDs   []uuid.UUID
 	ChannelMessageMentionIDs  []uuid.UUID
+	TodoCandidateAssigneeIDs  []uuid.UUID
 	OwnedTranslationLocaleIDs []uuid.UUID
 }
 
@@ -32,6 +33,9 @@ func (i *CreateUserInput) Mutate(m *UserMutation) {
 	}
 	if v := i.ChannelMessageMentionIDs; len(v) > 0 {
 		m.AddChannelMessageMentionIDs(v...)
+	}
+	if v := i.TodoCandidateAssigneeIDs; len(v) > 0 {
+		m.AddTodoCandidateAssigneeIDs(v...)
 	}
 	if v := i.OwnedTranslationLocaleIDs; len(v) > 0 {
 		m.AddOwnedTranslationLocaleIDs(v...)
@@ -60,6 +64,9 @@ type UpdateUserInput struct {
 	ClearChannelMessageMentions     bool
 	AddChannelMessageMentionIDs     []uuid.UUID
 	RemoveChannelMessageMentionIDs  []uuid.UUID
+	ClearTodoCandidateAssignees     bool
+	AddTodoCandidateAssigneeIDs     []uuid.UUID
+	RemoveTodoCandidateAssigneeIDs  []uuid.UUID
 	ClearOwnedTranslationLocales    bool
 	AddOwnedTranslationLocaleIDs    []uuid.UUID
 	RemoveOwnedTranslationLocaleIDs []uuid.UUID
@@ -108,6 +115,15 @@ func (i *UpdateUserInput) Mutate(m *UserMutation) {
 	}
 	if v := i.RemoveChannelMessageMentionIDs; len(v) > 0 {
 		m.RemoveChannelMessageMentionIDs(v...)
+	}
+	if i.ClearTodoCandidateAssignees {
+		m.ClearTodoCandidateAssignees()
+	}
+	if v := i.AddTodoCandidateAssigneeIDs; len(v) > 0 {
+		m.AddTodoCandidateAssigneeIDs(v...)
+	}
+	if v := i.RemoveTodoCandidateAssigneeIDs; len(v) > 0 {
+		m.RemoveTodoCandidateAssigneeIDs(v...)
 	}
 	if i.ClearOwnedTranslationLocales {
 		m.ClearOwnedTranslationLocales()

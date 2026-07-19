@@ -78,11 +78,15 @@ type TodoCandidateEdges struct {
 	LastMessage *ChannelMessage `json:"last_message,omitempty"`
 	// 最近一次分析時連結到的歷史訊息
 	LinkedMessage *ChannelMessage `json:"linked_message,omitempty"`
+	// 此候選待辦的 assignee 解析快照；可由 mention、sender 或 analyzer 產生
+	CandidateAssignees []*TodoCandidateAssignee `json:"candidate_assignees,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [4]bool
+	loadedTypes [5]bool
 	// totalCount holds the count of the edges above.
-	totalCount [4]map[string]int
+	totalCount [5]map[string]int
+
+	namedCandidateAssignees map[string][]*TodoCandidateAssignee
 }
 
 // ChannelOrErr returns the Channel value or an error if the edge
@@ -127,6 +131,15 @@ func (e TodoCandidateEdges) LinkedMessageOrErr() (*ChannelMessage, error) {
 		return nil, &NotFoundError{label: channelmessage.Label}
 	}
 	return nil, &NotLoadedError{edge: "linked_message"}
+}
+
+// CandidateAssigneesOrErr returns the CandidateAssignees value or an error if the edge
+// was not loaded in eager-loading.
+func (e TodoCandidateEdges) CandidateAssigneesOrErr() ([]*TodoCandidateAssignee, error) {
+	if e.loadedTypes[4] {
+		return e.CandidateAssignees, nil
+	}
+	return nil, &NotLoadedError{edge: "candidate_assignees"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -327,6 +340,11 @@ func (_m *TodoCandidate) QueryLinkedMessage() *ChannelMessageQuery {
 	return NewTodoCandidateClient(_m.config).QueryLinkedMessage(_m)
 }
 
+// QueryCandidateAssignees queries the "candidate_assignees" edge of the TodoCandidate entity.
+func (_m *TodoCandidate) QueryCandidateAssignees() *TodoCandidateAssigneeQuery {
+	return NewTodoCandidateClient(_m.config).QueryCandidateAssignees(_m)
+}
+
 // Update returns a builder for updating this TodoCandidate.
 // Note that you need to call TodoCandidate.Unwrap() before calling this method if this TodoCandidate
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -417,6 +435,30 @@ func (_m *TodoCandidate) String() string {
 	builder.WriteString(_m.Reason)
 	builder.WriteByte(')')
 	return builder.String()
+}
+
+// NamedCandidateAssignees returns the CandidateAssignees named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *TodoCandidate) NamedCandidateAssignees(name string) ([]*TodoCandidateAssignee, error) {
+	if _m.Edges.namedCandidateAssignees == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedCandidateAssignees[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *TodoCandidate) appendNamedCandidateAssignees(name string, edges ...*TodoCandidateAssignee) {
+	if _m.Edges.namedCandidateAssignees == nil {
+		_m.Edges.namedCandidateAssignees = make(map[string][]*TodoCandidateAssignee)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedCandidateAssignees[name] = []*TodoCandidateAssignee{}
+	} else {
+		_m.Edges.namedCandidateAssignees[name] = append(_m.Edges.namedCandidateAssignees[name], edges...)
+	}
 }
 
 // TodoCandidates is a parsable slice of TodoCandidate.

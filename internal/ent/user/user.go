@@ -25,6 +25,8 @@ const (
 	EdgeChannelServiceMembers = "channel_service_members"
 	// EdgeChannelMessageMentions holds the string denoting the channel_message_mentions edge name in mutations.
 	EdgeChannelMessageMentions = "channel_message_mentions"
+	// EdgeTodoCandidateAssignees holds the string denoting the todo_candidate_assignees edge name in mutations.
+	EdgeTodoCandidateAssignees = "todo_candidate_assignees"
 	// EdgeOwnedTranslationLocales holds the string denoting the owned_translation_locales edge name in mutations.
 	EdgeOwnedTranslationLocales = "owned_translation_locales"
 	// Table holds the table name of the user in the database.
@@ -57,6 +59,13 @@ const (
 	ChannelMessageMentionsInverseTable = "channel_message_mentions"
 	// ChannelMessageMentionsColumn is the table column denoting the channel_message_mentions relation/edge.
 	ChannelMessageMentionsColumn = "user_id"
+	// TodoCandidateAssigneesTable is the table that holds the todo_candidate_assignees relation/edge.
+	TodoCandidateAssigneesTable = "todo_candidate_assignees"
+	// TodoCandidateAssigneesInverseTable is the table name for the TodoCandidateAssignee entity.
+	// It exists in this package in order to avoid circular dependency with the "todocandidateassignee" package.
+	TodoCandidateAssigneesInverseTable = "todo_candidate_assignees"
+	// TodoCandidateAssigneesColumn is the table column denoting the todo_candidate_assignees relation/edge.
+	TodoCandidateAssigneesColumn = "user_id"
 	// OwnedTranslationLocalesTable is the table that holds the owned_translation_locales relation/edge.
 	OwnedTranslationLocalesTable = "translation_locales"
 	// OwnedTranslationLocalesInverseTable is the table name for the TranslationLocale entity.
@@ -166,6 +175,20 @@ func ByChannelMessageMentions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderO
 	}
 }
 
+// ByTodoCandidateAssigneesCount orders the results by todo_candidate_assignees count.
+func ByTodoCandidateAssigneesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newTodoCandidateAssigneesStep(), opts...)
+	}
+}
+
+// ByTodoCandidateAssignees orders the results by todo_candidate_assignees terms.
+func ByTodoCandidateAssignees(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newTodoCandidateAssigneesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByOwnedTranslationLocalesCount orders the results by owned_translation_locales count.
 func ByOwnedTranslationLocalesCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -205,6 +228,13 @@ func newChannelMessageMentionsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ChannelMessageMentionsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, true, ChannelMessageMentionsTable, ChannelMessageMentionsColumn),
+	)
+}
+func newTodoCandidateAssigneesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(TodoCandidateAssigneesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, true, TodoCandidateAssigneesTable, TodoCandidateAssigneesColumn),
 	)
 }
 func newOwnedTranslationLocalesStep() *sqlgraph.Step {

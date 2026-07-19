@@ -59,6 +59,7 @@ func (TodoCandidate) Edges() []ent.Edge {
 		edge.To("source_message", ChannelMessage.Type).Field("source_message_id").Required().Unique().Immutable().Comment("建立候選待辦的第一則訊息"),
 		edge.To("last_message", ChannelMessage.Type).Field("last_message_id").Required().Unique().Comment("最近一次更新候選待辦的訊息"),
 		edge.To("linked_message", ChannelMessage.Type).Field("linked_message_id").Unique().Comment("最近一次分析時連結到的歷史訊息"),
+		edge.To("candidate_assignees", TodoCandidateAssignee.Type).Comment("此候選待辦的 assignee 解析快照；可由 mention、sender 或 analyzer 產生"),
 	}
 }
 

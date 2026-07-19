@@ -19,6 +19,7 @@ import (
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/todocandidate"
+	"assistant-api/internal/ent/todocandidateassignee"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"assistant-api/internal/integration/unifiedmessage"
@@ -165,6 +166,43 @@ func normalizeMentionIdentityKind(value string, isBot bool) channelmessagementio
 		return channelmessagemention.IdentityKindUnknown
 	default:
 		return channelmessagemention.IdentityKindUser
+	}
+}
+
+func todoAssigneePlatformFromMention(value channelmessagemention.Platform) todocandidateassignee.Platform {
+	switch value {
+	case channelmessagemention.PlatformWhatsapp:
+		return todocandidateassignee.PlatformWhatsapp
+	case channelmessagemention.PlatformSlack:
+		return todocandidateassignee.PlatformSlack
+	case channelmessagemention.PlatformTelegram:
+		return todocandidateassignee.PlatformTelegram
+	default:
+		return todocandidateassignee.PlatformLine
+	}
+}
+
+func todoAssigneeIdentityKindFromMention(value channelmessagemention.IdentityKind) todocandidateassignee.IdentityKind {
+	switch value {
+	case channelmessagemention.IdentityKindBot:
+		return todocandidateassignee.IdentityKindBot
+	case channelmessagemention.IdentityKindUnknown:
+		return todocandidateassignee.IdentityKindUnknown
+	default:
+		return todocandidateassignee.IdentityKindUser
+	}
+}
+
+func todoAssigneeResolutionStatusFromMention(value channelmessagemention.ResolutionStatus) todocandidateassignee.ResolutionStatus {
+	switch value {
+	case channelmessagemention.ResolutionStatusResolved:
+		return todocandidateassignee.ResolutionStatusResolved
+	case channelmessagemention.ResolutionStatusAmbiguous:
+		return todocandidateassignee.ResolutionStatusAmbiguous
+	case channelmessagemention.ResolutionStatusUnsupported:
+		return todocandidateassignee.ResolutionStatusUnsupported
+	default:
+		return todocandidateassignee.ResolutionStatusUnresolved
 	}
 }
 
@@ -890,6 +928,9 @@ func (r *ChannelMessageRepo) createTodoCandidate(ctx context.Context, input Save
 	if err != nil {
 		return nil, fmt.Errorf("create todo candidate failed: %w", err)
 	}
+	if err := r.syncTodoCandidateMentionAssignees(ctx, item.ID, input.MessageID); err != nil {
+		return nil, err
+	}
 	return item, nil
 }
 
@@ -927,7 +968,68 @@ func (r *ChannelMessageRepo) updateTodoCandidate(ctx context.Context, candidateI
 	if err != nil {
 		return nil, fmt.Errorf("update todo candidate failed: %w", err)
 	}
+	if err := r.syncTodoCandidateMentionAssignees(ctx, item.ID, input.MessageID); err != nil {
+		return nil, err
+	}
 	return item, nil
+}
+
+func (r *ChannelMessageRepo) syncTodoCandidateMentionAssignees(ctx context.Context, candidateID uuid.UUID, messageID uuid.UUID) error {
+	if candidateID == uuid.Nil || messageID == uuid.Nil {
+		return nil
+	}
+	mentions, err := r.db.ChannelMessageMention.Query().
+		Where(channelmessagemention.ChannelMessageIDEQ(messageID)).
+		Order(ent.Asc(channelmessagemention.FieldMentionIndex), ent.Asc(channelmessagemention.FieldCreatedAt)).
+		All(ctx)
+	if err != nil {
+		return fmt.Errorf("query todo candidate source mentions failed: %w", err)
+	}
+	if len(mentions) == 0 {
+		// follow-up 訊息可能只是「我晚點補」而沒有 mention；此時保留既有 mention assignee 快照，避免把原始指派資訊清掉。
+		return nil
+	}
+	if _, err := r.db.TodoCandidateAssignee.Delete().
+		Where(
+			todocandidateassignee.CandidateIDEQ(candidateID),
+			todocandidateassignee.SourceEQ(todocandidateassignee.SourceMention),
+		).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("clear todo candidate mention assignees failed: %w", err)
+	}
+
+	creates := make([]*ent.TodoCandidateAssigneeCreate, 0, len(mentions))
+	for _, mention := range mentions {
+		if mention == nil {
+			continue
+		}
+		create := r.db.TodoCandidateAssignee.Create().
+			SetCandidateID(candidateID).
+			SetSourceMessageMentionID(mention.ID).
+			SetSource(todocandidateassignee.SourceMention).
+			SetPlatform(todoAssigneePlatformFromMention(mention.Platform)).
+			SetIdentityKind(todoAssigneeIdentityKindFromMention(mention.IdentityKind)).
+			SetIsBot(mention.IsBot).
+			SetResolutionStatus(todoAssigneeResolutionStatusFromMention(mention.ResolutionStatus)).
+			SetReason("resolved from structured message mention")
+		if platformUserID := strings.TrimSpace(mention.PlatformUserID); platformUserID != "" {
+			create.SetPlatformUserID(platformUserID)
+		}
+		if displayText := strings.TrimSpace(mention.DisplayText); displayText != "" {
+			create.SetDisplayText(displayText)
+		}
+		if mention.UserID != nil && *mention.UserID != uuid.Nil {
+			create.SetUserID(*mention.UserID)
+		}
+		creates = append(creates, create)
+	}
+	if len(creates) == 0 {
+		return nil
+	}
+	if err := r.db.TodoCandidateAssignee.CreateBulk(creates...).Exec(ctx); err != nil {
+		return fmt.Errorf("save todo candidate mention assignees failed: %w", err)
+	}
+	return nil
 }
 
 func (r *ChannelMessageRepo) findTodoCandidateByLinkedMessage(ctx context.Context, channelID uuid.UUID, linkedMessageID uuid.UUID) (*ent.TodoCandidate, error) {

@@ -7,6 +7,7 @@ import (
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/slack"
+	"assistant-api/internal/ent/todocandidateassignee"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -109,6 +110,21 @@ func (_c *UserCreate) AddChannelMessageMentions(v ...*ChannelMessageMention) *Us
 		ids[i] = v[i].ID
 	}
 	return _c.AddChannelMessageMentionIDs(ids...)
+}
+
+// AddTodoCandidateAssigneeIDs adds the "todo_candidate_assignees" edge to the TodoCandidateAssignee entity by IDs.
+func (_c *UserCreate) AddTodoCandidateAssigneeIDs(ids ...uuid.UUID) *UserCreate {
+	_c.mutation.AddTodoCandidateAssigneeIDs(ids...)
+	return _c
+}
+
+// AddTodoCandidateAssignees adds the "todo_candidate_assignees" edges to the TodoCandidateAssignee entity.
+func (_c *UserCreate) AddTodoCandidateAssignees(v ...*TodoCandidateAssignee) *UserCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddTodoCandidateAssigneeIDs(ids...)
 }
 
 // AddOwnedTranslationLocaleIDs adds the "owned_translation_locales" edge to the TranslationLocale entity by IDs.
@@ -285,6 +301,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessagemention.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.TodoCandidateAssigneesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.TodoCandidateAssigneesTable,
+			Columns: []string{user.TodoCandidateAssigneesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateassignee.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

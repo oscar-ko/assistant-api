@@ -8,6 +8,7 @@ import (
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/slack"
+	"assistant-api/internal/ent/todocandidateassignee"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -33,6 +34,7 @@ type UserQuery struct {
 	withSlack                        *SlackQuery
 	withChannelServiceMembers        *ChannelServiceMemberQuery
 	withChannelMessageMentions       *ChannelMessageMentionQuery
+	withTodoCandidateAssignees       *TodoCandidateAssigneeQuery
 	withOwnedTranslationLocales      *TranslationLocaleQuery
 	modifiers                        []func(*sql.Selector)
 	loadTotal                        []func(context.Context, []*User) error
@@ -40,6 +42,7 @@ type UserQuery struct {
 	withNamedSlack                   map[string]*SlackQuery
 	withNamedChannelServiceMembers   map[string]*ChannelServiceMemberQuery
 	withNamedChannelMessageMentions  map[string]*ChannelMessageMentionQuery
+	withNamedTodoCandidateAssignees  map[string]*TodoCandidateAssigneeQuery
 	withNamedOwnedTranslationLocales map[string]*TranslationLocaleQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -158,6 +161,28 @@ func (_q *UserQuery) QueryChannelMessageMentions() *ChannelMessageMentionQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(channelmessagemention.Table, channelmessagemention.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, true, user.ChannelMessageMentionsTable, user.ChannelMessageMentionsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryTodoCandidateAssignees chains the current query on the "todo_candidate_assignees" edge.
+func (_q *UserQuery) QueryTodoCandidateAssignees() *TodoCandidateAssigneeQuery {
+	query := (&TodoCandidateAssigneeClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(todocandidateassignee.Table, todocandidateassignee.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, user.TodoCandidateAssigneesTable, user.TodoCandidateAssigneesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -383,6 +408,7 @@ func (_q *UserQuery) Clone() *UserQuery {
 		withSlack:                   _q.withSlack.Clone(),
 		withChannelServiceMembers:   _q.withChannelServiceMembers.Clone(),
 		withChannelMessageMentions:  _q.withChannelMessageMentions.Clone(),
+		withTodoCandidateAssignees:  _q.withTodoCandidateAssignees.Clone(),
 		withOwnedTranslationLocales: _q.withOwnedTranslationLocales.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
@@ -431,6 +457,17 @@ func (_q *UserQuery) WithChannelMessageMentions(opts ...func(*ChannelMessageMent
 		opt(query)
 	}
 	_q.withChannelMessageMentions = query
+	return _q
+}
+
+// WithTodoCandidateAssignees tells the query-builder to eager-load the nodes that are connected to
+// the "todo_candidate_assignees" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithTodoCandidateAssignees(opts ...func(*TodoCandidateAssigneeQuery)) *UserQuery {
+	query := (&TodoCandidateAssigneeClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withTodoCandidateAssignees = query
 	return _q
 }
 
@@ -523,11 +560,12 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [5]bool{
+		loadedTypes = [6]bool{
 			_q.withLine != nil,
 			_q.withSlack != nil,
 			_q.withChannelServiceMembers != nil,
 			_q.withChannelMessageMentions != nil,
+			_q.withTodoCandidateAssignees != nil,
 			_q.withOwnedTranslationLocales != nil,
 		}
 	)
@@ -584,6 +622,15 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 			return nil, err
 		}
 	}
+	if query := _q.withTodoCandidateAssignees; query != nil {
+		if err := _q.loadTodoCandidateAssignees(ctx, query, nodes,
+			func(n *User) { n.Edges.TodoCandidateAssignees = []*TodoCandidateAssignee{} },
+			func(n *User, e *TodoCandidateAssignee) {
+				n.Edges.TodoCandidateAssignees = append(n.Edges.TodoCandidateAssignees, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
 	if query := _q.withOwnedTranslationLocales; query != nil {
 		if err := _q.loadOwnedTranslationLocales(ctx, query, nodes,
 			func(n *User) { n.Edges.OwnedTranslationLocales = []*TranslationLocale{} },
@@ -618,6 +665,13 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := _q.loadChannelMessageMentions(ctx, query, nodes,
 			func(n *User) { n.appendNamedChannelMessageMentions(name) },
 			func(n *User, e *ChannelMessageMention) { n.appendNamedChannelMessageMentions(name, e) }); err != nil {
+			return nil, err
+		}
+	}
+	for name, query := range _q.withNamedTodoCandidateAssignees {
+		if err := _q.loadTodoCandidateAssignees(ctx, query, nodes,
+			func(n *User) { n.appendNamedTodoCandidateAssignees(name) },
+			func(n *User, e *TodoCandidateAssignee) { n.appendNamedTodoCandidateAssignees(name, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -741,6 +795,39 @@ func (_q *UserQuery) loadChannelMessageMentions(ctx context.Context, query *Chan
 	}
 	query.Where(predicate.ChannelMessageMention(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(user.ChannelMessageMentionsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.UserID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "user_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadTodoCandidateAssignees(ctx context.Context, query *TodoCandidateAssigneeQuery, nodes []*User, init func(*User), assign func(*User, *TodoCandidateAssignee)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(todocandidateassignee.FieldUserID)
+	}
+	query.Where(predicate.TodoCandidateAssignee(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.TodoCandidateAssigneesColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {
@@ -927,6 +1014,20 @@ func (_q *UserQuery) WithNamedChannelMessageMentions(name string, opts ...func(*
 		_q.withNamedChannelMessageMentions = make(map[string]*ChannelMessageMentionQuery)
 	}
 	_q.withNamedChannelMessageMentions[name] = query
+	return _q
+}
+
+// WithNamedTodoCandidateAssignees tells the query-builder to eager-load the nodes that are connected to the "todo_candidate_assignees"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithNamedTodoCandidateAssignees(name string, opts ...func(*TodoCandidateAssigneeQuery)) *UserQuery {
+	query := (&TodoCandidateAssigneeClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if _q.withNamedTodoCandidateAssignees == nil {
+		_q.withNamedTodoCandidateAssignees = make(map[string]*TodoCandidateAssigneeQuery)
+	}
+	_q.withNamedTodoCandidateAssignees[name] = query
 	return _q
 }
 

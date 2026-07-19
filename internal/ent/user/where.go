@@ -287,6 +287,29 @@ func HasChannelMessageMentionsWith(preds ...predicate.ChannelMessageMention) pre
 	})
 }
 
+// HasTodoCandidateAssignees applies the HasEdge predicate on the "todo_candidate_assignees" edge.
+func HasTodoCandidateAssignees() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, TodoCandidateAssigneesTable, TodoCandidateAssigneesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasTodoCandidateAssigneesWith applies the HasEdge predicate on the "todo_candidate_assignees" edge with a given conditions (other predicates).
+func HasTodoCandidateAssigneesWith(preds ...predicate.TodoCandidateAssignee) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newTodoCandidateAssigneesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasOwnedTranslationLocales applies the HasEdge predicate on the "owned_translation_locales" edge.
 func HasOwnedTranslationLocales() predicate.User {
 	return predicate.User(func(s *sql.Selector) {

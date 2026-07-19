@@ -1003,6 +1003,29 @@ func HasLinkedMessageWith(preds ...predicate.ChannelMessage) predicate.TodoCandi
 	})
 }
 
+// HasCandidateAssignees applies the HasEdge predicate on the "candidate_assignees" edge.
+func HasCandidateAssignees() predicate.TodoCandidate {
+	return predicate.TodoCandidate(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, CandidateAssigneesTable, CandidateAssigneesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCandidateAssigneesWith applies the HasEdge predicate on the "candidate_assignees" edge with a given conditions (other predicates).
+func HasCandidateAssigneesWith(preds ...predicate.TodoCandidateAssignee) predicate.TodoCandidate {
+	return predicate.TodoCandidate(func(s *sql.Selector) {
+		step := newCandidateAssigneesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.TodoCandidate) predicate.TodoCandidate {
 	return predicate.TodoCandidate(sql.AndPredicates(predicates...))

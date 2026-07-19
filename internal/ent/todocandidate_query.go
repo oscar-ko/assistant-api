@@ -7,7 +7,9 @@ import (
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/todocandidate"
+	"assistant-api/internal/ent/todocandidateassignee"
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -21,16 +23,18 @@ import (
 // TodoCandidateQuery is the builder for querying TodoCandidate entities.
 type TodoCandidateQuery struct {
 	config
-	ctx               *QueryContext
-	order             []todocandidate.OrderOption
-	inters            []Interceptor
-	predicates        []predicate.TodoCandidate
-	withChannel       *ChannelQuery
-	withSourceMessage *ChannelMessageQuery
-	withLastMessage   *ChannelMessageQuery
-	withLinkedMessage *ChannelMessageQuery
-	modifiers         []func(*sql.Selector)
-	loadTotal         []func(context.Context, []*TodoCandidate) error
+	ctx                         *QueryContext
+	order                       []todocandidate.OrderOption
+	inters                      []Interceptor
+	predicates                  []predicate.TodoCandidate
+	withChannel                 *ChannelQuery
+	withSourceMessage           *ChannelMessageQuery
+	withLastMessage             *ChannelMessageQuery
+	withLinkedMessage           *ChannelMessageQuery
+	withCandidateAssignees      *TodoCandidateAssigneeQuery
+	modifiers                   []func(*sql.Selector)
+	loadTotal                   []func(context.Context, []*TodoCandidate) error
+	withNamedCandidateAssignees map[string]*TodoCandidateAssigneeQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -148,6 +152,28 @@ func (_q *TodoCandidateQuery) QueryLinkedMessage() *ChannelMessageQuery {
 			sqlgraph.From(todocandidate.Table, todocandidate.FieldID, selector),
 			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, false, todocandidate.LinkedMessageTable, todocandidate.LinkedMessageColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryCandidateAssignees chains the current query on the "candidate_assignees" edge.
+func (_q *TodoCandidateQuery) QueryCandidateAssignees() *TodoCandidateAssigneeQuery {
+	query := (&TodoCandidateAssigneeClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(todocandidate.Table, todocandidate.FieldID, selector),
+			sqlgraph.To(todocandidateassignee.Table, todocandidateassignee.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, todocandidate.CandidateAssigneesTable, todocandidate.CandidateAssigneesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -342,15 +368,16 @@ func (_q *TodoCandidateQuery) Clone() *TodoCandidateQuery {
 		return nil
 	}
 	return &TodoCandidateQuery{
-		config:            _q.config,
-		ctx:               _q.ctx.Clone(),
-		order:             append([]todocandidate.OrderOption{}, _q.order...),
-		inters:            append([]Interceptor{}, _q.inters...),
-		predicates:        append([]predicate.TodoCandidate{}, _q.predicates...),
-		withChannel:       _q.withChannel.Clone(),
-		withSourceMessage: _q.withSourceMessage.Clone(),
-		withLastMessage:   _q.withLastMessage.Clone(),
-		withLinkedMessage: _q.withLinkedMessage.Clone(),
+		config:                 _q.config,
+		ctx:                    _q.ctx.Clone(),
+		order:                  append([]todocandidate.OrderOption{}, _q.order...),
+		inters:                 append([]Interceptor{}, _q.inters...),
+		predicates:             append([]predicate.TodoCandidate{}, _q.predicates...),
+		withChannel:            _q.withChannel.Clone(),
+		withSourceMessage:      _q.withSourceMessage.Clone(),
+		withLastMessage:        _q.withLastMessage.Clone(),
+		withLinkedMessage:      _q.withLinkedMessage.Clone(),
+		withCandidateAssignees: _q.withCandidateAssignees.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -398,6 +425,17 @@ func (_q *TodoCandidateQuery) WithLinkedMessage(opts ...func(*ChannelMessageQuer
 		opt(query)
 	}
 	_q.withLinkedMessage = query
+	return _q
+}
+
+// WithCandidateAssignees tells the query-builder to eager-load the nodes that are connected to
+// the "candidate_assignees" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TodoCandidateQuery) WithCandidateAssignees(opts ...func(*TodoCandidateAssigneeQuery)) *TodoCandidateQuery {
+	query := (&TodoCandidateAssigneeClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCandidateAssignees = query
 	return _q
 }
 
@@ -479,11 +517,12 @@ func (_q *TodoCandidateQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([
 	var (
 		nodes       = []*TodoCandidate{}
 		_spec       = _q.querySpec()
-		loadedTypes = [4]bool{
+		loadedTypes = [5]bool{
 			_q.withChannel != nil,
 			_q.withSourceMessage != nil,
 			_q.withLastMessage != nil,
 			_q.withLinkedMessage != nil,
+			_q.withCandidateAssignees != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -528,6 +567,22 @@ func (_q *TodoCandidateQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([
 	if query := _q.withLinkedMessage; query != nil {
 		if err := _q.loadLinkedMessage(ctx, query, nodes, nil,
 			func(n *TodoCandidate, e *ChannelMessage) { n.Edges.LinkedMessage = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withCandidateAssignees; query != nil {
+		if err := _q.loadCandidateAssignees(ctx, query, nodes,
+			func(n *TodoCandidate) { n.Edges.CandidateAssignees = []*TodoCandidateAssignee{} },
+			func(n *TodoCandidate, e *TodoCandidateAssignee) {
+				n.Edges.CandidateAssignees = append(n.Edges.CandidateAssignees, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
+	for name, query := range _q.withNamedCandidateAssignees {
+		if err := _q.loadCandidateAssignees(ctx, query, nodes,
+			func(n *TodoCandidate) { n.appendNamedCandidateAssignees(name) },
+			func(n *TodoCandidate, e *TodoCandidateAssignee) { n.appendNamedCandidateAssignees(name, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -658,6 +713,36 @@ func (_q *TodoCandidateQuery) loadLinkedMessage(ctx context.Context, query *Chan
 	}
 	return nil
 }
+func (_q *TodoCandidateQuery) loadCandidateAssignees(ctx context.Context, query *TodoCandidateAssigneeQuery, nodes []*TodoCandidate, init func(*TodoCandidate), assign func(*TodoCandidate, *TodoCandidateAssignee)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*TodoCandidate)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(todocandidateassignee.FieldCandidateID)
+	}
+	query.Where(predicate.TodoCandidateAssignee(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(todocandidate.CandidateAssigneesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.CandidateID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "candidate_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
 
 func (_q *TodoCandidateQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
@@ -753,6 +838,20 @@ func (_q *TodoCandidateQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// WithNamedCandidateAssignees tells the query-builder to eager-load the nodes that are connected to the "candidate_assignees"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (_q *TodoCandidateQuery) WithNamedCandidateAssignees(name string, opts ...func(*TodoCandidateAssigneeQuery)) *TodoCandidateQuery {
+	query := (&TodoCandidateAssigneeClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if _q.withNamedCandidateAssignees == nil {
+		_q.withNamedCandidateAssignees = make(map[string]*TodoCandidateAssigneeQuery)
+	}
+	_q.withNamedCandidateAssignees[name] = query
+	return _q
 }
 
 // TodoCandidateGroupBy is the group-by builder for TodoCandidate entities.

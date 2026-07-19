@@ -16,6 +16,7 @@ import (
 	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/slackworkspace"
 	"assistant-api/internal/ent/todocandidate"
+	"assistant-api/internal/ent/todocandidateassignee"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"time"
@@ -307,6 +308,31 @@ func init() {
 	todocandidateDescID := todocandidateMixinFields0[0].Descriptor()
 	// todocandidate.DefaultID holds the default value on creation for the id field.
 	todocandidate.DefaultID = todocandidateDescID.Default.(func() uuid.UUID)
+	todocandidateassigneeMixin := schema.TodoCandidateAssignee{}.Mixin()
+	todocandidateassigneeMixinFields0 := todocandidateassigneeMixin[0].Fields()
+	_ = todocandidateassigneeMixinFields0
+	todocandidateassigneeMixinFields1 := todocandidateassigneeMixin[1].Fields()
+	_ = todocandidateassigneeMixinFields1
+	todocandidateassigneeFields := schema.TodoCandidateAssignee{}.Fields()
+	_ = todocandidateassigneeFields
+	// todocandidateassigneeDescCreatedAt is the schema descriptor for created_at field.
+	todocandidateassigneeDescCreatedAt := todocandidateassigneeMixinFields1[0].Descriptor()
+	// todocandidateassignee.DefaultCreatedAt holds the default value on creation for the created_at field.
+	todocandidateassignee.DefaultCreatedAt = todocandidateassigneeDescCreatedAt.Default.(func() time.Time)
+	// todocandidateassigneeDescUpdatedAt is the schema descriptor for updated_at field.
+	todocandidateassigneeDescUpdatedAt := todocandidateassigneeMixinFields1[1].Descriptor()
+	// todocandidateassignee.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	todocandidateassignee.DefaultUpdatedAt = todocandidateassigneeDescUpdatedAt.Default.(func() time.Time)
+	// todocandidateassignee.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	todocandidateassignee.UpdateDefaultUpdatedAt = todocandidateassigneeDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// todocandidateassigneeDescIsBot is the schema descriptor for is_bot field.
+	todocandidateassigneeDescIsBot := todocandidateassigneeFields[8].Descriptor()
+	// todocandidateassignee.DefaultIsBot holds the default value on creation for the is_bot field.
+	todocandidateassignee.DefaultIsBot = todocandidateassigneeDescIsBot.Default.(bool)
+	// todocandidateassigneeDescID is the schema descriptor for id field.
+	todocandidateassigneeDescID := todocandidateassigneeMixinFields0[0].Descriptor()
+	// todocandidateassignee.DefaultID holds the default value on creation for the id field.
+	todocandidateassignee.DefaultID = todocandidateassigneeDescID.Default.(func() uuid.UUID)
 	translationlocaleMixin := schema.TranslationLocale{}.Mixin()
 	translationlocaleMixinFields0 := translationlocaleMixin[0].Fields()
 	_ = translationlocaleMixinFields0

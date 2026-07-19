@@ -6,6 +6,7 @@ import (
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/todocandidate"
+	"assistant-api/internal/ent/todocandidateassignee"
 	"context"
 	"errors"
 	"fmt"
@@ -287,6 +288,21 @@ func (_c *TodoCandidateCreate) SetLastMessage(v *ChannelMessage) *TodoCandidateC
 // SetLinkedMessage sets the "linked_message" edge to the ChannelMessage entity.
 func (_c *TodoCandidateCreate) SetLinkedMessage(v *ChannelMessage) *TodoCandidateCreate {
 	return _c.SetLinkedMessageID(v.ID)
+}
+
+// AddCandidateAssigneeIDs adds the "candidate_assignees" edge to the TodoCandidateAssignee entity by IDs.
+func (_c *TodoCandidateCreate) AddCandidateAssigneeIDs(ids ...uuid.UUID) *TodoCandidateCreate {
+	_c.mutation.AddCandidateAssigneeIDs(ids...)
+	return _c
+}
+
+// AddCandidateAssignees adds the "candidate_assignees" edges to the TodoCandidateAssignee entity.
+func (_c *TodoCandidateCreate) AddCandidateAssignees(v ...*TodoCandidateAssignee) *TodoCandidateCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddCandidateAssigneeIDs(ids...)
 }
 
 // Mutation returns the TodoCandidateMutation object of the builder.
@@ -580,6 +596,22 @@ func (_c *TodoCandidateCreate) createSpec() (*TodoCandidate, *sqlgraph.CreateSpe
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.LinkedMessageID = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.CandidateAssigneesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todocandidate.CandidateAssigneesTable,
+			Columns: []string{todocandidate.CandidateAssigneesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateassignee.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

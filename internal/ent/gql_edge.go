@@ -136,6 +136,18 @@ func (_m *ChannelMessageMention) Message(ctx context.Context) (*ChannelMessage, 
 	return result, err
 }
 
+func (_m *ChannelMessageMention) TodoCandidateAssignees(ctx context.Context) (result []*TodoCandidateAssignee, err error) {
+	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
+		result, err = _m.NamedTodoCandidateAssignees(graphql.GetFieldContext(ctx).Field.Alias)
+	} else {
+		result, err = _m.Edges.TodoCandidateAssigneesOrErr()
+	}
+	if IsNotLoaded(err) {
+		result, err = _m.QueryTodoCandidateAssignees().All(ctx)
+	}
+	return result, err
+}
+
 func (_m *ChannelMessageMention) User(ctx context.Context) (*User, error) {
 	result, err := _m.Edges.UserOrErr()
 	if IsNotLoaded(err) {
@@ -252,6 +264,42 @@ func (_m *TodoCandidate) LinkedMessage(ctx context.Context) (*ChannelMessage, er
 	return result, MaskNotFound(err)
 }
 
+func (_m *TodoCandidate) CandidateAssignees(ctx context.Context) (result []*TodoCandidateAssignee, err error) {
+	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
+		result, err = _m.NamedCandidateAssignees(graphql.GetFieldContext(ctx).Field.Alias)
+	} else {
+		result, err = _m.Edges.CandidateAssigneesOrErr()
+	}
+	if IsNotLoaded(err) {
+		result, err = _m.QueryCandidateAssignees().All(ctx)
+	}
+	return result, err
+}
+
+func (_m *TodoCandidateAssignee) Candidate(ctx context.Context) (*TodoCandidate, error) {
+	result, err := _m.Edges.CandidateOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryCandidate().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *TodoCandidateAssignee) SourceMessageMention(ctx context.Context) (*ChannelMessageMention, error) {
+	result, err := _m.Edges.SourceMessageMentionOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QuerySourceMessageMention().Only(ctx)
+	}
+	return result, MaskNotFound(err)
+}
+
+func (_m *TodoCandidateAssignee) User(ctx context.Context) (*User, error) {
+	result, err := _m.Edges.UserOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryUser().Only(ctx)
+	}
+	return result, MaskNotFound(err)
+}
+
 func (_m *TranslationLocale) Channel(ctx context.Context) (*Channel, error) {
 	result, err := _m.Edges.ChannelOrErr()
 	if IsNotLoaded(err) {
@@ -320,6 +368,18 @@ func (_m *User) ChannelMessageMentions(ctx context.Context) (result []*ChannelMe
 	}
 	if IsNotLoaded(err) {
 		result, err = _m.QueryChannelMessageMentions().All(ctx)
+	}
+	return result, err
+}
+
+func (_m *User) TodoCandidateAssignees(ctx context.Context) (result []*TodoCandidateAssignee, err error) {
+	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
+		result, err = _m.NamedTodoCandidateAssignees(graphql.GetFieldContext(ctx).Field.Alias)
+	} else {
+		result, err = _m.Edges.TodoCandidateAssigneesOrErr()
+	}
+	if IsNotLoaded(err) {
+		result, err = _m.QueryTodoCandidateAssignees().All(ctx)
 	}
 	return result, err
 }

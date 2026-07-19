@@ -6,6 +6,7 @@ import (
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/todocandidate"
+	"assistant-api/internal/ent/todocandidateassignee"
 	"context"
 	"errors"
 	"fmt"
@@ -341,6 +342,21 @@ func (_u *TodoCandidateUpdate) SetLinkedMessage(v *ChannelMessage) *TodoCandidat
 	return _u.SetLinkedMessageID(v.ID)
 }
 
+// AddCandidateAssigneeIDs adds the "candidate_assignees" edge to the TodoCandidateAssignee entity by IDs.
+func (_u *TodoCandidateUpdate) AddCandidateAssigneeIDs(ids ...uuid.UUID) *TodoCandidateUpdate {
+	_u.mutation.AddCandidateAssigneeIDs(ids...)
+	return _u
+}
+
+// AddCandidateAssignees adds the "candidate_assignees" edges to the TodoCandidateAssignee entity.
+func (_u *TodoCandidateUpdate) AddCandidateAssignees(v ...*TodoCandidateAssignee) *TodoCandidateUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCandidateAssigneeIDs(ids...)
+}
+
 // Mutation returns the TodoCandidateMutation object of the builder.
 func (_u *TodoCandidateUpdate) Mutation() *TodoCandidateMutation {
 	return _u.mutation
@@ -356,6 +372,27 @@ func (_u *TodoCandidateUpdate) ClearLastMessage() *TodoCandidateUpdate {
 func (_u *TodoCandidateUpdate) ClearLinkedMessage() *TodoCandidateUpdate {
 	_u.mutation.ClearLinkedMessage()
 	return _u
+}
+
+// ClearCandidateAssignees clears all "candidate_assignees" edges to the TodoCandidateAssignee entity.
+func (_u *TodoCandidateUpdate) ClearCandidateAssignees() *TodoCandidateUpdate {
+	_u.mutation.ClearCandidateAssignees()
+	return _u
+}
+
+// RemoveCandidateAssigneeIDs removes the "candidate_assignees" edge to TodoCandidateAssignee entities by IDs.
+func (_u *TodoCandidateUpdate) RemoveCandidateAssigneeIDs(ids ...uuid.UUID) *TodoCandidateUpdate {
+	_u.mutation.RemoveCandidateAssigneeIDs(ids...)
+	return _u
+}
+
+// RemoveCandidateAssignees removes "candidate_assignees" edges to TodoCandidateAssignee entities.
+func (_u *TodoCandidateUpdate) RemoveCandidateAssignees(v ...*TodoCandidateAssignee) *TodoCandidateUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCandidateAssigneeIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -579,6 +616,51 @@ func (_u *TodoCandidateUpdate) sqlSave(ctx context.Context) (_node int, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CandidateAssigneesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todocandidate.CandidateAssigneesTable,
+			Columns: []string{todocandidate.CandidateAssigneesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateassignee.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCandidateAssigneesIDs(); len(nodes) > 0 && !_u.mutation.CandidateAssigneesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todocandidate.CandidateAssigneesTable,
+			Columns: []string{todocandidate.CandidateAssigneesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateassignee.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CandidateAssigneesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todocandidate.CandidateAssigneesTable,
+			Columns: []string{todocandidate.CandidateAssigneesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateassignee.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -916,6 +998,21 @@ func (_u *TodoCandidateUpdateOne) SetLinkedMessage(v *ChannelMessage) *TodoCandi
 	return _u.SetLinkedMessageID(v.ID)
 }
 
+// AddCandidateAssigneeIDs adds the "candidate_assignees" edge to the TodoCandidateAssignee entity by IDs.
+func (_u *TodoCandidateUpdateOne) AddCandidateAssigneeIDs(ids ...uuid.UUID) *TodoCandidateUpdateOne {
+	_u.mutation.AddCandidateAssigneeIDs(ids...)
+	return _u
+}
+
+// AddCandidateAssignees adds the "candidate_assignees" edges to the TodoCandidateAssignee entity.
+func (_u *TodoCandidateUpdateOne) AddCandidateAssignees(v ...*TodoCandidateAssignee) *TodoCandidateUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCandidateAssigneeIDs(ids...)
+}
+
 // Mutation returns the TodoCandidateMutation object of the builder.
 func (_u *TodoCandidateUpdateOne) Mutation() *TodoCandidateMutation {
 	return _u.mutation
@@ -931,6 +1028,27 @@ func (_u *TodoCandidateUpdateOne) ClearLastMessage() *TodoCandidateUpdateOne {
 func (_u *TodoCandidateUpdateOne) ClearLinkedMessage() *TodoCandidateUpdateOne {
 	_u.mutation.ClearLinkedMessage()
 	return _u
+}
+
+// ClearCandidateAssignees clears all "candidate_assignees" edges to the TodoCandidateAssignee entity.
+func (_u *TodoCandidateUpdateOne) ClearCandidateAssignees() *TodoCandidateUpdateOne {
+	_u.mutation.ClearCandidateAssignees()
+	return _u
+}
+
+// RemoveCandidateAssigneeIDs removes the "candidate_assignees" edge to TodoCandidateAssignee entities by IDs.
+func (_u *TodoCandidateUpdateOne) RemoveCandidateAssigneeIDs(ids ...uuid.UUID) *TodoCandidateUpdateOne {
+	_u.mutation.RemoveCandidateAssigneeIDs(ids...)
+	return _u
+}
+
+// RemoveCandidateAssignees removes "candidate_assignees" edges to TodoCandidateAssignee entities.
+func (_u *TodoCandidateUpdateOne) RemoveCandidateAssignees(v ...*TodoCandidateAssignee) *TodoCandidateUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCandidateAssigneeIDs(ids...)
 }
 
 // Where appends a list predicates to the TodoCandidateUpdate builder.
@@ -1184,6 +1302,51 @@ func (_u *TodoCandidateUpdateOne) sqlSave(ctx context.Context) (_node *TodoCandi
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CandidateAssigneesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todocandidate.CandidateAssigneesTable,
+			Columns: []string{todocandidate.CandidateAssigneesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateassignee.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCandidateAssigneesIDs(); len(nodes) > 0 && !_u.mutation.CandidateAssigneesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todocandidate.CandidateAssigneesTable,
+			Columns: []string{todocandidate.CandidateAssigneesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateassignee.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CandidateAssigneesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todocandidate.CandidateAssigneesTable,
+			Columns: []string{todocandidate.CandidateAssigneesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateassignee.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

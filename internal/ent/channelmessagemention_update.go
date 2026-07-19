@@ -5,6 +5,7 @@ package ent
 import (
 	"assistant-api/internal/ent/channelmessagemention"
 	"assistant-api/internal/ent/predicate"
+	"assistant-api/internal/ent/todocandidateassignee"
 	"assistant-api/internal/ent/user"
 	"context"
 	"errors"
@@ -240,6 +241,21 @@ func (_u *ChannelMessageMentionUpdate) ClearRaw() *ChannelMessageMentionUpdate {
 	return _u
 }
 
+// AddTodoCandidateAssigneeIDs adds the "todo_candidate_assignees" edge to the TodoCandidateAssignee entity by IDs.
+func (_u *ChannelMessageMentionUpdate) AddTodoCandidateAssigneeIDs(ids ...uuid.UUID) *ChannelMessageMentionUpdate {
+	_u.mutation.AddTodoCandidateAssigneeIDs(ids...)
+	return _u
+}
+
+// AddTodoCandidateAssignees adds the "todo_candidate_assignees" edges to the TodoCandidateAssignee entity.
+func (_u *ChannelMessageMentionUpdate) AddTodoCandidateAssignees(v ...*TodoCandidateAssignee) *ChannelMessageMentionUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTodoCandidateAssigneeIDs(ids...)
+}
+
 // SetUser sets the "user" edge to the User entity.
 func (_u *ChannelMessageMentionUpdate) SetUser(v *User) *ChannelMessageMentionUpdate {
 	return _u.SetUserID(v.ID)
@@ -248,6 +264,27 @@ func (_u *ChannelMessageMentionUpdate) SetUser(v *User) *ChannelMessageMentionUp
 // Mutation returns the ChannelMessageMentionMutation object of the builder.
 func (_u *ChannelMessageMentionUpdate) Mutation() *ChannelMessageMentionMutation {
 	return _u.mutation
+}
+
+// ClearTodoCandidateAssignees clears all "todo_candidate_assignees" edges to the TodoCandidateAssignee entity.
+func (_u *ChannelMessageMentionUpdate) ClearTodoCandidateAssignees() *ChannelMessageMentionUpdate {
+	_u.mutation.ClearTodoCandidateAssignees()
+	return _u
+}
+
+// RemoveTodoCandidateAssigneeIDs removes the "todo_candidate_assignees" edge to TodoCandidateAssignee entities by IDs.
+func (_u *ChannelMessageMentionUpdate) RemoveTodoCandidateAssigneeIDs(ids ...uuid.UUID) *ChannelMessageMentionUpdate {
+	_u.mutation.RemoveTodoCandidateAssigneeIDs(ids...)
+	return _u
+}
+
+// RemoveTodoCandidateAssignees removes "todo_candidate_assignees" edges to TodoCandidateAssignee entities.
+func (_u *ChannelMessageMentionUpdate) RemoveTodoCandidateAssignees(v ...*TodoCandidateAssignee) *ChannelMessageMentionUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTodoCandidateAssigneeIDs(ids...)
 }
 
 // ClearUser clears the "user" edge to the User entity.
@@ -380,6 +417,51 @@ func (_u *ChannelMessageMentionUpdate) sqlSave(ctx context.Context) (_node int, 
 	}
 	if _u.mutation.RawCleared() {
 		_spec.ClearField(channelmessagemention.FieldRaw, field.TypeString)
+	}
+	if _u.mutation.TodoCandidateAssigneesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   channelmessagemention.TodoCandidateAssigneesTable,
+			Columns: []string{channelmessagemention.TodoCandidateAssigneesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateassignee.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTodoCandidateAssigneesIDs(); len(nodes) > 0 && !_u.mutation.TodoCandidateAssigneesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   channelmessagemention.TodoCandidateAssigneesTable,
+			Columns: []string{channelmessagemention.TodoCandidateAssigneesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateassignee.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TodoCandidateAssigneesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   channelmessagemention.TodoCandidateAssigneesTable,
+			Columns: []string{channelmessagemention.TodoCandidateAssigneesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateassignee.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -640,6 +722,21 @@ func (_u *ChannelMessageMentionUpdateOne) ClearRaw() *ChannelMessageMentionUpdat
 	return _u
 }
 
+// AddTodoCandidateAssigneeIDs adds the "todo_candidate_assignees" edge to the TodoCandidateAssignee entity by IDs.
+func (_u *ChannelMessageMentionUpdateOne) AddTodoCandidateAssigneeIDs(ids ...uuid.UUID) *ChannelMessageMentionUpdateOne {
+	_u.mutation.AddTodoCandidateAssigneeIDs(ids...)
+	return _u
+}
+
+// AddTodoCandidateAssignees adds the "todo_candidate_assignees" edges to the TodoCandidateAssignee entity.
+func (_u *ChannelMessageMentionUpdateOne) AddTodoCandidateAssignees(v ...*TodoCandidateAssignee) *ChannelMessageMentionUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTodoCandidateAssigneeIDs(ids...)
+}
+
 // SetUser sets the "user" edge to the User entity.
 func (_u *ChannelMessageMentionUpdateOne) SetUser(v *User) *ChannelMessageMentionUpdateOne {
 	return _u.SetUserID(v.ID)
@@ -648,6 +745,27 @@ func (_u *ChannelMessageMentionUpdateOne) SetUser(v *User) *ChannelMessageMentio
 // Mutation returns the ChannelMessageMentionMutation object of the builder.
 func (_u *ChannelMessageMentionUpdateOne) Mutation() *ChannelMessageMentionMutation {
 	return _u.mutation
+}
+
+// ClearTodoCandidateAssignees clears all "todo_candidate_assignees" edges to the TodoCandidateAssignee entity.
+func (_u *ChannelMessageMentionUpdateOne) ClearTodoCandidateAssignees() *ChannelMessageMentionUpdateOne {
+	_u.mutation.ClearTodoCandidateAssignees()
+	return _u
+}
+
+// RemoveTodoCandidateAssigneeIDs removes the "todo_candidate_assignees" edge to TodoCandidateAssignee entities by IDs.
+func (_u *ChannelMessageMentionUpdateOne) RemoveTodoCandidateAssigneeIDs(ids ...uuid.UUID) *ChannelMessageMentionUpdateOne {
+	_u.mutation.RemoveTodoCandidateAssigneeIDs(ids...)
+	return _u
+}
+
+// RemoveTodoCandidateAssignees removes "todo_candidate_assignees" edges to TodoCandidateAssignee entities.
+func (_u *ChannelMessageMentionUpdateOne) RemoveTodoCandidateAssignees(v ...*TodoCandidateAssignee) *ChannelMessageMentionUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTodoCandidateAssigneeIDs(ids...)
 }
 
 // ClearUser clears the "user" edge to the User entity.
@@ -810,6 +928,51 @@ func (_u *ChannelMessageMentionUpdateOne) sqlSave(ctx context.Context) (_node *C
 	}
 	if _u.mutation.RawCleared() {
 		_spec.ClearField(channelmessagemention.FieldRaw, field.TypeString)
+	}
+	if _u.mutation.TodoCandidateAssigneesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   channelmessagemention.TodoCandidateAssigneesTable,
+			Columns: []string{channelmessagemention.TodoCandidateAssigneesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateassignee.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTodoCandidateAssigneesIDs(); len(nodes) > 0 && !_u.mutation.TodoCandidateAssigneesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   channelmessagemention.TodoCandidateAssigneesTable,
+			Columns: []string{channelmessagemention.TodoCandidateAssigneesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateassignee.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TodoCandidateAssigneesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   channelmessagemention.TodoCandidateAssigneesTable,
+			Columns: []string{channelmessagemention.TodoCandidateAssigneesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateassignee.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{

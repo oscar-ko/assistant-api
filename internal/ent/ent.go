@@ -15,6 +15,7 @@ import (
 	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/slackworkspace"
 	"assistant-api/internal/ent/todocandidate"
+	"assistant-api/internal/ent/todocandidateassignee"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -98,6 +99,7 @@ func checkColumn(t, c string) error {
 			slack.Table:                 slack.ValidColumn,
 			slackworkspace.Table:        slackworkspace.ValidColumn,
 			todocandidate.Table:         todocandidate.ValidColumn,
+			todocandidateassignee.Table: todocandidateassignee.ValidColumn,
 			translationlocale.Table:     translationlocale.ValidColumn,
 			user.Table:                  user.ValidColumn,
 		})

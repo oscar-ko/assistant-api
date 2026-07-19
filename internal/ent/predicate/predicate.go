@@ -42,6 +42,9 @@ type SlackWorkspace func(*sql.Selector)
 // TodoCandidate is the predicate function for todocandidate builders.
 type TodoCandidate func(*sql.Selector)
 
+// TodoCandidateAssignee is the predicate function for todocandidateassignee builders.
+type TodoCandidateAssignee func(*sql.Selector)
+
 // TranslationLocale is the predicate function for translationlocale builders.
 type TranslationLocale func(*sql.Selector)
 

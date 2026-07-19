@@ -66,6 +66,8 @@ const (
 	EdgeLastMessage = "last_message"
 	// EdgeLinkedMessage holds the string denoting the linked_message edge name in mutations.
 	EdgeLinkedMessage = "linked_message"
+	// EdgeCandidateAssignees holds the string denoting the candidate_assignees edge name in mutations.
+	EdgeCandidateAssignees = "candidate_assignees"
 	// Table holds the table name of the todocandidate in the database.
 	Table = "todo_candidates"
 	// ChannelTable is the table that holds the channel relation/edge.
@@ -96,6 +98,13 @@ const (
 	LinkedMessageInverseTable = "channel_messages"
 	// LinkedMessageColumn is the table column denoting the linked_message relation/edge.
 	LinkedMessageColumn = "linked_message_id"
+	// CandidateAssigneesTable is the table that holds the candidate_assignees relation/edge.
+	CandidateAssigneesTable = "todo_candidate_assignees"
+	// CandidateAssigneesInverseTable is the table name for the TodoCandidateAssignee entity.
+	// It exists in this package in order to avoid circular dependency with the "todocandidateassignee" package.
+	CandidateAssigneesInverseTable = "todo_candidate_assignees"
+	// CandidateAssigneesColumn is the table column denoting the candidate_assignees relation/edge.
+	CandidateAssigneesColumn = "candidate_id"
 )
 
 // Columns holds all SQL columns for todocandidate fields.
@@ -379,6 +388,20 @@ func ByLinkedMessageField(field string, opts ...sql.OrderTermOption) OrderOption
 		sqlgraph.OrderByNeighborTerms(s, newLinkedMessageStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByCandidateAssigneesCount orders the results by candidate_assignees count.
+func ByCandidateAssigneesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCandidateAssigneesStep(), opts...)
+	}
+}
+
+// ByCandidateAssignees orders the results by candidate_assignees terms.
+func ByCandidateAssignees(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCandidateAssigneesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newChannelStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -405,6 +428,13 @@ func newLinkedMessageStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(LinkedMessageInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, false, LinkedMessageTable, LinkedMessageColumn),
+	)
+}
+func newCandidateAssigneesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CandidateAssigneesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, CandidateAssigneesTable, CandidateAssigneesColumn),
 	)
 }
 

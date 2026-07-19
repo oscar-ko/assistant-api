@@ -16,6 +16,7 @@ import (
 	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/slackworkspace"
 	"assistant-api/internal/ent/todocandidate"
+	"assistant-api/internal/ent/todocandidateassignee"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -51,6 +52,7 @@ const (
 	TypeSlack                 = "Slack"
 	TypeSlackWorkspace        = "SlackWorkspace"
 	TypeTodoCandidate         = "TodoCandidate"
+	TypeTodoCandidateAssignee = "TodoCandidateAssignee"
 	TypeTranslationLocale     = "TranslationLocale"
 	TypeUser                  = "User"
 )
@@ -4470,31 +4472,34 @@ func (m *ChannelMessageMutation) ResetEdge(name string) error {
 // ChannelMessageMentionMutation represents an operation that mutates the ChannelMessageMention nodes in the graph.
 type ChannelMessageMentionMutation struct {
 	config
-	op                Op
-	typ               string
-	id                *uuid.UUID
-	created_at        *time.Time
-	updated_at        *time.Time
-	platform          *channelmessagemention.Platform
-	platform_user_id  *string
-	display_text      *string
-	mention_index     *int
-	addmention_index  *int
-	mention_length    *int
-	addmention_length *int
-	mention_type      *string
-	identity_kind     *channelmessagemention.IdentityKind
-	is_bot            *bool
-	resolution_status *channelmessagemention.ResolutionStatus
-	raw               *string
-	clearedFields     map[string]struct{}
-	message           *uuid.UUID
-	clearedmessage    bool
-	user              *uuid.UUID
-	cleareduser       bool
-	done              bool
-	oldValue          func(context.Context) (*ChannelMessageMention, error)
-	predicates        []predicate.ChannelMessageMention
+	op                              Op
+	typ                             string
+	id                              *uuid.UUID
+	created_at                      *time.Time
+	updated_at                      *time.Time
+	platform                        *channelmessagemention.Platform
+	platform_user_id                *string
+	display_text                    *string
+	mention_index                   *int
+	addmention_index                *int
+	mention_length                  *int
+	addmention_length               *int
+	mention_type                    *string
+	identity_kind                   *channelmessagemention.IdentityKind
+	is_bot                          *bool
+	resolution_status               *channelmessagemention.ResolutionStatus
+	raw                             *string
+	clearedFields                   map[string]struct{}
+	message                         *uuid.UUID
+	clearedmessage                  bool
+	todo_candidate_assignees        map[uuid.UUID]struct{}
+	removedtodo_candidate_assignees map[uuid.UUID]struct{}
+	clearedtodo_candidate_assignees bool
+	user                            *uuid.UUID
+	cleareduser                     bool
+	done                            bool
+	oldValue                        func(context.Context) (*ChannelMessageMention, error)
+	predicates                      []predicate.ChannelMessageMention
 }
 
 var _ ent.Mutation = (*ChannelMessageMentionMutation)(nil)
@@ -5265,6 +5270,60 @@ func (m *ChannelMessageMentionMutation) ResetMessage() {
 	m.clearedmessage = false
 }
 
+// AddTodoCandidateAssigneeIDs adds the "todo_candidate_assignees" edge to the TodoCandidateAssignee entity by ids.
+func (m *ChannelMessageMentionMutation) AddTodoCandidateAssigneeIDs(ids ...uuid.UUID) {
+	if m.todo_candidate_assignees == nil {
+		m.todo_candidate_assignees = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.todo_candidate_assignees[ids[i]] = struct{}{}
+	}
+}
+
+// ClearTodoCandidateAssignees clears the "todo_candidate_assignees" edge to the TodoCandidateAssignee entity.
+func (m *ChannelMessageMentionMutation) ClearTodoCandidateAssignees() {
+	m.clearedtodo_candidate_assignees = true
+}
+
+// TodoCandidateAssigneesCleared reports if the "todo_candidate_assignees" edge to the TodoCandidateAssignee entity was cleared.
+func (m *ChannelMessageMentionMutation) TodoCandidateAssigneesCleared() bool {
+	return m.clearedtodo_candidate_assignees
+}
+
+// RemoveTodoCandidateAssigneeIDs removes the "todo_candidate_assignees" edge to the TodoCandidateAssignee entity by IDs.
+func (m *ChannelMessageMentionMutation) RemoveTodoCandidateAssigneeIDs(ids ...uuid.UUID) {
+	if m.removedtodo_candidate_assignees == nil {
+		m.removedtodo_candidate_assignees = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.todo_candidate_assignees, ids[i])
+		m.removedtodo_candidate_assignees[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedTodoCandidateAssignees returns the removed IDs of the "todo_candidate_assignees" edge to the TodoCandidateAssignee entity.
+func (m *ChannelMessageMentionMutation) RemovedTodoCandidateAssigneesIDs() (ids []uuid.UUID) {
+	for id := range m.removedtodo_candidate_assignees {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// TodoCandidateAssigneesIDs returns the "todo_candidate_assignees" edge IDs in the mutation.
+func (m *ChannelMessageMentionMutation) TodoCandidateAssigneesIDs() (ids []uuid.UUID) {
+	for id := range m.todo_candidate_assignees {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetTodoCandidateAssignees resets all changes to the "todo_candidate_assignees" edge.
+func (m *ChannelMessageMentionMutation) ResetTodoCandidateAssignees() {
+	m.todo_candidate_assignees = nil
+	m.clearedtodo_candidate_assignees = false
+	m.removedtodo_candidate_assignees = nil
+}
+
 // ClearUser clears the "user" edge to the User entity.
 func (m *ChannelMessageMentionMutation) ClearUser() {
 	m.cleareduser = true
@@ -5712,9 +5771,12 @@ func (m *ChannelMessageMentionMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ChannelMessageMentionMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.message != nil {
 		edges = append(edges, channelmessagemention.EdgeMessage)
+	}
+	if m.todo_candidate_assignees != nil {
+		edges = append(edges, channelmessagemention.EdgeTodoCandidateAssignees)
 	}
 	if m.user != nil {
 		edges = append(edges, channelmessagemention.EdgeUser)
@@ -5730,6 +5792,12 @@ func (m *ChannelMessageMentionMutation) AddedIDs(name string) []ent.Value {
 		if id := m.message; id != nil {
 			return []ent.Value{*id}
 		}
+	case channelmessagemention.EdgeTodoCandidateAssignees:
+		ids := make([]ent.Value, 0, len(m.todo_candidate_assignees))
+		for id := range m.todo_candidate_assignees {
+			ids = append(ids, id)
+		}
+		return ids
 	case channelmessagemention.EdgeUser:
 		if id := m.user; id != nil {
 			return []ent.Value{*id}
@@ -5740,21 +5808,35 @@ func (m *ChannelMessageMentionMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ChannelMessageMentionMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
+	if m.removedtodo_candidate_assignees != nil {
+		edges = append(edges, channelmessagemention.EdgeTodoCandidateAssignees)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *ChannelMessageMentionMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case channelmessagemention.EdgeTodoCandidateAssignees:
+		ids := make([]ent.Value, 0, len(m.removedtodo_candidate_assignees))
+		for id := range m.removedtodo_candidate_assignees {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ChannelMessageMentionMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.clearedmessage {
 		edges = append(edges, channelmessagemention.EdgeMessage)
+	}
+	if m.clearedtodo_candidate_assignees {
+		edges = append(edges, channelmessagemention.EdgeTodoCandidateAssignees)
 	}
 	if m.cleareduser {
 		edges = append(edges, channelmessagemention.EdgeUser)
@@ -5768,6 +5850,8 @@ func (m *ChannelMessageMentionMutation) EdgeCleared(name string) bool {
 	switch name {
 	case channelmessagemention.EdgeMessage:
 		return m.clearedmessage
+	case channelmessagemention.EdgeTodoCandidateAssignees:
+		return m.clearedtodo_candidate_assignees
 	case channelmessagemention.EdgeUser:
 		return m.cleareduser
 	}
@@ -5794,6 +5878,9 @@ func (m *ChannelMessageMentionMutation) ResetEdge(name string) error {
 	switch name {
 	case channelmessagemention.EdgeMessage:
 		m.ResetMessage()
+		return nil
+	case channelmessagemention.EdgeTodoCandidateAssignees:
+		m.ResetTodoCandidateAssignees()
 		return nil
 	case channelmessagemention.EdgeUser:
 		m.ResetUser()
@@ -9352,41 +9439,44 @@ func (m *SlackWorkspaceMutation) ResetEdge(name string) error {
 // TodoCandidateMutation represents an operation that mutates the TodoCandidate nodes in the graph.
 type TodoCandidateMutation struct {
 	config
-	op                     Op
-	typ                    string
-	id                     *uuid.UUID
-	created_at             *time.Time
-	updated_at             *time.Time
-	status                 *todocandidate.Status
-	last_decision          *todocandidate.LastDecision
-	summary                *string
-	assignees              *[]string
-	appendassignees        []string
-	due_text               *string
-	due_at                 *time.Time
-	due_timezone           *string
-	due_precision          *todocandidate.DuePrecision
-	due_normalize_decision *todocandidate.DueNormalizeDecision
-	due_confidence         *float64
-	adddue_confidence      *float64
-	due_reason             *string
-	missing_fields         *[]string
-	appendmissing_fields   []string
-	confidence             *float64
-	addconfidence          *float64
-	reason                 *string
-	clearedFields          map[string]struct{}
-	channel                *uuid.UUID
-	clearedchannel         bool
-	source_message         *uuid.UUID
-	clearedsource_message  bool
-	last_message           *uuid.UUID
-	clearedlast_message    bool
-	linked_message         *uuid.UUID
-	clearedlinked_message  bool
-	done                   bool
-	oldValue               func(context.Context) (*TodoCandidate, error)
-	predicates             []predicate.TodoCandidate
+	op                         Op
+	typ                        string
+	id                         *uuid.UUID
+	created_at                 *time.Time
+	updated_at                 *time.Time
+	status                     *todocandidate.Status
+	last_decision              *todocandidate.LastDecision
+	summary                    *string
+	assignees                  *[]string
+	appendassignees            []string
+	due_text                   *string
+	due_at                     *time.Time
+	due_timezone               *string
+	due_precision              *todocandidate.DuePrecision
+	due_normalize_decision     *todocandidate.DueNormalizeDecision
+	due_confidence             *float64
+	adddue_confidence          *float64
+	due_reason                 *string
+	missing_fields             *[]string
+	appendmissing_fields       []string
+	confidence                 *float64
+	addconfidence              *float64
+	reason                     *string
+	clearedFields              map[string]struct{}
+	channel                    *uuid.UUID
+	clearedchannel             bool
+	source_message             *uuid.UUID
+	clearedsource_message      bool
+	last_message               *uuid.UUID
+	clearedlast_message        bool
+	linked_message             *uuid.UUID
+	clearedlinked_message      bool
+	candidate_assignees        map[uuid.UUID]struct{}
+	removedcandidate_assignees map[uuid.UUID]struct{}
+	clearedcandidate_assignees bool
+	done                       bool
+	oldValue                   func(context.Context) (*TodoCandidate, error)
+	predicates                 []predicate.TodoCandidate
 }
 
 var _ ent.Mutation = (*TodoCandidateMutation)(nil)
@@ -10523,6 +10613,60 @@ func (m *TodoCandidateMutation) ResetLinkedMessage() {
 	m.clearedlinked_message = false
 }
 
+// AddCandidateAssigneeIDs adds the "candidate_assignees" edge to the TodoCandidateAssignee entity by ids.
+func (m *TodoCandidateMutation) AddCandidateAssigneeIDs(ids ...uuid.UUID) {
+	if m.candidate_assignees == nil {
+		m.candidate_assignees = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.candidate_assignees[ids[i]] = struct{}{}
+	}
+}
+
+// ClearCandidateAssignees clears the "candidate_assignees" edge to the TodoCandidateAssignee entity.
+func (m *TodoCandidateMutation) ClearCandidateAssignees() {
+	m.clearedcandidate_assignees = true
+}
+
+// CandidateAssigneesCleared reports if the "candidate_assignees" edge to the TodoCandidateAssignee entity was cleared.
+func (m *TodoCandidateMutation) CandidateAssigneesCleared() bool {
+	return m.clearedcandidate_assignees
+}
+
+// RemoveCandidateAssigneeIDs removes the "candidate_assignees" edge to the TodoCandidateAssignee entity by IDs.
+func (m *TodoCandidateMutation) RemoveCandidateAssigneeIDs(ids ...uuid.UUID) {
+	if m.removedcandidate_assignees == nil {
+		m.removedcandidate_assignees = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.candidate_assignees, ids[i])
+		m.removedcandidate_assignees[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedCandidateAssignees returns the removed IDs of the "candidate_assignees" edge to the TodoCandidateAssignee entity.
+func (m *TodoCandidateMutation) RemovedCandidateAssigneesIDs() (ids []uuid.UUID) {
+	for id := range m.removedcandidate_assignees {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// CandidateAssigneesIDs returns the "candidate_assignees" edge IDs in the mutation.
+func (m *TodoCandidateMutation) CandidateAssigneesIDs() (ids []uuid.UUID) {
+	for id := range m.candidate_assignees {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetCandidateAssignees resets all changes to the "candidate_assignees" edge.
+func (m *TodoCandidateMutation) ResetCandidateAssignees() {
+	m.candidate_assignees = nil
+	m.clearedcandidate_assignees = false
+	m.removedcandidate_assignees = nil
+}
+
 // Where appends a list predicates to the TodoCandidateMutation builder.
 func (m *TodoCandidateMutation) Where(ps ...predicate.TodoCandidate) {
 	m.predicates = append(m.predicates, ps...)
@@ -11069,7 +11213,7 @@ func (m *TodoCandidateMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TodoCandidateMutation) AddedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.channel != nil {
 		edges = append(edges, todocandidate.EdgeChannel)
 	}
@@ -11081,6 +11225,9 @@ func (m *TodoCandidateMutation) AddedEdges() []string {
 	}
 	if m.linked_message != nil {
 		edges = append(edges, todocandidate.EdgeLinkedMessage)
+	}
+	if m.candidate_assignees != nil {
+		edges = append(edges, todocandidate.EdgeCandidateAssignees)
 	}
 	return edges
 }
@@ -11105,25 +11252,42 @@ func (m *TodoCandidateMutation) AddedIDs(name string) []ent.Value {
 		if id := m.linked_message; id != nil {
 			return []ent.Value{*id}
 		}
+	case todocandidate.EdgeCandidateAssignees:
+		ids := make([]ent.Value, 0, len(m.candidate_assignees))
+		for id := range m.candidate_assignees {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TodoCandidateMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
+	if m.removedcandidate_assignees != nil {
+		edges = append(edges, todocandidate.EdgeCandidateAssignees)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *TodoCandidateMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case todocandidate.EdgeCandidateAssignees:
+		ids := make([]ent.Value, 0, len(m.removedcandidate_assignees))
+		for id := range m.removedcandidate_assignees {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TodoCandidateMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.clearedchannel {
 		edges = append(edges, todocandidate.EdgeChannel)
 	}
@@ -11135,6 +11299,9 @@ func (m *TodoCandidateMutation) ClearedEdges() []string {
 	}
 	if m.clearedlinked_message {
 		edges = append(edges, todocandidate.EdgeLinkedMessage)
+	}
+	if m.clearedcandidate_assignees {
+		edges = append(edges, todocandidate.EdgeCandidateAssignees)
 	}
 	return edges
 }
@@ -11151,6 +11318,8 @@ func (m *TodoCandidateMutation) EdgeCleared(name string) bool {
 		return m.clearedlast_message
 	case todocandidate.EdgeLinkedMessage:
 		return m.clearedlinked_message
+	case todocandidate.EdgeCandidateAssignees:
+		return m.clearedcandidate_assignees
 	}
 	return false
 }
@@ -11191,8 +11360,1235 @@ func (m *TodoCandidateMutation) ResetEdge(name string) error {
 	case todocandidate.EdgeLinkedMessage:
 		m.ResetLinkedMessage()
 		return nil
+	case todocandidate.EdgeCandidateAssignees:
+		m.ResetCandidateAssignees()
+		return nil
 	}
 	return fmt.Errorf("unknown TodoCandidate edge %s", name)
+}
+
+// TodoCandidateAssigneeMutation represents an operation that mutates the TodoCandidateAssignee nodes in the graph.
+type TodoCandidateAssigneeMutation struct {
+	config
+	op                            Op
+	typ                           string
+	id                            *uuid.UUID
+	created_at                    *time.Time
+	updated_at                    *time.Time
+	source                        *todocandidateassignee.Source
+	platform                      *todocandidateassignee.Platform
+	platform_user_id              *string
+	display_text                  *string
+	identity_kind                 *todocandidateassignee.IdentityKind
+	is_bot                        *bool
+	resolution_status             *todocandidateassignee.ResolutionStatus
+	reason                        *string
+	clearedFields                 map[string]struct{}
+	candidate                     *uuid.UUID
+	clearedcandidate              bool
+	source_message_mention        *uuid.UUID
+	clearedsource_message_mention bool
+	user                          *uuid.UUID
+	cleareduser                   bool
+	done                          bool
+	oldValue                      func(context.Context) (*TodoCandidateAssignee, error)
+	predicates                    []predicate.TodoCandidateAssignee
+}
+
+var _ ent.Mutation = (*TodoCandidateAssigneeMutation)(nil)
+
+// todocandidateassigneeOption allows management of the mutation configuration using functional options.
+type todocandidateassigneeOption func(*TodoCandidateAssigneeMutation)
+
+// newTodoCandidateAssigneeMutation creates new mutation for the TodoCandidateAssignee entity.
+func newTodoCandidateAssigneeMutation(c config, op Op, opts ...todocandidateassigneeOption) *TodoCandidateAssigneeMutation {
+	m := &TodoCandidateAssigneeMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeTodoCandidateAssignee,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withTodoCandidateAssigneeID sets the ID field of the mutation.
+func withTodoCandidateAssigneeID(id uuid.UUID) todocandidateassigneeOption {
+	return func(m *TodoCandidateAssigneeMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *TodoCandidateAssignee
+		)
+		m.oldValue = func(ctx context.Context) (*TodoCandidateAssignee, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().TodoCandidateAssignee.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withTodoCandidateAssignee sets the old TodoCandidateAssignee of the mutation.
+func withTodoCandidateAssignee(node *TodoCandidateAssignee) todocandidateassigneeOption {
+	return func(m *TodoCandidateAssigneeMutation) {
+		m.oldValue = func(context.Context) (*TodoCandidateAssignee, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m TodoCandidateAssigneeMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m TodoCandidateAssigneeMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of TodoCandidateAssignee entities.
+func (m *TodoCandidateAssigneeMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *TodoCandidateAssigneeMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *TodoCandidateAssigneeMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().TodoCandidateAssignee.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *TodoCandidateAssigneeMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *TodoCandidateAssigneeMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the TodoCandidateAssignee entity.
+// If the TodoCandidateAssignee object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoCandidateAssigneeMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *TodoCandidateAssigneeMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *TodoCandidateAssigneeMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *TodoCandidateAssigneeMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the TodoCandidateAssignee entity.
+// If the TodoCandidateAssignee object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoCandidateAssigneeMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *TodoCandidateAssigneeMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetCandidateID sets the "candidate_id" field.
+func (m *TodoCandidateAssigneeMutation) SetCandidateID(u uuid.UUID) {
+	m.candidate = &u
+}
+
+// CandidateID returns the value of the "candidate_id" field in the mutation.
+func (m *TodoCandidateAssigneeMutation) CandidateID() (r uuid.UUID, exists bool) {
+	v := m.candidate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCandidateID returns the old "candidate_id" field's value of the TodoCandidateAssignee entity.
+// If the TodoCandidateAssignee object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoCandidateAssigneeMutation) OldCandidateID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCandidateID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCandidateID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCandidateID: %w", err)
+	}
+	return oldValue.CandidateID, nil
+}
+
+// ResetCandidateID resets all changes to the "candidate_id" field.
+func (m *TodoCandidateAssigneeMutation) ResetCandidateID() {
+	m.candidate = nil
+}
+
+// SetSourceMessageMentionID sets the "source_message_mention_id" field.
+func (m *TodoCandidateAssigneeMutation) SetSourceMessageMentionID(u uuid.UUID) {
+	m.source_message_mention = &u
+}
+
+// SourceMessageMentionID returns the value of the "source_message_mention_id" field in the mutation.
+func (m *TodoCandidateAssigneeMutation) SourceMessageMentionID() (r uuid.UUID, exists bool) {
+	v := m.source_message_mention
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceMessageMentionID returns the old "source_message_mention_id" field's value of the TodoCandidateAssignee entity.
+// If the TodoCandidateAssignee object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoCandidateAssigneeMutation) OldSourceMessageMentionID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceMessageMentionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceMessageMentionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceMessageMentionID: %w", err)
+	}
+	return oldValue.SourceMessageMentionID, nil
+}
+
+// ClearSourceMessageMentionID clears the value of the "source_message_mention_id" field.
+func (m *TodoCandidateAssigneeMutation) ClearSourceMessageMentionID() {
+	m.source_message_mention = nil
+	m.clearedFields[todocandidateassignee.FieldSourceMessageMentionID] = struct{}{}
+}
+
+// SourceMessageMentionIDCleared returns if the "source_message_mention_id" field was cleared in this mutation.
+func (m *TodoCandidateAssigneeMutation) SourceMessageMentionIDCleared() bool {
+	_, ok := m.clearedFields[todocandidateassignee.FieldSourceMessageMentionID]
+	return ok
+}
+
+// ResetSourceMessageMentionID resets all changes to the "source_message_mention_id" field.
+func (m *TodoCandidateAssigneeMutation) ResetSourceMessageMentionID() {
+	m.source_message_mention = nil
+	delete(m.clearedFields, todocandidateassignee.FieldSourceMessageMentionID)
+}
+
+// SetUserID sets the "user_id" field.
+func (m *TodoCandidateAssigneeMutation) SetUserID(u uuid.UUID) {
+	m.user = &u
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *TodoCandidateAssigneeMutation) UserID() (r uuid.UUID, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the TodoCandidateAssignee entity.
+// If the TodoCandidateAssignee object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoCandidateAssigneeMutation) OldUserID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ClearUserID clears the value of the "user_id" field.
+func (m *TodoCandidateAssigneeMutation) ClearUserID() {
+	m.user = nil
+	m.clearedFields[todocandidateassignee.FieldUserID] = struct{}{}
+}
+
+// UserIDCleared returns if the "user_id" field was cleared in this mutation.
+func (m *TodoCandidateAssigneeMutation) UserIDCleared() bool {
+	_, ok := m.clearedFields[todocandidateassignee.FieldUserID]
+	return ok
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *TodoCandidateAssigneeMutation) ResetUserID() {
+	m.user = nil
+	delete(m.clearedFields, todocandidateassignee.FieldUserID)
+}
+
+// SetSource sets the "source" field.
+func (m *TodoCandidateAssigneeMutation) SetSource(t todocandidateassignee.Source) {
+	m.source = &t
+}
+
+// Source returns the value of the "source" field in the mutation.
+func (m *TodoCandidateAssigneeMutation) Source() (r todocandidateassignee.Source, exists bool) {
+	v := m.source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSource returns the old "source" field's value of the TodoCandidateAssignee entity.
+// If the TodoCandidateAssignee object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoCandidateAssigneeMutation) OldSource(ctx context.Context) (v todocandidateassignee.Source, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSource: %w", err)
+	}
+	return oldValue.Source, nil
+}
+
+// ResetSource resets all changes to the "source" field.
+func (m *TodoCandidateAssigneeMutation) ResetSource() {
+	m.source = nil
+}
+
+// SetPlatform sets the "platform" field.
+func (m *TodoCandidateAssigneeMutation) SetPlatform(t todocandidateassignee.Platform) {
+	m.platform = &t
+}
+
+// Platform returns the value of the "platform" field in the mutation.
+func (m *TodoCandidateAssigneeMutation) Platform() (r todocandidateassignee.Platform, exists bool) {
+	v := m.platform
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlatform returns the old "platform" field's value of the TodoCandidateAssignee entity.
+// If the TodoCandidateAssignee object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoCandidateAssigneeMutation) OldPlatform(ctx context.Context) (v todocandidateassignee.Platform, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlatform is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlatform requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlatform: %w", err)
+	}
+	return oldValue.Platform, nil
+}
+
+// ResetPlatform resets all changes to the "platform" field.
+func (m *TodoCandidateAssigneeMutation) ResetPlatform() {
+	m.platform = nil
+}
+
+// SetPlatformUserID sets the "platform_user_id" field.
+func (m *TodoCandidateAssigneeMutation) SetPlatformUserID(s string) {
+	m.platform_user_id = &s
+}
+
+// PlatformUserID returns the value of the "platform_user_id" field in the mutation.
+func (m *TodoCandidateAssigneeMutation) PlatformUserID() (r string, exists bool) {
+	v := m.platform_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlatformUserID returns the old "platform_user_id" field's value of the TodoCandidateAssignee entity.
+// If the TodoCandidateAssignee object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoCandidateAssigneeMutation) OldPlatformUserID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlatformUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlatformUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlatformUserID: %w", err)
+	}
+	return oldValue.PlatformUserID, nil
+}
+
+// ClearPlatformUserID clears the value of the "platform_user_id" field.
+func (m *TodoCandidateAssigneeMutation) ClearPlatformUserID() {
+	m.platform_user_id = nil
+	m.clearedFields[todocandidateassignee.FieldPlatformUserID] = struct{}{}
+}
+
+// PlatformUserIDCleared returns if the "platform_user_id" field was cleared in this mutation.
+func (m *TodoCandidateAssigneeMutation) PlatformUserIDCleared() bool {
+	_, ok := m.clearedFields[todocandidateassignee.FieldPlatformUserID]
+	return ok
+}
+
+// ResetPlatformUserID resets all changes to the "platform_user_id" field.
+func (m *TodoCandidateAssigneeMutation) ResetPlatformUserID() {
+	m.platform_user_id = nil
+	delete(m.clearedFields, todocandidateassignee.FieldPlatformUserID)
+}
+
+// SetDisplayText sets the "display_text" field.
+func (m *TodoCandidateAssigneeMutation) SetDisplayText(s string) {
+	m.display_text = &s
+}
+
+// DisplayText returns the value of the "display_text" field in the mutation.
+func (m *TodoCandidateAssigneeMutation) DisplayText() (r string, exists bool) {
+	v := m.display_text
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisplayText returns the old "display_text" field's value of the TodoCandidateAssignee entity.
+// If the TodoCandidateAssignee object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoCandidateAssigneeMutation) OldDisplayText(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisplayText is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisplayText requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisplayText: %w", err)
+	}
+	return oldValue.DisplayText, nil
+}
+
+// ClearDisplayText clears the value of the "display_text" field.
+func (m *TodoCandidateAssigneeMutation) ClearDisplayText() {
+	m.display_text = nil
+	m.clearedFields[todocandidateassignee.FieldDisplayText] = struct{}{}
+}
+
+// DisplayTextCleared returns if the "display_text" field was cleared in this mutation.
+func (m *TodoCandidateAssigneeMutation) DisplayTextCleared() bool {
+	_, ok := m.clearedFields[todocandidateassignee.FieldDisplayText]
+	return ok
+}
+
+// ResetDisplayText resets all changes to the "display_text" field.
+func (m *TodoCandidateAssigneeMutation) ResetDisplayText() {
+	m.display_text = nil
+	delete(m.clearedFields, todocandidateassignee.FieldDisplayText)
+}
+
+// SetIdentityKind sets the "identity_kind" field.
+func (m *TodoCandidateAssigneeMutation) SetIdentityKind(tk todocandidateassignee.IdentityKind) {
+	m.identity_kind = &tk
+}
+
+// IdentityKind returns the value of the "identity_kind" field in the mutation.
+func (m *TodoCandidateAssigneeMutation) IdentityKind() (r todocandidateassignee.IdentityKind, exists bool) {
+	v := m.identity_kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIdentityKind returns the old "identity_kind" field's value of the TodoCandidateAssignee entity.
+// If the TodoCandidateAssignee object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoCandidateAssigneeMutation) OldIdentityKind(ctx context.Context) (v todocandidateassignee.IdentityKind, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIdentityKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIdentityKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIdentityKind: %w", err)
+	}
+	return oldValue.IdentityKind, nil
+}
+
+// ResetIdentityKind resets all changes to the "identity_kind" field.
+func (m *TodoCandidateAssigneeMutation) ResetIdentityKind() {
+	m.identity_kind = nil
+}
+
+// SetIsBot sets the "is_bot" field.
+func (m *TodoCandidateAssigneeMutation) SetIsBot(b bool) {
+	m.is_bot = &b
+}
+
+// IsBot returns the value of the "is_bot" field in the mutation.
+func (m *TodoCandidateAssigneeMutation) IsBot() (r bool, exists bool) {
+	v := m.is_bot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsBot returns the old "is_bot" field's value of the TodoCandidateAssignee entity.
+// If the TodoCandidateAssignee object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoCandidateAssigneeMutation) OldIsBot(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsBot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsBot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsBot: %w", err)
+	}
+	return oldValue.IsBot, nil
+}
+
+// ResetIsBot resets all changes to the "is_bot" field.
+func (m *TodoCandidateAssigneeMutation) ResetIsBot() {
+	m.is_bot = nil
+}
+
+// SetResolutionStatus sets the "resolution_status" field.
+func (m *TodoCandidateAssigneeMutation) SetResolutionStatus(ts todocandidateassignee.ResolutionStatus) {
+	m.resolution_status = &ts
+}
+
+// ResolutionStatus returns the value of the "resolution_status" field in the mutation.
+func (m *TodoCandidateAssigneeMutation) ResolutionStatus() (r todocandidateassignee.ResolutionStatus, exists bool) {
+	v := m.resolution_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResolutionStatus returns the old "resolution_status" field's value of the TodoCandidateAssignee entity.
+// If the TodoCandidateAssignee object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoCandidateAssigneeMutation) OldResolutionStatus(ctx context.Context) (v todocandidateassignee.ResolutionStatus, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResolutionStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResolutionStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResolutionStatus: %w", err)
+	}
+	return oldValue.ResolutionStatus, nil
+}
+
+// ResetResolutionStatus resets all changes to the "resolution_status" field.
+func (m *TodoCandidateAssigneeMutation) ResetResolutionStatus() {
+	m.resolution_status = nil
+}
+
+// SetReason sets the "reason" field.
+func (m *TodoCandidateAssigneeMutation) SetReason(s string) {
+	m.reason = &s
+}
+
+// Reason returns the value of the "reason" field in the mutation.
+func (m *TodoCandidateAssigneeMutation) Reason() (r string, exists bool) {
+	v := m.reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReason returns the old "reason" field's value of the TodoCandidateAssignee entity.
+// If the TodoCandidateAssignee object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoCandidateAssigneeMutation) OldReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReason: %w", err)
+	}
+	return oldValue.Reason, nil
+}
+
+// ClearReason clears the value of the "reason" field.
+func (m *TodoCandidateAssigneeMutation) ClearReason() {
+	m.reason = nil
+	m.clearedFields[todocandidateassignee.FieldReason] = struct{}{}
+}
+
+// ReasonCleared returns if the "reason" field was cleared in this mutation.
+func (m *TodoCandidateAssigneeMutation) ReasonCleared() bool {
+	_, ok := m.clearedFields[todocandidateassignee.FieldReason]
+	return ok
+}
+
+// ResetReason resets all changes to the "reason" field.
+func (m *TodoCandidateAssigneeMutation) ResetReason() {
+	m.reason = nil
+	delete(m.clearedFields, todocandidateassignee.FieldReason)
+}
+
+// ClearCandidate clears the "candidate" edge to the TodoCandidate entity.
+func (m *TodoCandidateAssigneeMutation) ClearCandidate() {
+	m.clearedcandidate = true
+	m.clearedFields[todocandidateassignee.FieldCandidateID] = struct{}{}
+}
+
+// CandidateCleared reports if the "candidate" edge to the TodoCandidate entity was cleared.
+func (m *TodoCandidateAssigneeMutation) CandidateCleared() bool {
+	return m.clearedcandidate
+}
+
+// CandidateIDs returns the "candidate" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// CandidateID instead. It exists only for internal usage by the builders.
+func (m *TodoCandidateAssigneeMutation) CandidateIDs() (ids []uuid.UUID) {
+	if id := m.candidate; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetCandidate resets all changes to the "candidate" edge.
+func (m *TodoCandidateAssigneeMutation) ResetCandidate() {
+	m.candidate = nil
+	m.clearedcandidate = false
+}
+
+// ClearSourceMessageMention clears the "source_message_mention" edge to the ChannelMessageMention entity.
+func (m *TodoCandidateAssigneeMutation) ClearSourceMessageMention() {
+	m.clearedsource_message_mention = true
+	m.clearedFields[todocandidateassignee.FieldSourceMessageMentionID] = struct{}{}
+}
+
+// SourceMessageMentionCleared reports if the "source_message_mention" edge to the ChannelMessageMention entity was cleared.
+func (m *TodoCandidateAssigneeMutation) SourceMessageMentionCleared() bool {
+	return m.SourceMessageMentionIDCleared() || m.clearedsource_message_mention
+}
+
+// SourceMessageMentionIDs returns the "source_message_mention" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SourceMessageMentionID instead. It exists only for internal usage by the builders.
+func (m *TodoCandidateAssigneeMutation) SourceMessageMentionIDs() (ids []uuid.UUID) {
+	if id := m.source_message_mention; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSourceMessageMention resets all changes to the "source_message_mention" edge.
+func (m *TodoCandidateAssigneeMutation) ResetSourceMessageMention() {
+	m.source_message_mention = nil
+	m.clearedsource_message_mention = false
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *TodoCandidateAssigneeMutation) ClearUser() {
+	m.cleareduser = true
+	m.clearedFields[todocandidateassignee.FieldUserID] = struct{}{}
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *TodoCandidateAssigneeMutation) UserCleared() bool {
+	return m.UserIDCleared() || m.cleareduser
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *TodoCandidateAssigneeMutation) UserIDs() (ids []uuid.UUID) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *TodoCandidateAssigneeMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// Where appends a list predicates to the TodoCandidateAssigneeMutation builder.
+func (m *TodoCandidateAssigneeMutation) Where(ps ...predicate.TodoCandidateAssignee) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the TodoCandidateAssigneeMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *TodoCandidateAssigneeMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.TodoCandidateAssignee, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *TodoCandidateAssigneeMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *TodoCandidateAssigneeMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (TodoCandidateAssignee).
+func (m *TodoCandidateAssigneeMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *TodoCandidateAssigneeMutation) Fields() []string {
+	fields := make([]string, 0, 13)
+	if m.created_at != nil {
+		fields = append(fields, todocandidateassignee.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, todocandidateassignee.FieldUpdatedAt)
+	}
+	if m.candidate != nil {
+		fields = append(fields, todocandidateassignee.FieldCandidateID)
+	}
+	if m.source_message_mention != nil {
+		fields = append(fields, todocandidateassignee.FieldSourceMessageMentionID)
+	}
+	if m.user != nil {
+		fields = append(fields, todocandidateassignee.FieldUserID)
+	}
+	if m.source != nil {
+		fields = append(fields, todocandidateassignee.FieldSource)
+	}
+	if m.platform != nil {
+		fields = append(fields, todocandidateassignee.FieldPlatform)
+	}
+	if m.platform_user_id != nil {
+		fields = append(fields, todocandidateassignee.FieldPlatformUserID)
+	}
+	if m.display_text != nil {
+		fields = append(fields, todocandidateassignee.FieldDisplayText)
+	}
+	if m.identity_kind != nil {
+		fields = append(fields, todocandidateassignee.FieldIdentityKind)
+	}
+	if m.is_bot != nil {
+		fields = append(fields, todocandidateassignee.FieldIsBot)
+	}
+	if m.resolution_status != nil {
+		fields = append(fields, todocandidateassignee.FieldResolutionStatus)
+	}
+	if m.reason != nil {
+		fields = append(fields, todocandidateassignee.FieldReason)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *TodoCandidateAssigneeMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case todocandidateassignee.FieldCreatedAt:
+		return m.CreatedAt()
+	case todocandidateassignee.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case todocandidateassignee.FieldCandidateID:
+		return m.CandidateID()
+	case todocandidateassignee.FieldSourceMessageMentionID:
+		return m.SourceMessageMentionID()
+	case todocandidateassignee.FieldUserID:
+		return m.UserID()
+	case todocandidateassignee.FieldSource:
+		return m.Source()
+	case todocandidateassignee.FieldPlatform:
+		return m.Platform()
+	case todocandidateassignee.FieldPlatformUserID:
+		return m.PlatformUserID()
+	case todocandidateassignee.FieldDisplayText:
+		return m.DisplayText()
+	case todocandidateassignee.FieldIdentityKind:
+		return m.IdentityKind()
+	case todocandidateassignee.FieldIsBot:
+		return m.IsBot()
+	case todocandidateassignee.FieldResolutionStatus:
+		return m.ResolutionStatus()
+	case todocandidateassignee.FieldReason:
+		return m.Reason()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *TodoCandidateAssigneeMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case todocandidateassignee.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case todocandidateassignee.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case todocandidateassignee.FieldCandidateID:
+		return m.OldCandidateID(ctx)
+	case todocandidateassignee.FieldSourceMessageMentionID:
+		return m.OldSourceMessageMentionID(ctx)
+	case todocandidateassignee.FieldUserID:
+		return m.OldUserID(ctx)
+	case todocandidateassignee.FieldSource:
+		return m.OldSource(ctx)
+	case todocandidateassignee.FieldPlatform:
+		return m.OldPlatform(ctx)
+	case todocandidateassignee.FieldPlatformUserID:
+		return m.OldPlatformUserID(ctx)
+	case todocandidateassignee.FieldDisplayText:
+		return m.OldDisplayText(ctx)
+	case todocandidateassignee.FieldIdentityKind:
+		return m.OldIdentityKind(ctx)
+	case todocandidateassignee.FieldIsBot:
+		return m.OldIsBot(ctx)
+	case todocandidateassignee.FieldResolutionStatus:
+		return m.OldResolutionStatus(ctx)
+	case todocandidateassignee.FieldReason:
+		return m.OldReason(ctx)
+	}
+	return nil, fmt.Errorf("unknown TodoCandidateAssignee field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *TodoCandidateAssigneeMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case todocandidateassignee.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case todocandidateassignee.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case todocandidateassignee.FieldCandidateID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCandidateID(v)
+		return nil
+	case todocandidateassignee.FieldSourceMessageMentionID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceMessageMentionID(v)
+		return nil
+	case todocandidateassignee.FieldUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case todocandidateassignee.FieldSource:
+		v, ok := value.(todocandidateassignee.Source)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSource(v)
+		return nil
+	case todocandidateassignee.FieldPlatform:
+		v, ok := value.(todocandidateassignee.Platform)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlatform(v)
+		return nil
+	case todocandidateassignee.FieldPlatformUserID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlatformUserID(v)
+		return nil
+	case todocandidateassignee.FieldDisplayText:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisplayText(v)
+		return nil
+	case todocandidateassignee.FieldIdentityKind:
+		v, ok := value.(todocandidateassignee.IdentityKind)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIdentityKind(v)
+		return nil
+	case todocandidateassignee.FieldIsBot:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsBot(v)
+		return nil
+	case todocandidateassignee.FieldResolutionStatus:
+		v, ok := value.(todocandidateassignee.ResolutionStatus)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResolutionStatus(v)
+		return nil
+	case todocandidateassignee.FieldReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReason(v)
+		return nil
+	}
+	return fmt.Errorf("unknown TodoCandidateAssignee field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *TodoCandidateAssigneeMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *TodoCandidateAssigneeMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *TodoCandidateAssigneeMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown TodoCandidateAssignee numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *TodoCandidateAssigneeMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(todocandidateassignee.FieldSourceMessageMentionID) {
+		fields = append(fields, todocandidateassignee.FieldSourceMessageMentionID)
+	}
+	if m.FieldCleared(todocandidateassignee.FieldUserID) {
+		fields = append(fields, todocandidateassignee.FieldUserID)
+	}
+	if m.FieldCleared(todocandidateassignee.FieldPlatformUserID) {
+		fields = append(fields, todocandidateassignee.FieldPlatformUserID)
+	}
+	if m.FieldCleared(todocandidateassignee.FieldDisplayText) {
+		fields = append(fields, todocandidateassignee.FieldDisplayText)
+	}
+	if m.FieldCleared(todocandidateassignee.FieldReason) {
+		fields = append(fields, todocandidateassignee.FieldReason)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *TodoCandidateAssigneeMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *TodoCandidateAssigneeMutation) ClearField(name string) error {
+	switch name {
+	case todocandidateassignee.FieldSourceMessageMentionID:
+		m.ClearSourceMessageMentionID()
+		return nil
+	case todocandidateassignee.FieldUserID:
+		m.ClearUserID()
+		return nil
+	case todocandidateassignee.FieldPlatformUserID:
+		m.ClearPlatformUserID()
+		return nil
+	case todocandidateassignee.FieldDisplayText:
+		m.ClearDisplayText()
+		return nil
+	case todocandidateassignee.FieldReason:
+		m.ClearReason()
+		return nil
+	}
+	return fmt.Errorf("unknown TodoCandidateAssignee nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *TodoCandidateAssigneeMutation) ResetField(name string) error {
+	switch name {
+	case todocandidateassignee.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case todocandidateassignee.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case todocandidateassignee.FieldCandidateID:
+		m.ResetCandidateID()
+		return nil
+	case todocandidateassignee.FieldSourceMessageMentionID:
+		m.ResetSourceMessageMentionID()
+		return nil
+	case todocandidateassignee.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case todocandidateassignee.FieldSource:
+		m.ResetSource()
+		return nil
+	case todocandidateassignee.FieldPlatform:
+		m.ResetPlatform()
+		return nil
+	case todocandidateassignee.FieldPlatformUserID:
+		m.ResetPlatformUserID()
+		return nil
+	case todocandidateassignee.FieldDisplayText:
+		m.ResetDisplayText()
+		return nil
+	case todocandidateassignee.FieldIdentityKind:
+		m.ResetIdentityKind()
+		return nil
+	case todocandidateassignee.FieldIsBot:
+		m.ResetIsBot()
+		return nil
+	case todocandidateassignee.FieldResolutionStatus:
+		m.ResetResolutionStatus()
+		return nil
+	case todocandidateassignee.FieldReason:
+		m.ResetReason()
+		return nil
+	}
+	return fmt.Errorf("unknown TodoCandidateAssignee field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *TodoCandidateAssigneeMutation) AddedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.candidate != nil {
+		edges = append(edges, todocandidateassignee.EdgeCandidate)
+	}
+	if m.source_message_mention != nil {
+		edges = append(edges, todocandidateassignee.EdgeSourceMessageMention)
+	}
+	if m.user != nil {
+		edges = append(edges, todocandidateassignee.EdgeUser)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *TodoCandidateAssigneeMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case todocandidateassignee.EdgeCandidate:
+		if id := m.candidate; id != nil {
+			return []ent.Value{*id}
+		}
+	case todocandidateassignee.EdgeSourceMessageMention:
+		if id := m.source_message_mention; id != nil {
+			return []ent.Value{*id}
+		}
+	case todocandidateassignee.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *TodoCandidateAssigneeMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 3)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *TodoCandidateAssigneeMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *TodoCandidateAssigneeMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.clearedcandidate {
+		edges = append(edges, todocandidateassignee.EdgeCandidate)
+	}
+	if m.clearedsource_message_mention {
+		edges = append(edges, todocandidateassignee.EdgeSourceMessageMention)
+	}
+	if m.cleareduser {
+		edges = append(edges, todocandidateassignee.EdgeUser)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *TodoCandidateAssigneeMutation) EdgeCleared(name string) bool {
+	switch name {
+	case todocandidateassignee.EdgeCandidate:
+		return m.clearedcandidate
+	case todocandidateassignee.EdgeSourceMessageMention:
+		return m.clearedsource_message_mention
+	case todocandidateassignee.EdgeUser:
+		return m.cleareduser
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *TodoCandidateAssigneeMutation) ClearEdge(name string) error {
+	switch name {
+	case todocandidateassignee.EdgeCandidate:
+		m.ClearCandidate()
+		return nil
+	case todocandidateassignee.EdgeSourceMessageMention:
+		m.ClearSourceMessageMention()
+		return nil
+	case todocandidateassignee.EdgeUser:
+		m.ClearUser()
+		return nil
+	}
+	return fmt.Errorf("unknown TodoCandidateAssignee unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *TodoCandidateAssigneeMutation) ResetEdge(name string) error {
+	switch name {
+	case todocandidateassignee.EdgeCandidate:
+		m.ResetCandidate()
+		return nil
+	case todocandidateassignee.EdgeSourceMessageMention:
+		m.ResetSourceMessageMention()
+		return nil
+	case todocandidateassignee.EdgeUser:
+		m.ResetUser()
+		return nil
+	}
+	return fmt.Errorf("unknown TodoCandidateAssignee edge %s", name)
 }
 
 // TranslationLocaleMutation represents an operation that mutates the TranslationLocale nodes in the graph.
@@ -11977,6 +13373,9 @@ type UserMutation struct {
 	channel_message_mentions         map[uuid.UUID]struct{}
 	removedchannel_message_mentions  map[uuid.UUID]struct{}
 	clearedchannel_message_mentions  bool
+	todo_candidate_assignees         map[uuid.UUID]struct{}
+	removedtodo_candidate_assignees  map[uuid.UUID]struct{}
+	clearedtodo_candidate_assignees  bool
 	owned_translation_locales        map[uuid.UUID]struct{}
 	removedowned_translation_locales map[uuid.UUID]struct{}
 	clearedowned_translation_locales bool
@@ -12377,6 +13776,60 @@ func (m *UserMutation) ResetChannelMessageMentions() {
 	m.removedchannel_message_mentions = nil
 }
 
+// AddTodoCandidateAssigneeIDs adds the "todo_candidate_assignees" edge to the TodoCandidateAssignee entity by ids.
+func (m *UserMutation) AddTodoCandidateAssigneeIDs(ids ...uuid.UUID) {
+	if m.todo_candidate_assignees == nil {
+		m.todo_candidate_assignees = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.todo_candidate_assignees[ids[i]] = struct{}{}
+	}
+}
+
+// ClearTodoCandidateAssignees clears the "todo_candidate_assignees" edge to the TodoCandidateAssignee entity.
+func (m *UserMutation) ClearTodoCandidateAssignees() {
+	m.clearedtodo_candidate_assignees = true
+}
+
+// TodoCandidateAssigneesCleared reports if the "todo_candidate_assignees" edge to the TodoCandidateAssignee entity was cleared.
+func (m *UserMutation) TodoCandidateAssigneesCleared() bool {
+	return m.clearedtodo_candidate_assignees
+}
+
+// RemoveTodoCandidateAssigneeIDs removes the "todo_candidate_assignees" edge to the TodoCandidateAssignee entity by IDs.
+func (m *UserMutation) RemoveTodoCandidateAssigneeIDs(ids ...uuid.UUID) {
+	if m.removedtodo_candidate_assignees == nil {
+		m.removedtodo_candidate_assignees = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.todo_candidate_assignees, ids[i])
+		m.removedtodo_candidate_assignees[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedTodoCandidateAssignees returns the removed IDs of the "todo_candidate_assignees" edge to the TodoCandidateAssignee entity.
+func (m *UserMutation) RemovedTodoCandidateAssigneesIDs() (ids []uuid.UUID) {
+	for id := range m.removedtodo_candidate_assignees {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// TodoCandidateAssigneesIDs returns the "todo_candidate_assignees" edge IDs in the mutation.
+func (m *UserMutation) TodoCandidateAssigneesIDs() (ids []uuid.UUID) {
+	for id := range m.todo_candidate_assignees {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetTodoCandidateAssignees resets all changes to the "todo_candidate_assignees" edge.
+func (m *UserMutation) ResetTodoCandidateAssignees() {
+	m.todo_candidate_assignees = nil
+	m.clearedtodo_candidate_assignees = false
+	m.removedtodo_candidate_assignees = nil
+}
+
 // AddOwnedTranslationLocaleIDs adds the "owned_translation_locales" edge to the TranslationLocale entity by ids.
 func (m *UserMutation) AddOwnedTranslationLocaleIDs(ids ...uuid.UUID) {
 	if m.owned_translation_locales == nil {
@@ -12581,7 +14034,7 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.line != nil {
 		edges = append(edges, user.EdgeLine)
 	}
@@ -12593,6 +14046,9 @@ func (m *UserMutation) AddedEdges() []string {
 	}
 	if m.channel_message_mentions != nil {
 		edges = append(edges, user.EdgeChannelMessageMentions)
+	}
+	if m.todo_candidate_assignees != nil {
+		edges = append(edges, user.EdgeTodoCandidateAssignees)
 	}
 	if m.owned_translation_locales != nil {
 		edges = append(edges, user.EdgeOwnedTranslationLocales)
@@ -12628,6 +14084,12 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeTodoCandidateAssignees:
+		ids := make([]ent.Value, 0, len(m.todo_candidate_assignees))
+		for id := range m.todo_candidate_assignees {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeOwnedTranslationLocales:
 		ids := make([]ent.Value, 0, len(m.owned_translation_locales))
 		for id := range m.owned_translation_locales {
@@ -12640,7 +14102,7 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.removedline != nil {
 		edges = append(edges, user.EdgeLine)
 	}
@@ -12652,6 +14114,9 @@ func (m *UserMutation) RemovedEdges() []string {
 	}
 	if m.removedchannel_message_mentions != nil {
 		edges = append(edges, user.EdgeChannelMessageMentions)
+	}
+	if m.removedtodo_candidate_assignees != nil {
+		edges = append(edges, user.EdgeTodoCandidateAssignees)
 	}
 	if m.removedowned_translation_locales != nil {
 		edges = append(edges, user.EdgeOwnedTranslationLocales)
@@ -12687,6 +14152,12 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeTodoCandidateAssignees:
+		ids := make([]ent.Value, 0, len(m.removedtodo_candidate_assignees))
+		for id := range m.removedtodo_candidate_assignees {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeOwnedTranslationLocales:
 		ids := make([]ent.Value, 0, len(m.removedowned_translation_locales))
 		for id := range m.removedowned_translation_locales {
@@ -12699,7 +14170,7 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.clearedline {
 		edges = append(edges, user.EdgeLine)
 	}
@@ -12711,6 +14182,9 @@ func (m *UserMutation) ClearedEdges() []string {
 	}
 	if m.clearedchannel_message_mentions {
 		edges = append(edges, user.EdgeChannelMessageMentions)
+	}
+	if m.clearedtodo_candidate_assignees {
+		edges = append(edges, user.EdgeTodoCandidateAssignees)
 	}
 	if m.clearedowned_translation_locales {
 		edges = append(edges, user.EdgeOwnedTranslationLocales)
@@ -12730,6 +14204,8 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 		return m.clearedchannel_service_members
 	case user.EdgeChannelMessageMentions:
 		return m.clearedchannel_message_mentions
+	case user.EdgeTodoCandidateAssignees:
+		return m.clearedtodo_candidate_assignees
 	case user.EdgeOwnedTranslationLocales:
 		return m.clearedowned_translation_locales
 	}
@@ -12759,6 +14235,9 @@ func (m *UserMutation) ResetEdge(name string) error {
 		return nil
 	case user.EdgeChannelMessageMentions:
 		m.ResetChannelMessageMentions()
+		return nil
+	case user.EdgeTodoCandidateAssignees:
+		m.ResetTodoCandidateAssignees()
 		return nil
 	case user.EdgeOwnedTranslationLocales:
 		m.ResetOwnedTranslationLocales()

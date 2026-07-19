@@ -5,6 +5,7 @@ package ent
 import (
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/channelmessagemention"
+	"assistant-api/internal/ent/todocandidateassignee"
 	"assistant-api/internal/ent/user"
 	"context"
 	"errors"
@@ -236,6 +237,21 @@ func (_c *ChannelMessageMentionCreate) SetMessage(v *ChannelMessage) *ChannelMes
 	return _c.SetMessageID(v.ID)
 }
 
+// AddTodoCandidateAssigneeIDs adds the "todo_candidate_assignees" edge to the TodoCandidateAssignee entity by IDs.
+func (_c *ChannelMessageMentionCreate) AddTodoCandidateAssigneeIDs(ids ...uuid.UUID) *ChannelMessageMentionCreate {
+	_c.mutation.AddTodoCandidateAssigneeIDs(ids...)
+	return _c
+}
+
+// AddTodoCandidateAssignees adds the "todo_candidate_assignees" edges to the TodoCandidateAssignee entity.
+func (_c *ChannelMessageMentionCreate) AddTodoCandidateAssignees(v ...*TodoCandidateAssignee) *ChannelMessageMentionCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddTodoCandidateAssigneeIDs(ids...)
+}
+
 // SetUser sets the "user" edge to the User entity.
 func (_c *ChannelMessageMentionCreate) SetUser(v *User) *ChannelMessageMentionCreate {
 	return _c.SetUserID(v.ID)
@@ -452,6 +468,22 @@ func (_c *ChannelMessageMentionCreate) createSpec() (*ChannelMessageMention, *sq
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.ChannelMessageID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.TodoCandidateAssigneesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   channelmessagemention.TodoCandidateAssigneesTable,
+			Columns: []string{channelmessagemention.TodoCandidateAssigneesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateassignee.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {

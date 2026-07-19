@@ -59,13 +59,17 @@ type ChannelMessageMention struct {
 type ChannelMessageMentionEdges struct {
 	// mention 所屬訊息
 	Message *ChannelMessage `json:"message,omitempty"`
+	// 使用此 message mention 產生的 Todo assignee 快照
+	TodoCandidateAssignees []*TodoCandidateAssignee `json:"todo_candidate_assignees,omitempty"`
 	// mention 解析出的系統使用者；未解析或 bot 可為空
 	User *User `json:"user,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 	// totalCount holds the count of the edges above.
-	totalCount [2]map[string]int
+	totalCount [3]map[string]int
+
+	namedTodoCandidateAssignees map[string][]*TodoCandidateAssignee
 }
 
 // MessageOrErr returns the Message value or an error if the edge
@@ -79,12 +83,21 @@ func (e ChannelMessageMentionEdges) MessageOrErr() (*ChannelMessage, error) {
 	return nil, &NotLoadedError{edge: "message"}
 }
 
+// TodoCandidateAssigneesOrErr returns the TodoCandidateAssignees value or an error if the edge
+// was not loaded in eager-loading.
+func (e ChannelMessageMentionEdges) TodoCandidateAssigneesOrErr() ([]*TodoCandidateAssignee, error) {
+	if e.loadedTypes[1] {
+		return e.TodoCandidateAssignees, nil
+	}
+	return nil, &NotLoadedError{edge: "todo_candidate_assignees"}
+}
+
 // UserOrErr returns the User value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
 func (e ChannelMessageMentionEdges) UserOrErr() (*User, error) {
 	if e.User != nil {
 		return e.User, nil
-	} else if e.loadedTypes[1] {
+	} else if e.loadedTypes[2] {
 		return nil, &NotFoundError{label: user.Label}
 	}
 	return nil, &NotLoadedError{edge: "user"}
@@ -233,6 +246,11 @@ func (_m *ChannelMessageMention) QueryMessage() *ChannelMessageQuery {
 	return NewChannelMessageMentionClient(_m.config).QueryMessage(_m)
 }
 
+// QueryTodoCandidateAssignees queries the "todo_candidate_assignees" edge of the ChannelMessageMention entity.
+func (_m *ChannelMessageMention) QueryTodoCandidateAssignees() *TodoCandidateAssigneeQuery {
+	return NewChannelMessageMentionClient(_m.config).QueryTodoCandidateAssignees(_m)
+}
+
 // QueryUser queries the "user" edge of the ChannelMessageMention entity.
 func (_m *ChannelMessageMention) QueryUser() *UserQuery {
 	return NewChannelMessageMentionClient(_m.config).QueryUser(_m)
@@ -310,6 +328,30 @@ func (_m *ChannelMessageMention) String() string {
 	builder.WriteString(_m.Raw)
 	builder.WriteByte(')')
 	return builder.String()
+}
+
+// NamedTodoCandidateAssignees returns the TodoCandidateAssignees named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *ChannelMessageMention) NamedTodoCandidateAssignees(name string) ([]*TodoCandidateAssignee, error) {
+	if _m.Edges.namedTodoCandidateAssignees == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedTodoCandidateAssignees[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *ChannelMessageMention) appendNamedTodoCandidateAssignees(name string, edges ...*TodoCandidateAssignee) {
+	if _m.Edges.namedTodoCandidateAssignees == nil {
+		_m.Edges.namedTodoCandidateAssignees = make(map[string][]*TodoCandidateAssignee)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedTodoCandidateAssignees[name] = []*TodoCandidateAssignee{}
+	} else {
+		_m.Edges.namedTodoCandidateAssignees[name] = append(_m.Edges.namedTodoCandidateAssignees[name], edges...)
+	}
 }
 
 // ChannelMessageMentions is a parsable slice of ChannelMessageMention.

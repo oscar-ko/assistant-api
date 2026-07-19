@@ -15,6 +15,7 @@ import (
 	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/slackworkspace"
 	"assistant-api/internal/ent/todocandidate"
+	"assistant-api/internal/ent/todocandidateassignee"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -3095,6 +3096,255 @@ func (_m *TodoCandidate) ToEdge(order *TodoCandidateOrder) *TodoCandidateEdge {
 		order = DefaultTodoCandidateOrder
 	}
 	return &TodoCandidateEdge{
+		Node:   _m,
+		Cursor: order.Field.toCursor(_m),
+	}
+}
+
+// TodoCandidateAssigneeEdge is the edge representation of TodoCandidateAssignee.
+type TodoCandidateAssigneeEdge struct {
+	Node   *TodoCandidateAssignee `json:"node"`
+	Cursor Cursor                 `json:"cursor"`
+}
+
+// TodoCandidateAssigneeConnection is the connection containing edges to TodoCandidateAssignee.
+type TodoCandidateAssigneeConnection struct {
+	Edges      []*TodoCandidateAssigneeEdge `json:"edges"`
+	PageInfo   PageInfo                     `json:"pageInfo"`
+	TotalCount int                          `json:"totalCount"`
+}
+
+func (c *TodoCandidateAssigneeConnection) build(nodes []*TodoCandidateAssignee, pager *todocandidateassigneePager, after *Cursor, first *int, before *Cursor, last *int) {
+	c.PageInfo.HasNextPage = before != nil
+	c.PageInfo.HasPreviousPage = after != nil
+	if first != nil && *first+1 == len(nodes) {
+		c.PageInfo.HasNextPage = true
+		nodes = nodes[:len(nodes)-1]
+	} else if last != nil && *last+1 == len(nodes) {
+		c.PageInfo.HasPreviousPage = true
+		nodes = nodes[:len(nodes)-1]
+	}
+	var nodeAt func(int) *TodoCandidateAssignee
+	if last != nil {
+		n := len(nodes) - 1
+		nodeAt = func(i int) *TodoCandidateAssignee {
+			return nodes[n-i]
+		}
+	} else {
+		nodeAt = func(i int) *TodoCandidateAssignee {
+			return nodes[i]
+		}
+	}
+	c.Edges = make([]*TodoCandidateAssigneeEdge, len(nodes))
+	for i := range nodes {
+		node := nodeAt(i)
+		c.Edges[i] = &TodoCandidateAssigneeEdge{
+			Node:   node,
+			Cursor: pager.toCursor(node),
+		}
+	}
+	if l := len(c.Edges); l > 0 {
+		c.PageInfo.StartCursor = &c.Edges[0].Cursor
+		c.PageInfo.EndCursor = &c.Edges[l-1].Cursor
+	}
+	if c.TotalCount == 0 {
+		c.TotalCount = len(nodes)
+	}
+}
+
+// TodoCandidateAssigneePaginateOption enables pagination customization.
+type TodoCandidateAssigneePaginateOption func(*todocandidateassigneePager) error
+
+// WithTodoCandidateAssigneeOrder configures pagination ordering.
+func WithTodoCandidateAssigneeOrder(order *TodoCandidateAssigneeOrder) TodoCandidateAssigneePaginateOption {
+	if order == nil {
+		order = DefaultTodoCandidateAssigneeOrder
+	}
+	o := *order
+	return func(pager *todocandidateassigneePager) error {
+		if err := o.Direction.Validate(); err != nil {
+			return err
+		}
+		if o.Field == nil {
+			o.Field = DefaultTodoCandidateAssigneeOrder.Field
+		}
+		pager.order = &o
+		return nil
+	}
+}
+
+// WithTodoCandidateAssigneeFilter configures pagination filter.
+func WithTodoCandidateAssigneeFilter(filter func(*TodoCandidateAssigneeQuery) (*TodoCandidateAssigneeQuery, error)) TodoCandidateAssigneePaginateOption {
+	return func(pager *todocandidateassigneePager) error {
+		if filter == nil {
+			return errors.New("TodoCandidateAssigneeQuery filter cannot be nil")
+		}
+		pager.filter = filter
+		return nil
+	}
+}
+
+type todocandidateassigneePager struct {
+	reverse bool
+	order   *TodoCandidateAssigneeOrder
+	filter  func(*TodoCandidateAssigneeQuery) (*TodoCandidateAssigneeQuery, error)
+}
+
+func newTodoCandidateAssigneePager(opts []TodoCandidateAssigneePaginateOption, reverse bool) (*todocandidateassigneePager, error) {
+	pager := &todocandidateassigneePager{reverse: reverse}
+	for _, opt := range opts {
+		if err := opt(pager); err != nil {
+			return nil, err
+		}
+	}
+	if pager.order == nil {
+		pager.order = DefaultTodoCandidateAssigneeOrder
+	}
+	return pager, nil
+}
+
+func (p *todocandidateassigneePager) applyFilter(query *TodoCandidateAssigneeQuery) (*TodoCandidateAssigneeQuery, error) {
+	if p.filter != nil {
+		return p.filter(query)
+	}
+	return query, nil
+}
+
+func (p *todocandidateassigneePager) toCursor(_m *TodoCandidateAssignee) Cursor {
+	return p.order.Field.toCursor(_m)
+}
+
+func (p *todocandidateassigneePager) applyCursors(query *TodoCandidateAssigneeQuery, after, before *Cursor) (*TodoCandidateAssigneeQuery, error) {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	for _, predicate := range entgql.CursorsPredicate(after, before, DefaultTodoCandidateAssigneeOrder.Field.column, p.order.Field.column, direction) {
+		query = query.Where(predicate)
+	}
+	return query, nil
+}
+
+func (p *todocandidateassigneePager) applyOrder(query *TodoCandidateAssigneeQuery) *TodoCandidateAssigneeQuery {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	query = query.Order(p.order.Field.toTerm(direction.OrderTermOption()))
+	if p.order.Field != DefaultTodoCandidateAssigneeOrder.Field {
+		query = query.Order(DefaultTodoCandidateAssigneeOrder.Field.toTerm(direction.OrderTermOption()))
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return query
+}
+
+func (p *todocandidateassigneePager) orderExpr(query *TodoCandidateAssigneeQuery) sql.Querier {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return sql.ExprFunc(func(b *sql.Builder) {
+		b.Ident(p.order.Field.column).Pad().WriteString(string(direction))
+		if p.order.Field != DefaultTodoCandidateAssigneeOrder.Field {
+			b.Comma().Ident(DefaultTodoCandidateAssigneeOrder.Field.column).Pad().WriteString(string(direction))
+		}
+	})
+}
+
+// Paginate executes the query and returns a relay based cursor connection to TodoCandidateAssignee.
+func (_m *TodoCandidateAssigneeQuery) Paginate(
+	ctx context.Context, after *Cursor, first *int,
+	before *Cursor, last *int, opts ...TodoCandidateAssigneePaginateOption,
+) (*TodoCandidateAssigneeConnection, error) {
+	if err := validateFirstLast(first, last); err != nil {
+		return nil, err
+	}
+	pager, err := newTodoCandidateAssigneePager(opts, last != nil)
+	if err != nil {
+		return nil, err
+	}
+	if _m, err = pager.applyFilter(_m); err != nil {
+		return nil, err
+	}
+	conn := &TodoCandidateAssigneeConnection{Edges: []*TodoCandidateAssigneeEdge{}}
+	ignoredEdges := !hasCollectedField(ctx, edgesField)
+	if hasCollectedField(ctx, totalCountField) || hasCollectedField(ctx, pageInfoField) {
+		hasPagination := after != nil || first != nil || before != nil || last != nil
+		if hasPagination || ignoredEdges {
+			c := _m.Clone()
+			c.ctx.Fields = nil
+			if conn.TotalCount, err = c.Count(ctx); err != nil {
+				return nil, err
+			}
+			conn.PageInfo.HasNextPage = first != nil && conn.TotalCount > 0
+			conn.PageInfo.HasPreviousPage = last != nil && conn.TotalCount > 0
+		}
+	}
+	if ignoredEdges || (first != nil && *first == 0) || (last != nil && *last == 0) {
+		return conn, nil
+	}
+	if _m, err = pager.applyCursors(_m, after, before); err != nil {
+		return nil, err
+	}
+	limit := paginateLimit(first, last)
+	if limit != 0 {
+		_m.Limit(limit)
+	}
+	if field := collectedField(ctx, edgesField, nodeField); field != nil {
+		if err := _m.collectField(ctx, limit == 1, graphql.GetOperationContext(ctx), *field, []string{edgesField, nodeField}); err != nil {
+			return nil, err
+		}
+	}
+	_m = pager.applyOrder(_m)
+	nodes, err := _m.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	conn.build(nodes, pager, after, first, before, last)
+	return conn, nil
+}
+
+// TodoCandidateAssigneeOrderField defines the ordering field of TodoCandidateAssignee.
+type TodoCandidateAssigneeOrderField struct {
+	// Value extracts the ordering value from the given TodoCandidateAssignee.
+	Value    func(*TodoCandidateAssignee) (ent.Value, error)
+	column   string // field or computed.
+	toTerm   func(...sql.OrderTermOption) todocandidateassignee.OrderOption
+	toCursor func(*TodoCandidateAssignee) Cursor
+}
+
+// TodoCandidateAssigneeOrder defines the ordering of TodoCandidateAssignee.
+type TodoCandidateAssigneeOrder struct {
+	Direction OrderDirection                   `json:"direction"`
+	Field     *TodoCandidateAssigneeOrderField `json:"field"`
+}
+
+// DefaultTodoCandidateAssigneeOrder is the default ordering of TodoCandidateAssignee.
+var DefaultTodoCandidateAssigneeOrder = &TodoCandidateAssigneeOrder{
+	Direction: entgql.OrderDirectionAsc,
+	Field: &TodoCandidateAssigneeOrderField{
+		Value: func(_m *TodoCandidateAssignee) (ent.Value, error) {
+			return _m.ID, nil
+		},
+		column: todocandidateassignee.FieldID,
+		toTerm: todocandidateassignee.ByID,
+		toCursor: func(_m *TodoCandidateAssignee) Cursor {
+			return Cursor{ID: _m.ID}
+		},
+	},
+}
+
+// ToEdge converts TodoCandidateAssignee into TodoCandidateAssigneeEdge.
+func (_m *TodoCandidateAssignee) ToEdge(order *TodoCandidateAssigneeOrder) *TodoCandidateAssigneeEdge {
+	if order == nil {
+		order = DefaultTodoCandidateAssigneeOrder
+	}
+	return &TodoCandidateAssigneeEdge{
 		Node:   _m,
 		Cursor: order.Field.toCursor(_m),
 	}

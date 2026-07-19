@@ -49,6 +49,7 @@ func (ChannelMessageMention) Fields() []ent.Field {
 func (ChannelMessageMention) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("message", ChannelMessage.Type).Ref("mentions").Field("channel_message_id").Required().Immutable().Unique().Comment("mention 所屬訊息"),
+		edge.From("todo_candidate_assignees", TodoCandidateAssignee.Type).Ref("source_message_mention").Comment("使用此 message mention 產生的 Todo assignee 快照"),
 		edge.To("user", User.Type).Unique().Field("user_id").Comment("mention 解析出的系統使用者；未解析或 bot 可為空"),
 	}
 }
