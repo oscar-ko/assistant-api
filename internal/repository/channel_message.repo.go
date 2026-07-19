@@ -12,6 +12,7 @@ import (
 	"assistant-api/internal/ent/actionresult"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/channelmessagemention"
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
@@ -20,6 +21,7 @@ import (
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
+	"assistant-api/internal/integration/unifiedmessage"
 
 	"github.com/google/uuid"
 )
@@ -52,6 +54,118 @@ type SaveTodoCandidateInput struct {
 
 func NewChannelMessageRepo(db *ent.Client) *ChannelMessageRepo {
 	return &ChannelMessageRepo{db: db}
+}
+
+// SaveChannelMessageMentions 保存訊息中的 structured mention 清單。
+// mention 是訊息層事實：@Jarvis、@Amy、多人 mention 都會保存；Todo assignee resolver 之後再決定哪些 mention 可成為待辦 owner。
+func (r *ChannelMessageRepo) SaveChannelMessageMentions(ctx context.Context, channelMessageID uuid.UUID, platform string, platformTenantID string, mentions []unifiedmessage.Mention) error {
+	if r == nil || r.db == nil {
+		return fmt.Errorf("channel repository not initialized")
+	}
+	if channelMessageID == uuid.Nil {
+		return fmt.Errorf("channel message id is required")
+	}
+	if len(mentions) == 0 {
+		return nil
+	}
+
+	platformValue, err := normalizeMentionPlatform(platform)
+	if err != nil {
+		return err
+	}
+	creates := make([]*ent.ChannelMessageMentionCreate, 0, len(mentions))
+	for _, mention := range mentions {
+		platformUserID := strings.TrimSpace(mention.UserID)
+		mentionType := strings.TrimSpace(mention.Type)
+		if mentionType == "" {
+			mentionType = "user"
+		}
+		if platformUserID == "" && mentionType == "user" {
+			continue
+		}
+
+		identityKind := normalizeMentionIdentityKind(mention.IdentityKind, mention.IsBot)
+		resolvedUserID := uuid.Nil
+		if platformUserID != "" {
+			// 這裡只做平台 ID -> internal user 的 deterministic binding 查詢。
+			// 找不到綁定時仍保存 mention 事實，讓使用者後續補綁定後可重新解析。
+			resolved, resolveErr := r.ResolveBoundUserIDByPlatformIdentity(ctx, platform, platformTenantID, platformUserID)
+			if resolveErr != nil {
+				return fmt.Errorf("resolve mention user id failed: %w", resolveErr)
+			}
+			resolvedUserID = resolved
+		}
+
+		resolutionStatus := channelmessagemention.ResolutionStatusUnresolved
+		if resolvedUserID != uuid.Nil {
+			resolutionStatus = channelmessagemention.ResolutionStatusResolved
+		} else if identityKind == channelmessagemention.IdentityKindUnknown || !strings.EqualFold(mentionType, "user") {
+			resolutionStatus = channelmessagemention.ResolutionStatusUnsupported
+		}
+
+		create := r.db.ChannelMessageMention.Create().
+			SetChannelMessageID(channelMessageID).
+			SetPlatform(platformValue).
+			SetMentionType(mentionType).
+			SetIdentityKind(identityKind).
+			SetIsBot(mention.IsBot || identityKind == channelmessagemention.IdentityKindBot).
+			SetResolutionStatus(resolutionStatus)
+		if platformUserID != "" {
+			create.SetPlatformUserID(platformUserID)
+		}
+		if resolvedUserID != uuid.Nil {
+			create.SetUserID(resolvedUserID)
+		}
+		if displayText := strings.TrimSpace(mention.DisplayText); displayText != "" {
+			create.SetDisplayText(displayText)
+		}
+		if mention.Index != nil && *mention.Index >= 0 {
+			create.SetMentionIndex(*mention.Index)
+		}
+		if mention.Length != nil && *mention.Length > 0 {
+			create.SetMentionLength(*mention.Length)
+		}
+		if raw := strings.TrimSpace(mention.Raw); raw != "" {
+			create.SetRaw(raw)
+		}
+		creates = append(creates, create)
+	}
+	if len(creates) == 0 {
+		return nil
+	}
+	if err := r.db.ChannelMessageMention.CreateBulk(creates...).Exec(ctx); err != nil {
+		return fmt.Errorf("save channel message mentions failed: %w", err)
+	}
+	return nil
+}
+
+func normalizeMentionPlatform(value string) (channelmessagemention.Platform, error) {
+	switch channelmessagemention.Platform(strings.ToLower(strings.TrimSpace(value))) {
+	case channelmessagemention.PlatformLine:
+		return channelmessagemention.PlatformLine, nil
+	case channelmessagemention.PlatformWhatsapp:
+		return channelmessagemention.PlatformWhatsapp, nil
+	case channelmessagemention.PlatformSlack:
+		return channelmessagemention.PlatformSlack, nil
+	case channelmessagemention.PlatformTelegram:
+		return channelmessagemention.PlatformTelegram, nil
+	default:
+		return "", fmt.Errorf("invalid mention platform: %s", value)
+	}
+}
+
+func normalizeMentionIdentityKind(value string, isBot bool) channelmessagemention.IdentityKind {
+	if isBot {
+		return channelmessagemention.IdentityKindBot
+	}
+	switch channelmessagemention.IdentityKind(strings.ToLower(strings.TrimSpace(value))) {
+	case channelmessagemention.IdentityKindBot:
+		return channelmessagemention.IdentityKindBot
+	case channelmessagemention.IdentityKindUnknown:
+		return channelmessagemention.IdentityKindUnknown
+	default:
+		return channelmessagemention.IdentityKindUser
+	}
 }
 
 // ResolveLineDisplayNameByLineUserID resolves sender display name from LINE binding table.

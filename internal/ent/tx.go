@@ -22,6 +22,8 @@ type Tx struct {
 	Channel *ChannelClient
 	// ChannelMessage is the client for interacting with the ChannelMessage builders.
 	ChannelMessage *ChannelMessageClient
+	// ChannelMessageMention is the client for interacting with the ChannelMessageMention builders.
+	ChannelMessageMention *ChannelMessageMentionClient
 	// ChannelServiceMember is the client for interacting with the ChannelServiceMember builders.
 	ChannelServiceMember *ChannelServiceMemberClient
 	// Line is the client for interacting with the Line builders.
@@ -174,6 +176,7 @@ func (tx *Tx) init() {
 	tx.ActionRoute = NewActionRouteClient(tx.config)
 	tx.Channel = NewChannelClient(tx.config)
 	tx.ChannelMessage = NewChannelMessageClient(tx.config)
+	tx.ChannelMessageMention = NewChannelMessageMentionClient(tx.config)
 	tx.ChannelServiceMember = NewChannelServiceMemberClient(tx.config)
 	tx.Line = NewLineClient(tx.config)
 	tx.Skill = NewSkillClient(tx.config)

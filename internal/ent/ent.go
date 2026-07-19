@@ -8,6 +8,7 @@ import (
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/channelmessagemention"
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
@@ -85,19 +86,20 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			action.Table:               action.ValidColumn,
-			actionresult.Table:         actionresult.ValidColumn,
-			actionroute.Table:          actionroute.ValidColumn,
-			channel.Table:              channel.ValidColumn,
-			channelmessage.Table:       channelmessage.ValidColumn,
-			channelservicemember.Table: channelservicemember.ValidColumn,
-			line.Table:                 line.ValidColumn,
-			skill.Table:                skill.ValidColumn,
-			slack.Table:                slack.ValidColumn,
-			slackworkspace.Table:       slackworkspace.ValidColumn,
-			todocandidate.Table:        todocandidate.ValidColumn,
-			translationlocale.Table:    translationlocale.ValidColumn,
-			user.Table:                 user.ValidColumn,
+			action.Table:                action.ValidColumn,
+			actionresult.Table:          actionresult.ValidColumn,
+			actionroute.Table:           actionroute.ValidColumn,
+			channel.Table:               channel.ValidColumn,
+			channelmessage.Table:        channelmessage.ValidColumn,
+			channelmessagemention.Table: channelmessagemention.ValidColumn,
+			channelservicemember.Table:  channelservicemember.ValidColumn,
+			line.Table:                  line.ValidColumn,
+			skill.Table:                 skill.ValidColumn,
+			slack.Table:                 slack.ValidColumn,
+			slackworkspace.Table:        slackworkspace.ValidColumn,
+			todocandidate.Table:         todocandidate.ValidColumn,
+			translationlocale.Table:     translationlocale.ValidColumn,
+			user.Table:                  user.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

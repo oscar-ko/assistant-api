@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"assistant-api/internal/ent/channelmessagemention"
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
@@ -105,6 +106,21 @@ func (_u *UserUpdate) AddChannelServiceMembers(v ...*ChannelServiceMember) *User
 	return _u.AddChannelServiceMemberIDs(ids...)
 }
 
+// AddChannelMessageMentionIDs adds the "channel_message_mentions" edge to the ChannelMessageMention entity by IDs.
+func (_u *UserUpdate) AddChannelMessageMentionIDs(ids ...uuid.UUID) *UserUpdate {
+	_u.mutation.AddChannelMessageMentionIDs(ids...)
+	return _u
+}
+
+// AddChannelMessageMentions adds the "channel_message_mentions" edges to the ChannelMessageMention entity.
+func (_u *UserUpdate) AddChannelMessageMentions(v ...*ChannelMessageMention) *UserUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddChannelMessageMentionIDs(ids...)
+}
+
 // AddOwnedTranslationLocaleIDs adds the "owned_translation_locales" edge to the TranslationLocale entity by IDs.
 func (_u *UserUpdate) AddOwnedTranslationLocaleIDs(ids ...uuid.UUID) *UserUpdate {
 	_u.mutation.AddOwnedTranslationLocaleIDs(ids...)
@@ -186,6 +202,27 @@ func (_u *UserUpdate) RemoveChannelServiceMembers(v ...*ChannelServiceMember) *U
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveChannelServiceMemberIDs(ids...)
+}
+
+// ClearChannelMessageMentions clears all "channel_message_mentions" edges to the ChannelMessageMention entity.
+func (_u *UserUpdate) ClearChannelMessageMentions() *UserUpdate {
+	_u.mutation.ClearChannelMessageMentions()
+	return _u
+}
+
+// RemoveChannelMessageMentionIDs removes the "channel_message_mentions" edge to ChannelMessageMention entities by IDs.
+func (_u *UserUpdate) RemoveChannelMessageMentionIDs(ids ...uuid.UUID) *UserUpdate {
+	_u.mutation.RemoveChannelMessageMentionIDs(ids...)
+	return _u
+}
+
+// RemoveChannelMessageMentions removes "channel_message_mentions" edges to ChannelMessageMention entities.
+func (_u *UserUpdate) RemoveChannelMessageMentions(v ...*ChannelMessageMention) *UserUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveChannelMessageMentionIDs(ids...)
 }
 
 // ClearOwnedTranslationLocales clears all "owned_translation_locales" edges to the TranslationLocale entity.
@@ -404,6 +441,51 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ChannelMessageMentionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.ChannelMessageMentionsTable,
+			Columns: []string{user.ChannelMessageMentionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelmessagemention.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedChannelMessageMentionsIDs(); len(nodes) > 0 && !_u.mutation.ChannelMessageMentionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.ChannelMessageMentionsTable,
+			Columns: []string{user.ChannelMessageMentionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelmessagemention.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ChannelMessageMentionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.ChannelMessageMentionsTable,
+			Columns: []string{user.ChannelMessageMentionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelmessagemention.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.OwnedTranslationLocalesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -542,6 +624,21 @@ func (_u *UserUpdateOne) AddChannelServiceMembers(v ...*ChannelServiceMember) *U
 	return _u.AddChannelServiceMemberIDs(ids...)
 }
 
+// AddChannelMessageMentionIDs adds the "channel_message_mentions" edge to the ChannelMessageMention entity by IDs.
+func (_u *UserUpdateOne) AddChannelMessageMentionIDs(ids ...uuid.UUID) *UserUpdateOne {
+	_u.mutation.AddChannelMessageMentionIDs(ids...)
+	return _u
+}
+
+// AddChannelMessageMentions adds the "channel_message_mentions" edges to the ChannelMessageMention entity.
+func (_u *UserUpdateOne) AddChannelMessageMentions(v ...*ChannelMessageMention) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddChannelMessageMentionIDs(ids...)
+}
+
 // AddOwnedTranslationLocaleIDs adds the "owned_translation_locales" edge to the TranslationLocale entity by IDs.
 func (_u *UserUpdateOne) AddOwnedTranslationLocaleIDs(ids ...uuid.UUID) *UserUpdateOne {
 	_u.mutation.AddOwnedTranslationLocaleIDs(ids...)
@@ -623,6 +720,27 @@ func (_u *UserUpdateOne) RemoveChannelServiceMembers(v ...*ChannelServiceMember)
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveChannelServiceMemberIDs(ids...)
+}
+
+// ClearChannelMessageMentions clears all "channel_message_mentions" edges to the ChannelMessageMention entity.
+func (_u *UserUpdateOne) ClearChannelMessageMentions() *UserUpdateOne {
+	_u.mutation.ClearChannelMessageMentions()
+	return _u
+}
+
+// RemoveChannelMessageMentionIDs removes the "channel_message_mentions" edge to ChannelMessageMention entities by IDs.
+func (_u *UserUpdateOne) RemoveChannelMessageMentionIDs(ids ...uuid.UUID) *UserUpdateOne {
+	_u.mutation.RemoveChannelMessageMentionIDs(ids...)
+	return _u
+}
+
+// RemoveChannelMessageMentions removes "channel_message_mentions" edges to ChannelMessageMention entities.
+func (_u *UserUpdateOne) RemoveChannelMessageMentions(v ...*ChannelMessageMention) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveChannelMessageMentionIDs(ids...)
 }
 
 // ClearOwnedTranslationLocales clears all "owned_translation_locales" edges to the TranslationLocale entity.
@@ -864,6 +982,51 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelservicemember.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ChannelMessageMentionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.ChannelMessageMentionsTable,
+			Columns: []string{user.ChannelMessageMentionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelmessagemention.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedChannelMessageMentionsIDs(); len(nodes) > 0 && !_u.mutation.ChannelMessageMentionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.ChannelMessageMentionsTable,
+			Columns: []string{user.ChannelMessageMentionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelmessagemention.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ChannelMessageMentionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.ChannelMessageMentionsTable,
+			Columns: []string{user.ChannelMessageMentionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelmessagemention.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

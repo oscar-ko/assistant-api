@@ -43,6 +43,8 @@ const (
 	FieldPlatformTimestamp = "platform_timestamp"
 	// EdgeChannel holds the string denoting the channel edge name in mutations.
 	EdgeChannel = "channel"
+	// EdgeMentions holds the string denoting the mentions edge name in mutations.
+	EdgeMentions = "mentions"
 	// EdgeTriggeredMessage holds the string denoting the triggered_message edge name in mutations.
 	EdgeTriggeredMessage = "triggered_message"
 	// EdgeTriggeredMessages holds the string denoting the triggered_messages edge name in mutations.
@@ -56,6 +58,13 @@ const (
 	ChannelInverseTable = "channels"
 	// ChannelColumn is the table column denoting the channel relation/edge.
 	ChannelColumn = "channel_id"
+	// MentionsTable is the table that holds the mentions relation/edge.
+	MentionsTable = "channel_message_mentions"
+	// MentionsInverseTable is the table name for the ChannelMessageMention entity.
+	// It exists in this package in order to avoid circular dependency with the "channelmessagemention" package.
+	MentionsInverseTable = "channel_message_mentions"
+	// MentionsColumn is the table column denoting the mentions relation/edge.
+	MentionsColumn = "channel_message_id"
 	// TriggeredMessageTable is the table that holds the triggered_message relation/edge.
 	TriggeredMessageTable = "channel_messages"
 	// TriggeredMessageColumn is the table column denoting the triggered_message relation/edge.
@@ -189,6 +198,20 @@ func ByChannelField(field string, opts ...sql.OrderTermOption) OrderOption {
 	}
 }
 
+// ByMentionsCount orders the results by mentions count.
+func ByMentionsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newMentionsStep(), opts...)
+	}
+}
+
+// ByMentions orders the results by mentions terms.
+func ByMentions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newMentionsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByTriggeredMessageField orders the results by triggered_message field.
 func ByTriggeredMessageField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -214,6 +237,13 @@ func newChannelStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ChannelInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, ChannelTable, ChannelColumn),
+	)
+}
+func newMentionsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(MentionsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, MentionsTable, MentionsColumn),
 	)
 }
 func newTriggeredMessageStep() *sqlgraph.Step {

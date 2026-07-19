@@ -49,6 +49,9 @@ func (User) Edges() []ent.Edge {
 		edge.From("channel_service_members", ChannelServiceMember.Type).
 			Ref("user").
 			Comment("使用者啟用服務的頻道成員設定"),
+		edge.From("channel_message_mentions", ChannelMessageMention.Type).
+			Ref("user").
+			Comment("解析到此使用者的訊息 mention；未綁定 mention 會保留空 user_id"),
 		edge.From("owned_translation_locales", TranslationLocale.Type).
 			Ref("owner").
 			Comment("使用者新增的翻譯目標語言設定"),

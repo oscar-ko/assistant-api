@@ -4,7 +4,14 @@ import "strings"
 
 // Mention 表示訊息中被提及的對象。
 type Mention struct {
-	UserID string
+	UserID       string
+	DisplayText  string
+	Index        *int
+	Length       *int
+	Type         string
+	IdentityKind string
+	IsBot        bool
+	Raw          string
 }
 
 // Message 是跨通訊平台統一後的訊息格式。

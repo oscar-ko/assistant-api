@@ -43,15 +43,18 @@ func adaptSlackEventToUnified(event slackEvent) (*unifiedmessage.Message, bool, 
 	}
 
 	mentions := make([]unifiedmessage.Mention, 0)
-	for _, match := range slackMentionPattern.FindAllStringSubmatch(strings.TrimSpace(event.Text), -1) {
+	for _, match := range slackMentionPattern.FindAllStringSubmatchIndex(strings.TrimSpace(event.Text), -1) {
 		if len(match) < 2 {
 			continue
 		}
-		userID := strings.TrimSpace(match[1])
+		text := strings.TrimSpace(event.Text)
+		userID := strings.TrimSpace(text[match[2]:match[3]])
 		if userID == "" {
 			continue
 		}
-		mentions = append(mentions, unifiedmessage.Mention{UserID: userID})
+		index := len([]rune(text[:match[0]]))
+		length := len([]rune(text[match[0]:match[1]]))
+		mentions = append(mentions, unifiedmessage.Mention{UserID: userID, DisplayText: text[match[0]:match[1]], Index: &index, Length: &length, Type: "user", IdentityKind: "user"})
 	}
 
 	msg := &unifiedmessage.Message{

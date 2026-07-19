@@ -1,8 +1,16 @@
 package line
 
-import "testing"
+import (
+	"testing"
+
+	"assistant-api/internal/config"
+)
 
 func TestAdaptLineEventToUnified_MessageEvent(t *testing.T) {
+	originalBotUserID := config.Line.BotUserID
+	config.Line.BotUserID = "BOT001"
+	defer func() { config.Line.BotUserID = originalBotUserID }()
+
 	event := webhookEvent{
 		Type: "message",
 		Source: webhookEventSource{
@@ -13,10 +21,10 @@ func TestAdaptLineEventToUnified_MessageEvent(t *testing.T) {
 		Message: webhookMessage{
 			ID:              "M789",
 			Type:            "text",
-			Text:            "hello",
+			Text:            "@Jarvis hello",
 			QuotedMessageID: "M100",
 			Mention: &webhookMessageMention{
-				Mentionees: []webhookMentionee{{UserID: "BOT001"}},
+				Mentionees: []webhookMentionee{{Type: "user", Index: 0, Length: 7, UserID: "BOT001"}},
 			},
 		},
 		Timestamp: 123456,
@@ -40,6 +48,22 @@ func TestAdaptLineEventToUnified_MessageEvent(t *testing.T) {
 	}
 	if !msg.MentionsUser("BOT001") {
 		t.Fatalf("expected mention BOT001")
+	}
+	if len(msg.Mentions) != 1 {
+		t.Fatalf("expected one mention, got %d", len(msg.Mentions))
+	}
+	mention := msg.Mentions[0]
+	if mention.DisplayText != "@Jarvis" {
+		t.Fatalf("unexpected mention display text: %q", mention.DisplayText)
+	}
+	if mention.Index == nil || *mention.Index != 0 {
+		t.Fatalf("unexpected mention index: %#v", mention.Index)
+	}
+	if mention.Length == nil || *mention.Length != 7 {
+		t.Fatalf("unexpected mention length: %#v", mention.Length)
+	}
+	if mention.Type != "user" || mention.IdentityKind != "bot" || !mention.IsBot {
+		t.Fatalf("unexpected bot mention metadata: %#v", mention)
 	}
 }
 

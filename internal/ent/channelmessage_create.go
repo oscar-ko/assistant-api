@@ -5,6 +5,7 @@ package ent
 import (
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/channelmessagemention"
 	"context"
 	"errors"
 	"fmt"
@@ -197,6 +198,21 @@ func (_c *ChannelMessageCreate) SetNillableID(v *uuid.UUID) *ChannelMessageCreat
 // SetChannel sets the "channel" edge to the Channel entity.
 func (_c *ChannelMessageCreate) SetChannel(v *Channel) *ChannelMessageCreate {
 	return _c.SetChannelID(v.ID)
+}
+
+// AddMentionIDs adds the "mentions" edge to the ChannelMessageMention entity by IDs.
+func (_c *ChannelMessageCreate) AddMentionIDs(ids ...uuid.UUID) *ChannelMessageCreate {
+	_c.mutation.AddMentionIDs(ids...)
+	return _c
+}
+
+// AddMentions adds the "mentions" edges to the ChannelMessageMention entity.
+func (_c *ChannelMessageCreate) AddMentions(v ...*ChannelMessageMention) *ChannelMessageCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddMentionIDs(ids...)
 }
 
 // SetTriggeredMessage sets the "triggered_message" edge to the ChannelMessage entity.
@@ -394,6 +410,22 @@ func (_c *ChannelMessageCreate) createSpec() (*ChannelMessage, *sqlgraph.CreateS
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.ChannelID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.MentionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channelmessage.MentionsTable,
+			Columns: []string{channelmessage.MentionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelmessagemention.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.TriggeredMessageIDs(); len(nodes) > 0 {

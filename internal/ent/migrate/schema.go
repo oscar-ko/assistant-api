@@ -198,6 +198,61 @@ var (
 			},
 		},
 	}
+	// ChannelMessageMentionsColumns holds the columns for the "channel_message_mentions" table.
+	ChannelMessageMentionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "platform", Type: field.TypeEnum, Enums: []string{"line", "whatsapp", "slack", "telegram"}, Default: "line"},
+		{Name: "platform_user_id", Type: field.TypeString, Nullable: true},
+		{Name: "display_text", Type: field.TypeString, Nullable: true},
+		{Name: "mention_index", Type: field.TypeInt, Nullable: true},
+		{Name: "mention_length", Type: field.TypeInt, Nullable: true},
+		{Name: "mention_type", Type: field.TypeString, Default: "user"},
+		{Name: "identity_kind", Type: field.TypeEnum, Enums: []string{"user", "bot", "unknown"}, Default: "user"},
+		{Name: "is_bot", Type: field.TypeBool, Default: false},
+		{Name: "resolution_status", Type: field.TypeEnum, Enums: []string{"resolved", "unresolved", "ambiguous", "unsupported"}, Default: "unresolved"},
+		{Name: "raw", Type: field.TypeString, Nullable: true},
+		{Name: "channel_message_id", Type: field.TypeUUID},
+		{Name: "user_id", Type: field.TypeUUID, Nullable: true},
+	}
+	// ChannelMessageMentionsTable holds the schema information for the "channel_message_mentions" table.
+	ChannelMessageMentionsTable = &schema.Table{
+		Name:       "channel_message_mentions",
+		Columns:    ChannelMessageMentionsColumns,
+		PrimaryKey: []*schema.Column{ChannelMessageMentionsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "channel_message_mentions_channel_messages_mentions",
+				Columns:    []*schema.Column{ChannelMessageMentionsColumns[13]},
+				RefColumns: []*schema.Column{ChannelMessagesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "channel_message_mentions_users_user",
+				Columns:    []*schema.Column{ChannelMessageMentionsColumns[14]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "channelmessagemention_channel_message_id",
+				Unique:  false,
+				Columns: []*schema.Column{ChannelMessageMentionsColumns[13]},
+			},
+			{
+				Name:    "channelmessagemention_platform_platform_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{ChannelMessageMentionsColumns[3], ChannelMessageMentionsColumns[4]},
+			},
+			{
+				Name:    "channelmessagemention_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{ChannelMessageMentionsColumns[14]},
+			},
+		},
+	}
 	// ChannelServiceMembersColumns holds the columns for the "channel_service_members" table.
 	ChannelServiceMembersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -519,6 +574,7 @@ var (
 		ActionRoutesTable,
 		ChannelsTable,
 		ChannelMessagesTable,
+		ChannelMessageMentionsTable,
 		ChannelServiceMembersTable,
 		LinesTable,
 		SkillsTable,
@@ -537,6 +593,8 @@ func init() {
 	ActionRoutesTable.ForeignKeys[0].RefTable = ActionsTable
 	ChannelMessagesTable.ForeignKeys[0].RefTable = ChannelsTable
 	ChannelMessagesTable.ForeignKeys[1].RefTable = ChannelMessagesTable
+	ChannelMessageMentionsTable.ForeignKeys[0].RefTable = ChannelMessagesTable
+	ChannelMessageMentionsTable.ForeignKeys[1].RefTable = UsersTable
 	ChannelServiceMembersTable.ForeignKeys[0].RefTable = ChannelsTable
 	ChannelServiceMembersTable.ForeignKeys[1].RefTable = UsersTable
 	ChannelServiceMembersTable.ForeignKeys[2].RefTable = SkillsTable

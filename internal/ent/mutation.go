@@ -8,6 +8,7 @@ import (
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/channelmessagemention"
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
@@ -38,19 +39,20 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeAction               = "Action"
-	TypeActionResult         = "ActionResult"
-	TypeActionRoute          = "ActionRoute"
-	TypeChannel              = "Channel"
-	TypeChannelMessage       = "ChannelMessage"
-	TypeChannelServiceMember = "ChannelServiceMember"
-	TypeLine                 = "Line"
-	TypeSkill                = "Skill"
-	TypeSlack                = "Slack"
-	TypeSlackWorkspace       = "SlackWorkspace"
-	TypeTodoCandidate        = "TodoCandidate"
-	TypeTranslationLocale    = "TranslationLocale"
-	TypeUser                 = "User"
+	TypeAction                = "Action"
+	TypeActionResult          = "ActionResult"
+	TypeActionRoute           = "ActionRoute"
+	TypeChannel               = "Channel"
+	TypeChannelMessage        = "ChannelMessage"
+	TypeChannelMessageMention = "ChannelMessageMention"
+	TypeChannelServiceMember  = "ChannelServiceMember"
+	TypeLine                  = "Line"
+	TypeSkill                 = "Skill"
+	TypeSlack                 = "Slack"
+	TypeSlackWorkspace        = "SlackWorkspace"
+	TypeTodoCandidate         = "TodoCandidate"
+	TypeTranslationLocale     = "TranslationLocale"
+	TypeUser                  = "User"
 )
 
 // ActionMutation represents an operation that mutates the Action nodes in the graph.
@@ -3065,6 +3067,9 @@ type ChannelMessageMutation struct {
 	clearedFields             map[string]struct{}
 	channel                   *uuid.UUID
 	clearedchannel            bool
+	mentions                  map[uuid.UUID]struct{}
+	removedmentions           map[uuid.UUID]struct{}
+	clearedmentions           bool
 	triggered_message         *uuid.UUID
 	clearedtriggered_message  bool
 	triggered_messages        map[uuid.UUID]struct{}
@@ -3786,6 +3791,60 @@ func (m *ChannelMessageMutation) ResetChannel() {
 	m.clearedchannel = false
 }
 
+// AddMentionIDs adds the "mentions" edge to the ChannelMessageMention entity by ids.
+func (m *ChannelMessageMutation) AddMentionIDs(ids ...uuid.UUID) {
+	if m.mentions == nil {
+		m.mentions = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.mentions[ids[i]] = struct{}{}
+	}
+}
+
+// ClearMentions clears the "mentions" edge to the ChannelMessageMention entity.
+func (m *ChannelMessageMutation) ClearMentions() {
+	m.clearedmentions = true
+}
+
+// MentionsCleared reports if the "mentions" edge to the ChannelMessageMention entity was cleared.
+func (m *ChannelMessageMutation) MentionsCleared() bool {
+	return m.clearedmentions
+}
+
+// RemoveMentionIDs removes the "mentions" edge to the ChannelMessageMention entity by IDs.
+func (m *ChannelMessageMutation) RemoveMentionIDs(ids ...uuid.UUID) {
+	if m.removedmentions == nil {
+		m.removedmentions = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.mentions, ids[i])
+		m.removedmentions[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedMentions returns the removed IDs of the "mentions" edge to the ChannelMessageMention entity.
+func (m *ChannelMessageMutation) RemovedMentionsIDs() (ids []uuid.UUID) {
+	for id := range m.removedmentions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// MentionsIDs returns the "mentions" edge IDs in the mutation.
+func (m *ChannelMessageMutation) MentionsIDs() (ids []uuid.UUID) {
+	for id := range m.mentions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetMentions resets all changes to the "mentions" edge.
+func (m *ChannelMessageMutation) ResetMentions() {
+	m.mentions = nil
+	m.clearedmentions = false
+	m.removedmentions = nil
+}
+
 // ClearTriggeredMessage clears the "triggered_message" edge to the ChannelMessage entity.
 func (m *ChannelMessageMutation) ClearTriggeredMessage() {
 	m.clearedtriggered_message = true
@@ -4264,9 +4323,12 @@ func (m *ChannelMessageMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ChannelMessageMutation) AddedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.channel != nil {
 		edges = append(edges, channelmessage.EdgeChannel)
+	}
+	if m.mentions != nil {
+		edges = append(edges, channelmessage.EdgeMentions)
 	}
 	if m.triggered_message != nil {
 		edges = append(edges, channelmessage.EdgeTriggeredMessage)
@@ -4285,6 +4347,12 @@ func (m *ChannelMessageMutation) AddedIDs(name string) []ent.Value {
 		if id := m.channel; id != nil {
 			return []ent.Value{*id}
 		}
+	case channelmessage.EdgeMentions:
+		ids := make([]ent.Value, 0, len(m.mentions))
+		for id := range m.mentions {
+			ids = append(ids, id)
+		}
+		return ids
 	case channelmessage.EdgeTriggeredMessage:
 		if id := m.triggered_message; id != nil {
 			return []ent.Value{*id}
@@ -4301,7 +4369,10 @@ func (m *ChannelMessageMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ChannelMessageMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
+	if m.removedmentions != nil {
+		edges = append(edges, channelmessage.EdgeMentions)
+	}
 	if m.removedtriggered_messages != nil {
 		edges = append(edges, channelmessage.EdgeTriggeredMessages)
 	}
@@ -4312,6 +4383,12 @@ func (m *ChannelMessageMutation) RemovedEdges() []string {
 // the given name in this mutation.
 func (m *ChannelMessageMutation) RemovedIDs(name string) []ent.Value {
 	switch name {
+	case channelmessage.EdgeMentions:
+		ids := make([]ent.Value, 0, len(m.removedmentions))
+		for id := range m.removedmentions {
+			ids = append(ids, id)
+		}
+		return ids
 	case channelmessage.EdgeTriggeredMessages:
 		ids := make([]ent.Value, 0, len(m.removedtriggered_messages))
 		for id := range m.removedtriggered_messages {
@@ -4324,9 +4401,12 @@ func (m *ChannelMessageMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ChannelMessageMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.clearedchannel {
 		edges = append(edges, channelmessage.EdgeChannel)
+	}
+	if m.clearedmentions {
+		edges = append(edges, channelmessage.EdgeMentions)
 	}
 	if m.clearedtriggered_message {
 		edges = append(edges, channelmessage.EdgeTriggeredMessage)
@@ -4343,6 +4423,8 @@ func (m *ChannelMessageMutation) EdgeCleared(name string) bool {
 	switch name {
 	case channelmessage.EdgeChannel:
 		return m.clearedchannel
+	case channelmessage.EdgeMentions:
+		return m.clearedmentions
 	case channelmessage.EdgeTriggeredMessage:
 		return m.clearedtriggered_message
 	case channelmessage.EdgeTriggeredMessages:
@@ -4372,6 +4454,9 @@ func (m *ChannelMessageMutation) ResetEdge(name string) error {
 	case channelmessage.EdgeChannel:
 		m.ResetChannel()
 		return nil
+	case channelmessage.EdgeMentions:
+		m.ResetMentions()
+		return nil
 	case channelmessage.EdgeTriggeredMessage:
 		m.ResetTriggeredMessage()
 		return nil
@@ -4380,6 +4465,1341 @@ func (m *ChannelMessageMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown ChannelMessage edge %s", name)
+}
+
+// ChannelMessageMentionMutation represents an operation that mutates the ChannelMessageMention nodes in the graph.
+type ChannelMessageMentionMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *uuid.UUID
+	created_at        *time.Time
+	updated_at        *time.Time
+	platform          *channelmessagemention.Platform
+	platform_user_id  *string
+	display_text      *string
+	mention_index     *int
+	addmention_index  *int
+	mention_length    *int
+	addmention_length *int
+	mention_type      *string
+	identity_kind     *channelmessagemention.IdentityKind
+	is_bot            *bool
+	resolution_status *channelmessagemention.ResolutionStatus
+	raw               *string
+	clearedFields     map[string]struct{}
+	message           *uuid.UUID
+	clearedmessage    bool
+	user              *uuid.UUID
+	cleareduser       bool
+	done              bool
+	oldValue          func(context.Context) (*ChannelMessageMention, error)
+	predicates        []predicate.ChannelMessageMention
+}
+
+var _ ent.Mutation = (*ChannelMessageMentionMutation)(nil)
+
+// channelmessagementionOption allows management of the mutation configuration using functional options.
+type channelmessagementionOption func(*ChannelMessageMentionMutation)
+
+// newChannelMessageMentionMutation creates new mutation for the ChannelMessageMention entity.
+func newChannelMessageMentionMutation(c config, op Op, opts ...channelmessagementionOption) *ChannelMessageMentionMutation {
+	m := &ChannelMessageMentionMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeChannelMessageMention,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withChannelMessageMentionID sets the ID field of the mutation.
+func withChannelMessageMentionID(id uuid.UUID) channelmessagementionOption {
+	return func(m *ChannelMessageMentionMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ChannelMessageMention
+		)
+		m.oldValue = func(ctx context.Context) (*ChannelMessageMention, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ChannelMessageMention.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withChannelMessageMention sets the old ChannelMessageMention of the mutation.
+func withChannelMessageMention(node *ChannelMessageMention) channelmessagementionOption {
+	return func(m *ChannelMessageMentionMutation) {
+		m.oldValue = func(context.Context) (*ChannelMessageMention, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ChannelMessageMentionMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ChannelMessageMentionMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of ChannelMessageMention entities.
+func (m *ChannelMessageMentionMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ChannelMessageMentionMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ChannelMessageMentionMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ChannelMessageMention.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ChannelMessageMentionMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ChannelMessageMentionMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ChannelMessageMention entity.
+// If the ChannelMessageMention object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMessageMentionMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ChannelMessageMentionMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ChannelMessageMentionMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ChannelMessageMentionMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ChannelMessageMention entity.
+// If the ChannelMessageMention object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMessageMentionMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ChannelMessageMentionMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetChannelMessageID sets the "channel_message_id" field.
+func (m *ChannelMessageMentionMutation) SetChannelMessageID(u uuid.UUID) {
+	m.message = &u
+}
+
+// ChannelMessageID returns the value of the "channel_message_id" field in the mutation.
+func (m *ChannelMessageMentionMutation) ChannelMessageID() (r uuid.UUID, exists bool) {
+	v := m.message
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannelMessageID returns the old "channel_message_id" field's value of the ChannelMessageMention entity.
+// If the ChannelMessageMention object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMessageMentionMutation) OldChannelMessageID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannelMessageID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannelMessageID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannelMessageID: %w", err)
+	}
+	return oldValue.ChannelMessageID, nil
+}
+
+// ResetChannelMessageID resets all changes to the "channel_message_id" field.
+func (m *ChannelMessageMentionMutation) ResetChannelMessageID() {
+	m.message = nil
+}
+
+// SetPlatform sets the "platform" field.
+func (m *ChannelMessageMentionMutation) SetPlatform(c channelmessagemention.Platform) {
+	m.platform = &c
+}
+
+// Platform returns the value of the "platform" field in the mutation.
+func (m *ChannelMessageMentionMutation) Platform() (r channelmessagemention.Platform, exists bool) {
+	v := m.platform
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlatform returns the old "platform" field's value of the ChannelMessageMention entity.
+// If the ChannelMessageMention object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMessageMentionMutation) OldPlatform(ctx context.Context) (v channelmessagemention.Platform, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlatform is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlatform requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlatform: %w", err)
+	}
+	return oldValue.Platform, nil
+}
+
+// ResetPlatform resets all changes to the "platform" field.
+func (m *ChannelMessageMentionMutation) ResetPlatform() {
+	m.platform = nil
+}
+
+// SetPlatformUserID sets the "platform_user_id" field.
+func (m *ChannelMessageMentionMutation) SetPlatformUserID(s string) {
+	m.platform_user_id = &s
+}
+
+// PlatformUserID returns the value of the "platform_user_id" field in the mutation.
+func (m *ChannelMessageMentionMutation) PlatformUserID() (r string, exists bool) {
+	v := m.platform_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlatformUserID returns the old "platform_user_id" field's value of the ChannelMessageMention entity.
+// If the ChannelMessageMention object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMessageMentionMutation) OldPlatformUserID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlatformUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlatformUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlatformUserID: %w", err)
+	}
+	return oldValue.PlatformUserID, nil
+}
+
+// ClearPlatformUserID clears the value of the "platform_user_id" field.
+func (m *ChannelMessageMentionMutation) ClearPlatformUserID() {
+	m.platform_user_id = nil
+	m.clearedFields[channelmessagemention.FieldPlatformUserID] = struct{}{}
+}
+
+// PlatformUserIDCleared returns if the "platform_user_id" field was cleared in this mutation.
+func (m *ChannelMessageMentionMutation) PlatformUserIDCleared() bool {
+	_, ok := m.clearedFields[channelmessagemention.FieldPlatformUserID]
+	return ok
+}
+
+// ResetPlatformUserID resets all changes to the "platform_user_id" field.
+func (m *ChannelMessageMentionMutation) ResetPlatformUserID() {
+	m.platform_user_id = nil
+	delete(m.clearedFields, channelmessagemention.FieldPlatformUserID)
+}
+
+// SetUserID sets the "user_id" field.
+func (m *ChannelMessageMentionMutation) SetUserID(u uuid.UUID) {
+	m.user = &u
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *ChannelMessageMentionMutation) UserID() (r uuid.UUID, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the ChannelMessageMention entity.
+// If the ChannelMessageMention object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMessageMentionMutation) OldUserID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ClearUserID clears the value of the "user_id" field.
+func (m *ChannelMessageMentionMutation) ClearUserID() {
+	m.user = nil
+	m.clearedFields[channelmessagemention.FieldUserID] = struct{}{}
+}
+
+// UserIDCleared returns if the "user_id" field was cleared in this mutation.
+func (m *ChannelMessageMentionMutation) UserIDCleared() bool {
+	_, ok := m.clearedFields[channelmessagemention.FieldUserID]
+	return ok
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *ChannelMessageMentionMutation) ResetUserID() {
+	m.user = nil
+	delete(m.clearedFields, channelmessagemention.FieldUserID)
+}
+
+// SetDisplayText sets the "display_text" field.
+func (m *ChannelMessageMentionMutation) SetDisplayText(s string) {
+	m.display_text = &s
+}
+
+// DisplayText returns the value of the "display_text" field in the mutation.
+func (m *ChannelMessageMentionMutation) DisplayText() (r string, exists bool) {
+	v := m.display_text
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisplayText returns the old "display_text" field's value of the ChannelMessageMention entity.
+// If the ChannelMessageMention object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMessageMentionMutation) OldDisplayText(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisplayText is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisplayText requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisplayText: %w", err)
+	}
+	return oldValue.DisplayText, nil
+}
+
+// ClearDisplayText clears the value of the "display_text" field.
+func (m *ChannelMessageMentionMutation) ClearDisplayText() {
+	m.display_text = nil
+	m.clearedFields[channelmessagemention.FieldDisplayText] = struct{}{}
+}
+
+// DisplayTextCleared returns if the "display_text" field was cleared in this mutation.
+func (m *ChannelMessageMentionMutation) DisplayTextCleared() bool {
+	_, ok := m.clearedFields[channelmessagemention.FieldDisplayText]
+	return ok
+}
+
+// ResetDisplayText resets all changes to the "display_text" field.
+func (m *ChannelMessageMentionMutation) ResetDisplayText() {
+	m.display_text = nil
+	delete(m.clearedFields, channelmessagemention.FieldDisplayText)
+}
+
+// SetMentionIndex sets the "mention_index" field.
+func (m *ChannelMessageMentionMutation) SetMentionIndex(i int) {
+	m.mention_index = &i
+	m.addmention_index = nil
+}
+
+// MentionIndex returns the value of the "mention_index" field in the mutation.
+func (m *ChannelMessageMentionMutation) MentionIndex() (r int, exists bool) {
+	v := m.mention_index
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMentionIndex returns the old "mention_index" field's value of the ChannelMessageMention entity.
+// If the ChannelMessageMention object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMessageMentionMutation) OldMentionIndex(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMentionIndex is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMentionIndex requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMentionIndex: %w", err)
+	}
+	return oldValue.MentionIndex, nil
+}
+
+// AddMentionIndex adds i to the "mention_index" field.
+func (m *ChannelMessageMentionMutation) AddMentionIndex(i int) {
+	if m.addmention_index != nil {
+		*m.addmention_index += i
+	} else {
+		m.addmention_index = &i
+	}
+}
+
+// AddedMentionIndex returns the value that was added to the "mention_index" field in this mutation.
+func (m *ChannelMessageMentionMutation) AddedMentionIndex() (r int, exists bool) {
+	v := m.addmention_index
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearMentionIndex clears the value of the "mention_index" field.
+func (m *ChannelMessageMentionMutation) ClearMentionIndex() {
+	m.mention_index = nil
+	m.addmention_index = nil
+	m.clearedFields[channelmessagemention.FieldMentionIndex] = struct{}{}
+}
+
+// MentionIndexCleared returns if the "mention_index" field was cleared in this mutation.
+func (m *ChannelMessageMentionMutation) MentionIndexCleared() bool {
+	_, ok := m.clearedFields[channelmessagemention.FieldMentionIndex]
+	return ok
+}
+
+// ResetMentionIndex resets all changes to the "mention_index" field.
+func (m *ChannelMessageMentionMutation) ResetMentionIndex() {
+	m.mention_index = nil
+	m.addmention_index = nil
+	delete(m.clearedFields, channelmessagemention.FieldMentionIndex)
+}
+
+// SetMentionLength sets the "mention_length" field.
+func (m *ChannelMessageMentionMutation) SetMentionLength(i int) {
+	m.mention_length = &i
+	m.addmention_length = nil
+}
+
+// MentionLength returns the value of the "mention_length" field in the mutation.
+func (m *ChannelMessageMentionMutation) MentionLength() (r int, exists bool) {
+	v := m.mention_length
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMentionLength returns the old "mention_length" field's value of the ChannelMessageMention entity.
+// If the ChannelMessageMention object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMessageMentionMutation) OldMentionLength(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMentionLength is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMentionLength requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMentionLength: %w", err)
+	}
+	return oldValue.MentionLength, nil
+}
+
+// AddMentionLength adds i to the "mention_length" field.
+func (m *ChannelMessageMentionMutation) AddMentionLength(i int) {
+	if m.addmention_length != nil {
+		*m.addmention_length += i
+	} else {
+		m.addmention_length = &i
+	}
+}
+
+// AddedMentionLength returns the value that was added to the "mention_length" field in this mutation.
+func (m *ChannelMessageMentionMutation) AddedMentionLength() (r int, exists bool) {
+	v := m.addmention_length
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearMentionLength clears the value of the "mention_length" field.
+func (m *ChannelMessageMentionMutation) ClearMentionLength() {
+	m.mention_length = nil
+	m.addmention_length = nil
+	m.clearedFields[channelmessagemention.FieldMentionLength] = struct{}{}
+}
+
+// MentionLengthCleared returns if the "mention_length" field was cleared in this mutation.
+func (m *ChannelMessageMentionMutation) MentionLengthCleared() bool {
+	_, ok := m.clearedFields[channelmessagemention.FieldMentionLength]
+	return ok
+}
+
+// ResetMentionLength resets all changes to the "mention_length" field.
+func (m *ChannelMessageMentionMutation) ResetMentionLength() {
+	m.mention_length = nil
+	m.addmention_length = nil
+	delete(m.clearedFields, channelmessagemention.FieldMentionLength)
+}
+
+// SetMentionType sets the "mention_type" field.
+func (m *ChannelMessageMentionMutation) SetMentionType(s string) {
+	m.mention_type = &s
+}
+
+// MentionType returns the value of the "mention_type" field in the mutation.
+func (m *ChannelMessageMentionMutation) MentionType() (r string, exists bool) {
+	v := m.mention_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMentionType returns the old "mention_type" field's value of the ChannelMessageMention entity.
+// If the ChannelMessageMention object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMessageMentionMutation) OldMentionType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMentionType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMentionType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMentionType: %w", err)
+	}
+	return oldValue.MentionType, nil
+}
+
+// ResetMentionType resets all changes to the "mention_type" field.
+func (m *ChannelMessageMentionMutation) ResetMentionType() {
+	m.mention_type = nil
+}
+
+// SetIdentityKind sets the "identity_kind" field.
+func (m *ChannelMessageMentionMutation) SetIdentityKind(ck channelmessagemention.IdentityKind) {
+	m.identity_kind = &ck
+}
+
+// IdentityKind returns the value of the "identity_kind" field in the mutation.
+func (m *ChannelMessageMentionMutation) IdentityKind() (r channelmessagemention.IdentityKind, exists bool) {
+	v := m.identity_kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIdentityKind returns the old "identity_kind" field's value of the ChannelMessageMention entity.
+// If the ChannelMessageMention object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMessageMentionMutation) OldIdentityKind(ctx context.Context) (v channelmessagemention.IdentityKind, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIdentityKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIdentityKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIdentityKind: %w", err)
+	}
+	return oldValue.IdentityKind, nil
+}
+
+// ResetIdentityKind resets all changes to the "identity_kind" field.
+func (m *ChannelMessageMentionMutation) ResetIdentityKind() {
+	m.identity_kind = nil
+}
+
+// SetIsBot sets the "is_bot" field.
+func (m *ChannelMessageMentionMutation) SetIsBot(b bool) {
+	m.is_bot = &b
+}
+
+// IsBot returns the value of the "is_bot" field in the mutation.
+func (m *ChannelMessageMentionMutation) IsBot() (r bool, exists bool) {
+	v := m.is_bot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsBot returns the old "is_bot" field's value of the ChannelMessageMention entity.
+// If the ChannelMessageMention object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMessageMentionMutation) OldIsBot(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsBot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsBot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsBot: %w", err)
+	}
+	return oldValue.IsBot, nil
+}
+
+// ResetIsBot resets all changes to the "is_bot" field.
+func (m *ChannelMessageMentionMutation) ResetIsBot() {
+	m.is_bot = nil
+}
+
+// SetResolutionStatus sets the "resolution_status" field.
+func (m *ChannelMessageMentionMutation) SetResolutionStatus(cs channelmessagemention.ResolutionStatus) {
+	m.resolution_status = &cs
+}
+
+// ResolutionStatus returns the value of the "resolution_status" field in the mutation.
+func (m *ChannelMessageMentionMutation) ResolutionStatus() (r channelmessagemention.ResolutionStatus, exists bool) {
+	v := m.resolution_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResolutionStatus returns the old "resolution_status" field's value of the ChannelMessageMention entity.
+// If the ChannelMessageMention object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMessageMentionMutation) OldResolutionStatus(ctx context.Context) (v channelmessagemention.ResolutionStatus, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResolutionStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResolutionStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResolutionStatus: %w", err)
+	}
+	return oldValue.ResolutionStatus, nil
+}
+
+// ResetResolutionStatus resets all changes to the "resolution_status" field.
+func (m *ChannelMessageMentionMutation) ResetResolutionStatus() {
+	m.resolution_status = nil
+}
+
+// SetRaw sets the "raw" field.
+func (m *ChannelMessageMentionMutation) SetRaw(s string) {
+	m.raw = &s
+}
+
+// Raw returns the value of the "raw" field in the mutation.
+func (m *ChannelMessageMentionMutation) Raw() (r string, exists bool) {
+	v := m.raw
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRaw returns the old "raw" field's value of the ChannelMessageMention entity.
+// If the ChannelMessageMention object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMessageMentionMutation) OldRaw(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRaw is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRaw requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRaw: %w", err)
+	}
+	return oldValue.Raw, nil
+}
+
+// ClearRaw clears the value of the "raw" field.
+func (m *ChannelMessageMentionMutation) ClearRaw() {
+	m.raw = nil
+	m.clearedFields[channelmessagemention.FieldRaw] = struct{}{}
+}
+
+// RawCleared returns if the "raw" field was cleared in this mutation.
+func (m *ChannelMessageMentionMutation) RawCleared() bool {
+	_, ok := m.clearedFields[channelmessagemention.FieldRaw]
+	return ok
+}
+
+// ResetRaw resets all changes to the "raw" field.
+func (m *ChannelMessageMentionMutation) ResetRaw() {
+	m.raw = nil
+	delete(m.clearedFields, channelmessagemention.FieldRaw)
+}
+
+// SetMessageID sets the "message" edge to the ChannelMessage entity by id.
+func (m *ChannelMessageMentionMutation) SetMessageID(id uuid.UUID) {
+	m.message = &id
+}
+
+// ClearMessage clears the "message" edge to the ChannelMessage entity.
+func (m *ChannelMessageMentionMutation) ClearMessage() {
+	m.clearedmessage = true
+	m.clearedFields[channelmessagemention.FieldChannelMessageID] = struct{}{}
+}
+
+// MessageCleared reports if the "message" edge to the ChannelMessage entity was cleared.
+func (m *ChannelMessageMentionMutation) MessageCleared() bool {
+	return m.clearedmessage
+}
+
+// MessageID returns the "message" edge ID in the mutation.
+func (m *ChannelMessageMentionMutation) MessageID() (id uuid.UUID, exists bool) {
+	if m.message != nil {
+		return *m.message, true
+	}
+	return
+}
+
+// MessageIDs returns the "message" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// MessageID instead. It exists only for internal usage by the builders.
+func (m *ChannelMessageMentionMutation) MessageIDs() (ids []uuid.UUID) {
+	if id := m.message; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetMessage resets all changes to the "message" edge.
+func (m *ChannelMessageMentionMutation) ResetMessage() {
+	m.message = nil
+	m.clearedmessage = false
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *ChannelMessageMentionMutation) ClearUser() {
+	m.cleareduser = true
+	m.clearedFields[channelmessagemention.FieldUserID] = struct{}{}
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *ChannelMessageMentionMutation) UserCleared() bool {
+	return m.UserIDCleared() || m.cleareduser
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *ChannelMessageMentionMutation) UserIDs() (ids []uuid.UUID) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *ChannelMessageMentionMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// Where appends a list predicates to the ChannelMessageMentionMutation builder.
+func (m *ChannelMessageMentionMutation) Where(ps ...predicate.ChannelMessageMention) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ChannelMessageMentionMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ChannelMessageMentionMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ChannelMessageMention, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ChannelMessageMentionMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ChannelMessageMentionMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ChannelMessageMention).
+func (m *ChannelMessageMentionMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ChannelMessageMentionMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.created_at != nil {
+		fields = append(fields, channelmessagemention.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, channelmessagemention.FieldUpdatedAt)
+	}
+	if m.message != nil {
+		fields = append(fields, channelmessagemention.FieldChannelMessageID)
+	}
+	if m.platform != nil {
+		fields = append(fields, channelmessagemention.FieldPlatform)
+	}
+	if m.platform_user_id != nil {
+		fields = append(fields, channelmessagemention.FieldPlatformUserID)
+	}
+	if m.user != nil {
+		fields = append(fields, channelmessagemention.FieldUserID)
+	}
+	if m.display_text != nil {
+		fields = append(fields, channelmessagemention.FieldDisplayText)
+	}
+	if m.mention_index != nil {
+		fields = append(fields, channelmessagemention.FieldMentionIndex)
+	}
+	if m.mention_length != nil {
+		fields = append(fields, channelmessagemention.FieldMentionLength)
+	}
+	if m.mention_type != nil {
+		fields = append(fields, channelmessagemention.FieldMentionType)
+	}
+	if m.identity_kind != nil {
+		fields = append(fields, channelmessagemention.FieldIdentityKind)
+	}
+	if m.is_bot != nil {
+		fields = append(fields, channelmessagemention.FieldIsBot)
+	}
+	if m.resolution_status != nil {
+		fields = append(fields, channelmessagemention.FieldResolutionStatus)
+	}
+	if m.raw != nil {
+		fields = append(fields, channelmessagemention.FieldRaw)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ChannelMessageMentionMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case channelmessagemention.FieldCreatedAt:
+		return m.CreatedAt()
+	case channelmessagemention.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case channelmessagemention.FieldChannelMessageID:
+		return m.ChannelMessageID()
+	case channelmessagemention.FieldPlatform:
+		return m.Platform()
+	case channelmessagemention.FieldPlatformUserID:
+		return m.PlatformUserID()
+	case channelmessagemention.FieldUserID:
+		return m.UserID()
+	case channelmessagemention.FieldDisplayText:
+		return m.DisplayText()
+	case channelmessagemention.FieldMentionIndex:
+		return m.MentionIndex()
+	case channelmessagemention.FieldMentionLength:
+		return m.MentionLength()
+	case channelmessagemention.FieldMentionType:
+		return m.MentionType()
+	case channelmessagemention.FieldIdentityKind:
+		return m.IdentityKind()
+	case channelmessagemention.FieldIsBot:
+		return m.IsBot()
+	case channelmessagemention.FieldResolutionStatus:
+		return m.ResolutionStatus()
+	case channelmessagemention.FieldRaw:
+		return m.Raw()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ChannelMessageMentionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case channelmessagemention.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case channelmessagemention.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case channelmessagemention.FieldChannelMessageID:
+		return m.OldChannelMessageID(ctx)
+	case channelmessagemention.FieldPlatform:
+		return m.OldPlatform(ctx)
+	case channelmessagemention.FieldPlatformUserID:
+		return m.OldPlatformUserID(ctx)
+	case channelmessagemention.FieldUserID:
+		return m.OldUserID(ctx)
+	case channelmessagemention.FieldDisplayText:
+		return m.OldDisplayText(ctx)
+	case channelmessagemention.FieldMentionIndex:
+		return m.OldMentionIndex(ctx)
+	case channelmessagemention.FieldMentionLength:
+		return m.OldMentionLength(ctx)
+	case channelmessagemention.FieldMentionType:
+		return m.OldMentionType(ctx)
+	case channelmessagemention.FieldIdentityKind:
+		return m.OldIdentityKind(ctx)
+	case channelmessagemention.FieldIsBot:
+		return m.OldIsBot(ctx)
+	case channelmessagemention.FieldResolutionStatus:
+		return m.OldResolutionStatus(ctx)
+	case channelmessagemention.FieldRaw:
+		return m.OldRaw(ctx)
+	}
+	return nil, fmt.Errorf("unknown ChannelMessageMention field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ChannelMessageMentionMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case channelmessagemention.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case channelmessagemention.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case channelmessagemention.FieldChannelMessageID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannelMessageID(v)
+		return nil
+	case channelmessagemention.FieldPlatform:
+		v, ok := value.(channelmessagemention.Platform)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlatform(v)
+		return nil
+	case channelmessagemention.FieldPlatformUserID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlatformUserID(v)
+		return nil
+	case channelmessagemention.FieldUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case channelmessagemention.FieldDisplayText:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisplayText(v)
+		return nil
+	case channelmessagemention.FieldMentionIndex:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMentionIndex(v)
+		return nil
+	case channelmessagemention.FieldMentionLength:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMentionLength(v)
+		return nil
+	case channelmessagemention.FieldMentionType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMentionType(v)
+		return nil
+	case channelmessagemention.FieldIdentityKind:
+		v, ok := value.(channelmessagemention.IdentityKind)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIdentityKind(v)
+		return nil
+	case channelmessagemention.FieldIsBot:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsBot(v)
+		return nil
+	case channelmessagemention.FieldResolutionStatus:
+		v, ok := value.(channelmessagemention.ResolutionStatus)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResolutionStatus(v)
+		return nil
+	case channelmessagemention.FieldRaw:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRaw(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ChannelMessageMention field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ChannelMessageMentionMutation) AddedFields() []string {
+	var fields []string
+	if m.addmention_index != nil {
+		fields = append(fields, channelmessagemention.FieldMentionIndex)
+	}
+	if m.addmention_length != nil {
+		fields = append(fields, channelmessagemention.FieldMentionLength)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ChannelMessageMentionMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case channelmessagemention.FieldMentionIndex:
+		return m.AddedMentionIndex()
+	case channelmessagemention.FieldMentionLength:
+		return m.AddedMentionLength()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ChannelMessageMentionMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case channelmessagemention.FieldMentionIndex:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMentionIndex(v)
+		return nil
+	case channelmessagemention.FieldMentionLength:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMentionLength(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ChannelMessageMention numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ChannelMessageMentionMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(channelmessagemention.FieldPlatformUserID) {
+		fields = append(fields, channelmessagemention.FieldPlatformUserID)
+	}
+	if m.FieldCleared(channelmessagemention.FieldUserID) {
+		fields = append(fields, channelmessagemention.FieldUserID)
+	}
+	if m.FieldCleared(channelmessagemention.FieldDisplayText) {
+		fields = append(fields, channelmessagemention.FieldDisplayText)
+	}
+	if m.FieldCleared(channelmessagemention.FieldMentionIndex) {
+		fields = append(fields, channelmessagemention.FieldMentionIndex)
+	}
+	if m.FieldCleared(channelmessagemention.FieldMentionLength) {
+		fields = append(fields, channelmessagemention.FieldMentionLength)
+	}
+	if m.FieldCleared(channelmessagemention.FieldRaw) {
+		fields = append(fields, channelmessagemention.FieldRaw)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ChannelMessageMentionMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ChannelMessageMentionMutation) ClearField(name string) error {
+	switch name {
+	case channelmessagemention.FieldPlatformUserID:
+		m.ClearPlatformUserID()
+		return nil
+	case channelmessagemention.FieldUserID:
+		m.ClearUserID()
+		return nil
+	case channelmessagemention.FieldDisplayText:
+		m.ClearDisplayText()
+		return nil
+	case channelmessagemention.FieldMentionIndex:
+		m.ClearMentionIndex()
+		return nil
+	case channelmessagemention.FieldMentionLength:
+		m.ClearMentionLength()
+		return nil
+	case channelmessagemention.FieldRaw:
+		m.ClearRaw()
+		return nil
+	}
+	return fmt.Errorf("unknown ChannelMessageMention nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ChannelMessageMentionMutation) ResetField(name string) error {
+	switch name {
+	case channelmessagemention.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case channelmessagemention.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case channelmessagemention.FieldChannelMessageID:
+		m.ResetChannelMessageID()
+		return nil
+	case channelmessagemention.FieldPlatform:
+		m.ResetPlatform()
+		return nil
+	case channelmessagemention.FieldPlatformUserID:
+		m.ResetPlatformUserID()
+		return nil
+	case channelmessagemention.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case channelmessagemention.FieldDisplayText:
+		m.ResetDisplayText()
+		return nil
+	case channelmessagemention.FieldMentionIndex:
+		m.ResetMentionIndex()
+		return nil
+	case channelmessagemention.FieldMentionLength:
+		m.ResetMentionLength()
+		return nil
+	case channelmessagemention.FieldMentionType:
+		m.ResetMentionType()
+		return nil
+	case channelmessagemention.FieldIdentityKind:
+		m.ResetIdentityKind()
+		return nil
+	case channelmessagemention.FieldIsBot:
+		m.ResetIsBot()
+		return nil
+	case channelmessagemention.FieldResolutionStatus:
+		m.ResetResolutionStatus()
+		return nil
+	case channelmessagemention.FieldRaw:
+		m.ResetRaw()
+		return nil
+	}
+	return fmt.Errorf("unknown ChannelMessageMention field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ChannelMessageMentionMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.message != nil {
+		edges = append(edges, channelmessagemention.EdgeMessage)
+	}
+	if m.user != nil {
+		edges = append(edges, channelmessagemention.EdgeUser)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ChannelMessageMentionMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case channelmessagemention.EdgeMessage:
+		if id := m.message; id != nil {
+			return []ent.Value{*id}
+		}
+	case channelmessagemention.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ChannelMessageMentionMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ChannelMessageMentionMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ChannelMessageMentionMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedmessage {
+		edges = append(edges, channelmessagemention.EdgeMessage)
+	}
+	if m.cleareduser {
+		edges = append(edges, channelmessagemention.EdgeUser)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ChannelMessageMentionMutation) EdgeCleared(name string) bool {
+	switch name {
+	case channelmessagemention.EdgeMessage:
+		return m.clearedmessage
+	case channelmessagemention.EdgeUser:
+		return m.cleareduser
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ChannelMessageMentionMutation) ClearEdge(name string) error {
+	switch name {
+	case channelmessagemention.EdgeMessage:
+		m.ClearMessage()
+		return nil
+	case channelmessagemention.EdgeUser:
+		m.ClearUser()
+		return nil
+	}
+	return fmt.Errorf("unknown ChannelMessageMention unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ChannelMessageMentionMutation) ResetEdge(name string) error {
+	switch name {
+	case channelmessagemention.EdgeMessage:
+		m.ResetMessage()
+		return nil
+	case channelmessagemention.EdgeUser:
+		m.ResetUser()
+		return nil
+	}
+	return fmt.Errorf("unknown ChannelMessageMention edge %s", name)
 }
 
 // ChannelServiceMemberMutation represents an operation that mutates the ChannelServiceMember nodes in the graph.
@@ -10554,6 +11974,9 @@ type UserMutation struct {
 	channel_service_members          map[uuid.UUID]struct{}
 	removedchannel_service_members   map[uuid.UUID]struct{}
 	clearedchannel_service_members   bool
+	channel_message_mentions         map[uuid.UUID]struct{}
+	removedchannel_message_mentions  map[uuid.UUID]struct{}
+	clearedchannel_message_mentions  bool
 	owned_translation_locales        map[uuid.UUID]struct{}
 	removedowned_translation_locales map[uuid.UUID]struct{}
 	clearedowned_translation_locales bool
@@ -10900,6 +12323,60 @@ func (m *UserMutation) ResetChannelServiceMembers() {
 	m.removedchannel_service_members = nil
 }
 
+// AddChannelMessageMentionIDs adds the "channel_message_mentions" edge to the ChannelMessageMention entity by ids.
+func (m *UserMutation) AddChannelMessageMentionIDs(ids ...uuid.UUID) {
+	if m.channel_message_mentions == nil {
+		m.channel_message_mentions = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.channel_message_mentions[ids[i]] = struct{}{}
+	}
+}
+
+// ClearChannelMessageMentions clears the "channel_message_mentions" edge to the ChannelMessageMention entity.
+func (m *UserMutation) ClearChannelMessageMentions() {
+	m.clearedchannel_message_mentions = true
+}
+
+// ChannelMessageMentionsCleared reports if the "channel_message_mentions" edge to the ChannelMessageMention entity was cleared.
+func (m *UserMutation) ChannelMessageMentionsCleared() bool {
+	return m.clearedchannel_message_mentions
+}
+
+// RemoveChannelMessageMentionIDs removes the "channel_message_mentions" edge to the ChannelMessageMention entity by IDs.
+func (m *UserMutation) RemoveChannelMessageMentionIDs(ids ...uuid.UUID) {
+	if m.removedchannel_message_mentions == nil {
+		m.removedchannel_message_mentions = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.channel_message_mentions, ids[i])
+		m.removedchannel_message_mentions[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedChannelMessageMentions returns the removed IDs of the "channel_message_mentions" edge to the ChannelMessageMention entity.
+func (m *UserMutation) RemovedChannelMessageMentionsIDs() (ids []uuid.UUID) {
+	for id := range m.removedchannel_message_mentions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ChannelMessageMentionsIDs returns the "channel_message_mentions" edge IDs in the mutation.
+func (m *UserMutation) ChannelMessageMentionsIDs() (ids []uuid.UUID) {
+	for id := range m.channel_message_mentions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetChannelMessageMentions resets all changes to the "channel_message_mentions" edge.
+func (m *UserMutation) ResetChannelMessageMentions() {
+	m.channel_message_mentions = nil
+	m.clearedchannel_message_mentions = false
+	m.removedchannel_message_mentions = nil
+}
+
 // AddOwnedTranslationLocaleIDs adds the "owned_translation_locales" edge to the TranslationLocale entity by ids.
 func (m *UserMutation) AddOwnedTranslationLocaleIDs(ids ...uuid.UUID) {
 	if m.owned_translation_locales == nil {
@@ -11104,7 +12581,7 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.line != nil {
 		edges = append(edges, user.EdgeLine)
 	}
@@ -11113,6 +12590,9 @@ func (m *UserMutation) AddedEdges() []string {
 	}
 	if m.channel_service_members != nil {
 		edges = append(edges, user.EdgeChannelServiceMembers)
+	}
+	if m.channel_message_mentions != nil {
+		edges = append(edges, user.EdgeChannelMessageMentions)
 	}
 	if m.owned_translation_locales != nil {
 		edges = append(edges, user.EdgeOwnedTranslationLocales)
@@ -11142,6 +12622,12 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeChannelMessageMentions:
+		ids := make([]ent.Value, 0, len(m.channel_message_mentions))
+		for id := range m.channel_message_mentions {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeOwnedTranslationLocales:
 		ids := make([]ent.Value, 0, len(m.owned_translation_locales))
 		for id := range m.owned_translation_locales {
@@ -11154,7 +12640,7 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.removedline != nil {
 		edges = append(edges, user.EdgeLine)
 	}
@@ -11163,6 +12649,9 @@ func (m *UserMutation) RemovedEdges() []string {
 	}
 	if m.removedchannel_service_members != nil {
 		edges = append(edges, user.EdgeChannelServiceMembers)
+	}
+	if m.removedchannel_message_mentions != nil {
+		edges = append(edges, user.EdgeChannelMessageMentions)
 	}
 	if m.removedowned_translation_locales != nil {
 		edges = append(edges, user.EdgeOwnedTranslationLocales)
@@ -11192,6 +12681,12 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeChannelMessageMentions:
+		ids := make([]ent.Value, 0, len(m.removedchannel_message_mentions))
+		for id := range m.removedchannel_message_mentions {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeOwnedTranslationLocales:
 		ids := make([]ent.Value, 0, len(m.removedowned_translation_locales))
 		for id := range m.removedowned_translation_locales {
@@ -11204,7 +12699,7 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 5)
 	if m.clearedline {
 		edges = append(edges, user.EdgeLine)
 	}
@@ -11213,6 +12708,9 @@ func (m *UserMutation) ClearedEdges() []string {
 	}
 	if m.clearedchannel_service_members {
 		edges = append(edges, user.EdgeChannelServiceMembers)
+	}
+	if m.clearedchannel_message_mentions {
+		edges = append(edges, user.EdgeChannelMessageMentions)
 	}
 	if m.clearedowned_translation_locales {
 		edges = append(edges, user.EdgeOwnedTranslationLocales)
@@ -11230,6 +12728,8 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 		return m.clearedslack
 	case user.EdgeChannelServiceMembers:
 		return m.clearedchannel_service_members
+	case user.EdgeChannelMessageMentions:
+		return m.clearedchannel_message_mentions
 	case user.EdgeOwnedTranslationLocales:
 		return m.clearedowned_translation_locales
 	}
@@ -11256,6 +12756,9 @@ func (m *UserMutation) ResetEdge(name string) error {
 		return nil
 	case user.EdgeChannelServiceMembers:
 		m.ResetChannelServiceMembers()
+		return nil
+	case user.EdgeChannelMessageMentions:
+		m.ResetChannelMessageMentions()
 		return nil
 	case user.EdgeOwnedTranslationLocales:
 		m.ResetOwnedTranslationLocales()

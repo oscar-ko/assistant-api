@@ -96,6 +96,18 @@ func (_m *ChannelMessage) Channel(ctx context.Context) (*Channel, error) {
 	return result, err
 }
 
+func (_m *ChannelMessage) Mentions(ctx context.Context) (result []*ChannelMessageMention, err error) {
+	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
+		result, err = _m.NamedMentions(graphql.GetFieldContext(ctx).Field.Alias)
+	} else {
+		result, err = _m.Edges.MentionsOrErr()
+	}
+	if IsNotLoaded(err) {
+		result, err = _m.QueryMentions().All(ctx)
+	}
+	return result, err
+}
+
 func (_m *ChannelMessage) TriggeredMessage(ctx context.Context) (*ChannelMessage, error) {
 	result, err := _m.Edges.TriggeredMessageOrErr()
 	if IsNotLoaded(err) {
@@ -114,6 +126,22 @@ func (_m *ChannelMessage) TriggeredMessages(ctx context.Context) (result []*Chan
 		result, err = _m.QueryTriggeredMessages().All(ctx)
 	}
 	return result, err
+}
+
+func (_m *ChannelMessageMention) Message(ctx context.Context) (*ChannelMessage, error) {
+	result, err := _m.Edges.MessageOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryMessage().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *ChannelMessageMention) User(ctx context.Context) (*User, error) {
+	result, err := _m.Edges.UserOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryUser().Only(ctx)
+	}
+	return result, MaskNotFound(err)
 }
 
 func (_m *ChannelServiceMember) Channel(ctx context.Context) (*Channel, error) {
@@ -280,6 +308,18 @@ func (_m *User) ChannelServiceMembers(ctx context.Context) (result []*ChannelSer
 	}
 	if IsNotLoaded(err) {
 		result, err = _m.QueryChannelServiceMembers().All(ctx)
+	}
+	return result, err
+}
+
+func (_m *User) ChannelMessageMentions(ctx context.Context) (result []*ChannelMessageMention, err error) {
+	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
+		result, err = _m.NamedChannelMessageMentions(graphql.GetFieldContext(ctx).Field.Alias)
+	} else {
+		result, err = _m.Edges.ChannelMessageMentionsOrErr()
+	}
+	if IsNotLoaded(err) {
+		result, err = _m.QueryChannelMessageMentions().All(ctx)
 	}
 	return result, err
 }

@@ -8,6 +8,7 @@ import (
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/channelmessagemention"
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
@@ -54,6 +55,11 @@ var channelmessageImplementors = []string{"ChannelMessage", "Node"}
 
 // IsNode implements the Node interface check for GQLGen.
 func (*ChannelMessage) IsNode() {}
+
+var channelmessagementionImplementors = []string{"ChannelMessageMention", "Node"}
+
+// IsNode implements the Node interface check for GQLGen.
+func (*ChannelMessageMention) IsNode() {}
 
 var channelservicememberImplementors = []string{"ChannelServiceMember", "Node"}
 
@@ -194,6 +200,15 @@ func (c *Client) noder(ctx context.Context, table string, id uuid.UUID) (Noder, 
 			Where(channelmessage.ID(id))
 		if fc := graphql.GetFieldContext(ctx); fc != nil {
 			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, channelmessageImplementors...); err != nil {
+				return nil, err
+			}
+		}
+		return query.Only(ctx)
+	case channelmessagemention.Table:
+		query := c.ChannelMessageMention.Query().
+			Where(channelmessagemention.ID(id))
+		if fc := graphql.GetFieldContext(ctx); fc != nil {
+			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, channelmessagementionImplementors...); err != nil {
 				return nil, err
 			}
 		}
@@ -411,6 +426,22 @@ func (c *Client) noders(ctx context.Context, table string, ids []uuid.UUID) ([]N
 		query := c.ChannelMessage.Query().
 			Where(channelmessage.IDIn(ids...))
 		query, err := query.CollectFields(ctx, channelmessageImplementors...)
+		if err != nil {
+			return nil, err
+		}
+		nodes, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, node := range nodes {
+			for _, noder := range idmap[node.ID] {
+				*noder = node
+			}
+		}
+	case channelmessagemention.Table:
+		query := c.ChannelMessageMention.Query().
+			Where(channelmessagemention.IDIn(ids...))
+		query, err := query.CollectFields(ctx, channelmessagementionImplementors...)
 		if err != nil {
 			return nil, err
 		}

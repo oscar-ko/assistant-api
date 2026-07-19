@@ -8,6 +8,7 @@ import (
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/channelmessagemention"
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
@@ -1731,6 +1732,10 @@ type ChannelMessageWhereInput struct {
 	HasChannel     *bool                `json:"hasChannel,omitempty"`
 	HasChannelWith []*ChannelWhereInput `json:"hasChannelWith,omitempty"`
 
+	// "mentions" edge predicates.
+	HasMentions     *bool                              `json:"hasMentions,omitempty"`
+	HasMentionsWith []*ChannelMessageMentionWhereInput `json:"hasMentionsWith,omitempty"`
+
 	// "triggered_message" edge predicates.
 	HasTriggeredMessage     *bool                       `json:"hasTriggeredMessage,omitempty"`
 	HasTriggeredMessageWith []*ChannelMessageWhereInput `json:"hasTriggeredMessageWith,omitempty"`
@@ -2289,6 +2294,24 @@ func (i *ChannelMessageWhereInput) P() (predicate.ChannelMessage, error) {
 		}
 		predicates = append(predicates, channelmessage.HasChannelWith(with...))
 	}
+	if i.HasMentions != nil {
+		p := channelmessage.HasMentions()
+		if !*i.HasMentions {
+			p = channelmessage.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasMentionsWith) > 0 {
+		with := make([]predicate.ChannelMessageMention, 0, len(i.HasMentionsWith))
+		for _, w := range i.HasMentionsWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasMentionsWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, channelmessage.HasMentionsWith(with...))
+	}
 	if i.HasTriggeredMessage != nil {
 		p := channelmessage.HasTriggeredMessage()
 		if !*i.HasTriggeredMessage {
@@ -2332,6 +2355,674 @@ func (i *ChannelMessageWhereInput) P() (predicate.ChannelMessage, error) {
 		return predicates[0], nil
 	default:
 		return channelmessage.And(predicates...), nil
+	}
+}
+
+// ChannelMessageMentionWhereInput represents a where input for filtering ChannelMessageMention queries.
+type ChannelMessageMentionWhereInput struct {
+	Predicates []predicate.ChannelMessageMention  `json:"-"`
+	Not        *ChannelMessageMentionWhereInput   `json:"not,omitempty"`
+	Or         []*ChannelMessageMentionWhereInput `json:"or,omitempty"`
+	And        []*ChannelMessageMentionWhereInput `json:"and,omitempty"`
+
+	// "id" field predicates.
+	ID      *uuid.UUID  `json:"id,omitempty"`
+	IDNEQ   *uuid.UUID  `json:"idNEQ,omitempty"`
+	IDIn    []uuid.UUID `json:"idIn,omitempty"`
+	IDNotIn []uuid.UUID `json:"idNotIn,omitempty"`
+	IDGT    *uuid.UUID  `json:"idGT,omitempty"`
+	IDGTE   *uuid.UUID  `json:"idGTE,omitempty"`
+	IDLT    *uuid.UUID  `json:"idLT,omitempty"`
+	IDLTE   *uuid.UUID  `json:"idLTE,omitempty"`
+
+	// "created_at" field predicates.
+	CreatedAt      *time.Time  `json:"createdAt,omitempty"`
+	CreatedAtNEQ   *time.Time  `json:"createdAtNEQ,omitempty"`
+	CreatedAtIn    []time.Time `json:"createdAtIn,omitempty"`
+	CreatedAtNotIn []time.Time `json:"createdAtNotIn,omitempty"`
+	CreatedAtGT    *time.Time  `json:"createdAtGT,omitempty"`
+	CreatedAtGTE   *time.Time  `json:"createdAtGTE,omitempty"`
+	CreatedAtLT    *time.Time  `json:"createdAtLT,omitempty"`
+	CreatedAtLTE   *time.Time  `json:"createdAtLTE,omitempty"`
+
+	// "updated_at" field predicates.
+	UpdatedAt      *time.Time  `json:"updatedAt,omitempty"`
+	UpdatedAtNEQ   *time.Time  `json:"updatedAtNEQ,omitempty"`
+	UpdatedAtIn    []time.Time `json:"updatedAtIn,omitempty"`
+	UpdatedAtNotIn []time.Time `json:"updatedAtNotIn,omitempty"`
+	UpdatedAtGT    *time.Time  `json:"updatedAtGT,omitempty"`
+	UpdatedAtGTE   *time.Time  `json:"updatedAtGTE,omitempty"`
+	UpdatedAtLT    *time.Time  `json:"updatedAtLT,omitempty"`
+	UpdatedAtLTE   *time.Time  `json:"updatedAtLTE,omitempty"`
+
+	// "channel_message_id" field predicates.
+	ChannelMessageID      *uuid.UUID  `json:"channelMessageID,omitempty"`
+	ChannelMessageIDNEQ   *uuid.UUID  `json:"channelMessageIDNEQ,omitempty"`
+	ChannelMessageIDIn    []uuid.UUID `json:"channelMessageIDIn,omitempty"`
+	ChannelMessageIDNotIn []uuid.UUID `json:"channelMessageIDNotIn,omitempty"`
+
+	// "platform" field predicates.
+	Platform      *channelmessagemention.Platform  `json:"platform,omitempty"`
+	PlatformNEQ   *channelmessagemention.Platform  `json:"platformNEQ,omitempty"`
+	PlatformIn    []channelmessagemention.Platform `json:"platformIn,omitempty"`
+	PlatformNotIn []channelmessagemention.Platform `json:"platformNotIn,omitempty"`
+
+	// "platform_user_id" field predicates.
+	PlatformUserID             *string  `json:"platformUserID,omitempty"`
+	PlatformUserIDNEQ          *string  `json:"platformUserIDNEQ,omitempty"`
+	PlatformUserIDIn           []string `json:"platformUserIDIn,omitempty"`
+	PlatformUserIDNotIn        []string `json:"platformUserIDNotIn,omitempty"`
+	PlatformUserIDGT           *string  `json:"platformUserIDGT,omitempty"`
+	PlatformUserIDGTE          *string  `json:"platformUserIDGTE,omitempty"`
+	PlatformUserIDLT           *string  `json:"platformUserIDLT,omitempty"`
+	PlatformUserIDLTE          *string  `json:"platformUserIDLTE,omitempty"`
+	PlatformUserIDContains     *string  `json:"platformUserIDContains,omitempty"`
+	PlatformUserIDHasPrefix    *string  `json:"platformUserIDHasPrefix,omitempty"`
+	PlatformUserIDHasSuffix    *string  `json:"platformUserIDHasSuffix,omitempty"`
+	PlatformUserIDIsNil        bool     `json:"platformUserIDIsNil,omitempty"`
+	PlatformUserIDNotNil       bool     `json:"platformUserIDNotNil,omitempty"`
+	PlatformUserIDEqualFold    *string  `json:"platformUserIDEqualFold,omitempty"`
+	PlatformUserIDContainsFold *string  `json:"platformUserIDContainsFold,omitempty"`
+
+	// "user_id" field predicates.
+	UserID       *uuid.UUID  `json:"userID,omitempty"`
+	UserIDNEQ    *uuid.UUID  `json:"userIDNEQ,omitempty"`
+	UserIDIn     []uuid.UUID `json:"userIDIn,omitempty"`
+	UserIDNotIn  []uuid.UUID `json:"userIDNotIn,omitempty"`
+	UserIDIsNil  bool        `json:"userIDIsNil,omitempty"`
+	UserIDNotNil bool        `json:"userIDNotNil,omitempty"`
+
+	// "display_text" field predicates.
+	DisplayText             *string  `json:"displayText,omitempty"`
+	DisplayTextNEQ          *string  `json:"displayTextNEQ,omitempty"`
+	DisplayTextIn           []string `json:"displayTextIn,omitempty"`
+	DisplayTextNotIn        []string `json:"displayTextNotIn,omitempty"`
+	DisplayTextGT           *string  `json:"displayTextGT,omitempty"`
+	DisplayTextGTE          *string  `json:"displayTextGTE,omitempty"`
+	DisplayTextLT           *string  `json:"displayTextLT,omitempty"`
+	DisplayTextLTE          *string  `json:"displayTextLTE,omitempty"`
+	DisplayTextContains     *string  `json:"displayTextContains,omitempty"`
+	DisplayTextHasPrefix    *string  `json:"displayTextHasPrefix,omitempty"`
+	DisplayTextHasSuffix    *string  `json:"displayTextHasSuffix,omitempty"`
+	DisplayTextIsNil        bool     `json:"displayTextIsNil,omitempty"`
+	DisplayTextNotNil       bool     `json:"displayTextNotNil,omitempty"`
+	DisplayTextEqualFold    *string  `json:"displayTextEqualFold,omitempty"`
+	DisplayTextContainsFold *string  `json:"displayTextContainsFold,omitempty"`
+
+	// "mention_index" field predicates.
+	MentionIndex       *int  `json:"mentionIndex,omitempty"`
+	MentionIndexNEQ    *int  `json:"mentionIndexNEQ,omitempty"`
+	MentionIndexIn     []int `json:"mentionIndexIn,omitempty"`
+	MentionIndexNotIn  []int `json:"mentionIndexNotIn,omitempty"`
+	MentionIndexGT     *int  `json:"mentionIndexGT,omitempty"`
+	MentionIndexGTE    *int  `json:"mentionIndexGTE,omitempty"`
+	MentionIndexLT     *int  `json:"mentionIndexLT,omitempty"`
+	MentionIndexLTE    *int  `json:"mentionIndexLTE,omitempty"`
+	MentionIndexIsNil  bool  `json:"mentionIndexIsNil,omitempty"`
+	MentionIndexNotNil bool  `json:"mentionIndexNotNil,omitempty"`
+
+	// "mention_length" field predicates.
+	MentionLength       *int  `json:"mentionLength,omitempty"`
+	MentionLengthNEQ    *int  `json:"mentionLengthNEQ,omitempty"`
+	MentionLengthIn     []int `json:"mentionLengthIn,omitempty"`
+	MentionLengthNotIn  []int `json:"mentionLengthNotIn,omitempty"`
+	MentionLengthGT     *int  `json:"mentionLengthGT,omitempty"`
+	MentionLengthGTE    *int  `json:"mentionLengthGTE,omitempty"`
+	MentionLengthLT     *int  `json:"mentionLengthLT,omitempty"`
+	MentionLengthLTE    *int  `json:"mentionLengthLTE,omitempty"`
+	MentionLengthIsNil  bool  `json:"mentionLengthIsNil,omitempty"`
+	MentionLengthNotNil bool  `json:"mentionLengthNotNil,omitempty"`
+
+	// "mention_type" field predicates.
+	MentionType             *string  `json:"mentionType,omitempty"`
+	MentionTypeNEQ          *string  `json:"mentionTypeNEQ,omitempty"`
+	MentionTypeIn           []string `json:"mentionTypeIn,omitempty"`
+	MentionTypeNotIn        []string `json:"mentionTypeNotIn,omitempty"`
+	MentionTypeGT           *string  `json:"mentionTypeGT,omitempty"`
+	MentionTypeGTE          *string  `json:"mentionTypeGTE,omitempty"`
+	MentionTypeLT           *string  `json:"mentionTypeLT,omitempty"`
+	MentionTypeLTE          *string  `json:"mentionTypeLTE,omitempty"`
+	MentionTypeContains     *string  `json:"mentionTypeContains,omitempty"`
+	MentionTypeHasPrefix    *string  `json:"mentionTypeHasPrefix,omitempty"`
+	MentionTypeHasSuffix    *string  `json:"mentionTypeHasSuffix,omitempty"`
+	MentionTypeEqualFold    *string  `json:"mentionTypeEqualFold,omitempty"`
+	MentionTypeContainsFold *string  `json:"mentionTypeContainsFold,omitempty"`
+
+	// "identity_kind" field predicates.
+	IdentityKind      *channelmessagemention.IdentityKind  `json:"identityKind,omitempty"`
+	IdentityKindNEQ   *channelmessagemention.IdentityKind  `json:"identityKindNEQ,omitempty"`
+	IdentityKindIn    []channelmessagemention.IdentityKind `json:"identityKindIn,omitempty"`
+	IdentityKindNotIn []channelmessagemention.IdentityKind `json:"identityKindNotIn,omitempty"`
+
+	// "is_bot" field predicates.
+	IsBot    *bool `json:"isBot,omitempty"`
+	IsBotNEQ *bool `json:"isBotNEQ,omitempty"`
+
+	// "resolution_status" field predicates.
+	ResolutionStatus      *channelmessagemention.ResolutionStatus  `json:"resolutionStatus,omitempty"`
+	ResolutionStatusNEQ   *channelmessagemention.ResolutionStatus  `json:"resolutionStatusNEQ,omitempty"`
+	ResolutionStatusIn    []channelmessagemention.ResolutionStatus `json:"resolutionStatusIn,omitempty"`
+	ResolutionStatusNotIn []channelmessagemention.ResolutionStatus `json:"resolutionStatusNotIn,omitempty"`
+
+	// "raw" field predicates.
+	Raw             *string  `json:"raw,omitempty"`
+	RawNEQ          *string  `json:"rawNEQ,omitempty"`
+	RawIn           []string `json:"rawIn,omitempty"`
+	RawNotIn        []string `json:"rawNotIn,omitempty"`
+	RawGT           *string  `json:"rawGT,omitempty"`
+	RawGTE          *string  `json:"rawGTE,omitempty"`
+	RawLT           *string  `json:"rawLT,omitempty"`
+	RawLTE          *string  `json:"rawLTE,omitempty"`
+	RawContains     *string  `json:"rawContains,omitempty"`
+	RawHasPrefix    *string  `json:"rawHasPrefix,omitempty"`
+	RawHasSuffix    *string  `json:"rawHasSuffix,omitempty"`
+	RawIsNil        bool     `json:"rawIsNil,omitempty"`
+	RawNotNil       bool     `json:"rawNotNil,omitempty"`
+	RawEqualFold    *string  `json:"rawEqualFold,omitempty"`
+	RawContainsFold *string  `json:"rawContainsFold,omitempty"`
+
+	// "message" edge predicates.
+	HasMessage     *bool                       `json:"hasMessage,omitempty"`
+	HasMessageWith []*ChannelMessageWhereInput `json:"hasMessageWith,omitempty"`
+
+	// "user" edge predicates.
+	HasUser     *bool             `json:"hasUser,omitempty"`
+	HasUserWith []*UserWhereInput `json:"hasUserWith,omitempty"`
+}
+
+// AddPredicates adds custom predicates to the where input to be used during the filtering phase.
+func (i *ChannelMessageMentionWhereInput) AddPredicates(predicates ...predicate.ChannelMessageMention) {
+	i.Predicates = append(i.Predicates, predicates...)
+}
+
+// Filter applies the ChannelMessageMentionWhereInput filter on the ChannelMessageMentionQuery builder.
+func (i *ChannelMessageMentionWhereInput) Filter(q *ChannelMessageMentionQuery) (*ChannelMessageMentionQuery, error) {
+	if i == nil {
+		return q, nil
+	}
+	p, err := i.P()
+	if err != nil {
+		if err == ErrEmptyChannelMessageMentionWhereInput {
+			return q, nil
+		}
+		return nil, err
+	}
+	return q.Where(p), nil
+}
+
+// ErrEmptyChannelMessageMentionWhereInput is returned in case the ChannelMessageMentionWhereInput is empty.
+var ErrEmptyChannelMessageMentionWhereInput = errors.New("ent: empty predicate ChannelMessageMentionWhereInput")
+
+// P returns a predicate for filtering channelmessagementions.
+// An error is returned if the input is empty or invalid.
+func (i *ChannelMessageMentionWhereInput) P() (predicate.ChannelMessageMention, error) {
+	var predicates []predicate.ChannelMessageMention
+	if i.Not != nil {
+		p, err := i.Not.P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'not'", err)
+		}
+		predicates = append(predicates, channelmessagemention.Not(p))
+	}
+	switch n := len(i.Or); {
+	case n == 1:
+		p, err := i.Or[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'or'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		or := make([]predicate.ChannelMessageMention, 0, n)
+		for _, w := range i.Or {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'or'", err)
+			}
+			or = append(or, p)
+		}
+		predicates = append(predicates, channelmessagemention.Or(or...))
+	}
+	switch n := len(i.And); {
+	case n == 1:
+		p, err := i.And[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'and'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		and := make([]predicate.ChannelMessageMention, 0, n)
+		for _, w := range i.And {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'and'", err)
+			}
+			and = append(and, p)
+		}
+		predicates = append(predicates, channelmessagemention.And(and...))
+	}
+	predicates = append(predicates, i.Predicates...)
+	if i.ID != nil {
+		predicates = append(predicates, channelmessagemention.IDEQ(*i.ID))
+	}
+	if i.IDNEQ != nil {
+		predicates = append(predicates, channelmessagemention.IDNEQ(*i.IDNEQ))
+	}
+	if len(i.IDIn) > 0 {
+		predicates = append(predicates, channelmessagemention.IDIn(i.IDIn...))
+	}
+	if len(i.IDNotIn) > 0 {
+		predicates = append(predicates, channelmessagemention.IDNotIn(i.IDNotIn...))
+	}
+	if i.IDGT != nil {
+		predicates = append(predicates, channelmessagemention.IDGT(*i.IDGT))
+	}
+	if i.IDGTE != nil {
+		predicates = append(predicates, channelmessagemention.IDGTE(*i.IDGTE))
+	}
+	if i.IDLT != nil {
+		predicates = append(predicates, channelmessagemention.IDLT(*i.IDLT))
+	}
+	if i.IDLTE != nil {
+		predicates = append(predicates, channelmessagemention.IDLTE(*i.IDLTE))
+	}
+	if i.CreatedAt != nil {
+		predicates = append(predicates, channelmessagemention.CreatedAtEQ(*i.CreatedAt))
+	}
+	if i.CreatedAtNEQ != nil {
+		predicates = append(predicates, channelmessagemention.CreatedAtNEQ(*i.CreatedAtNEQ))
+	}
+	if len(i.CreatedAtIn) > 0 {
+		predicates = append(predicates, channelmessagemention.CreatedAtIn(i.CreatedAtIn...))
+	}
+	if len(i.CreatedAtNotIn) > 0 {
+		predicates = append(predicates, channelmessagemention.CreatedAtNotIn(i.CreatedAtNotIn...))
+	}
+	if i.CreatedAtGT != nil {
+		predicates = append(predicates, channelmessagemention.CreatedAtGT(*i.CreatedAtGT))
+	}
+	if i.CreatedAtGTE != nil {
+		predicates = append(predicates, channelmessagemention.CreatedAtGTE(*i.CreatedAtGTE))
+	}
+	if i.CreatedAtLT != nil {
+		predicates = append(predicates, channelmessagemention.CreatedAtLT(*i.CreatedAtLT))
+	}
+	if i.CreatedAtLTE != nil {
+		predicates = append(predicates, channelmessagemention.CreatedAtLTE(*i.CreatedAtLTE))
+	}
+	if i.UpdatedAt != nil {
+		predicates = append(predicates, channelmessagemention.UpdatedAtEQ(*i.UpdatedAt))
+	}
+	if i.UpdatedAtNEQ != nil {
+		predicates = append(predicates, channelmessagemention.UpdatedAtNEQ(*i.UpdatedAtNEQ))
+	}
+	if len(i.UpdatedAtIn) > 0 {
+		predicates = append(predicates, channelmessagemention.UpdatedAtIn(i.UpdatedAtIn...))
+	}
+	if len(i.UpdatedAtNotIn) > 0 {
+		predicates = append(predicates, channelmessagemention.UpdatedAtNotIn(i.UpdatedAtNotIn...))
+	}
+	if i.UpdatedAtGT != nil {
+		predicates = append(predicates, channelmessagemention.UpdatedAtGT(*i.UpdatedAtGT))
+	}
+	if i.UpdatedAtGTE != nil {
+		predicates = append(predicates, channelmessagemention.UpdatedAtGTE(*i.UpdatedAtGTE))
+	}
+	if i.UpdatedAtLT != nil {
+		predicates = append(predicates, channelmessagemention.UpdatedAtLT(*i.UpdatedAtLT))
+	}
+	if i.UpdatedAtLTE != nil {
+		predicates = append(predicates, channelmessagemention.UpdatedAtLTE(*i.UpdatedAtLTE))
+	}
+	if i.ChannelMessageID != nil {
+		predicates = append(predicates, channelmessagemention.ChannelMessageIDEQ(*i.ChannelMessageID))
+	}
+	if i.ChannelMessageIDNEQ != nil {
+		predicates = append(predicates, channelmessagemention.ChannelMessageIDNEQ(*i.ChannelMessageIDNEQ))
+	}
+	if len(i.ChannelMessageIDIn) > 0 {
+		predicates = append(predicates, channelmessagemention.ChannelMessageIDIn(i.ChannelMessageIDIn...))
+	}
+	if len(i.ChannelMessageIDNotIn) > 0 {
+		predicates = append(predicates, channelmessagemention.ChannelMessageIDNotIn(i.ChannelMessageIDNotIn...))
+	}
+	if i.Platform != nil {
+		predicates = append(predicates, channelmessagemention.PlatformEQ(*i.Platform))
+	}
+	if i.PlatformNEQ != nil {
+		predicates = append(predicates, channelmessagemention.PlatformNEQ(*i.PlatformNEQ))
+	}
+	if len(i.PlatformIn) > 0 {
+		predicates = append(predicates, channelmessagemention.PlatformIn(i.PlatformIn...))
+	}
+	if len(i.PlatformNotIn) > 0 {
+		predicates = append(predicates, channelmessagemention.PlatformNotIn(i.PlatformNotIn...))
+	}
+	if i.PlatformUserID != nil {
+		predicates = append(predicates, channelmessagemention.PlatformUserIDEQ(*i.PlatformUserID))
+	}
+	if i.PlatformUserIDNEQ != nil {
+		predicates = append(predicates, channelmessagemention.PlatformUserIDNEQ(*i.PlatformUserIDNEQ))
+	}
+	if len(i.PlatformUserIDIn) > 0 {
+		predicates = append(predicates, channelmessagemention.PlatformUserIDIn(i.PlatformUserIDIn...))
+	}
+	if len(i.PlatformUserIDNotIn) > 0 {
+		predicates = append(predicates, channelmessagemention.PlatformUserIDNotIn(i.PlatformUserIDNotIn...))
+	}
+	if i.PlatformUserIDGT != nil {
+		predicates = append(predicates, channelmessagemention.PlatformUserIDGT(*i.PlatformUserIDGT))
+	}
+	if i.PlatformUserIDGTE != nil {
+		predicates = append(predicates, channelmessagemention.PlatformUserIDGTE(*i.PlatformUserIDGTE))
+	}
+	if i.PlatformUserIDLT != nil {
+		predicates = append(predicates, channelmessagemention.PlatformUserIDLT(*i.PlatformUserIDLT))
+	}
+	if i.PlatformUserIDLTE != nil {
+		predicates = append(predicates, channelmessagemention.PlatformUserIDLTE(*i.PlatformUserIDLTE))
+	}
+	if i.PlatformUserIDContains != nil {
+		predicates = append(predicates, channelmessagemention.PlatformUserIDContains(*i.PlatformUserIDContains))
+	}
+	if i.PlatformUserIDHasPrefix != nil {
+		predicates = append(predicates, channelmessagemention.PlatformUserIDHasPrefix(*i.PlatformUserIDHasPrefix))
+	}
+	if i.PlatformUserIDHasSuffix != nil {
+		predicates = append(predicates, channelmessagemention.PlatformUserIDHasSuffix(*i.PlatformUserIDHasSuffix))
+	}
+	if i.PlatformUserIDIsNil {
+		predicates = append(predicates, channelmessagemention.PlatformUserIDIsNil())
+	}
+	if i.PlatformUserIDNotNil {
+		predicates = append(predicates, channelmessagemention.PlatformUserIDNotNil())
+	}
+	if i.PlatformUserIDEqualFold != nil {
+		predicates = append(predicates, channelmessagemention.PlatformUserIDEqualFold(*i.PlatformUserIDEqualFold))
+	}
+	if i.PlatformUserIDContainsFold != nil {
+		predicates = append(predicates, channelmessagemention.PlatformUserIDContainsFold(*i.PlatformUserIDContainsFold))
+	}
+	if i.UserID != nil {
+		predicates = append(predicates, channelmessagemention.UserIDEQ(*i.UserID))
+	}
+	if i.UserIDNEQ != nil {
+		predicates = append(predicates, channelmessagemention.UserIDNEQ(*i.UserIDNEQ))
+	}
+	if len(i.UserIDIn) > 0 {
+		predicates = append(predicates, channelmessagemention.UserIDIn(i.UserIDIn...))
+	}
+	if len(i.UserIDNotIn) > 0 {
+		predicates = append(predicates, channelmessagemention.UserIDNotIn(i.UserIDNotIn...))
+	}
+	if i.UserIDIsNil {
+		predicates = append(predicates, channelmessagemention.UserIDIsNil())
+	}
+	if i.UserIDNotNil {
+		predicates = append(predicates, channelmessagemention.UserIDNotNil())
+	}
+	if i.DisplayText != nil {
+		predicates = append(predicates, channelmessagemention.DisplayTextEQ(*i.DisplayText))
+	}
+	if i.DisplayTextNEQ != nil {
+		predicates = append(predicates, channelmessagemention.DisplayTextNEQ(*i.DisplayTextNEQ))
+	}
+	if len(i.DisplayTextIn) > 0 {
+		predicates = append(predicates, channelmessagemention.DisplayTextIn(i.DisplayTextIn...))
+	}
+	if len(i.DisplayTextNotIn) > 0 {
+		predicates = append(predicates, channelmessagemention.DisplayTextNotIn(i.DisplayTextNotIn...))
+	}
+	if i.DisplayTextGT != nil {
+		predicates = append(predicates, channelmessagemention.DisplayTextGT(*i.DisplayTextGT))
+	}
+	if i.DisplayTextGTE != nil {
+		predicates = append(predicates, channelmessagemention.DisplayTextGTE(*i.DisplayTextGTE))
+	}
+	if i.DisplayTextLT != nil {
+		predicates = append(predicates, channelmessagemention.DisplayTextLT(*i.DisplayTextLT))
+	}
+	if i.DisplayTextLTE != nil {
+		predicates = append(predicates, channelmessagemention.DisplayTextLTE(*i.DisplayTextLTE))
+	}
+	if i.DisplayTextContains != nil {
+		predicates = append(predicates, channelmessagemention.DisplayTextContains(*i.DisplayTextContains))
+	}
+	if i.DisplayTextHasPrefix != nil {
+		predicates = append(predicates, channelmessagemention.DisplayTextHasPrefix(*i.DisplayTextHasPrefix))
+	}
+	if i.DisplayTextHasSuffix != nil {
+		predicates = append(predicates, channelmessagemention.DisplayTextHasSuffix(*i.DisplayTextHasSuffix))
+	}
+	if i.DisplayTextIsNil {
+		predicates = append(predicates, channelmessagemention.DisplayTextIsNil())
+	}
+	if i.DisplayTextNotNil {
+		predicates = append(predicates, channelmessagemention.DisplayTextNotNil())
+	}
+	if i.DisplayTextEqualFold != nil {
+		predicates = append(predicates, channelmessagemention.DisplayTextEqualFold(*i.DisplayTextEqualFold))
+	}
+	if i.DisplayTextContainsFold != nil {
+		predicates = append(predicates, channelmessagemention.DisplayTextContainsFold(*i.DisplayTextContainsFold))
+	}
+	if i.MentionIndex != nil {
+		predicates = append(predicates, channelmessagemention.MentionIndexEQ(*i.MentionIndex))
+	}
+	if i.MentionIndexNEQ != nil {
+		predicates = append(predicates, channelmessagemention.MentionIndexNEQ(*i.MentionIndexNEQ))
+	}
+	if len(i.MentionIndexIn) > 0 {
+		predicates = append(predicates, channelmessagemention.MentionIndexIn(i.MentionIndexIn...))
+	}
+	if len(i.MentionIndexNotIn) > 0 {
+		predicates = append(predicates, channelmessagemention.MentionIndexNotIn(i.MentionIndexNotIn...))
+	}
+	if i.MentionIndexGT != nil {
+		predicates = append(predicates, channelmessagemention.MentionIndexGT(*i.MentionIndexGT))
+	}
+	if i.MentionIndexGTE != nil {
+		predicates = append(predicates, channelmessagemention.MentionIndexGTE(*i.MentionIndexGTE))
+	}
+	if i.MentionIndexLT != nil {
+		predicates = append(predicates, channelmessagemention.MentionIndexLT(*i.MentionIndexLT))
+	}
+	if i.MentionIndexLTE != nil {
+		predicates = append(predicates, channelmessagemention.MentionIndexLTE(*i.MentionIndexLTE))
+	}
+	if i.MentionIndexIsNil {
+		predicates = append(predicates, channelmessagemention.MentionIndexIsNil())
+	}
+	if i.MentionIndexNotNil {
+		predicates = append(predicates, channelmessagemention.MentionIndexNotNil())
+	}
+	if i.MentionLength != nil {
+		predicates = append(predicates, channelmessagemention.MentionLengthEQ(*i.MentionLength))
+	}
+	if i.MentionLengthNEQ != nil {
+		predicates = append(predicates, channelmessagemention.MentionLengthNEQ(*i.MentionLengthNEQ))
+	}
+	if len(i.MentionLengthIn) > 0 {
+		predicates = append(predicates, channelmessagemention.MentionLengthIn(i.MentionLengthIn...))
+	}
+	if len(i.MentionLengthNotIn) > 0 {
+		predicates = append(predicates, channelmessagemention.MentionLengthNotIn(i.MentionLengthNotIn...))
+	}
+	if i.MentionLengthGT != nil {
+		predicates = append(predicates, channelmessagemention.MentionLengthGT(*i.MentionLengthGT))
+	}
+	if i.MentionLengthGTE != nil {
+		predicates = append(predicates, channelmessagemention.MentionLengthGTE(*i.MentionLengthGTE))
+	}
+	if i.MentionLengthLT != nil {
+		predicates = append(predicates, channelmessagemention.MentionLengthLT(*i.MentionLengthLT))
+	}
+	if i.MentionLengthLTE != nil {
+		predicates = append(predicates, channelmessagemention.MentionLengthLTE(*i.MentionLengthLTE))
+	}
+	if i.MentionLengthIsNil {
+		predicates = append(predicates, channelmessagemention.MentionLengthIsNil())
+	}
+	if i.MentionLengthNotNil {
+		predicates = append(predicates, channelmessagemention.MentionLengthNotNil())
+	}
+	if i.MentionType != nil {
+		predicates = append(predicates, channelmessagemention.MentionTypeEQ(*i.MentionType))
+	}
+	if i.MentionTypeNEQ != nil {
+		predicates = append(predicates, channelmessagemention.MentionTypeNEQ(*i.MentionTypeNEQ))
+	}
+	if len(i.MentionTypeIn) > 0 {
+		predicates = append(predicates, channelmessagemention.MentionTypeIn(i.MentionTypeIn...))
+	}
+	if len(i.MentionTypeNotIn) > 0 {
+		predicates = append(predicates, channelmessagemention.MentionTypeNotIn(i.MentionTypeNotIn...))
+	}
+	if i.MentionTypeGT != nil {
+		predicates = append(predicates, channelmessagemention.MentionTypeGT(*i.MentionTypeGT))
+	}
+	if i.MentionTypeGTE != nil {
+		predicates = append(predicates, channelmessagemention.MentionTypeGTE(*i.MentionTypeGTE))
+	}
+	if i.MentionTypeLT != nil {
+		predicates = append(predicates, channelmessagemention.MentionTypeLT(*i.MentionTypeLT))
+	}
+	if i.MentionTypeLTE != nil {
+		predicates = append(predicates, channelmessagemention.MentionTypeLTE(*i.MentionTypeLTE))
+	}
+	if i.MentionTypeContains != nil {
+		predicates = append(predicates, channelmessagemention.MentionTypeContains(*i.MentionTypeContains))
+	}
+	if i.MentionTypeHasPrefix != nil {
+		predicates = append(predicates, channelmessagemention.MentionTypeHasPrefix(*i.MentionTypeHasPrefix))
+	}
+	if i.MentionTypeHasSuffix != nil {
+		predicates = append(predicates, channelmessagemention.MentionTypeHasSuffix(*i.MentionTypeHasSuffix))
+	}
+	if i.MentionTypeEqualFold != nil {
+		predicates = append(predicates, channelmessagemention.MentionTypeEqualFold(*i.MentionTypeEqualFold))
+	}
+	if i.MentionTypeContainsFold != nil {
+		predicates = append(predicates, channelmessagemention.MentionTypeContainsFold(*i.MentionTypeContainsFold))
+	}
+	if i.IdentityKind != nil {
+		predicates = append(predicates, channelmessagemention.IdentityKindEQ(*i.IdentityKind))
+	}
+	if i.IdentityKindNEQ != nil {
+		predicates = append(predicates, channelmessagemention.IdentityKindNEQ(*i.IdentityKindNEQ))
+	}
+	if len(i.IdentityKindIn) > 0 {
+		predicates = append(predicates, channelmessagemention.IdentityKindIn(i.IdentityKindIn...))
+	}
+	if len(i.IdentityKindNotIn) > 0 {
+		predicates = append(predicates, channelmessagemention.IdentityKindNotIn(i.IdentityKindNotIn...))
+	}
+	if i.IsBot != nil {
+		predicates = append(predicates, channelmessagemention.IsBotEQ(*i.IsBot))
+	}
+	if i.IsBotNEQ != nil {
+		predicates = append(predicates, channelmessagemention.IsBotNEQ(*i.IsBotNEQ))
+	}
+	if i.ResolutionStatus != nil {
+		predicates = append(predicates, channelmessagemention.ResolutionStatusEQ(*i.ResolutionStatus))
+	}
+	if i.ResolutionStatusNEQ != nil {
+		predicates = append(predicates, channelmessagemention.ResolutionStatusNEQ(*i.ResolutionStatusNEQ))
+	}
+	if len(i.ResolutionStatusIn) > 0 {
+		predicates = append(predicates, channelmessagemention.ResolutionStatusIn(i.ResolutionStatusIn...))
+	}
+	if len(i.ResolutionStatusNotIn) > 0 {
+		predicates = append(predicates, channelmessagemention.ResolutionStatusNotIn(i.ResolutionStatusNotIn...))
+	}
+	if i.Raw != nil {
+		predicates = append(predicates, channelmessagemention.RawEQ(*i.Raw))
+	}
+	if i.RawNEQ != nil {
+		predicates = append(predicates, channelmessagemention.RawNEQ(*i.RawNEQ))
+	}
+	if len(i.RawIn) > 0 {
+		predicates = append(predicates, channelmessagemention.RawIn(i.RawIn...))
+	}
+	if len(i.RawNotIn) > 0 {
+		predicates = append(predicates, channelmessagemention.RawNotIn(i.RawNotIn...))
+	}
+	if i.RawGT != nil {
+		predicates = append(predicates, channelmessagemention.RawGT(*i.RawGT))
+	}
+	if i.RawGTE != nil {
+		predicates = append(predicates, channelmessagemention.RawGTE(*i.RawGTE))
+	}
+	if i.RawLT != nil {
+		predicates = append(predicates, channelmessagemention.RawLT(*i.RawLT))
+	}
+	if i.RawLTE != nil {
+		predicates = append(predicates, channelmessagemention.RawLTE(*i.RawLTE))
+	}
+	if i.RawContains != nil {
+		predicates = append(predicates, channelmessagemention.RawContains(*i.RawContains))
+	}
+	if i.RawHasPrefix != nil {
+		predicates = append(predicates, channelmessagemention.RawHasPrefix(*i.RawHasPrefix))
+	}
+	if i.RawHasSuffix != nil {
+		predicates = append(predicates, channelmessagemention.RawHasSuffix(*i.RawHasSuffix))
+	}
+	if i.RawIsNil {
+		predicates = append(predicates, channelmessagemention.RawIsNil())
+	}
+	if i.RawNotNil {
+		predicates = append(predicates, channelmessagemention.RawNotNil())
+	}
+	if i.RawEqualFold != nil {
+		predicates = append(predicates, channelmessagemention.RawEqualFold(*i.RawEqualFold))
+	}
+	if i.RawContainsFold != nil {
+		predicates = append(predicates, channelmessagemention.RawContainsFold(*i.RawContainsFold))
+	}
+
+	if i.HasMessage != nil {
+		p := channelmessagemention.HasMessage()
+		if !*i.HasMessage {
+			p = channelmessagemention.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasMessageWith) > 0 {
+		with := make([]predicate.ChannelMessage, 0, len(i.HasMessageWith))
+		for _, w := range i.HasMessageWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasMessageWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, channelmessagemention.HasMessageWith(with...))
+	}
+	if i.HasUser != nil {
+		p := channelmessagemention.HasUser()
+		if !*i.HasUser {
+			p = channelmessagemention.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasUserWith) > 0 {
+		with := make([]predicate.User, 0, len(i.HasUserWith))
+		for _, w := range i.HasUserWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasUserWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, channelmessagemention.HasUserWith(with...))
+	}
+	switch len(predicates) {
+	case 0:
+		return nil, ErrEmptyChannelMessageMentionWhereInput
+	case 1:
+		return predicates[0], nil
+	default:
+		return channelmessagemention.And(predicates...), nil
 	}
 }
 
@@ -5598,6 +6289,10 @@ type UserWhereInput struct {
 	HasChannelServiceMembers     *bool                             `json:"hasChannelServiceMembers,omitempty"`
 	HasChannelServiceMembersWith []*ChannelServiceMemberWhereInput `json:"hasChannelServiceMembersWith,omitempty"`
 
+	// "channel_message_mentions" edge predicates.
+	HasChannelMessageMentions     *bool                              `json:"hasChannelMessageMentions,omitempty"`
+	HasChannelMessageMentionsWith []*ChannelMessageMentionWhereInput `json:"hasChannelMessageMentionsWith,omitempty"`
+
 	// "owned_translation_locales" edge predicates.
 	HasOwnedTranslationLocales     *bool                          `json:"hasOwnedTranslationLocales,omitempty"`
 	HasOwnedTranslationLocalesWith []*TranslationLocaleWhereInput `json:"hasOwnedTranslationLocalesWith,omitempty"`
@@ -5830,6 +6525,24 @@ func (i *UserWhereInput) P() (predicate.User, error) {
 			with = append(with, p)
 		}
 		predicates = append(predicates, user.HasChannelServiceMembersWith(with...))
+	}
+	if i.HasChannelMessageMentions != nil {
+		p := user.HasChannelMessageMentions()
+		if !*i.HasChannelMessageMentions {
+			p = user.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasChannelMessageMentionsWith) > 0 {
+		with := make([]predicate.ChannelMessageMention, 0, len(i.HasChannelMessageMentionsWith))
+		for _, w := range i.HasChannelMessageMentionsWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasChannelMessageMentionsWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, user.HasChannelMessageMentionsWith(with...))
 	}
 	if i.HasOwnedTranslationLocales != nil {
 		p := user.HasOwnedTranslationLocales()

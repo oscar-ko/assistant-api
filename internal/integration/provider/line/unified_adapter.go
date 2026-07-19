@@ -1,8 +1,10 @@
 package line
 
 import (
+	"encoding/json"
 	"strings"
 
+	"assistant-api/internal/config"
 	"assistant-api/internal/integration/unifiedmessage"
 )
 
@@ -21,9 +23,34 @@ func adaptLineEventToUnified(event webhookEvent) (*unifiedmessage.Message, bool,
 	if event.Message.Mention != nil {
 		mentions = make([]unifiedmessage.Mention, 0, len(event.Message.Mention.Mentionees))
 		for _, mention := range event.Message.Mention.Mentionees {
-			if userID := strings.TrimSpace(mention.UserID); userID != "" {
-				mentions = append(mentions, unifiedmessage.Mention{UserID: userID})
+			userID := strings.TrimSpace(mention.UserID)
+			mentionType := strings.TrimSpace(mention.Type)
+			if mentionType == "" {
+				mentionType = "user"
 			}
+			if userID == "" && !strings.EqualFold(mentionType, "user") {
+				continue
+			}
+			index := mention.Index
+			length := mention.Length
+			isBot := userID != "" && strings.TrimSpace(config.Line.BotUserID) != "" && userID == strings.TrimSpace(config.Line.BotUserID)
+			identityKind := "user"
+			if isBot {
+				identityKind = "bot"
+			} else if userID == "" {
+				identityKind = "unknown"
+			}
+			raw, _ := json.Marshal(mention)
+			mentions = append(mentions, unifiedmessage.Mention{
+				UserID:       userID,
+				DisplayText:  sliceMentionText(event.Message.Text, index, length),
+				Index:        &index,
+				Length:       &length,
+				Type:         mentionType,
+				IdentityKind: identityKind,
+				IsBot:        isBot,
+				Raw:          string(raw),
+			})
 		}
 	}
 
@@ -49,4 +76,19 @@ func adaptLineEventToUnified(event webhookEvent) (*unifiedmessage.Message, bool,
 	}
 
 	return msg, true, ""
+}
+
+func sliceMentionText(text string, index int, length int) string {
+	if index < 0 || length <= 0 {
+		return ""
+	}
+	runes := []rune(text)
+	if index >= len(runes) {
+		return ""
+	}
+	end := index + length
+	if end > len(runes) {
+		end = len(runes)
+	}
+	return strings.TrimSpace(string(runes[index:end]))
 }

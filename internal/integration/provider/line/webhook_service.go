@@ -247,6 +247,8 @@ type webhookMessageMention struct {
 }
 
 type webhookMentionee struct {
+	// Type 是 LINE mentionee type；目前常見為 user，但保留原值供跨功能判斷。
+	Type string `json:"type"`
 	// Index 為 mention 在文字中的位置。
 	Index int `json:"index"`
 	// Length 為 mention 片段長度。

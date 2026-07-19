@@ -92,6 +92,16 @@ func (stubLineMessageStore) SaveReceivedMessage(ctx context.Context, channelID u
 	}, nil
 }
 
+func (stubLineMessageStore) SaveChannelMessageMentions(ctx context.Context, channelMessageID uuid.UUID, platform string, platformTenantID string, mentions []unifiedmessage.Mention) error {
+	// LINE webhook service tests focus on pipeline routing; mention persistence itself is covered closer to repository/persist service boundaries.
+	_ = ctx
+	_ = channelMessageID
+	_ = platform
+	_ = platformTenantID
+	_ = mentions
+	return nil
+}
+
 func newTestPipelineWebhookService(filter topkfilter.Service, llm llminteraction.InteractionService, push PushMessageService) *WebhookService {
 	persistSvc := messagepersist.NewService(stubLineMessageStore{}, messagepersist.NoopSenderNameResolver{})
 	decisionSvc := commanddecision.NewService(nil)

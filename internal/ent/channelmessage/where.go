@@ -869,6 +869,29 @@ func HasChannelWith(preds ...predicate.Channel) predicate.ChannelMessage {
 	})
 }
 
+// HasMentions applies the HasEdge predicate on the "mentions" edge.
+func HasMentions() predicate.ChannelMessage {
+	return predicate.ChannelMessage(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, MentionsTable, MentionsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasMentionsWith applies the HasEdge predicate on the "mentions" edge with a given conditions (other predicates).
+func HasMentionsWith(preds ...predicate.ChannelMessageMention) predicate.ChannelMessage {
+	return predicate.ChannelMessage(func(s *sql.Selector) {
+		step := newMentionsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasTriggeredMessage applies the HasEdge predicate on the "triggered_message" edge.
 func HasTriggeredMessage() predicate.ChannelMessage {
 	return predicate.ChannelMessage(func(s *sql.Selector) {

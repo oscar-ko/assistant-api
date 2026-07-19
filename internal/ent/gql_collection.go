@@ -8,6 +8,7 @@ import (
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/channelmessagemention"
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
@@ -534,6 +535,19 @@ func (_q *ChannelMessageQuery) collectField(ctx context.Context, oneNode bool, o
 				fieldSeen[channelmessage.FieldChannelID] = struct{}{}
 			}
 
+		case "mentions":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&ChannelMessageMentionClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, channelmessagementionImplementors)...); err != nil {
+				return err
+			}
+			_q.WithNamedMentions(alias, func(wq *ChannelMessageMentionQuery) {
+				*wq = *query
+			})
+
 		case "triggeredMessage":
 			var (
 				alias = field.Alias
@@ -663,6 +677,168 @@ func newChannelMessagePaginateArgs(rv map[string]any) *channelmessagePaginateArg
 	}
 	if v, ok := rv[whereField].(*ChannelMessageWhereInput); ok {
 		args.opts = append(args.opts, WithChannelMessageFilter(v.Filter))
+	}
+	return args
+}
+
+// CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
+func (_q *ChannelMessageMentionQuery) CollectFields(ctx context.Context, satisfies ...string) (*ChannelMessageMentionQuery, error) {
+	fc := graphql.GetFieldContext(ctx)
+	if fc == nil {
+		return _q, nil
+	}
+	if err := _q.collectField(ctx, false, graphql.GetOperationContext(ctx), fc.Field, nil, satisfies...); err != nil {
+		return nil, err
+	}
+	return _q, nil
+}
+
+func (_q *ChannelMessageMentionQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
+	path = append([]string(nil), path...)
+	var (
+		unknownSeen    bool
+		fieldSeen      = make(map[string]struct{}, len(channelmessagemention.Columns))
+		selectedFields = []string{channelmessagemention.FieldID}
+	)
+	for _, field := range graphql.CollectFields(opCtx, collected.Selections, satisfies) {
+		switch field.Name {
+
+		case "message":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&ChannelMessageClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, channelmessageImplementors)...); err != nil {
+				return err
+			}
+			_q.withMessage = query
+			if _, ok := fieldSeen[channelmessagemention.FieldChannelMessageID]; !ok {
+				selectedFields = append(selectedFields, channelmessagemention.FieldChannelMessageID)
+				fieldSeen[channelmessagemention.FieldChannelMessageID] = struct{}{}
+			}
+
+		case "user":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&UserClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, userImplementors)...); err != nil {
+				return err
+			}
+			_q.withUser = query
+			if _, ok := fieldSeen[channelmessagemention.FieldUserID]; !ok {
+				selectedFields = append(selectedFields, channelmessagemention.FieldUserID)
+				fieldSeen[channelmessagemention.FieldUserID] = struct{}{}
+			}
+		case "createdAt":
+			if _, ok := fieldSeen[channelmessagemention.FieldCreatedAt]; !ok {
+				selectedFields = append(selectedFields, channelmessagemention.FieldCreatedAt)
+				fieldSeen[channelmessagemention.FieldCreatedAt] = struct{}{}
+			}
+		case "updatedAt":
+			if _, ok := fieldSeen[channelmessagemention.FieldUpdatedAt]; !ok {
+				selectedFields = append(selectedFields, channelmessagemention.FieldUpdatedAt)
+				fieldSeen[channelmessagemention.FieldUpdatedAt] = struct{}{}
+			}
+		case "channelMessageID":
+			if _, ok := fieldSeen[channelmessagemention.FieldChannelMessageID]; !ok {
+				selectedFields = append(selectedFields, channelmessagemention.FieldChannelMessageID)
+				fieldSeen[channelmessagemention.FieldChannelMessageID] = struct{}{}
+			}
+		case "platform":
+			if _, ok := fieldSeen[channelmessagemention.FieldPlatform]; !ok {
+				selectedFields = append(selectedFields, channelmessagemention.FieldPlatform)
+				fieldSeen[channelmessagemention.FieldPlatform] = struct{}{}
+			}
+		case "platformUserID":
+			if _, ok := fieldSeen[channelmessagemention.FieldPlatformUserID]; !ok {
+				selectedFields = append(selectedFields, channelmessagemention.FieldPlatformUserID)
+				fieldSeen[channelmessagemention.FieldPlatformUserID] = struct{}{}
+			}
+		case "userID":
+			if _, ok := fieldSeen[channelmessagemention.FieldUserID]; !ok {
+				selectedFields = append(selectedFields, channelmessagemention.FieldUserID)
+				fieldSeen[channelmessagemention.FieldUserID] = struct{}{}
+			}
+		case "displayText":
+			if _, ok := fieldSeen[channelmessagemention.FieldDisplayText]; !ok {
+				selectedFields = append(selectedFields, channelmessagemention.FieldDisplayText)
+				fieldSeen[channelmessagemention.FieldDisplayText] = struct{}{}
+			}
+		case "mentionIndex":
+			if _, ok := fieldSeen[channelmessagemention.FieldMentionIndex]; !ok {
+				selectedFields = append(selectedFields, channelmessagemention.FieldMentionIndex)
+				fieldSeen[channelmessagemention.FieldMentionIndex] = struct{}{}
+			}
+		case "mentionLength":
+			if _, ok := fieldSeen[channelmessagemention.FieldMentionLength]; !ok {
+				selectedFields = append(selectedFields, channelmessagemention.FieldMentionLength)
+				fieldSeen[channelmessagemention.FieldMentionLength] = struct{}{}
+			}
+		case "mentionType":
+			if _, ok := fieldSeen[channelmessagemention.FieldMentionType]; !ok {
+				selectedFields = append(selectedFields, channelmessagemention.FieldMentionType)
+				fieldSeen[channelmessagemention.FieldMentionType] = struct{}{}
+			}
+		case "identityKind":
+			if _, ok := fieldSeen[channelmessagemention.FieldIdentityKind]; !ok {
+				selectedFields = append(selectedFields, channelmessagemention.FieldIdentityKind)
+				fieldSeen[channelmessagemention.FieldIdentityKind] = struct{}{}
+			}
+		case "isBot":
+			if _, ok := fieldSeen[channelmessagemention.FieldIsBot]; !ok {
+				selectedFields = append(selectedFields, channelmessagemention.FieldIsBot)
+				fieldSeen[channelmessagemention.FieldIsBot] = struct{}{}
+			}
+		case "resolutionStatus":
+			if _, ok := fieldSeen[channelmessagemention.FieldResolutionStatus]; !ok {
+				selectedFields = append(selectedFields, channelmessagemention.FieldResolutionStatus)
+				fieldSeen[channelmessagemention.FieldResolutionStatus] = struct{}{}
+			}
+		case "raw":
+			if _, ok := fieldSeen[channelmessagemention.FieldRaw]; !ok {
+				selectedFields = append(selectedFields, channelmessagemention.FieldRaw)
+				fieldSeen[channelmessagemention.FieldRaw] = struct{}{}
+			}
+		case "id":
+		case "__typename":
+		default:
+			unknownSeen = true
+		}
+	}
+	if !unknownSeen {
+		_q.Select(selectedFields...)
+	}
+	return nil
+}
+
+type channelmessagementionPaginateArgs struct {
+	first, last   *int
+	after, before *Cursor
+	opts          []ChannelMessageMentionPaginateOption
+}
+
+func newChannelMessageMentionPaginateArgs(rv map[string]any) *channelmessagementionPaginateArgs {
+	args := &channelmessagementionPaginateArgs{}
+	if rv == nil {
+		return args
+	}
+	if v := rv[firstField]; v != nil {
+		args.first = v.(*int)
+	}
+	if v := rv[lastField]; v != nil {
+		args.last = v.(*int)
+	}
+	if v := rv[afterField]; v != nil {
+		args.after = v.(*Cursor)
+	}
+	if v := rv[beforeField]; v != nil {
+		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[whereField].(*ChannelMessageMentionWhereInput); ok {
+		args.opts = append(args.opts, WithChannelMessageMentionFilter(v.Filter))
 	}
 	return args
 }
@@ -1638,6 +1814,19 @@ func (_q *UserQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 				return err
 			}
 			_q.WithNamedChannelServiceMembers(alias, func(wq *ChannelServiceMemberQuery) {
+				*wq = *query
+			})
+
+		case "channelMessageMentions":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&ChannelMessageMentionClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, channelmessagementionImplementors)...); err != nil {
+				return err
+			}
+			_q.WithNamedChannelMessageMentions(alias, func(wq *ChannelMessageMentionQuery) {
 				*wq = *query
 			})
 

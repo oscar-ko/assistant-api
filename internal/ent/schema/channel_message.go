@@ -49,6 +49,7 @@ func (ChannelMessage) Fields() []ent.Field {
 func (ChannelMessage) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("channel", Channel.Type).Ref("messages").Field("channel_id").Required().Immutable().Unique().Comment("訊息所屬頻道"),
+		edge.To("mentions", ChannelMessageMention.Type).Comment("此訊息中的 structured mention 清單；mention 是訊息事實，不直接等同 Todo assignee"),
 		edge.To("triggered_message", ChannelMessage.Type).Unique().Field("triggered_message_id").Comment("此系統訊息由哪一則訊息觸發；用於 command chain 與系統通知回溯"),
 		edge.From("triggered_messages", ChannelMessage.Type).Ref("triggered_message").Comment("由此訊息觸發產生的系統訊息集合；同一來源可觸發多筆輸出"),
 	}

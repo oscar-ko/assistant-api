@@ -8,6 +8,7 @@ import (
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/channelmessagemention"
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/schema"
@@ -143,6 +144,35 @@ func init() {
 	channelmessageDescID := channelmessageMixinFields0[0].Descriptor()
 	// channelmessage.DefaultID holds the default value on creation for the id field.
 	channelmessage.DefaultID = channelmessageDescID.Default.(func() uuid.UUID)
+	channelmessagementionMixin := schema.ChannelMessageMention{}.Mixin()
+	channelmessagementionMixinFields0 := channelmessagementionMixin[0].Fields()
+	_ = channelmessagementionMixinFields0
+	channelmessagementionMixinFields1 := channelmessagementionMixin[1].Fields()
+	_ = channelmessagementionMixinFields1
+	channelmessagementionFields := schema.ChannelMessageMention{}.Fields()
+	_ = channelmessagementionFields
+	// channelmessagementionDescCreatedAt is the schema descriptor for created_at field.
+	channelmessagementionDescCreatedAt := channelmessagementionMixinFields1[0].Descriptor()
+	// channelmessagemention.DefaultCreatedAt holds the default value on creation for the created_at field.
+	channelmessagemention.DefaultCreatedAt = channelmessagementionDescCreatedAt.Default.(func() time.Time)
+	// channelmessagementionDescUpdatedAt is the schema descriptor for updated_at field.
+	channelmessagementionDescUpdatedAt := channelmessagementionMixinFields1[1].Descriptor()
+	// channelmessagemention.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	channelmessagemention.DefaultUpdatedAt = channelmessagementionDescUpdatedAt.Default.(func() time.Time)
+	// channelmessagemention.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	channelmessagemention.UpdateDefaultUpdatedAt = channelmessagementionDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// channelmessagementionDescMentionType is the schema descriptor for mention_type field.
+	channelmessagementionDescMentionType := channelmessagementionFields[7].Descriptor()
+	// channelmessagemention.DefaultMentionType holds the default value on creation for the mention_type field.
+	channelmessagemention.DefaultMentionType = channelmessagementionDescMentionType.Default.(string)
+	// channelmessagementionDescIsBot is the schema descriptor for is_bot field.
+	channelmessagementionDescIsBot := channelmessagementionFields[9].Descriptor()
+	// channelmessagemention.DefaultIsBot holds the default value on creation for the is_bot field.
+	channelmessagemention.DefaultIsBot = channelmessagementionDescIsBot.Default.(bool)
+	// channelmessagementionDescID is the schema descriptor for id field.
+	channelmessagementionDescID := channelmessagementionMixinFields0[0].Descriptor()
+	// channelmessagemention.DefaultID holds the default value on creation for the id field.
+	channelmessagemention.DefaultID = channelmessagementionDescID.Default.(func() uuid.UUID)
 	channelservicememberMixin := schema.ChannelServiceMember{}.Mixin()
 	channelservicememberMixinFields0 := channelservicememberMixin[0].Fields()
 	_ = channelservicememberMixinFields0

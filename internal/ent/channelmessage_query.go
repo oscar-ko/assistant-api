@@ -5,6 +5,7 @@ package ent
 import (
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/channelmessagemention"
 	"assistant-api/internal/ent/predicate"
 	"context"
 	"database/sql/driver"
@@ -26,10 +27,12 @@ type ChannelMessageQuery struct {
 	inters                     []Interceptor
 	predicates                 []predicate.ChannelMessage
 	withChannel                *ChannelQuery
+	withMentions               *ChannelMessageMentionQuery
 	withTriggeredMessage       *ChannelMessageQuery
 	withTriggeredMessages      *ChannelMessageQuery
 	modifiers                  []func(*sql.Selector)
 	loadTotal                  []func(context.Context, []*ChannelMessage) error
+	withNamedMentions          map[string]*ChannelMessageMentionQuery
 	withNamedTriggeredMessages map[string]*ChannelMessageQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -82,6 +85,28 @@ func (_q *ChannelMessageQuery) QueryChannel() *ChannelQuery {
 			sqlgraph.From(channelmessage.Table, channelmessage.FieldID, selector),
 			sqlgraph.To(channel.Table, channel.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, channelmessage.ChannelTable, channelmessage.ChannelColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryMentions chains the current query on the "mentions" edge.
+func (_q *ChannelMessageQuery) QueryMentions() *ChannelMessageMentionQuery {
+	query := (&ChannelMessageMentionClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(channelmessage.Table, channelmessage.FieldID, selector),
+			sqlgraph.To(channelmessagemention.Table, channelmessagemention.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, channelmessage.MentionsTable, channelmessage.MentionsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -326,6 +351,7 @@ func (_q *ChannelMessageQuery) Clone() *ChannelMessageQuery {
 		inters:                append([]Interceptor{}, _q.inters...),
 		predicates:            append([]predicate.ChannelMessage{}, _q.predicates...),
 		withChannel:           _q.withChannel.Clone(),
+		withMentions:          _q.withMentions.Clone(),
 		withTriggeredMessage:  _q.withTriggeredMessage.Clone(),
 		withTriggeredMessages: _q.withTriggeredMessages.Clone(),
 		// clone intermediate query.
@@ -342,6 +368,17 @@ func (_q *ChannelMessageQuery) WithChannel(opts ...func(*ChannelQuery)) *Channel
 		opt(query)
 	}
 	_q.withChannel = query
+	return _q
+}
+
+// WithMentions tells the query-builder to eager-load the nodes that are connected to
+// the "mentions" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ChannelMessageQuery) WithMentions(opts ...func(*ChannelMessageMentionQuery)) *ChannelMessageQuery {
+	query := (&ChannelMessageMentionClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withMentions = query
 	return _q
 }
 
@@ -445,8 +482,9 @@ func (_q *ChannelMessageQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 	var (
 		nodes       = []*ChannelMessage{}
 		_spec       = _q.querySpec()
-		loadedTypes = [3]bool{
+		loadedTypes = [4]bool{
 			_q.withChannel != nil,
+			_q.withMentions != nil,
 			_q.withTriggeredMessage != nil,
 			_q.withTriggeredMessages != nil,
 		}
@@ -478,6 +516,13 @@ func (_q *ChannelMessageQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 			return nil, err
 		}
 	}
+	if query := _q.withMentions; query != nil {
+		if err := _q.loadMentions(ctx, query, nodes,
+			func(n *ChannelMessage) { n.Edges.Mentions = []*ChannelMessageMention{} },
+			func(n *ChannelMessage, e *ChannelMessageMention) { n.Edges.Mentions = append(n.Edges.Mentions, e) }); err != nil {
+			return nil, err
+		}
+	}
 	if query := _q.withTriggeredMessage; query != nil {
 		if err := _q.loadTriggeredMessage(ctx, query, nodes, nil,
 			func(n *ChannelMessage, e *ChannelMessage) { n.Edges.TriggeredMessage = e }); err != nil {
@@ -490,6 +535,13 @@ func (_q *ChannelMessageQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 			func(n *ChannelMessage, e *ChannelMessage) {
 				n.Edges.TriggeredMessages = append(n.Edges.TriggeredMessages, e)
 			}); err != nil {
+			return nil, err
+		}
+	}
+	for name, query := range _q.withNamedMentions {
+		if err := _q.loadMentions(ctx, query, nodes,
+			func(n *ChannelMessage) { n.appendNamedMentions(name) },
+			func(n *ChannelMessage, e *ChannelMessageMention) { n.appendNamedMentions(name, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -534,6 +586,36 @@ func (_q *ChannelMessageQuery) loadChannel(ctx context.Context, query *ChannelQu
 		for i := range nodes {
 			assign(nodes[i], n)
 		}
+	}
+	return nil
+}
+func (_q *ChannelMessageQuery) loadMentions(ctx context.Context, query *ChannelMessageMentionQuery, nodes []*ChannelMessage, init func(*ChannelMessage), assign func(*ChannelMessage, *ChannelMessageMention)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*ChannelMessage)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(channelmessagemention.FieldChannelMessageID)
+	}
+	query.Where(predicate.ChannelMessageMention(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(channelmessage.MentionsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ChannelMessageID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "channel_message_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
 	}
 	return nil
 }
@@ -691,6 +773,20 @@ func (_q *ChannelMessageQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// WithNamedMentions tells the query-builder to eager-load the nodes that are connected to the "mentions"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (_q *ChannelMessageQuery) WithNamedMentions(name string, opts ...func(*ChannelMessageMentionQuery)) *ChannelMessageQuery {
+	query := (&ChannelMessageMentionClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if _q.withNamedMentions == nil {
+		_q.withNamedMentions = make(map[string]*ChannelMessageMentionQuery)
+	}
+	_q.withNamedMentions[name] = query
+	return _q
 }
 
 // WithNamedTriggeredMessages tells the query-builder to eager-load the nodes that are connected to the "triggered_messages"

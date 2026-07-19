@@ -29,6 +29,7 @@ type ChannelMessageStore interface {
 		messageType string,
 		platformTimestamp int64,
 	) (*ent.ChannelMessage, error)
+	SaveChannelMessageMentions(ctx context.Context, channelMessageID uuid.UUID, platform string, platformTenantID string, mentions []unifiedmessage.Mention) error
 }
 
 // SenderNameResolver 定義不同 provider 解析 sender 顯示名稱的擴充點。
@@ -178,6 +179,19 @@ func (s Service) PersistUnifiedMessage(ctx context.Context, message *unifiedmess
 			zap.Error(err),
 		)
 		return nil
+	}
+	if len(message.Mentions) > 0 {
+		// mention 落庫緊跟 message 本體之後執行，因為 mention 需要 channel_message_id 作外鍵。
+		// 這裡不把 mention 解讀成 Todo assignee，只保存平台事實與可解析到的 internal user。
+		if err := s.store.SaveChannelMessageMentions(ctx, item.ID, platform, platformTenantID, append([]unifiedmessage.Mention(nil), message.Mentions...)); err != nil {
+			zap.L().Error("persist unified message mentions failed",
+				zap.String("platform", platform),
+				zap.String("channel_id", ch.ID.String()),
+				zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+				zap.Error(err),
+			)
+			return nil
+		}
 	}
 
 	// 入站 reply 只保存 reply_to_msg_id，不自動寫 triggered_message_id。

@@ -4,6 +4,7 @@ package ent
 
 import (
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/channelmessagemention"
 	"assistant-api/internal/ent/predicate"
 	"context"
 	"errors"
@@ -224,6 +225,21 @@ func (_u *ChannelMessageUpdate) ClearPlatformTimestamp() *ChannelMessageUpdate {
 	return _u
 }
 
+// AddMentionIDs adds the "mentions" edge to the ChannelMessageMention entity by IDs.
+func (_u *ChannelMessageUpdate) AddMentionIDs(ids ...uuid.UUID) *ChannelMessageUpdate {
+	_u.mutation.AddMentionIDs(ids...)
+	return _u
+}
+
+// AddMentions adds the "mentions" edges to the ChannelMessageMention entity.
+func (_u *ChannelMessageUpdate) AddMentions(v ...*ChannelMessageMention) *ChannelMessageUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddMentionIDs(ids...)
+}
+
 // SetTriggeredMessage sets the "triggered_message" edge to the ChannelMessage entity.
 func (_u *ChannelMessageUpdate) SetTriggeredMessage(v *ChannelMessage) *ChannelMessageUpdate {
 	return _u.SetTriggeredMessageID(v.ID)
@@ -247,6 +263,27 @@ func (_u *ChannelMessageUpdate) AddTriggeredMessages(v ...*ChannelMessage) *Chan
 // Mutation returns the ChannelMessageMutation object of the builder.
 func (_u *ChannelMessageUpdate) Mutation() *ChannelMessageMutation {
 	return _u.mutation
+}
+
+// ClearMentions clears all "mentions" edges to the ChannelMessageMention entity.
+func (_u *ChannelMessageUpdate) ClearMentions() *ChannelMessageUpdate {
+	_u.mutation.ClearMentions()
+	return _u
+}
+
+// RemoveMentionIDs removes the "mentions" edge to ChannelMessageMention entities by IDs.
+func (_u *ChannelMessageUpdate) RemoveMentionIDs(ids ...uuid.UUID) *ChannelMessageUpdate {
+	_u.mutation.RemoveMentionIDs(ids...)
+	return _u
+}
+
+// RemoveMentions removes "mentions" edges to ChannelMessageMention entities.
+func (_u *ChannelMessageUpdate) RemoveMentions(v ...*ChannelMessageMention) *ChannelMessageUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveMentionIDs(ids...)
 }
 
 // ClearTriggeredMessage clears the "triggered_message" edge to the ChannelMessage entity.
@@ -387,6 +424,51 @@ func (_u *ChannelMessageUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if _u.mutation.PlatformTimestampCleared() {
 		_spec.ClearField(channelmessage.FieldPlatformTimestamp, field.TypeInt64)
+	}
+	if _u.mutation.MentionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channelmessage.MentionsTable,
+			Columns: []string{channelmessage.MentionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelmessagemention.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedMentionsIDs(); len(nodes) > 0 && !_u.mutation.MentionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channelmessage.MentionsTable,
+			Columns: []string{channelmessage.MentionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelmessagemention.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.MentionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channelmessage.MentionsTable,
+			Columns: []string{channelmessage.MentionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelmessagemention.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.TriggeredMessageCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -677,6 +759,21 @@ func (_u *ChannelMessageUpdateOne) ClearPlatformTimestamp() *ChannelMessageUpdat
 	return _u
 }
 
+// AddMentionIDs adds the "mentions" edge to the ChannelMessageMention entity by IDs.
+func (_u *ChannelMessageUpdateOne) AddMentionIDs(ids ...uuid.UUID) *ChannelMessageUpdateOne {
+	_u.mutation.AddMentionIDs(ids...)
+	return _u
+}
+
+// AddMentions adds the "mentions" edges to the ChannelMessageMention entity.
+func (_u *ChannelMessageUpdateOne) AddMentions(v ...*ChannelMessageMention) *ChannelMessageUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddMentionIDs(ids...)
+}
+
 // SetTriggeredMessage sets the "triggered_message" edge to the ChannelMessage entity.
 func (_u *ChannelMessageUpdateOne) SetTriggeredMessage(v *ChannelMessage) *ChannelMessageUpdateOne {
 	return _u.SetTriggeredMessageID(v.ID)
@@ -700,6 +797,27 @@ func (_u *ChannelMessageUpdateOne) AddTriggeredMessages(v ...*ChannelMessage) *C
 // Mutation returns the ChannelMessageMutation object of the builder.
 func (_u *ChannelMessageUpdateOne) Mutation() *ChannelMessageMutation {
 	return _u.mutation
+}
+
+// ClearMentions clears all "mentions" edges to the ChannelMessageMention entity.
+func (_u *ChannelMessageUpdateOne) ClearMentions() *ChannelMessageUpdateOne {
+	_u.mutation.ClearMentions()
+	return _u
+}
+
+// RemoveMentionIDs removes the "mentions" edge to ChannelMessageMention entities by IDs.
+func (_u *ChannelMessageUpdateOne) RemoveMentionIDs(ids ...uuid.UUID) *ChannelMessageUpdateOne {
+	_u.mutation.RemoveMentionIDs(ids...)
+	return _u
+}
+
+// RemoveMentions removes "mentions" edges to ChannelMessageMention entities.
+func (_u *ChannelMessageUpdateOne) RemoveMentions(v ...*ChannelMessageMention) *ChannelMessageUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveMentionIDs(ids...)
 }
 
 // ClearTriggeredMessage clears the "triggered_message" edge to the ChannelMessage entity.
@@ -870,6 +988,51 @@ func (_u *ChannelMessageUpdateOne) sqlSave(ctx context.Context) (_node *ChannelM
 	}
 	if _u.mutation.PlatformTimestampCleared() {
 		_spec.ClearField(channelmessage.FieldPlatformTimestamp, field.TypeInt64)
+	}
+	if _u.mutation.MentionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channelmessage.MentionsTable,
+			Columns: []string{channelmessage.MentionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelmessagemention.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedMentionsIDs(); len(nodes) > 0 && !_u.mutation.MentionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channelmessage.MentionsTable,
+			Columns: []string{channelmessage.MentionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelmessagemention.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.MentionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   channelmessage.MentionsTable,
+			Columns: []string{channelmessage.MentionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelmessagemention.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.TriggeredMessageCleared() {
 		edge := &sqlgraph.EdgeSpec{

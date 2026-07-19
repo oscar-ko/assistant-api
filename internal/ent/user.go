@@ -36,17 +36,20 @@ type UserEdges struct {
 	Slack []*Slack `json:"slack,omitempty"`
 	// 使用者啟用服務的頻道成員設定
 	ChannelServiceMembers []*ChannelServiceMember `json:"channel_service_members,omitempty"`
+	// 解析到此使用者的訊息 mention；未綁定 mention 會保留空 user_id
+	ChannelMessageMentions []*ChannelMessageMention `json:"channel_message_mentions,omitempty"`
 	// 使用者新增的翻譯目標語言設定
 	OwnedTranslationLocales []*TranslationLocale `json:"owned_translation_locales,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [4]bool
+	loadedTypes [5]bool
 	// totalCount holds the count of the edges above.
-	totalCount [4]map[string]int
+	totalCount [5]map[string]int
 
 	namedLine                    map[string][]*Line
 	namedSlack                   map[string][]*Slack
 	namedChannelServiceMembers   map[string][]*ChannelServiceMember
+	namedChannelMessageMentions  map[string][]*ChannelMessageMention
 	namedOwnedTranslationLocales map[string][]*TranslationLocale
 }
 
@@ -77,10 +80,19 @@ func (e UserEdges) ChannelServiceMembersOrErr() ([]*ChannelServiceMember, error)
 	return nil, &NotLoadedError{edge: "channel_service_members"}
 }
 
+// ChannelMessageMentionsOrErr returns the ChannelMessageMentions value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) ChannelMessageMentionsOrErr() ([]*ChannelMessageMention, error) {
+	if e.loadedTypes[3] {
+		return e.ChannelMessageMentions, nil
+	}
+	return nil, &NotLoadedError{edge: "channel_message_mentions"}
+}
+
 // OwnedTranslationLocalesOrErr returns the OwnedTranslationLocales value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) OwnedTranslationLocalesOrErr() ([]*TranslationLocale, error) {
-	if e.loadedTypes[3] {
+	if e.loadedTypes[4] {
 		return e.OwnedTranslationLocales, nil
 	}
 	return nil, &NotLoadedError{edge: "owned_translation_locales"}
@@ -154,6 +166,11 @@ func (_m *User) QuerySlack() *SlackQuery {
 // QueryChannelServiceMembers queries the "channel_service_members" edge of the User entity.
 func (_m *User) QueryChannelServiceMembers() *ChannelServiceMemberQuery {
 	return NewUserClient(_m.config).QueryChannelServiceMembers(_m)
+}
+
+// QueryChannelMessageMentions queries the "channel_message_mentions" edge of the User entity.
+func (_m *User) QueryChannelMessageMentions() *ChannelMessageMentionQuery {
+	return NewUserClient(_m.config).QueryChannelMessageMentions(_m)
 }
 
 // QueryOwnedTranslationLocales queries the "owned_translation_locales" edge of the User entity.
@@ -262,6 +279,30 @@ func (_m *User) appendNamedChannelServiceMembers(name string, edges ...*ChannelS
 		_m.Edges.namedChannelServiceMembers[name] = []*ChannelServiceMember{}
 	} else {
 		_m.Edges.namedChannelServiceMembers[name] = append(_m.Edges.namedChannelServiceMembers[name], edges...)
+	}
+}
+
+// NamedChannelMessageMentions returns the ChannelMessageMentions named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *User) NamedChannelMessageMentions(name string) ([]*ChannelMessageMention, error) {
+	if _m.Edges.namedChannelMessageMentions == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedChannelMessageMentions[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *User) appendNamedChannelMessageMentions(name string, edges ...*ChannelMessageMention) {
+	if _m.Edges.namedChannelMessageMentions == nil {
+		_m.Edges.namedChannelMessageMentions = make(map[string][]*ChannelMessageMention)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedChannelMessageMentions[name] = []*ChannelMessageMention{}
+	} else {
+		_m.Edges.namedChannelMessageMentions[name] = append(_m.Edges.namedChannelMessageMentions[name], edges...)
 	}
 }
 

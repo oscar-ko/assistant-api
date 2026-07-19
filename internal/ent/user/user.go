@@ -23,6 +23,8 @@ const (
 	EdgeSlack = "slack"
 	// EdgeChannelServiceMembers holds the string denoting the channel_service_members edge name in mutations.
 	EdgeChannelServiceMembers = "channel_service_members"
+	// EdgeChannelMessageMentions holds the string denoting the channel_message_mentions edge name in mutations.
+	EdgeChannelMessageMentions = "channel_message_mentions"
 	// EdgeOwnedTranslationLocales holds the string denoting the owned_translation_locales edge name in mutations.
 	EdgeOwnedTranslationLocales = "owned_translation_locales"
 	// Table holds the table name of the user in the database.
@@ -48,6 +50,13 @@ const (
 	ChannelServiceMembersInverseTable = "channel_service_members"
 	// ChannelServiceMembersColumn is the table column denoting the channel_service_members relation/edge.
 	ChannelServiceMembersColumn = "user_id"
+	// ChannelMessageMentionsTable is the table that holds the channel_message_mentions relation/edge.
+	ChannelMessageMentionsTable = "channel_message_mentions"
+	// ChannelMessageMentionsInverseTable is the table name for the ChannelMessageMention entity.
+	// It exists in this package in order to avoid circular dependency with the "channelmessagemention" package.
+	ChannelMessageMentionsInverseTable = "channel_message_mentions"
+	// ChannelMessageMentionsColumn is the table column denoting the channel_message_mentions relation/edge.
+	ChannelMessageMentionsColumn = "user_id"
 	// OwnedTranslationLocalesTable is the table that holds the owned_translation_locales relation/edge.
 	OwnedTranslationLocalesTable = "translation_locales"
 	// OwnedTranslationLocalesInverseTable is the table name for the TranslationLocale entity.
@@ -143,6 +152,20 @@ func ByChannelServiceMembers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOp
 	}
 }
 
+// ByChannelMessageMentionsCount orders the results by channel_message_mentions count.
+func ByChannelMessageMentionsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newChannelMessageMentionsStep(), opts...)
+	}
+}
+
+// ByChannelMessageMentions orders the results by channel_message_mentions terms.
+func ByChannelMessageMentions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newChannelMessageMentionsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByOwnedTranslationLocalesCount orders the results by owned_translation_locales count.
 func ByOwnedTranslationLocalesCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -175,6 +198,13 @@ func newChannelServiceMembersStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ChannelServiceMembersInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, true, ChannelServiceMembersTable, ChannelServiceMembersColumn),
+	)
+}
+func newChannelMessageMentionsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ChannelMessageMentionsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, true, ChannelMessageMentionsTable, ChannelMessageMentionsColumn),
 	)
 }
 func newOwnedTranslationLocalesStep() *sqlgraph.Step {

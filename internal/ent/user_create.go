@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"assistant-api/internal/ent/channelmessagemention"
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/slack"
@@ -93,6 +94,21 @@ func (_c *UserCreate) AddChannelServiceMembers(v ...*ChannelServiceMember) *User
 		ids[i] = v[i].ID
 	}
 	return _c.AddChannelServiceMemberIDs(ids...)
+}
+
+// AddChannelMessageMentionIDs adds the "channel_message_mentions" edge to the ChannelMessageMention entity by IDs.
+func (_c *UserCreate) AddChannelMessageMentionIDs(ids ...uuid.UUID) *UserCreate {
+	_c.mutation.AddChannelMessageMentionIDs(ids...)
+	return _c
+}
+
+// AddChannelMessageMentions adds the "channel_message_mentions" edges to the ChannelMessageMention entity.
+func (_c *UserCreate) AddChannelMessageMentions(v ...*ChannelMessageMention) *UserCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddChannelMessageMentionIDs(ids...)
 }
 
 // AddOwnedTranslationLocaleIDs adds the "owned_translation_locales" edge to the TranslationLocale entity by IDs.
@@ -253,6 +269,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(channelservicemember.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ChannelMessageMentionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.ChannelMessageMentionsTable,
+			Columns: []string{user.ChannelMessageMentionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(channelmessagemention.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

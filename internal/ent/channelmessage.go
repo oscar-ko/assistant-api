@@ -56,16 +56,19 @@ type ChannelMessage struct {
 type ChannelMessageEdges struct {
 	// 訊息所屬頻道
 	Channel *Channel `json:"channel,omitempty"`
+	// 此訊息中的 structured mention 清單；mention 是訊息事實，不直接等同 Todo assignee
+	Mentions []*ChannelMessageMention `json:"mentions,omitempty"`
 	// 此系統訊息由哪一則訊息觸發；用於 command chain 與系統通知回溯
 	TriggeredMessage *ChannelMessage `json:"triggered_message,omitempty"`
 	// 由此訊息觸發產生的系統訊息集合；同一來源可觸發多筆輸出
 	TriggeredMessages []*ChannelMessage `json:"triggered_messages,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [4]bool
 	// totalCount holds the count of the edges above.
-	totalCount [3]map[string]int
+	totalCount [4]map[string]int
 
+	namedMentions          map[string][]*ChannelMessageMention
 	namedTriggeredMessages map[string][]*ChannelMessage
 }
 
@@ -80,12 +83,21 @@ func (e ChannelMessageEdges) ChannelOrErr() (*Channel, error) {
 	return nil, &NotLoadedError{edge: "channel"}
 }
 
+// MentionsOrErr returns the Mentions value or an error if the edge
+// was not loaded in eager-loading.
+func (e ChannelMessageEdges) MentionsOrErr() ([]*ChannelMessageMention, error) {
+	if e.loadedTypes[1] {
+		return e.Mentions, nil
+	}
+	return nil, &NotLoadedError{edge: "mentions"}
+}
+
 // TriggeredMessageOrErr returns the TriggeredMessage value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
 func (e ChannelMessageEdges) TriggeredMessageOrErr() (*ChannelMessage, error) {
 	if e.TriggeredMessage != nil {
 		return e.TriggeredMessage, nil
-	} else if e.loadedTypes[1] {
+	} else if e.loadedTypes[2] {
 		return nil, &NotFoundError{label: channelmessage.Label}
 	}
 	return nil, &NotLoadedError{edge: "triggered_message"}
@@ -94,7 +106,7 @@ func (e ChannelMessageEdges) TriggeredMessageOrErr() (*ChannelMessage, error) {
 // TriggeredMessagesOrErr returns the TriggeredMessages value or an error if the edge
 // was not loaded in eager-loading.
 func (e ChannelMessageEdges) TriggeredMessagesOrErr() ([]*ChannelMessage, error) {
-	if e.loadedTypes[2] {
+	if e.loadedTypes[3] {
 		return e.TriggeredMessages, nil
 	}
 	return nil, &NotLoadedError{edge: "triggered_messages"}
@@ -234,6 +246,11 @@ func (_m *ChannelMessage) QueryChannel() *ChannelQuery {
 	return NewChannelMessageClient(_m.config).QueryChannel(_m)
 }
 
+// QueryMentions queries the "mentions" edge of the ChannelMessage entity.
+func (_m *ChannelMessage) QueryMentions() *ChannelMessageMentionQuery {
+	return NewChannelMessageClient(_m.config).QueryMentions(_m)
+}
+
 // QueryTriggeredMessage queries the "triggered_message" edge of the ChannelMessage entity.
 func (_m *ChannelMessage) QueryTriggeredMessage() *ChannelMessageQuery {
 	return NewChannelMessageClient(_m.config).QueryTriggeredMessage(_m)
@@ -311,6 +328,30 @@ func (_m *ChannelMessage) String() string {
 	builder.WriteString(fmt.Sprintf("%v", _m.PlatformTimestamp))
 	builder.WriteByte(')')
 	return builder.String()
+}
+
+// NamedMentions returns the Mentions named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *ChannelMessage) NamedMentions(name string) ([]*ChannelMessageMention, error) {
+	if _m.Edges.namedMentions == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedMentions[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *ChannelMessage) appendNamedMentions(name string, edges ...*ChannelMessageMention) {
+	if _m.Edges.namedMentions == nil {
+		_m.Edges.namedMentions = make(map[string][]*ChannelMessageMention)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedMentions[name] = []*ChannelMessageMention{}
+	} else {
+		_m.Edges.namedMentions[name] = append(_m.Edges.namedMentions[name], edges...)
+	}
 }
 
 // NamedTriggeredMessages returns the TriggeredMessages named value or an error if the edge was not

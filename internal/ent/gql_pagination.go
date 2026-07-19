@@ -8,6 +8,7 @@ import (
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/channelmessagemention"
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
@@ -1351,6 +1352,255 @@ func (_m *ChannelMessage) ToEdge(order *ChannelMessageOrder) *ChannelMessageEdge
 		order = DefaultChannelMessageOrder
 	}
 	return &ChannelMessageEdge{
+		Node:   _m,
+		Cursor: order.Field.toCursor(_m),
+	}
+}
+
+// ChannelMessageMentionEdge is the edge representation of ChannelMessageMention.
+type ChannelMessageMentionEdge struct {
+	Node   *ChannelMessageMention `json:"node"`
+	Cursor Cursor                 `json:"cursor"`
+}
+
+// ChannelMessageMentionConnection is the connection containing edges to ChannelMessageMention.
+type ChannelMessageMentionConnection struct {
+	Edges      []*ChannelMessageMentionEdge `json:"edges"`
+	PageInfo   PageInfo                     `json:"pageInfo"`
+	TotalCount int                          `json:"totalCount"`
+}
+
+func (c *ChannelMessageMentionConnection) build(nodes []*ChannelMessageMention, pager *channelmessagementionPager, after *Cursor, first *int, before *Cursor, last *int) {
+	c.PageInfo.HasNextPage = before != nil
+	c.PageInfo.HasPreviousPage = after != nil
+	if first != nil && *first+1 == len(nodes) {
+		c.PageInfo.HasNextPage = true
+		nodes = nodes[:len(nodes)-1]
+	} else if last != nil && *last+1 == len(nodes) {
+		c.PageInfo.HasPreviousPage = true
+		nodes = nodes[:len(nodes)-1]
+	}
+	var nodeAt func(int) *ChannelMessageMention
+	if last != nil {
+		n := len(nodes) - 1
+		nodeAt = func(i int) *ChannelMessageMention {
+			return nodes[n-i]
+		}
+	} else {
+		nodeAt = func(i int) *ChannelMessageMention {
+			return nodes[i]
+		}
+	}
+	c.Edges = make([]*ChannelMessageMentionEdge, len(nodes))
+	for i := range nodes {
+		node := nodeAt(i)
+		c.Edges[i] = &ChannelMessageMentionEdge{
+			Node:   node,
+			Cursor: pager.toCursor(node),
+		}
+	}
+	if l := len(c.Edges); l > 0 {
+		c.PageInfo.StartCursor = &c.Edges[0].Cursor
+		c.PageInfo.EndCursor = &c.Edges[l-1].Cursor
+	}
+	if c.TotalCount == 0 {
+		c.TotalCount = len(nodes)
+	}
+}
+
+// ChannelMessageMentionPaginateOption enables pagination customization.
+type ChannelMessageMentionPaginateOption func(*channelmessagementionPager) error
+
+// WithChannelMessageMentionOrder configures pagination ordering.
+func WithChannelMessageMentionOrder(order *ChannelMessageMentionOrder) ChannelMessageMentionPaginateOption {
+	if order == nil {
+		order = DefaultChannelMessageMentionOrder
+	}
+	o := *order
+	return func(pager *channelmessagementionPager) error {
+		if err := o.Direction.Validate(); err != nil {
+			return err
+		}
+		if o.Field == nil {
+			o.Field = DefaultChannelMessageMentionOrder.Field
+		}
+		pager.order = &o
+		return nil
+	}
+}
+
+// WithChannelMessageMentionFilter configures pagination filter.
+func WithChannelMessageMentionFilter(filter func(*ChannelMessageMentionQuery) (*ChannelMessageMentionQuery, error)) ChannelMessageMentionPaginateOption {
+	return func(pager *channelmessagementionPager) error {
+		if filter == nil {
+			return errors.New("ChannelMessageMentionQuery filter cannot be nil")
+		}
+		pager.filter = filter
+		return nil
+	}
+}
+
+type channelmessagementionPager struct {
+	reverse bool
+	order   *ChannelMessageMentionOrder
+	filter  func(*ChannelMessageMentionQuery) (*ChannelMessageMentionQuery, error)
+}
+
+func newChannelMessageMentionPager(opts []ChannelMessageMentionPaginateOption, reverse bool) (*channelmessagementionPager, error) {
+	pager := &channelmessagementionPager{reverse: reverse}
+	for _, opt := range opts {
+		if err := opt(pager); err != nil {
+			return nil, err
+		}
+	}
+	if pager.order == nil {
+		pager.order = DefaultChannelMessageMentionOrder
+	}
+	return pager, nil
+}
+
+func (p *channelmessagementionPager) applyFilter(query *ChannelMessageMentionQuery) (*ChannelMessageMentionQuery, error) {
+	if p.filter != nil {
+		return p.filter(query)
+	}
+	return query, nil
+}
+
+func (p *channelmessagementionPager) toCursor(_m *ChannelMessageMention) Cursor {
+	return p.order.Field.toCursor(_m)
+}
+
+func (p *channelmessagementionPager) applyCursors(query *ChannelMessageMentionQuery, after, before *Cursor) (*ChannelMessageMentionQuery, error) {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	for _, predicate := range entgql.CursorsPredicate(after, before, DefaultChannelMessageMentionOrder.Field.column, p.order.Field.column, direction) {
+		query = query.Where(predicate)
+	}
+	return query, nil
+}
+
+func (p *channelmessagementionPager) applyOrder(query *ChannelMessageMentionQuery) *ChannelMessageMentionQuery {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	query = query.Order(p.order.Field.toTerm(direction.OrderTermOption()))
+	if p.order.Field != DefaultChannelMessageMentionOrder.Field {
+		query = query.Order(DefaultChannelMessageMentionOrder.Field.toTerm(direction.OrderTermOption()))
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return query
+}
+
+func (p *channelmessagementionPager) orderExpr(query *ChannelMessageMentionQuery) sql.Querier {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return sql.ExprFunc(func(b *sql.Builder) {
+		b.Ident(p.order.Field.column).Pad().WriteString(string(direction))
+		if p.order.Field != DefaultChannelMessageMentionOrder.Field {
+			b.Comma().Ident(DefaultChannelMessageMentionOrder.Field.column).Pad().WriteString(string(direction))
+		}
+	})
+}
+
+// Paginate executes the query and returns a relay based cursor connection to ChannelMessageMention.
+func (_m *ChannelMessageMentionQuery) Paginate(
+	ctx context.Context, after *Cursor, first *int,
+	before *Cursor, last *int, opts ...ChannelMessageMentionPaginateOption,
+) (*ChannelMessageMentionConnection, error) {
+	if err := validateFirstLast(first, last); err != nil {
+		return nil, err
+	}
+	pager, err := newChannelMessageMentionPager(opts, last != nil)
+	if err != nil {
+		return nil, err
+	}
+	if _m, err = pager.applyFilter(_m); err != nil {
+		return nil, err
+	}
+	conn := &ChannelMessageMentionConnection{Edges: []*ChannelMessageMentionEdge{}}
+	ignoredEdges := !hasCollectedField(ctx, edgesField)
+	if hasCollectedField(ctx, totalCountField) || hasCollectedField(ctx, pageInfoField) {
+		hasPagination := after != nil || first != nil || before != nil || last != nil
+		if hasPagination || ignoredEdges {
+			c := _m.Clone()
+			c.ctx.Fields = nil
+			if conn.TotalCount, err = c.Count(ctx); err != nil {
+				return nil, err
+			}
+			conn.PageInfo.HasNextPage = first != nil && conn.TotalCount > 0
+			conn.PageInfo.HasPreviousPage = last != nil && conn.TotalCount > 0
+		}
+	}
+	if ignoredEdges || (first != nil && *first == 0) || (last != nil && *last == 0) {
+		return conn, nil
+	}
+	if _m, err = pager.applyCursors(_m, after, before); err != nil {
+		return nil, err
+	}
+	limit := paginateLimit(first, last)
+	if limit != 0 {
+		_m.Limit(limit)
+	}
+	if field := collectedField(ctx, edgesField, nodeField); field != nil {
+		if err := _m.collectField(ctx, limit == 1, graphql.GetOperationContext(ctx), *field, []string{edgesField, nodeField}); err != nil {
+			return nil, err
+		}
+	}
+	_m = pager.applyOrder(_m)
+	nodes, err := _m.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	conn.build(nodes, pager, after, first, before, last)
+	return conn, nil
+}
+
+// ChannelMessageMentionOrderField defines the ordering field of ChannelMessageMention.
+type ChannelMessageMentionOrderField struct {
+	// Value extracts the ordering value from the given ChannelMessageMention.
+	Value    func(*ChannelMessageMention) (ent.Value, error)
+	column   string // field or computed.
+	toTerm   func(...sql.OrderTermOption) channelmessagemention.OrderOption
+	toCursor func(*ChannelMessageMention) Cursor
+}
+
+// ChannelMessageMentionOrder defines the ordering of ChannelMessageMention.
+type ChannelMessageMentionOrder struct {
+	Direction OrderDirection                   `json:"direction"`
+	Field     *ChannelMessageMentionOrderField `json:"field"`
+}
+
+// DefaultChannelMessageMentionOrder is the default ordering of ChannelMessageMention.
+var DefaultChannelMessageMentionOrder = &ChannelMessageMentionOrder{
+	Direction: entgql.OrderDirectionAsc,
+	Field: &ChannelMessageMentionOrderField{
+		Value: func(_m *ChannelMessageMention) (ent.Value, error) {
+			return _m.ID, nil
+		},
+		column: channelmessagemention.FieldID,
+		toTerm: channelmessagemention.ByID,
+		toCursor: func(_m *ChannelMessageMention) Cursor {
+			return Cursor{ID: _m.ID}
+		},
+	},
+}
+
+// ToEdge converts ChannelMessageMention into ChannelMessageMentionEdge.
+func (_m *ChannelMessageMention) ToEdge(order *ChannelMessageMentionOrder) *ChannelMessageMentionEdge {
+	if order == nil {
+		order = DefaultChannelMessageMentionOrder
+	}
+	return &ChannelMessageMentionEdge{
 		Node:   _m,
 		Cursor: order.Field.toCursor(_m),
 	}

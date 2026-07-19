@@ -16,6 +16,7 @@ import (
 	"assistant-api/internal/ent/actionroute"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/channelmessagemention"
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/skill"
@@ -47,6 +48,8 @@ type Client struct {
 	Channel *ChannelClient
 	// ChannelMessage is the client for interacting with the ChannelMessage builders.
 	ChannelMessage *ChannelMessageClient
+	// ChannelMessageMention is the client for interacting with the ChannelMessageMention builders.
+	ChannelMessageMention *ChannelMessageMentionClient
 	// ChannelServiceMember is the client for interacting with the ChannelServiceMember builders.
 	ChannelServiceMember *ChannelServiceMemberClient
 	// Line is the client for interacting with the Line builders.
@@ -79,6 +82,7 @@ func (c *Client) init() {
 	c.ActionRoute = NewActionRouteClient(c.config)
 	c.Channel = NewChannelClient(c.config)
 	c.ChannelMessage = NewChannelMessageClient(c.config)
+	c.ChannelMessageMention = NewChannelMessageMentionClient(c.config)
 	c.ChannelServiceMember = NewChannelServiceMemberClient(c.config)
 	c.Line = NewLineClient(c.config)
 	c.Skill = NewSkillClient(c.config)
@@ -177,21 +181,22 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:                  ctx,
-		config:               cfg,
-		Action:               NewActionClient(cfg),
-		ActionResult:         NewActionResultClient(cfg),
-		ActionRoute:          NewActionRouteClient(cfg),
-		Channel:              NewChannelClient(cfg),
-		ChannelMessage:       NewChannelMessageClient(cfg),
-		ChannelServiceMember: NewChannelServiceMemberClient(cfg),
-		Line:                 NewLineClient(cfg),
-		Skill:                NewSkillClient(cfg),
-		Slack:                NewSlackClient(cfg),
-		SlackWorkspace:       NewSlackWorkspaceClient(cfg),
-		TodoCandidate:        NewTodoCandidateClient(cfg),
-		TranslationLocale:    NewTranslationLocaleClient(cfg),
-		User:                 NewUserClient(cfg),
+		ctx:                   ctx,
+		config:                cfg,
+		Action:                NewActionClient(cfg),
+		ActionResult:          NewActionResultClient(cfg),
+		ActionRoute:           NewActionRouteClient(cfg),
+		Channel:               NewChannelClient(cfg),
+		ChannelMessage:        NewChannelMessageClient(cfg),
+		ChannelMessageMention: NewChannelMessageMentionClient(cfg),
+		ChannelServiceMember:  NewChannelServiceMemberClient(cfg),
+		Line:                  NewLineClient(cfg),
+		Skill:                 NewSkillClient(cfg),
+		Slack:                 NewSlackClient(cfg),
+		SlackWorkspace:        NewSlackWorkspaceClient(cfg),
+		TodoCandidate:         NewTodoCandidateClient(cfg),
+		TranslationLocale:     NewTranslationLocaleClient(cfg),
+		User:                  NewUserClient(cfg),
 	}, nil
 }
 
@@ -209,21 +214,22 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:                  ctx,
-		config:               cfg,
-		Action:               NewActionClient(cfg),
-		ActionResult:         NewActionResultClient(cfg),
-		ActionRoute:          NewActionRouteClient(cfg),
-		Channel:              NewChannelClient(cfg),
-		ChannelMessage:       NewChannelMessageClient(cfg),
-		ChannelServiceMember: NewChannelServiceMemberClient(cfg),
-		Line:                 NewLineClient(cfg),
-		Skill:                NewSkillClient(cfg),
-		Slack:                NewSlackClient(cfg),
-		SlackWorkspace:       NewSlackWorkspaceClient(cfg),
-		TodoCandidate:        NewTodoCandidateClient(cfg),
-		TranslationLocale:    NewTranslationLocaleClient(cfg),
-		User:                 NewUserClient(cfg),
+		ctx:                   ctx,
+		config:                cfg,
+		Action:                NewActionClient(cfg),
+		ActionResult:          NewActionResultClient(cfg),
+		ActionRoute:           NewActionRouteClient(cfg),
+		Channel:               NewChannelClient(cfg),
+		ChannelMessage:        NewChannelMessageClient(cfg),
+		ChannelMessageMention: NewChannelMessageMentionClient(cfg),
+		ChannelServiceMember:  NewChannelServiceMemberClient(cfg),
+		Line:                  NewLineClient(cfg),
+		Skill:                 NewSkillClient(cfg),
+		Slack:                 NewSlackClient(cfg),
+		SlackWorkspace:        NewSlackWorkspaceClient(cfg),
+		TodoCandidate:         NewTodoCandidateClient(cfg),
+		TranslationLocale:     NewTranslationLocaleClient(cfg),
+		User:                  NewUserClient(cfg),
 	}, nil
 }
 
@@ -254,8 +260,8 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Action, c.ActionResult, c.ActionRoute, c.Channel, c.ChannelMessage,
-		c.ChannelServiceMember, c.Line, c.Skill, c.Slack, c.SlackWorkspace,
-		c.TodoCandidate, c.TranslationLocale, c.User,
+		c.ChannelMessageMention, c.ChannelServiceMember, c.Line, c.Skill, c.Slack,
+		c.SlackWorkspace, c.TodoCandidate, c.TranslationLocale, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -266,8 +272,8 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Action, c.ActionResult, c.ActionRoute, c.Channel, c.ChannelMessage,
-		c.ChannelServiceMember, c.Line, c.Skill, c.Slack, c.SlackWorkspace,
-		c.TodoCandidate, c.TranslationLocale, c.User,
+		c.ChannelMessageMention, c.ChannelServiceMember, c.Line, c.Skill, c.Slack,
+		c.SlackWorkspace, c.TodoCandidate, c.TranslationLocale, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -286,6 +292,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Channel.mutate(ctx, m)
 	case *ChannelMessageMutation:
 		return c.ChannelMessage.mutate(ctx, m)
+	case *ChannelMessageMentionMutation:
+		return c.ChannelMessageMention.mutate(ctx, m)
 	case *ChannelServiceMemberMutation:
 		return c.ChannelServiceMember.mutate(ctx, m)
 	case *LineMutation:
@@ -1091,6 +1099,22 @@ func (c *ChannelMessageClient) QueryChannel(_m *ChannelMessage) *ChannelQuery {
 	return query
 }
 
+// QueryMentions queries the mentions edge of a ChannelMessage.
+func (c *ChannelMessageClient) QueryMentions(_m *ChannelMessage) *ChannelMessageMentionQuery {
+	query := (&ChannelMessageMentionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(channelmessage.Table, channelmessage.FieldID, id),
+			sqlgraph.To(channelmessagemention.Table, channelmessagemention.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, channelmessage.MentionsTable, channelmessage.MentionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryTriggeredMessage queries the triggered_message edge of a ChannelMessage.
 func (c *ChannelMessageClient) QueryTriggeredMessage(_m *ChannelMessage) *ChannelMessageQuery {
 	query := (&ChannelMessageClient{config: c.config}).Query()
@@ -1145,6 +1169,171 @@ func (c *ChannelMessageClient) mutate(ctx context.Context, m *ChannelMessageMuta
 		return (&ChannelMessageDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown ChannelMessage mutation op: %q", m.Op())
+	}
+}
+
+// ChannelMessageMentionClient is a client for the ChannelMessageMention schema.
+type ChannelMessageMentionClient struct {
+	config
+}
+
+// NewChannelMessageMentionClient returns a client for the ChannelMessageMention from the given config.
+func NewChannelMessageMentionClient(c config) *ChannelMessageMentionClient {
+	return &ChannelMessageMentionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `channelmessagemention.Hooks(f(g(h())))`.
+func (c *ChannelMessageMentionClient) Use(hooks ...Hook) {
+	c.hooks.ChannelMessageMention = append(c.hooks.ChannelMessageMention, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `channelmessagemention.Intercept(f(g(h())))`.
+func (c *ChannelMessageMentionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ChannelMessageMention = append(c.inters.ChannelMessageMention, interceptors...)
+}
+
+// Create returns a builder for creating a ChannelMessageMention entity.
+func (c *ChannelMessageMentionClient) Create() *ChannelMessageMentionCreate {
+	mutation := newChannelMessageMentionMutation(c.config, OpCreate)
+	return &ChannelMessageMentionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ChannelMessageMention entities.
+func (c *ChannelMessageMentionClient) CreateBulk(builders ...*ChannelMessageMentionCreate) *ChannelMessageMentionCreateBulk {
+	return &ChannelMessageMentionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ChannelMessageMentionClient) MapCreateBulk(slice any, setFunc func(*ChannelMessageMentionCreate, int)) *ChannelMessageMentionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ChannelMessageMentionCreateBulk{err: fmt.Errorf("calling to ChannelMessageMentionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ChannelMessageMentionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ChannelMessageMentionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ChannelMessageMention.
+func (c *ChannelMessageMentionClient) Update() *ChannelMessageMentionUpdate {
+	mutation := newChannelMessageMentionMutation(c.config, OpUpdate)
+	return &ChannelMessageMentionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ChannelMessageMentionClient) UpdateOne(_m *ChannelMessageMention) *ChannelMessageMentionUpdateOne {
+	mutation := newChannelMessageMentionMutation(c.config, OpUpdateOne, withChannelMessageMention(_m))
+	return &ChannelMessageMentionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ChannelMessageMentionClient) UpdateOneID(id uuid.UUID) *ChannelMessageMentionUpdateOne {
+	mutation := newChannelMessageMentionMutation(c.config, OpUpdateOne, withChannelMessageMentionID(id))
+	return &ChannelMessageMentionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ChannelMessageMention.
+func (c *ChannelMessageMentionClient) Delete() *ChannelMessageMentionDelete {
+	mutation := newChannelMessageMentionMutation(c.config, OpDelete)
+	return &ChannelMessageMentionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ChannelMessageMentionClient) DeleteOne(_m *ChannelMessageMention) *ChannelMessageMentionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ChannelMessageMentionClient) DeleteOneID(id uuid.UUID) *ChannelMessageMentionDeleteOne {
+	builder := c.Delete().Where(channelmessagemention.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ChannelMessageMentionDeleteOne{builder}
+}
+
+// Query returns a query builder for ChannelMessageMention.
+func (c *ChannelMessageMentionClient) Query() *ChannelMessageMentionQuery {
+	return &ChannelMessageMentionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeChannelMessageMention},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ChannelMessageMention entity by its id.
+func (c *ChannelMessageMentionClient) Get(ctx context.Context, id uuid.UUID) (*ChannelMessageMention, error) {
+	return c.Query().Where(channelmessagemention.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ChannelMessageMentionClient) GetX(ctx context.Context, id uuid.UUID) *ChannelMessageMention {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryMessage queries the message edge of a ChannelMessageMention.
+func (c *ChannelMessageMentionClient) QueryMessage(_m *ChannelMessageMention) *ChannelMessageQuery {
+	query := (&ChannelMessageClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(channelmessagemention.Table, channelmessagemention.FieldID, id),
+			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, channelmessagemention.MessageTable, channelmessagemention.MessageColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryUser queries the user edge of a ChannelMessageMention.
+func (c *ChannelMessageMentionClient) QueryUser(_m *ChannelMessageMention) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(channelmessagemention.Table, channelmessagemention.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, channelmessagemention.UserTable, channelmessagemention.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ChannelMessageMentionClient) Hooks() []Hook {
+	return c.hooks.ChannelMessageMention
+}
+
+// Interceptors returns the client interceptors.
+func (c *ChannelMessageMentionClient) Interceptors() []Interceptor {
+	return c.inters.ChannelMessageMention
+}
+
+func (c *ChannelMessageMentionClient) mutate(ctx context.Context, m *ChannelMessageMentionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ChannelMessageMentionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ChannelMessageMentionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ChannelMessageMentionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ChannelMessageMentionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ChannelMessageMention mutation op: %q", m.Op())
 	}
 }
 
@@ -2475,6 +2664,22 @@ func (c *UserClient) QueryChannelServiceMembers(_m *User) *ChannelServiceMemberQ
 	return query
 }
 
+// QueryChannelMessageMentions queries the channel_message_mentions edge of a User.
+func (c *UserClient) QueryChannelMessageMentions(_m *User) *ChannelMessageMentionQuery {
+	query := (&ChannelMessageMentionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(channelmessagemention.Table, channelmessagemention.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, user.ChannelMessageMentionsTable, user.ChannelMessageMentionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryOwnedTranslationLocales queries the owned_translation_locales edge of a User.
 func (c *UserClient) QueryOwnedTranslationLocales(_m *User) *TranslationLocaleQuery {
 	query := (&TranslationLocaleClient{config: c.config}).Query()
@@ -2520,12 +2725,12 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 type (
 	hooks struct {
 		Action, ActionResult, ActionRoute, Channel, ChannelMessage,
-		ChannelServiceMember, Line, Skill, Slack, SlackWorkspace, TodoCandidate,
-		TranslationLocale, User []ent.Hook
+		ChannelMessageMention, ChannelServiceMember, Line, Skill, Slack,
+		SlackWorkspace, TodoCandidate, TranslationLocale, User []ent.Hook
 	}
 	inters struct {
 		Action, ActionResult, ActionRoute, Channel, ChannelMessage,
-		ChannelServiceMember, Line, Skill, Slack, SlackWorkspace, TodoCandidate,
-		TranslationLocale, User []ent.Interceptor
+		ChannelMessageMention, ChannelServiceMember, Line, Skill, Slack,
+		SlackWorkspace, TodoCandidate, TranslationLocale, User []ent.Interceptor
 	}
 )
