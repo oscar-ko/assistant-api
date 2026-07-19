@@ -7,6 +7,7 @@ import (
 	"math"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // DecisionValidationError 表示模型回傳符合 JSON 但不符合 action 決策契約。
@@ -289,6 +290,56 @@ func normalizeTodoOptionalText(value string) string {
 	default:
 		return trimmed
 	}
+}
+
+// validateTodoDueTimeAnalysis 驗證 Todo Reminder 專用時間正規化契約。
+// normalized 才允許進入可排程欄位；needs_more_info/no_due_time 都不可夾帶 due_at。
+func validateTodoDueTimeAnalysis(result *TodoDueTimeAnalysis) error {
+	if result == nil {
+		return nil
+	}
+	result.SchemaVersion = normalizeQuestionAnswerSchemaVersion(result.SchemaVersion)
+	result.Decision = strings.TrimSpace(result.Decision)
+	result.DueAt = normalizeTodoOptionalText(result.DueAt)
+	result.Timezone = normalizeTodoOptionalText(result.Timezone)
+	result.Precision = strings.TrimSpace(result.Precision)
+	result.Reason = strings.TrimSpace(result.Reason)
+	result.MissingFields = dedupeFold(result.MissingFields)
+
+	if result.SchemaVersion != "v1" {
+		return fmt.Errorf("todo due time schema_version %q is invalid", result.SchemaVersion)
+	}
+	switch result.Decision {
+	case "normalized", "needs_more_info", "no_due_time":
+	default:
+		return fmt.Errorf("todo due time decision %q is invalid", result.Decision)
+	}
+	switch result.Precision {
+	case "datetime", "date", "relative_window", "unknown":
+	default:
+		return fmt.Errorf("todo due time precision %q is invalid", result.Precision)
+	}
+	if math.IsNaN(result.Confidence) || result.Confidence < 0 || result.Confidence > 1 {
+		return fmt.Errorf("todo due time confidence must be between 0 and 1")
+	}
+	if result.Decision == "normalized" {
+		if result.DueAt == "" || result.Timezone == "" || result.Precision == "unknown" {
+			return fmt.Errorf("todo due time due_at/timezone/precision is required when decision=normalized")
+		}
+		if _, err := time.Parse(time.RFC3339, result.DueAt); err != nil {
+			return fmt.Errorf("todo due time due_at must be RFC3339: %w", err)
+		}
+	}
+	if result.Decision == "needs_more_info" && len(result.MissingFields) == 0 {
+		return fmt.Errorf("todo due time missing_fields is required when decision=needs_more_info")
+	}
+	if result.Decision != "normalized" && result.DueAt != "" {
+		return fmt.Errorf("todo due time due_at must be empty when decision is not normalized")
+	}
+	if result.Reason == "" {
+		return fmt.Errorf("todo due time reason is required")
+	}
+	return nil
 }
 
 // normalizeQuestionAnswerSchemaVersion 負責把上游常見別名版本號正規化。

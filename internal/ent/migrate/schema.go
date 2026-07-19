@@ -369,6 +369,12 @@ var (
 		{Name: "summary", Type: field.TypeString, Nullable: true},
 		{Name: "assignees", Type: field.TypeJSON, Nullable: true},
 		{Name: "due_text", Type: field.TypeString, Nullable: true},
+		{Name: "due_at", Type: field.TypeTime, Nullable: true},
+		{Name: "due_timezone", Type: field.TypeString, Nullable: true},
+		{Name: "due_precision", Type: field.TypeEnum, Enums: []string{"datetime", "date", "relative_window", "unknown"}, Default: "unknown"},
+		{Name: "due_normalize_decision", Type: field.TypeEnum, Nullable: true, Enums: []string{"normalized", "needs_more_info", "no_due_time"}},
+		{Name: "due_confidence", Type: field.TypeFloat64, Default: 0},
+		{Name: "due_reason", Type: field.TypeString, Nullable: true},
 		{Name: "missing_fields", Type: field.TypeJSON, Nullable: true},
 		{Name: "confidence", Type: field.TypeFloat64, Default: 0},
 		{Name: "reason", Type: field.TypeString, Nullable: true},
@@ -385,25 +391,25 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "todo_candidates_channels_channel",
-				Columns:    []*schema.Column{TodoCandidatesColumns[11]},
+				Columns:    []*schema.Column{TodoCandidatesColumns[17]},
 				RefColumns: []*schema.Column{ChannelsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "todo_candidates_channel_messages_source_message",
-				Columns:    []*schema.Column{TodoCandidatesColumns[12]},
+				Columns:    []*schema.Column{TodoCandidatesColumns[18]},
 				RefColumns: []*schema.Column{ChannelMessagesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "todo_candidates_channel_messages_last_message",
-				Columns:    []*schema.Column{TodoCandidatesColumns[13]},
+				Columns:    []*schema.Column{TodoCandidatesColumns[19]},
 				RefColumns: []*schema.Column{ChannelMessagesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "todo_candidates_channel_messages_linked_message",
-				Columns:    []*schema.Column{TodoCandidatesColumns[14]},
+				Columns:    []*schema.Column{TodoCandidatesColumns[20]},
 				RefColumns: []*schema.Column{ChannelMessagesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -412,17 +418,22 @@ var (
 			{
 				Name:    "todocandidate_channel_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{TodoCandidatesColumns[11], TodoCandidatesColumns[3]},
+				Columns: []*schema.Column{TodoCandidatesColumns[17], TodoCandidatesColumns[3]},
+			},
+			{
+				Name:    "todocandidate_channel_id_due_at",
+				Unique:  false,
+				Columns: []*schema.Column{TodoCandidatesColumns[17], TodoCandidatesColumns[8]},
 			},
 			{
 				Name:    "todocandidate_channel_id_source_message_id",
 				Unique:  true,
-				Columns: []*schema.Column{TodoCandidatesColumns[11], TodoCandidatesColumns[12]},
+				Columns: []*schema.Column{TodoCandidatesColumns[17], TodoCandidatesColumns[18]},
 			},
 			{
 				Name:    "todocandidate_channel_id_last_message_id",
 				Unique:  false,
-				Columns: []*schema.Column{TodoCandidatesColumns[11], TodoCandidatesColumns[13]},
+				Columns: []*schema.Column{TodoCandidatesColumns[17], TodoCandidatesColumns[19]},
 			},
 		},
 	}

@@ -4422,6 +4422,76 @@ type TodoCandidateWhereInput struct {
 	DueTextEqualFold    *string  `json:"dueTextEqualFold,omitempty"`
 	DueTextContainsFold *string  `json:"dueTextContainsFold,omitempty"`
 
+	// "due_at" field predicates.
+	DueAt       *time.Time  `json:"dueAt,omitempty"`
+	DueAtNEQ    *time.Time  `json:"dueAtNEQ,omitempty"`
+	DueAtIn     []time.Time `json:"dueAtIn,omitempty"`
+	DueAtNotIn  []time.Time `json:"dueAtNotIn,omitempty"`
+	DueAtGT     *time.Time  `json:"dueAtGT,omitempty"`
+	DueAtGTE    *time.Time  `json:"dueAtGTE,omitempty"`
+	DueAtLT     *time.Time  `json:"dueAtLT,omitempty"`
+	DueAtLTE    *time.Time  `json:"dueAtLTE,omitempty"`
+	DueAtIsNil  bool        `json:"dueAtIsNil,omitempty"`
+	DueAtNotNil bool        `json:"dueAtNotNil,omitempty"`
+
+	// "due_timezone" field predicates.
+	DueTimezone             *string  `json:"dueTimezone,omitempty"`
+	DueTimezoneNEQ          *string  `json:"dueTimezoneNEQ,omitempty"`
+	DueTimezoneIn           []string `json:"dueTimezoneIn,omitempty"`
+	DueTimezoneNotIn        []string `json:"dueTimezoneNotIn,omitempty"`
+	DueTimezoneGT           *string  `json:"dueTimezoneGT,omitempty"`
+	DueTimezoneGTE          *string  `json:"dueTimezoneGTE,omitempty"`
+	DueTimezoneLT           *string  `json:"dueTimezoneLT,omitempty"`
+	DueTimezoneLTE          *string  `json:"dueTimezoneLTE,omitempty"`
+	DueTimezoneContains     *string  `json:"dueTimezoneContains,omitempty"`
+	DueTimezoneHasPrefix    *string  `json:"dueTimezoneHasPrefix,omitempty"`
+	DueTimezoneHasSuffix    *string  `json:"dueTimezoneHasSuffix,omitempty"`
+	DueTimezoneIsNil        bool     `json:"dueTimezoneIsNil,omitempty"`
+	DueTimezoneNotNil       bool     `json:"dueTimezoneNotNil,omitempty"`
+	DueTimezoneEqualFold    *string  `json:"dueTimezoneEqualFold,omitempty"`
+	DueTimezoneContainsFold *string  `json:"dueTimezoneContainsFold,omitempty"`
+
+	// "due_precision" field predicates.
+	DuePrecision      *todocandidate.DuePrecision  `json:"duePrecision,omitempty"`
+	DuePrecisionNEQ   *todocandidate.DuePrecision  `json:"duePrecisionNEQ,omitempty"`
+	DuePrecisionIn    []todocandidate.DuePrecision `json:"duePrecisionIn,omitempty"`
+	DuePrecisionNotIn []todocandidate.DuePrecision `json:"duePrecisionNotIn,omitempty"`
+
+	// "due_normalize_decision" field predicates.
+	DueNormalizeDecision       *todocandidate.DueNormalizeDecision  `json:"dueNormalizeDecision,omitempty"`
+	DueNormalizeDecisionNEQ    *todocandidate.DueNormalizeDecision  `json:"dueNormalizeDecisionNEQ,omitempty"`
+	DueNormalizeDecisionIn     []todocandidate.DueNormalizeDecision `json:"dueNormalizeDecisionIn,omitempty"`
+	DueNormalizeDecisionNotIn  []todocandidate.DueNormalizeDecision `json:"dueNormalizeDecisionNotIn,omitempty"`
+	DueNormalizeDecisionIsNil  bool                                 `json:"dueNormalizeDecisionIsNil,omitempty"`
+	DueNormalizeDecisionNotNil bool                                 `json:"dueNormalizeDecisionNotNil,omitempty"`
+
+	// "due_confidence" field predicates.
+	DueConfidence      *float64  `json:"dueConfidence,omitempty"`
+	DueConfidenceNEQ   *float64  `json:"dueConfidenceNEQ,omitempty"`
+	DueConfidenceIn    []float64 `json:"dueConfidenceIn,omitempty"`
+	DueConfidenceNotIn []float64 `json:"dueConfidenceNotIn,omitempty"`
+	DueConfidenceGT    *float64  `json:"dueConfidenceGT,omitempty"`
+	DueConfidenceGTE   *float64  `json:"dueConfidenceGTE,omitempty"`
+	DueConfidenceLT    *float64  `json:"dueConfidenceLT,omitempty"`
+	DueConfidenceLTE   *float64  `json:"dueConfidenceLTE,omitempty"`
+
+	// "due_reason" field predicates.
+	DueReason             *string  `json:"dueReason,omitempty"`
+	DueReasonNEQ          *string  `json:"dueReasonNEQ,omitempty"`
+	DueReasonIn           []string `json:"dueReasonIn,omitempty"`
+	DueReasonNotIn        []string `json:"dueReasonNotIn,omitempty"`
+	DueReasonGT           *string  `json:"dueReasonGT,omitempty"`
+	DueReasonGTE          *string  `json:"dueReasonGTE,omitempty"`
+	DueReasonLT           *string  `json:"dueReasonLT,omitempty"`
+	DueReasonLTE          *string  `json:"dueReasonLTE,omitempty"`
+	DueReasonContains     *string  `json:"dueReasonContains,omitempty"`
+	DueReasonHasPrefix    *string  `json:"dueReasonHasPrefix,omitempty"`
+	DueReasonHasSuffix    *string  `json:"dueReasonHasSuffix,omitempty"`
+	DueReasonIsNil        bool     `json:"dueReasonIsNil,omitempty"`
+	DueReasonNotNil       bool     `json:"dueReasonNotNil,omitempty"`
+	DueReasonEqualFold    *string  `json:"dueReasonEqualFold,omitempty"`
+	DueReasonContainsFold *string  `json:"dueReasonContainsFold,omitempty"`
+
 	// "confidence" field predicates.
 	Confidence      *float64  `json:"confidence,omitempty"`
 	ConfidenceNEQ   *float64  `json:"confidenceNEQ,omitempty"`
@@ -4776,6 +4846,180 @@ func (i *TodoCandidateWhereInput) P() (predicate.TodoCandidate, error) {
 	}
 	if i.DueTextContainsFold != nil {
 		predicates = append(predicates, todocandidate.DueTextContainsFold(*i.DueTextContainsFold))
+	}
+	if i.DueAt != nil {
+		predicates = append(predicates, todocandidate.DueAtEQ(*i.DueAt))
+	}
+	if i.DueAtNEQ != nil {
+		predicates = append(predicates, todocandidate.DueAtNEQ(*i.DueAtNEQ))
+	}
+	if len(i.DueAtIn) > 0 {
+		predicates = append(predicates, todocandidate.DueAtIn(i.DueAtIn...))
+	}
+	if len(i.DueAtNotIn) > 0 {
+		predicates = append(predicates, todocandidate.DueAtNotIn(i.DueAtNotIn...))
+	}
+	if i.DueAtGT != nil {
+		predicates = append(predicates, todocandidate.DueAtGT(*i.DueAtGT))
+	}
+	if i.DueAtGTE != nil {
+		predicates = append(predicates, todocandidate.DueAtGTE(*i.DueAtGTE))
+	}
+	if i.DueAtLT != nil {
+		predicates = append(predicates, todocandidate.DueAtLT(*i.DueAtLT))
+	}
+	if i.DueAtLTE != nil {
+		predicates = append(predicates, todocandidate.DueAtLTE(*i.DueAtLTE))
+	}
+	if i.DueAtIsNil {
+		predicates = append(predicates, todocandidate.DueAtIsNil())
+	}
+	if i.DueAtNotNil {
+		predicates = append(predicates, todocandidate.DueAtNotNil())
+	}
+	if i.DueTimezone != nil {
+		predicates = append(predicates, todocandidate.DueTimezoneEQ(*i.DueTimezone))
+	}
+	if i.DueTimezoneNEQ != nil {
+		predicates = append(predicates, todocandidate.DueTimezoneNEQ(*i.DueTimezoneNEQ))
+	}
+	if len(i.DueTimezoneIn) > 0 {
+		predicates = append(predicates, todocandidate.DueTimezoneIn(i.DueTimezoneIn...))
+	}
+	if len(i.DueTimezoneNotIn) > 0 {
+		predicates = append(predicates, todocandidate.DueTimezoneNotIn(i.DueTimezoneNotIn...))
+	}
+	if i.DueTimezoneGT != nil {
+		predicates = append(predicates, todocandidate.DueTimezoneGT(*i.DueTimezoneGT))
+	}
+	if i.DueTimezoneGTE != nil {
+		predicates = append(predicates, todocandidate.DueTimezoneGTE(*i.DueTimezoneGTE))
+	}
+	if i.DueTimezoneLT != nil {
+		predicates = append(predicates, todocandidate.DueTimezoneLT(*i.DueTimezoneLT))
+	}
+	if i.DueTimezoneLTE != nil {
+		predicates = append(predicates, todocandidate.DueTimezoneLTE(*i.DueTimezoneLTE))
+	}
+	if i.DueTimezoneContains != nil {
+		predicates = append(predicates, todocandidate.DueTimezoneContains(*i.DueTimezoneContains))
+	}
+	if i.DueTimezoneHasPrefix != nil {
+		predicates = append(predicates, todocandidate.DueTimezoneHasPrefix(*i.DueTimezoneHasPrefix))
+	}
+	if i.DueTimezoneHasSuffix != nil {
+		predicates = append(predicates, todocandidate.DueTimezoneHasSuffix(*i.DueTimezoneHasSuffix))
+	}
+	if i.DueTimezoneIsNil {
+		predicates = append(predicates, todocandidate.DueTimezoneIsNil())
+	}
+	if i.DueTimezoneNotNil {
+		predicates = append(predicates, todocandidate.DueTimezoneNotNil())
+	}
+	if i.DueTimezoneEqualFold != nil {
+		predicates = append(predicates, todocandidate.DueTimezoneEqualFold(*i.DueTimezoneEqualFold))
+	}
+	if i.DueTimezoneContainsFold != nil {
+		predicates = append(predicates, todocandidate.DueTimezoneContainsFold(*i.DueTimezoneContainsFold))
+	}
+	if i.DuePrecision != nil {
+		predicates = append(predicates, todocandidate.DuePrecisionEQ(*i.DuePrecision))
+	}
+	if i.DuePrecisionNEQ != nil {
+		predicates = append(predicates, todocandidate.DuePrecisionNEQ(*i.DuePrecisionNEQ))
+	}
+	if len(i.DuePrecisionIn) > 0 {
+		predicates = append(predicates, todocandidate.DuePrecisionIn(i.DuePrecisionIn...))
+	}
+	if len(i.DuePrecisionNotIn) > 0 {
+		predicates = append(predicates, todocandidate.DuePrecisionNotIn(i.DuePrecisionNotIn...))
+	}
+	if i.DueNormalizeDecision != nil {
+		predicates = append(predicates, todocandidate.DueNormalizeDecisionEQ(*i.DueNormalizeDecision))
+	}
+	if i.DueNormalizeDecisionNEQ != nil {
+		predicates = append(predicates, todocandidate.DueNormalizeDecisionNEQ(*i.DueNormalizeDecisionNEQ))
+	}
+	if len(i.DueNormalizeDecisionIn) > 0 {
+		predicates = append(predicates, todocandidate.DueNormalizeDecisionIn(i.DueNormalizeDecisionIn...))
+	}
+	if len(i.DueNormalizeDecisionNotIn) > 0 {
+		predicates = append(predicates, todocandidate.DueNormalizeDecisionNotIn(i.DueNormalizeDecisionNotIn...))
+	}
+	if i.DueNormalizeDecisionIsNil {
+		predicates = append(predicates, todocandidate.DueNormalizeDecisionIsNil())
+	}
+	if i.DueNormalizeDecisionNotNil {
+		predicates = append(predicates, todocandidate.DueNormalizeDecisionNotNil())
+	}
+	if i.DueConfidence != nil {
+		predicates = append(predicates, todocandidate.DueConfidenceEQ(*i.DueConfidence))
+	}
+	if i.DueConfidenceNEQ != nil {
+		predicates = append(predicates, todocandidate.DueConfidenceNEQ(*i.DueConfidenceNEQ))
+	}
+	if len(i.DueConfidenceIn) > 0 {
+		predicates = append(predicates, todocandidate.DueConfidenceIn(i.DueConfidenceIn...))
+	}
+	if len(i.DueConfidenceNotIn) > 0 {
+		predicates = append(predicates, todocandidate.DueConfidenceNotIn(i.DueConfidenceNotIn...))
+	}
+	if i.DueConfidenceGT != nil {
+		predicates = append(predicates, todocandidate.DueConfidenceGT(*i.DueConfidenceGT))
+	}
+	if i.DueConfidenceGTE != nil {
+		predicates = append(predicates, todocandidate.DueConfidenceGTE(*i.DueConfidenceGTE))
+	}
+	if i.DueConfidenceLT != nil {
+		predicates = append(predicates, todocandidate.DueConfidenceLT(*i.DueConfidenceLT))
+	}
+	if i.DueConfidenceLTE != nil {
+		predicates = append(predicates, todocandidate.DueConfidenceLTE(*i.DueConfidenceLTE))
+	}
+	if i.DueReason != nil {
+		predicates = append(predicates, todocandidate.DueReasonEQ(*i.DueReason))
+	}
+	if i.DueReasonNEQ != nil {
+		predicates = append(predicates, todocandidate.DueReasonNEQ(*i.DueReasonNEQ))
+	}
+	if len(i.DueReasonIn) > 0 {
+		predicates = append(predicates, todocandidate.DueReasonIn(i.DueReasonIn...))
+	}
+	if len(i.DueReasonNotIn) > 0 {
+		predicates = append(predicates, todocandidate.DueReasonNotIn(i.DueReasonNotIn...))
+	}
+	if i.DueReasonGT != nil {
+		predicates = append(predicates, todocandidate.DueReasonGT(*i.DueReasonGT))
+	}
+	if i.DueReasonGTE != nil {
+		predicates = append(predicates, todocandidate.DueReasonGTE(*i.DueReasonGTE))
+	}
+	if i.DueReasonLT != nil {
+		predicates = append(predicates, todocandidate.DueReasonLT(*i.DueReasonLT))
+	}
+	if i.DueReasonLTE != nil {
+		predicates = append(predicates, todocandidate.DueReasonLTE(*i.DueReasonLTE))
+	}
+	if i.DueReasonContains != nil {
+		predicates = append(predicates, todocandidate.DueReasonContains(*i.DueReasonContains))
+	}
+	if i.DueReasonHasPrefix != nil {
+		predicates = append(predicates, todocandidate.DueReasonHasPrefix(*i.DueReasonHasPrefix))
+	}
+	if i.DueReasonHasSuffix != nil {
+		predicates = append(predicates, todocandidate.DueReasonHasSuffix(*i.DueReasonHasSuffix))
+	}
+	if i.DueReasonIsNil {
+		predicates = append(predicates, todocandidate.DueReasonIsNil())
+	}
+	if i.DueReasonNotNil {
+		predicates = append(predicates, todocandidate.DueReasonNotNil())
+	}
+	if i.DueReasonEqualFold != nil {
+		predicates = append(predicates, todocandidate.DueReasonEqualFold(*i.DueReasonEqualFold))
+	}
+	if i.DueReasonContainsFold != nil {
+		predicates = append(predicates, todocandidate.DueReasonContainsFold(*i.DueReasonContainsFold))
 	}
 	if i.Confidence != nil {
 		predicates = append(predicates, todocandidate.ConfidenceEQ(*i.Confidence))

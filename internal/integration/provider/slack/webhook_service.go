@@ -128,6 +128,12 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 				Summary:         input.Summary,
 				Assignees:       input.Assignees,
 				DueText:         input.DueText,
+				DueAt:           input.DueAt,
+				DueTimezone:     input.DueTimezone,
+				DuePrecision:    input.DuePrecision,
+				DueDecision:     input.DueDecision,
+				DueConfidence:   input.DueConfidence,
+				DueReason:       input.DueReason,
 				MissingFields:   input.MissingFields,
 				Confidence:      input.Confidence,
 				Reason:          input.Reason,
@@ -136,6 +142,7 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 		LLM:         options.LLMInteraction,
 		Ranker:      rerankerClient,
 		RecentLimit: config.AI.HistoryContext.RecentMessageLimit,
+		Timezone:    config.AI.TodoReminder.Timezone,
 	})
 	messageClassifier := realtime.NewMessageClassificationService(realtime.MessageClassificationServiceOptions{
 		TextScanGate:  repo,

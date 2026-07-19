@@ -52,6 +52,14 @@ func (s *stubLocalInteraction) AnalyzeTodo(ctx context.Context, prompt string, t
 	return nil, nil
 }
 
+func (s *stubLocalInteraction) AnalyzeTodoDueTime(ctx context.Context, prompt string, text string) (*llminteraction.TodoDueTimeAnalysis, error) {
+	// llm_routing 目前不測 Todo due-time normalizer；這裡只補齊介面。
+	_ = ctx
+	_ = prompt
+	_ = text
+	return nil, nil
+}
+
 func (s *stubLocalInteraction) AskClarifyingQuestion(ctx context.Context, text string, reason string) (*llminteraction.QuestionAnswer, error) {
 	_ = ctx
 	_ = text

@@ -36,6 +36,11 @@ func (s *stubConversationLLM) AnalyzeTodo(ctx context.Context, prompt string, te
 	return nil, nil
 }
 
+func (s *stubConversationLLM) AnalyzeTodoDueTime(ctx context.Context, prompt string, text string) (*llminteraction.TodoDueTimeAnalysis, error) {
+	// conversationflow 測試不會進入 realtime Todo due-time normalizer；這裡只補齊介面。
+	return nil, nil
+}
+
 func (s *stubConversationLLM) AskClarifyingQuestion(ctx context.Context, text string, reason string) (*llminteraction.QuestionAnswer, error) {
 	s.clarifyCalled = true
 	return s.clarify, nil

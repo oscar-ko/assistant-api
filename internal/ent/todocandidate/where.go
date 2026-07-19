@@ -96,6 +96,26 @@ func DueText(v string) predicate.TodoCandidate {
 	return predicate.TodoCandidate(sql.FieldEQ(FieldDueText, v))
 }
 
+// DueAt applies equality check predicate on the "due_at" field. It's identical to DueAtEQ.
+func DueAt(v time.Time) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldEQ(FieldDueAt, v))
+}
+
+// DueTimezone applies equality check predicate on the "due_timezone" field. It's identical to DueTimezoneEQ.
+func DueTimezone(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldEQ(FieldDueTimezone, v))
+}
+
+// DueConfidence applies equality check predicate on the "due_confidence" field. It's identical to DueConfidenceEQ.
+func DueConfidence(v float64) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldEQ(FieldDueConfidence, v))
+}
+
+// DueReason applies equality check predicate on the "due_reason" field. It's identical to DueReasonEQ.
+func DueReason(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldEQ(FieldDueReason, v))
+}
+
 // Confidence applies equality check predicate on the "confidence" field. It's identical to ConfidenceEQ.
 func Confidence(v float64) predicate.TodoCandidate {
 	return predicate.TodoCandidate(sql.FieldEQ(FieldConfidence, v))
@@ -474,6 +494,296 @@ func DueTextEqualFold(v string) predicate.TodoCandidate {
 // DueTextContainsFold applies the ContainsFold predicate on the "due_text" field.
 func DueTextContainsFold(v string) predicate.TodoCandidate {
 	return predicate.TodoCandidate(sql.FieldContainsFold(FieldDueText, v))
+}
+
+// DueAtEQ applies the EQ predicate on the "due_at" field.
+func DueAtEQ(v time.Time) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldEQ(FieldDueAt, v))
+}
+
+// DueAtNEQ applies the NEQ predicate on the "due_at" field.
+func DueAtNEQ(v time.Time) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldNEQ(FieldDueAt, v))
+}
+
+// DueAtIn applies the In predicate on the "due_at" field.
+func DueAtIn(vs ...time.Time) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldIn(FieldDueAt, vs...))
+}
+
+// DueAtNotIn applies the NotIn predicate on the "due_at" field.
+func DueAtNotIn(vs ...time.Time) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldNotIn(FieldDueAt, vs...))
+}
+
+// DueAtGT applies the GT predicate on the "due_at" field.
+func DueAtGT(v time.Time) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldGT(FieldDueAt, v))
+}
+
+// DueAtGTE applies the GTE predicate on the "due_at" field.
+func DueAtGTE(v time.Time) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldGTE(FieldDueAt, v))
+}
+
+// DueAtLT applies the LT predicate on the "due_at" field.
+func DueAtLT(v time.Time) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldLT(FieldDueAt, v))
+}
+
+// DueAtLTE applies the LTE predicate on the "due_at" field.
+func DueAtLTE(v time.Time) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldLTE(FieldDueAt, v))
+}
+
+// DueAtIsNil applies the IsNil predicate on the "due_at" field.
+func DueAtIsNil() predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldIsNull(FieldDueAt))
+}
+
+// DueAtNotNil applies the NotNil predicate on the "due_at" field.
+func DueAtNotNil() predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldNotNull(FieldDueAt))
+}
+
+// DueTimezoneEQ applies the EQ predicate on the "due_timezone" field.
+func DueTimezoneEQ(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldEQ(FieldDueTimezone, v))
+}
+
+// DueTimezoneNEQ applies the NEQ predicate on the "due_timezone" field.
+func DueTimezoneNEQ(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldNEQ(FieldDueTimezone, v))
+}
+
+// DueTimezoneIn applies the In predicate on the "due_timezone" field.
+func DueTimezoneIn(vs ...string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldIn(FieldDueTimezone, vs...))
+}
+
+// DueTimezoneNotIn applies the NotIn predicate on the "due_timezone" field.
+func DueTimezoneNotIn(vs ...string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldNotIn(FieldDueTimezone, vs...))
+}
+
+// DueTimezoneGT applies the GT predicate on the "due_timezone" field.
+func DueTimezoneGT(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldGT(FieldDueTimezone, v))
+}
+
+// DueTimezoneGTE applies the GTE predicate on the "due_timezone" field.
+func DueTimezoneGTE(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldGTE(FieldDueTimezone, v))
+}
+
+// DueTimezoneLT applies the LT predicate on the "due_timezone" field.
+func DueTimezoneLT(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldLT(FieldDueTimezone, v))
+}
+
+// DueTimezoneLTE applies the LTE predicate on the "due_timezone" field.
+func DueTimezoneLTE(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldLTE(FieldDueTimezone, v))
+}
+
+// DueTimezoneContains applies the Contains predicate on the "due_timezone" field.
+func DueTimezoneContains(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldContains(FieldDueTimezone, v))
+}
+
+// DueTimezoneHasPrefix applies the HasPrefix predicate on the "due_timezone" field.
+func DueTimezoneHasPrefix(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldHasPrefix(FieldDueTimezone, v))
+}
+
+// DueTimezoneHasSuffix applies the HasSuffix predicate on the "due_timezone" field.
+func DueTimezoneHasSuffix(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldHasSuffix(FieldDueTimezone, v))
+}
+
+// DueTimezoneIsNil applies the IsNil predicate on the "due_timezone" field.
+func DueTimezoneIsNil() predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldIsNull(FieldDueTimezone))
+}
+
+// DueTimezoneNotNil applies the NotNil predicate on the "due_timezone" field.
+func DueTimezoneNotNil() predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldNotNull(FieldDueTimezone))
+}
+
+// DueTimezoneEqualFold applies the EqualFold predicate on the "due_timezone" field.
+func DueTimezoneEqualFold(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldEqualFold(FieldDueTimezone, v))
+}
+
+// DueTimezoneContainsFold applies the ContainsFold predicate on the "due_timezone" field.
+func DueTimezoneContainsFold(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldContainsFold(FieldDueTimezone, v))
+}
+
+// DuePrecisionEQ applies the EQ predicate on the "due_precision" field.
+func DuePrecisionEQ(v DuePrecision) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldEQ(FieldDuePrecision, v))
+}
+
+// DuePrecisionNEQ applies the NEQ predicate on the "due_precision" field.
+func DuePrecisionNEQ(v DuePrecision) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldNEQ(FieldDuePrecision, v))
+}
+
+// DuePrecisionIn applies the In predicate on the "due_precision" field.
+func DuePrecisionIn(vs ...DuePrecision) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldIn(FieldDuePrecision, vs...))
+}
+
+// DuePrecisionNotIn applies the NotIn predicate on the "due_precision" field.
+func DuePrecisionNotIn(vs ...DuePrecision) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldNotIn(FieldDuePrecision, vs...))
+}
+
+// DueNormalizeDecisionEQ applies the EQ predicate on the "due_normalize_decision" field.
+func DueNormalizeDecisionEQ(v DueNormalizeDecision) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldEQ(FieldDueNormalizeDecision, v))
+}
+
+// DueNormalizeDecisionNEQ applies the NEQ predicate on the "due_normalize_decision" field.
+func DueNormalizeDecisionNEQ(v DueNormalizeDecision) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldNEQ(FieldDueNormalizeDecision, v))
+}
+
+// DueNormalizeDecisionIn applies the In predicate on the "due_normalize_decision" field.
+func DueNormalizeDecisionIn(vs ...DueNormalizeDecision) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldIn(FieldDueNormalizeDecision, vs...))
+}
+
+// DueNormalizeDecisionNotIn applies the NotIn predicate on the "due_normalize_decision" field.
+func DueNormalizeDecisionNotIn(vs ...DueNormalizeDecision) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldNotIn(FieldDueNormalizeDecision, vs...))
+}
+
+// DueNormalizeDecisionIsNil applies the IsNil predicate on the "due_normalize_decision" field.
+func DueNormalizeDecisionIsNil() predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldIsNull(FieldDueNormalizeDecision))
+}
+
+// DueNormalizeDecisionNotNil applies the NotNil predicate on the "due_normalize_decision" field.
+func DueNormalizeDecisionNotNil() predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldNotNull(FieldDueNormalizeDecision))
+}
+
+// DueConfidenceEQ applies the EQ predicate on the "due_confidence" field.
+func DueConfidenceEQ(v float64) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldEQ(FieldDueConfidence, v))
+}
+
+// DueConfidenceNEQ applies the NEQ predicate on the "due_confidence" field.
+func DueConfidenceNEQ(v float64) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldNEQ(FieldDueConfidence, v))
+}
+
+// DueConfidenceIn applies the In predicate on the "due_confidence" field.
+func DueConfidenceIn(vs ...float64) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldIn(FieldDueConfidence, vs...))
+}
+
+// DueConfidenceNotIn applies the NotIn predicate on the "due_confidence" field.
+func DueConfidenceNotIn(vs ...float64) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldNotIn(FieldDueConfidence, vs...))
+}
+
+// DueConfidenceGT applies the GT predicate on the "due_confidence" field.
+func DueConfidenceGT(v float64) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldGT(FieldDueConfidence, v))
+}
+
+// DueConfidenceGTE applies the GTE predicate on the "due_confidence" field.
+func DueConfidenceGTE(v float64) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldGTE(FieldDueConfidence, v))
+}
+
+// DueConfidenceLT applies the LT predicate on the "due_confidence" field.
+func DueConfidenceLT(v float64) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldLT(FieldDueConfidence, v))
+}
+
+// DueConfidenceLTE applies the LTE predicate on the "due_confidence" field.
+func DueConfidenceLTE(v float64) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldLTE(FieldDueConfidence, v))
+}
+
+// DueReasonEQ applies the EQ predicate on the "due_reason" field.
+func DueReasonEQ(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldEQ(FieldDueReason, v))
+}
+
+// DueReasonNEQ applies the NEQ predicate on the "due_reason" field.
+func DueReasonNEQ(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldNEQ(FieldDueReason, v))
+}
+
+// DueReasonIn applies the In predicate on the "due_reason" field.
+func DueReasonIn(vs ...string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldIn(FieldDueReason, vs...))
+}
+
+// DueReasonNotIn applies the NotIn predicate on the "due_reason" field.
+func DueReasonNotIn(vs ...string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldNotIn(FieldDueReason, vs...))
+}
+
+// DueReasonGT applies the GT predicate on the "due_reason" field.
+func DueReasonGT(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldGT(FieldDueReason, v))
+}
+
+// DueReasonGTE applies the GTE predicate on the "due_reason" field.
+func DueReasonGTE(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldGTE(FieldDueReason, v))
+}
+
+// DueReasonLT applies the LT predicate on the "due_reason" field.
+func DueReasonLT(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldLT(FieldDueReason, v))
+}
+
+// DueReasonLTE applies the LTE predicate on the "due_reason" field.
+func DueReasonLTE(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldLTE(FieldDueReason, v))
+}
+
+// DueReasonContains applies the Contains predicate on the "due_reason" field.
+func DueReasonContains(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldContains(FieldDueReason, v))
+}
+
+// DueReasonHasPrefix applies the HasPrefix predicate on the "due_reason" field.
+func DueReasonHasPrefix(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldHasPrefix(FieldDueReason, v))
+}
+
+// DueReasonHasSuffix applies the HasSuffix predicate on the "due_reason" field.
+func DueReasonHasSuffix(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldHasSuffix(FieldDueReason, v))
+}
+
+// DueReasonIsNil applies the IsNil predicate on the "due_reason" field.
+func DueReasonIsNil() predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldIsNull(FieldDueReason))
+}
+
+// DueReasonNotNil applies the NotNil predicate on the "due_reason" field.
+func DueReasonNotNil() predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldNotNull(FieldDueReason))
+}
+
+// DueReasonEqualFold applies the EqualFold predicate on the "due_reason" field.
+func DueReasonEqualFold(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldEqualFold(FieldDueReason, v))
+}
+
+// DueReasonContainsFold applies the ContainsFold predicate on the "due_reason" field.
+func DueReasonContainsFold(v string) predicate.TodoCandidate {
+	return predicate.TodoCandidate(sql.FieldContainsFold(FieldDueReason, v))
 }
 
 // MissingFieldsIsNil applies the IsNil predicate on the "missing_fields" field.

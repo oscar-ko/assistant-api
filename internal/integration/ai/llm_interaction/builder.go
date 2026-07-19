@@ -35,6 +35,8 @@ type resolvedProviderProfile struct {
 	contextAnalyzePath string
 	// todoAnalyzePath 也是 context_analyzer role 的專用 route，但輸出 TodoAnalysis schema。
 	todoAnalyzePath string
+	// todoDueTimePath 是 context_analyzer role 的時間正規化 route，輸出 TodoDueTimeAnalysis schema。
+	todoDueTimePath string
 }
 
 // BuildClientFromConfig 依目前設定建立單一可重用的 LLM interaction client。
@@ -116,6 +118,7 @@ func buildRoleClient(cfg config.AIConfig, llmProviders map[string]config.LLMProv
 			resolved.questionAnswerPath,
 			resolved.contextAnalyzePath,
 			resolved.todoAnalyzePath,
+			resolved.todoDueTimePath,
 		)
 		if client == nil {
 			return nil, fmt.Errorf("failed to initialize local interaction client for provider %s", resolved.providerKey)
@@ -166,6 +169,7 @@ func mergeProfile(profile config.LLMProfileConfig, providerType string) (resolve
 		questionAnswerPath: strings.TrimSpace(profile.QuestionAnswerPath),
 		contextAnalyzePath: strings.TrimSpace(profile.ContextAnalyzePath),
 		todoAnalyzePath:    strings.TrimSpace(profile.TodoAnalyzePath),
+		todoDueTimePath:    strings.TrimSpace(profile.TodoDueTimePath),
 	}, nil
 }
 

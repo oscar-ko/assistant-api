@@ -51,6 +51,10 @@ ai:
         # 給需要近端對話上下文的服務共用，例如隱式回覆、補欄位、跨訊息語意接續判斷。
         recent_message_limit: 8
 
+    todo_reminder:
+        # due_text 正規化使用的 IANA timezone；不同部署地區請明確覆寫。
+        timezone: "Asia/Taipei"
+
     # LLM 互動服務（第三階段）
     llm_interaction:
         decision:
@@ -125,6 +129,8 @@ llm_providers:
                 context_analyze_path: "/predict/context_analyze"
                 # Todo Reminder 專用 structured analyzer，輸出固定 todo_analysis contract。
                 todo_analyze_path: "/predict/todo_analyze"
+                # Todo Reminder 專用 due_text 時間正規化 route，輸出固定 todo_due_time contract。
+                todo_due_time_path: "/predict/todo_due_time_normalize"
                 translate_path: "/translate"
 
     openai:

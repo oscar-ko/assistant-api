@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"assistant-api/internal/ent"
 	"assistant-api/internal/ent/action"
@@ -38,6 +39,12 @@ type SaveTodoCandidateInput struct {
 	Summary         string
 	Assignees       []string
 	DueText         string
+	DueAt           *time.Time
+	DueTimezone     string
+	DuePrecision    string
+	DueDecision     string
+	DueConfidence   float64
+	DueReason       string
 	MissingFields   []string
 	Confidence      float64
 	Reason          string
@@ -749,11 +756,21 @@ func (r *ChannelMessageRepo) createTodoCandidate(ctx context.Context, input Save
 		SetSummary(strings.TrimSpace(input.Summary)).
 		SetAssignees(normalizeStringSlice(input.Assignees)).
 		SetDueText(strings.TrimSpace(input.DueText)).
+		SetDueTimezone(strings.TrimSpace(input.DueTimezone)).
+		SetDuePrecision(normalizeTodoDuePrecision(input.DuePrecision)).
+		SetDueConfidence(input.DueConfidence).
+		SetDueReason(strings.TrimSpace(input.DueReason)).
 		SetMissingFields(normalizeStringSlice(input.MissingFields)).
 		SetConfidence(input.Confidence).
 		SetReason(strings.TrimSpace(input.Reason))
 	if input.LinkedMessageID != uuid.Nil {
 		create.SetLinkedMessageID(input.LinkedMessageID)
+	}
+	if input.DueAt != nil {
+		create.SetDueAt(*input.DueAt)
+	}
+	if dueDecision := normalizeTodoDueDecision(input.DueDecision); dueDecision != "" {
+		create.SetDueNormalizeDecision(dueDecision)
 	}
 	item, err := create.Save(ctx)
 	if err != nil {
@@ -770,6 +787,10 @@ func (r *ChannelMessageRepo) updateTodoCandidate(ctx context.Context, candidateI
 		SetSummary(strings.TrimSpace(input.Summary)).
 		SetAssignees(normalizeStringSlice(input.Assignees)).
 		SetDueText(strings.TrimSpace(input.DueText)).
+		SetDueTimezone(strings.TrimSpace(input.DueTimezone)).
+		SetDuePrecision(normalizeTodoDuePrecision(input.DuePrecision)).
+		SetDueConfidence(input.DueConfidence).
+		SetDueReason(strings.TrimSpace(input.DueReason)).
 		SetMissingFields(normalizeStringSlice(input.MissingFields)).
 		SetConfidence(input.Confidence).
 		SetReason(strings.TrimSpace(input.Reason))
@@ -777,6 +798,16 @@ func (r *ChannelMessageRepo) updateTodoCandidate(ctx context.Context, candidateI
 		update.SetLinkedMessageID(input.LinkedMessageID)
 	} else {
 		update.ClearLinkedMessageID()
+	}
+	if input.DueAt != nil {
+		update.SetDueAt(*input.DueAt)
+	} else {
+		update.ClearDueAt()
+	}
+	if dueDecision := normalizeTodoDueDecision(input.DueDecision); dueDecision != "" {
+		update.SetDueNormalizeDecision(dueDecision)
+	} else {
+		update.ClearDueNormalizeDecision()
 	}
 	item, err := update.Save(ctx)
 	if err != nil {
@@ -848,6 +879,24 @@ func normalizeStringSlice(values []string) []string {
 		out = append(out, trimmed)
 	}
 	return out
+}
+
+func normalizeTodoDuePrecision(value string) todocandidate.DuePrecision {
+	switch todocandidate.DuePrecision(strings.TrimSpace(value)) {
+	case todocandidate.DuePrecisionDatetime, todocandidate.DuePrecisionDate, todocandidate.DuePrecisionRelativeWindow:
+		return todocandidate.DuePrecision(strings.TrimSpace(value))
+	default:
+		return todocandidate.DuePrecisionUnknown
+	}
+}
+
+func normalizeTodoDueDecision(value string) todocandidate.DueNormalizeDecision {
+	switch todocandidate.DueNormalizeDecision(strings.TrimSpace(value)) {
+	case todocandidate.DueNormalizeDecisionNormalized, todocandidate.DueNormalizeDecisionNeedsMoreInfo, todocandidate.DueNormalizeDecisionNoDueTime:
+		return todocandidate.DueNormalizeDecision(strings.TrimSpace(value))
+	default:
+		return ""
+	}
 }
 
 // ResolveSkillCodeByAPIOperation 由 api_operation 反查 skill_code。

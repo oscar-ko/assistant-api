@@ -44,6 +44,18 @@ type TodoCandidate struct {
 	Assignees []string `json:"assignees,omitempty"`
 	// 使用者原文中的時間字面，尚未做日期正規化
 	DueText string `json:"due_text,omitempty"`
+	// 由 due_text 正規化後的提醒時間；只有時間 normalizer 判斷 normalized 時才寫入
+	DueAt *time.Time `json:"due_at,omitempty"`
+	// due_at 使用的 IANA timezone，例如 Asia/Taipei
+	DueTimezone string `json:"due_timezone,omitempty"`
+	// 時間正規化精度；date/relative_window 代表可用但仍可能需要產品層確認
+	DuePrecision todocandidate.DuePrecision `json:"due_precision,omitempty"`
+	// 最近一次時間正規化結果；未執行 normalizer 時為空
+	DueNormalizeDecision *todocandidate.DueNormalizeDecision `json:"due_normalize_decision,omitempty"`
+	// 時間正規化結果的信心分數
+	DueConfidence float64 `json:"due_confidence,omitempty"`
+	// 時間正規化的簡短理由，供 debug/audit 使用
+	DueReason string `json:"due_reason,omitempty"`
 	// 仍缺少的欄位名稱，例如 summary、assignees、due_text
 	MissingFields []string `json:"missing_fields,omitempty"`
 	// 模型對最近一次 decision 的信心分數
@@ -126,11 +138,11 @@ func (*TodoCandidate) scanValues(columns []string) ([]any, error) {
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case todocandidate.FieldAssignees, todocandidate.FieldMissingFields:
 			values[i] = new([]byte)
-		case todocandidate.FieldConfidence:
+		case todocandidate.FieldDueConfidence, todocandidate.FieldConfidence:
 			values[i] = new(sql.NullFloat64)
-		case todocandidate.FieldStatus, todocandidate.FieldLastDecision, todocandidate.FieldSummary, todocandidate.FieldDueText, todocandidate.FieldReason:
+		case todocandidate.FieldStatus, todocandidate.FieldLastDecision, todocandidate.FieldSummary, todocandidate.FieldDueText, todocandidate.FieldDueTimezone, todocandidate.FieldDuePrecision, todocandidate.FieldDueNormalizeDecision, todocandidate.FieldDueReason, todocandidate.FieldReason:
 			values[i] = new(sql.NullString)
-		case todocandidate.FieldCreatedAt, todocandidate.FieldUpdatedAt:
+		case todocandidate.FieldCreatedAt, todocandidate.FieldUpdatedAt, todocandidate.FieldDueAt:
 			values[i] = new(sql.NullTime)
 		case todocandidate.FieldID, todocandidate.FieldChannelID, todocandidate.FieldSourceMessageID, todocandidate.FieldLastMessageID:
 			values[i] = new(uuid.UUID)
@@ -223,6 +235,44 @@ func (_m *TodoCandidate) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field due_text", values[i])
 			} else if value.Valid {
 				_m.DueText = value.String
+			}
+		case todocandidate.FieldDueAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field due_at", values[i])
+			} else if value.Valid {
+				_m.DueAt = new(time.Time)
+				*_m.DueAt = value.Time
+			}
+		case todocandidate.FieldDueTimezone:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field due_timezone", values[i])
+			} else if value.Valid {
+				_m.DueTimezone = value.String
+			}
+		case todocandidate.FieldDuePrecision:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field due_precision", values[i])
+			} else if value.Valid {
+				_m.DuePrecision = todocandidate.DuePrecision(value.String)
+			}
+		case todocandidate.FieldDueNormalizeDecision:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field due_normalize_decision", values[i])
+			} else if value.Valid {
+				_m.DueNormalizeDecision = new(todocandidate.DueNormalizeDecision)
+				*_m.DueNormalizeDecision = todocandidate.DueNormalizeDecision(value.String)
+			}
+		case todocandidate.FieldDueConfidence:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field due_confidence", values[i])
+			} else if value.Valid {
+				_m.DueConfidence = value.Float64
+			}
+		case todocandidate.FieldDueReason:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field due_reason", values[i])
+			} else if value.Valid {
+				_m.DueReason = value.String
 			}
 		case todocandidate.FieldMissingFields:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -334,6 +384,28 @@ func (_m *TodoCandidate) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("due_text=")
 	builder.WriteString(_m.DueText)
+	builder.WriteString(", ")
+	if v := _m.DueAt; v != nil {
+		builder.WriteString("due_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("due_timezone=")
+	builder.WriteString(_m.DueTimezone)
+	builder.WriteString(", ")
+	builder.WriteString("due_precision=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DuePrecision))
+	builder.WriteString(", ")
+	if v := _m.DueNormalizeDecision; v != nil {
+		builder.WriteString("due_normalize_decision=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("due_confidence=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DueConfidence))
+	builder.WriteString(", ")
+	builder.WriteString("due_reason=")
+	builder.WriteString(_m.DueReason)
 	builder.WriteString(", ")
 	builder.WriteString("missing_fields=")
 	builder.WriteString(fmt.Sprintf("%v", _m.MissingFields))

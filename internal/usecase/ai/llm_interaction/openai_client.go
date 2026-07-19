@@ -161,6 +161,21 @@ func (c *openAIInteractionClient) AnalyzeTodo(ctx context.Context, prompt string
 	return decoded, nil
 }
 
+func (c *openAIInteractionClient) AnalyzeTodoDueTime(ctx context.Context, prompt string, text string) (*TodoDueTimeAnalysis, error) {
+	content, err := c.completeJSON(ctx, c.chatModel, prompt, text)
+	if err != nil {
+		return nil, err
+	}
+	decoded, err := parseTodoDueTimeContent(content)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateTodoDueTimeAnalysis(decoded); err != nil {
+		return nil, err
+	}
+	return decoded, nil
+}
+
 func (c *openAIInteractionClient) completeJSON(ctx context.Context, model string, prompt string, text string) (string, error) {
 	if c == nil || c.httpClient == nil {
 		return "", fmt.Errorf("openai interaction client is not initialized")
@@ -362,6 +377,14 @@ func parseContextAnalysisContent(content string) (*ContextAnalysis, error) {
 func parseTodoAnalysisContent(content string) (*TodoAnalysis, error) {
 	// parse 階段只負責 JSON decode；欄位完整性與語意限制集中交給 validateTodoAnalysis。
 	var decoded TodoAnalysis
+	if err := json.Unmarshal([]byte(content), &decoded); err != nil {
+		return nil, err
+	}
+	return &decoded, nil
+}
+
+func parseTodoDueTimeContent(content string) (*TodoDueTimeAnalysis, error) {
+	var decoded TodoDueTimeAnalysis
 	if err := json.Unmarshal([]byte(content), &decoded); err != nil {
 		return nil, err
 	}

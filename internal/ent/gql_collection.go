@@ -1357,6 +1357,36 @@ func (_q *TodoCandidateQuery) collectField(ctx context.Context, oneNode bool, op
 				selectedFields = append(selectedFields, todocandidate.FieldDueText)
 				fieldSeen[todocandidate.FieldDueText] = struct{}{}
 			}
+		case "dueAt":
+			if _, ok := fieldSeen[todocandidate.FieldDueAt]; !ok {
+				selectedFields = append(selectedFields, todocandidate.FieldDueAt)
+				fieldSeen[todocandidate.FieldDueAt] = struct{}{}
+			}
+		case "dueTimezone":
+			if _, ok := fieldSeen[todocandidate.FieldDueTimezone]; !ok {
+				selectedFields = append(selectedFields, todocandidate.FieldDueTimezone)
+				fieldSeen[todocandidate.FieldDueTimezone] = struct{}{}
+			}
+		case "duePrecision":
+			if _, ok := fieldSeen[todocandidate.FieldDuePrecision]; !ok {
+				selectedFields = append(selectedFields, todocandidate.FieldDuePrecision)
+				fieldSeen[todocandidate.FieldDuePrecision] = struct{}{}
+			}
+		case "dueNormalizeDecision":
+			if _, ok := fieldSeen[todocandidate.FieldDueNormalizeDecision]; !ok {
+				selectedFields = append(selectedFields, todocandidate.FieldDueNormalizeDecision)
+				fieldSeen[todocandidate.FieldDueNormalizeDecision] = struct{}{}
+			}
+		case "dueConfidence":
+			if _, ok := fieldSeen[todocandidate.FieldDueConfidence]; !ok {
+				selectedFields = append(selectedFields, todocandidate.FieldDueConfidence)
+				fieldSeen[todocandidate.FieldDueConfidence] = struct{}{}
+			}
+		case "dueReason":
+			if _, ok := fieldSeen[todocandidate.FieldDueReason]; !ok {
+				selectedFields = append(selectedFields, todocandidate.FieldDueReason)
+				fieldSeen[todocandidate.FieldDueReason] = struct{}{}
+			}
 		case "missingFields":
 			if _, ok := fieldSeen[todocandidate.FieldMissingFields]; !ok {
 				selectedFields = append(selectedFields, todocandidate.FieldMissingFields)

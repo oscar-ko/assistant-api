@@ -40,6 +40,18 @@ const (
 	FieldAssignees = "assignees"
 	// FieldDueText holds the string denoting the due_text field in the database.
 	FieldDueText = "due_text"
+	// FieldDueAt holds the string denoting the due_at field in the database.
+	FieldDueAt = "due_at"
+	// FieldDueTimezone holds the string denoting the due_timezone field in the database.
+	FieldDueTimezone = "due_timezone"
+	// FieldDuePrecision holds the string denoting the due_precision field in the database.
+	FieldDuePrecision = "due_precision"
+	// FieldDueNormalizeDecision holds the string denoting the due_normalize_decision field in the database.
+	FieldDueNormalizeDecision = "due_normalize_decision"
+	// FieldDueConfidence holds the string denoting the due_confidence field in the database.
+	FieldDueConfidence = "due_confidence"
+	// FieldDueReason holds the string denoting the due_reason field in the database.
+	FieldDueReason = "due_reason"
 	// FieldMissingFields holds the string denoting the missing_fields field in the database.
 	FieldMissingFields = "missing_fields"
 	// FieldConfidence holds the string denoting the confidence field in the database.
@@ -100,6 +112,12 @@ var Columns = []string{
 	FieldSummary,
 	FieldAssignees,
 	FieldDueText,
+	FieldDueAt,
+	FieldDueTimezone,
+	FieldDuePrecision,
+	FieldDueNormalizeDecision,
+	FieldDueConfidence,
+	FieldDueReason,
 	FieldMissingFields,
 	FieldConfidence,
 	FieldReason,
@@ -122,6 +140,8 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
+	// DefaultDueConfidence holds the default value on creation for the "due_confidence" field.
+	DefaultDueConfidence float64
 	// DefaultConfidence holds the default value on creation for the "confidence" field.
 	DefaultConfidence float64
 	// DefaultID holds the default value on creation for the "id" field.
@@ -182,6 +202,58 @@ func LastDecisionValidator(ld LastDecision) error {
 	}
 }
 
+// DuePrecision defines the type for the "due_precision" enum field.
+type DuePrecision string
+
+// DuePrecisionUnknown is the default value of the DuePrecision enum.
+const DefaultDuePrecision = DuePrecisionUnknown
+
+// DuePrecision values.
+const (
+	DuePrecisionDatetime       DuePrecision = "datetime"
+	DuePrecisionDate           DuePrecision = "date"
+	DuePrecisionRelativeWindow DuePrecision = "relative_window"
+	DuePrecisionUnknown        DuePrecision = "unknown"
+)
+
+func (dp DuePrecision) String() string {
+	return string(dp)
+}
+
+// DuePrecisionValidator is a validator for the "due_precision" field enum values. It is called by the builders before save.
+func DuePrecisionValidator(dp DuePrecision) error {
+	switch dp {
+	case DuePrecisionDatetime, DuePrecisionDate, DuePrecisionRelativeWindow, DuePrecisionUnknown:
+		return nil
+	default:
+		return fmt.Errorf("todocandidate: invalid enum value for due_precision field: %q", dp)
+	}
+}
+
+// DueNormalizeDecision defines the type for the "due_normalize_decision" enum field.
+type DueNormalizeDecision string
+
+// DueNormalizeDecision values.
+const (
+	DueNormalizeDecisionNormalized    DueNormalizeDecision = "normalized"
+	DueNormalizeDecisionNeedsMoreInfo DueNormalizeDecision = "needs_more_info"
+	DueNormalizeDecisionNoDueTime     DueNormalizeDecision = "no_due_time"
+)
+
+func (dnd DueNormalizeDecision) String() string {
+	return string(dnd)
+}
+
+// DueNormalizeDecisionValidator is a validator for the "due_normalize_decision" field enum values. It is called by the builders before save.
+func DueNormalizeDecisionValidator(dnd DueNormalizeDecision) error {
+	switch dnd {
+	case DueNormalizeDecisionNormalized, DueNormalizeDecisionNeedsMoreInfo, DueNormalizeDecisionNoDueTime:
+		return nil
+	default:
+		return fmt.Errorf("todocandidate: invalid enum value for due_normalize_decision field: %q", dnd)
+	}
+}
+
 // OrderOption defines the ordering options for the TodoCandidate queries.
 type OrderOption func(*sql.Selector)
 
@@ -238,6 +310,36 @@ func BySummary(opts ...sql.OrderTermOption) OrderOption {
 // ByDueText orders the results by the due_text field.
 func ByDueText(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDueText, opts...).ToFunc()
+}
+
+// ByDueAt orders the results by the due_at field.
+func ByDueAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDueAt, opts...).ToFunc()
+}
+
+// ByDueTimezone orders the results by the due_timezone field.
+func ByDueTimezone(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDueTimezone, opts...).ToFunc()
+}
+
+// ByDuePrecision orders the results by the due_precision field.
+func ByDuePrecision(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDuePrecision, opts...).ToFunc()
+}
+
+// ByDueNormalizeDecision orders the results by the due_normalize_decision field.
+func ByDueNormalizeDecision(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDueNormalizeDecision, opts...).ToFunc()
+}
+
+// ByDueConfidence orders the results by the due_confidence field.
+func ByDueConfidence(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDueConfidence, opts...).ToFunc()
+}
+
+// ByDueReason orders the results by the due_reason field.
+func ByDueReason(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDueReason, opts...).ToFunc()
 }
 
 // ByConfidence orders the results by the confidence field.
@@ -338,6 +440,42 @@ func (e *LastDecision) UnmarshalGQL(val interface{}) error {
 	*e = LastDecision(str)
 	if err := LastDecisionValidator(*e); err != nil {
 		return fmt.Errorf("%s is not a valid LastDecision", str)
+	}
+	return nil
+}
+
+// MarshalGQL implements graphql.Marshaler interface.
+func (e DuePrecision) MarshalGQL(w io.Writer) {
+	io.WriteString(w, strconv.Quote(e.String()))
+}
+
+// UnmarshalGQL implements graphql.Unmarshaler interface.
+func (e *DuePrecision) UnmarshalGQL(val interface{}) error {
+	str, ok := val.(string)
+	if !ok {
+		return fmt.Errorf("enum %T must be a string", val)
+	}
+	*e = DuePrecision(str)
+	if err := DuePrecisionValidator(*e); err != nil {
+		return fmt.Errorf("%s is not a valid DuePrecision", str)
+	}
+	return nil
+}
+
+// MarshalGQL implements graphql.Marshaler interface.
+func (e DueNormalizeDecision) MarshalGQL(w io.Writer) {
+	io.WriteString(w, strconv.Quote(e.String()))
+}
+
+// UnmarshalGQL implements graphql.Unmarshaler interface.
+func (e *DueNormalizeDecision) UnmarshalGQL(val interface{}) error {
+	str, ok := val.(string)
+	if !ok {
+		return fmt.Errorf("enum %T must be a string", val)
+	}
+	*e = DueNormalizeDecision(str)
+	if err := DueNormalizeDecisionValidator(*e); err != nil {
+		return fmt.Errorf("%s is not a valid DueNormalizeDecision", str)
 	}
 	return nil
 }

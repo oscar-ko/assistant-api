@@ -7932,34 +7932,41 @@ func (m *SlackWorkspaceMutation) ResetEdge(name string) error {
 // TodoCandidateMutation represents an operation that mutates the TodoCandidate nodes in the graph.
 type TodoCandidateMutation struct {
 	config
-	op                    Op
-	typ                   string
-	id                    *uuid.UUID
-	created_at            *time.Time
-	updated_at            *time.Time
-	status                *todocandidate.Status
-	last_decision         *todocandidate.LastDecision
-	summary               *string
-	assignees             *[]string
-	appendassignees       []string
-	due_text              *string
-	missing_fields        *[]string
-	appendmissing_fields  []string
-	confidence            *float64
-	addconfidence         *float64
-	reason                *string
-	clearedFields         map[string]struct{}
-	channel               *uuid.UUID
-	clearedchannel        bool
-	source_message        *uuid.UUID
-	clearedsource_message bool
-	last_message          *uuid.UUID
-	clearedlast_message   bool
-	linked_message        *uuid.UUID
-	clearedlinked_message bool
-	done                  bool
-	oldValue              func(context.Context) (*TodoCandidate, error)
-	predicates            []predicate.TodoCandidate
+	op                     Op
+	typ                    string
+	id                     *uuid.UUID
+	created_at             *time.Time
+	updated_at             *time.Time
+	status                 *todocandidate.Status
+	last_decision          *todocandidate.LastDecision
+	summary                *string
+	assignees              *[]string
+	appendassignees        []string
+	due_text               *string
+	due_at                 *time.Time
+	due_timezone           *string
+	due_precision          *todocandidate.DuePrecision
+	due_normalize_decision *todocandidate.DueNormalizeDecision
+	due_confidence         *float64
+	adddue_confidence      *float64
+	due_reason             *string
+	missing_fields         *[]string
+	appendmissing_fields   []string
+	confidence             *float64
+	addconfidence          *float64
+	reason                 *string
+	clearedFields          map[string]struct{}
+	channel                *uuid.UUID
+	clearedchannel         bool
+	source_message         *uuid.UUID
+	clearedsource_message  bool
+	last_message           *uuid.UUID
+	clearedlast_message    bool
+	linked_message         *uuid.UUID
+	clearedlinked_message  bool
+	done                   bool
+	oldValue               func(context.Context) (*TodoCandidate, error)
+	predicates             []predicate.TodoCandidate
 }
 
 var _ ent.Mutation = (*TodoCandidateMutation)(nil)
@@ -8530,6 +8537,294 @@ func (m *TodoCandidateMutation) ResetDueText() {
 	delete(m.clearedFields, todocandidate.FieldDueText)
 }
 
+// SetDueAt sets the "due_at" field.
+func (m *TodoCandidateMutation) SetDueAt(t time.Time) {
+	m.due_at = &t
+}
+
+// DueAt returns the value of the "due_at" field in the mutation.
+func (m *TodoCandidateMutation) DueAt() (r time.Time, exists bool) {
+	v := m.due_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDueAt returns the old "due_at" field's value of the TodoCandidate entity.
+// If the TodoCandidate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoCandidateMutation) OldDueAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDueAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDueAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDueAt: %w", err)
+	}
+	return oldValue.DueAt, nil
+}
+
+// ClearDueAt clears the value of the "due_at" field.
+func (m *TodoCandidateMutation) ClearDueAt() {
+	m.due_at = nil
+	m.clearedFields[todocandidate.FieldDueAt] = struct{}{}
+}
+
+// DueAtCleared returns if the "due_at" field was cleared in this mutation.
+func (m *TodoCandidateMutation) DueAtCleared() bool {
+	_, ok := m.clearedFields[todocandidate.FieldDueAt]
+	return ok
+}
+
+// ResetDueAt resets all changes to the "due_at" field.
+func (m *TodoCandidateMutation) ResetDueAt() {
+	m.due_at = nil
+	delete(m.clearedFields, todocandidate.FieldDueAt)
+}
+
+// SetDueTimezone sets the "due_timezone" field.
+func (m *TodoCandidateMutation) SetDueTimezone(s string) {
+	m.due_timezone = &s
+}
+
+// DueTimezone returns the value of the "due_timezone" field in the mutation.
+func (m *TodoCandidateMutation) DueTimezone() (r string, exists bool) {
+	v := m.due_timezone
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDueTimezone returns the old "due_timezone" field's value of the TodoCandidate entity.
+// If the TodoCandidate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoCandidateMutation) OldDueTimezone(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDueTimezone is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDueTimezone requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDueTimezone: %w", err)
+	}
+	return oldValue.DueTimezone, nil
+}
+
+// ClearDueTimezone clears the value of the "due_timezone" field.
+func (m *TodoCandidateMutation) ClearDueTimezone() {
+	m.due_timezone = nil
+	m.clearedFields[todocandidate.FieldDueTimezone] = struct{}{}
+}
+
+// DueTimezoneCleared returns if the "due_timezone" field was cleared in this mutation.
+func (m *TodoCandidateMutation) DueTimezoneCleared() bool {
+	_, ok := m.clearedFields[todocandidate.FieldDueTimezone]
+	return ok
+}
+
+// ResetDueTimezone resets all changes to the "due_timezone" field.
+func (m *TodoCandidateMutation) ResetDueTimezone() {
+	m.due_timezone = nil
+	delete(m.clearedFields, todocandidate.FieldDueTimezone)
+}
+
+// SetDuePrecision sets the "due_precision" field.
+func (m *TodoCandidateMutation) SetDuePrecision(tp todocandidate.DuePrecision) {
+	m.due_precision = &tp
+}
+
+// DuePrecision returns the value of the "due_precision" field in the mutation.
+func (m *TodoCandidateMutation) DuePrecision() (r todocandidate.DuePrecision, exists bool) {
+	v := m.due_precision
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDuePrecision returns the old "due_precision" field's value of the TodoCandidate entity.
+// If the TodoCandidate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoCandidateMutation) OldDuePrecision(ctx context.Context) (v todocandidate.DuePrecision, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDuePrecision is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDuePrecision requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDuePrecision: %w", err)
+	}
+	return oldValue.DuePrecision, nil
+}
+
+// ResetDuePrecision resets all changes to the "due_precision" field.
+func (m *TodoCandidateMutation) ResetDuePrecision() {
+	m.due_precision = nil
+}
+
+// SetDueNormalizeDecision sets the "due_normalize_decision" field.
+func (m *TodoCandidateMutation) SetDueNormalizeDecision(tnd todocandidate.DueNormalizeDecision) {
+	m.due_normalize_decision = &tnd
+}
+
+// DueNormalizeDecision returns the value of the "due_normalize_decision" field in the mutation.
+func (m *TodoCandidateMutation) DueNormalizeDecision() (r todocandidate.DueNormalizeDecision, exists bool) {
+	v := m.due_normalize_decision
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDueNormalizeDecision returns the old "due_normalize_decision" field's value of the TodoCandidate entity.
+// If the TodoCandidate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoCandidateMutation) OldDueNormalizeDecision(ctx context.Context) (v *todocandidate.DueNormalizeDecision, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDueNormalizeDecision is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDueNormalizeDecision requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDueNormalizeDecision: %w", err)
+	}
+	return oldValue.DueNormalizeDecision, nil
+}
+
+// ClearDueNormalizeDecision clears the value of the "due_normalize_decision" field.
+func (m *TodoCandidateMutation) ClearDueNormalizeDecision() {
+	m.due_normalize_decision = nil
+	m.clearedFields[todocandidate.FieldDueNormalizeDecision] = struct{}{}
+}
+
+// DueNormalizeDecisionCleared returns if the "due_normalize_decision" field was cleared in this mutation.
+func (m *TodoCandidateMutation) DueNormalizeDecisionCleared() bool {
+	_, ok := m.clearedFields[todocandidate.FieldDueNormalizeDecision]
+	return ok
+}
+
+// ResetDueNormalizeDecision resets all changes to the "due_normalize_decision" field.
+func (m *TodoCandidateMutation) ResetDueNormalizeDecision() {
+	m.due_normalize_decision = nil
+	delete(m.clearedFields, todocandidate.FieldDueNormalizeDecision)
+}
+
+// SetDueConfidence sets the "due_confidence" field.
+func (m *TodoCandidateMutation) SetDueConfidence(f float64) {
+	m.due_confidence = &f
+	m.adddue_confidence = nil
+}
+
+// DueConfidence returns the value of the "due_confidence" field in the mutation.
+func (m *TodoCandidateMutation) DueConfidence() (r float64, exists bool) {
+	v := m.due_confidence
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDueConfidence returns the old "due_confidence" field's value of the TodoCandidate entity.
+// If the TodoCandidate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoCandidateMutation) OldDueConfidence(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDueConfidence is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDueConfidence requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDueConfidence: %w", err)
+	}
+	return oldValue.DueConfidence, nil
+}
+
+// AddDueConfidence adds f to the "due_confidence" field.
+func (m *TodoCandidateMutation) AddDueConfidence(f float64) {
+	if m.adddue_confidence != nil {
+		*m.adddue_confidence += f
+	} else {
+		m.adddue_confidence = &f
+	}
+}
+
+// AddedDueConfidence returns the value that was added to the "due_confidence" field in this mutation.
+func (m *TodoCandidateMutation) AddedDueConfidence() (r float64, exists bool) {
+	v := m.adddue_confidence
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDueConfidence resets all changes to the "due_confidence" field.
+func (m *TodoCandidateMutation) ResetDueConfidence() {
+	m.due_confidence = nil
+	m.adddue_confidence = nil
+}
+
+// SetDueReason sets the "due_reason" field.
+func (m *TodoCandidateMutation) SetDueReason(s string) {
+	m.due_reason = &s
+}
+
+// DueReason returns the value of the "due_reason" field in the mutation.
+func (m *TodoCandidateMutation) DueReason() (r string, exists bool) {
+	v := m.due_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDueReason returns the old "due_reason" field's value of the TodoCandidate entity.
+// If the TodoCandidate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoCandidateMutation) OldDueReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDueReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDueReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDueReason: %w", err)
+	}
+	return oldValue.DueReason, nil
+}
+
+// ClearDueReason clears the value of the "due_reason" field.
+func (m *TodoCandidateMutation) ClearDueReason() {
+	m.due_reason = nil
+	m.clearedFields[todocandidate.FieldDueReason] = struct{}{}
+}
+
+// DueReasonCleared returns if the "due_reason" field was cleared in this mutation.
+func (m *TodoCandidateMutation) DueReasonCleared() bool {
+	_, ok := m.clearedFields[todocandidate.FieldDueReason]
+	return ok
+}
+
+// ResetDueReason resets all changes to the "due_reason" field.
+func (m *TodoCandidateMutation) ResetDueReason() {
+	m.due_reason = nil
+	delete(m.clearedFields, todocandidate.FieldDueReason)
+}
+
 // SetMissingFields sets the "missing_fields" field.
 func (m *TodoCandidateMutation) SetMissingFields(s []string) {
 	m.missing_fields = &s
@@ -8842,7 +9137,7 @@ func (m *TodoCandidateMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TodoCandidateMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 20)
 	if m.created_at != nil {
 		fields = append(fields, todocandidate.FieldCreatedAt)
 	}
@@ -8875,6 +9170,24 @@ func (m *TodoCandidateMutation) Fields() []string {
 	}
 	if m.due_text != nil {
 		fields = append(fields, todocandidate.FieldDueText)
+	}
+	if m.due_at != nil {
+		fields = append(fields, todocandidate.FieldDueAt)
+	}
+	if m.due_timezone != nil {
+		fields = append(fields, todocandidate.FieldDueTimezone)
+	}
+	if m.due_precision != nil {
+		fields = append(fields, todocandidate.FieldDuePrecision)
+	}
+	if m.due_normalize_decision != nil {
+		fields = append(fields, todocandidate.FieldDueNormalizeDecision)
+	}
+	if m.due_confidence != nil {
+		fields = append(fields, todocandidate.FieldDueConfidence)
+	}
+	if m.due_reason != nil {
+		fields = append(fields, todocandidate.FieldDueReason)
 	}
 	if m.missing_fields != nil {
 		fields = append(fields, todocandidate.FieldMissingFields)
@@ -8915,6 +9228,18 @@ func (m *TodoCandidateMutation) Field(name string) (ent.Value, bool) {
 		return m.Assignees()
 	case todocandidate.FieldDueText:
 		return m.DueText()
+	case todocandidate.FieldDueAt:
+		return m.DueAt()
+	case todocandidate.FieldDueTimezone:
+		return m.DueTimezone()
+	case todocandidate.FieldDuePrecision:
+		return m.DuePrecision()
+	case todocandidate.FieldDueNormalizeDecision:
+		return m.DueNormalizeDecision()
+	case todocandidate.FieldDueConfidence:
+		return m.DueConfidence()
+	case todocandidate.FieldDueReason:
+		return m.DueReason()
 	case todocandidate.FieldMissingFields:
 		return m.MissingFields()
 	case todocandidate.FieldConfidence:
@@ -8952,6 +9277,18 @@ func (m *TodoCandidateMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldAssignees(ctx)
 	case todocandidate.FieldDueText:
 		return m.OldDueText(ctx)
+	case todocandidate.FieldDueAt:
+		return m.OldDueAt(ctx)
+	case todocandidate.FieldDueTimezone:
+		return m.OldDueTimezone(ctx)
+	case todocandidate.FieldDuePrecision:
+		return m.OldDuePrecision(ctx)
+	case todocandidate.FieldDueNormalizeDecision:
+		return m.OldDueNormalizeDecision(ctx)
+	case todocandidate.FieldDueConfidence:
+		return m.OldDueConfidence(ctx)
+	case todocandidate.FieldDueReason:
+		return m.OldDueReason(ctx)
 	case todocandidate.FieldMissingFields:
 		return m.OldMissingFields(ctx)
 	case todocandidate.FieldConfidence:
@@ -9044,6 +9381,48 @@ func (m *TodoCandidateMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetDueText(v)
 		return nil
+	case todocandidate.FieldDueAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDueAt(v)
+		return nil
+	case todocandidate.FieldDueTimezone:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDueTimezone(v)
+		return nil
+	case todocandidate.FieldDuePrecision:
+		v, ok := value.(todocandidate.DuePrecision)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDuePrecision(v)
+		return nil
+	case todocandidate.FieldDueNormalizeDecision:
+		v, ok := value.(todocandidate.DueNormalizeDecision)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDueNormalizeDecision(v)
+		return nil
+	case todocandidate.FieldDueConfidence:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDueConfidence(v)
+		return nil
+	case todocandidate.FieldDueReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDueReason(v)
+		return nil
 	case todocandidate.FieldMissingFields:
 		v, ok := value.([]string)
 		if !ok {
@@ -9073,6 +9452,9 @@ func (m *TodoCandidateMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *TodoCandidateMutation) AddedFields() []string {
 	var fields []string
+	if m.adddue_confidence != nil {
+		fields = append(fields, todocandidate.FieldDueConfidence)
+	}
 	if m.addconfidence != nil {
 		fields = append(fields, todocandidate.FieldConfidence)
 	}
@@ -9084,6 +9466,8 @@ func (m *TodoCandidateMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *TodoCandidateMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case todocandidate.FieldDueConfidence:
+		return m.AddedDueConfidence()
 	case todocandidate.FieldConfidence:
 		return m.AddedConfidence()
 	}
@@ -9095,6 +9479,13 @@ func (m *TodoCandidateMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *TodoCandidateMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case todocandidate.FieldDueConfidence:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDueConfidence(v)
+		return nil
 	case todocandidate.FieldConfidence:
 		v, ok := value.(float64)
 		if !ok {
@@ -9121,6 +9512,18 @@ func (m *TodoCandidateMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(todocandidate.FieldDueText) {
 		fields = append(fields, todocandidate.FieldDueText)
+	}
+	if m.FieldCleared(todocandidate.FieldDueAt) {
+		fields = append(fields, todocandidate.FieldDueAt)
+	}
+	if m.FieldCleared(todocandidate.FieldDueTimezone) {
+		fields = append(fields, todocandidate.FieldDueTimezone)
+	}
+	if m.FieldCleared(todocandidate.FieldDueNormalizeDecision) {
+		fields = append(fields, todocandidate.FieldDueNormalizeDecision)
+	}
+	if m.FieldCleared(todocandidate.FieldDueReason) {
+		fields = append(fields, todocandidate.FieldDueReason)
 	}
 	if m.FieldCleared(todocandidate.FieldMissingFields) {
 		fields = append(fields, todocandidate.FieldMissingFields)
@@ -9153,6 +9556,18 @@ func (m *TodoCandidateMutation) ClearField(name string) error {
 		return nil
 	case todocandidate.FieldDueText:
 		m.ClearDueText()
+		return nil
+	case todocandidate.FieldDueAt:
+		m.ClearDueAt()
+		return nil
+	case todocandidate.FieldDueTimezone:
+		m.ClearDueTimezone()
+		return nil
+	case todocandidate.FieldDueNormalizeDecision:
+		m.ClearDueNormalizeDecision()
+		return nil
+	case todocandidate.FieldDueReason:
+		m.ClearDueReason()
 		return nil
 	case todocandidate.FieldMissingFields:
 		m.ClearMissingFields()
@@ -9200,6 +9615,24 @@ func (m *TodoCandidateMutation) ResetField(name string) error {
 		return nil
 	case todocandidate.FieldDueText:
 		m.ResetDueText()
+		return nil
+	case todocandidate.FieldDueAt:
+		m.ResetDueAt()
+		return nil
+	case todocandidate.FieldDueTimezone:
+		m.ResetDueTimezone()
+		return nil
+	case todocandidate.FieldDuePrecision:
+		m.ResetDuePrecision()
+		return nil
+	case todocandidate.FieldDueNormalizeDecision:
+		m.ResetDueNormalizeDecision()
+		return nil
+	case todocandidate.FieldDueConfidence:
+		m.ResetDueConfidence()
+		return nil
+	case todocandidate.FieldDueReason:
+		m.ResetDueReason()
 		return nil
 	case todocandidate.FieldMissingFields:
 		m.ResetMissingFields()

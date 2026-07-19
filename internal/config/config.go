@@ -54,6 +54,14 @@ type AIConfig struct {
 	Reranker       RerankerConfig       `mapstructure:"reranker" yaml:"reranker"`
 	Classifier     ClassifierConfig     `mapstructure:"classifier" yaml:"classifier"`
 	HistoryContext HistoryContextConfig `mapstructure:"history_context" yaml:"history_context"`
+	TodoReminder   TodoReminderConfig   `mapstructure:"todo_reminder" yaml:"todo_reminder"`
+}
+
+// TodoReminderConfig controls Todo Reminder-specific runtime behavior.
+type TodoReminderConfig struct {
+	// Timezone 是 due_text 正規化時使用的 IANA timezone，例如 Asia/Taipei。
+	// 它屬於 todo reminder 行為設定，不放在 history_context，避免把歷史召回窗口和時間解析混在一起。
+	Timezone string `mapstructure:"timezone" yaml:"timezone"`
 }
 
 // ClassifierConfig controls the local message classifier used by realtime handlers.
@@ -212,6 +220,9 @@ type LLMProfileConfig struct {
 	// TodoAnalyzePath 是 Todo Reminder 專用結構化分析入口。
 	// 它和通用 context_analyze 分離，避免 todo candidate schema 演進時污染其他 realtime service。
 	TodoAnalyzePath string `mapstructure:"todo_analyze_path" yaml:"todo_analyze_path"`
+	// TodoDueTimePath 是 Todo Reminder 專用時間正規化入口。
+	// 它只處理 due_text -> due_at，避免把時間解析規則塞回 todo_analyze 主契約。
+	TodoDueTimePath string `mapstructure:"todo_due_time_path" yaml:"todo_due_time_path"`
 	TranslatePath   string `mapstructure:"translate_path" yaml:"translate_path"`
 }
 
@@ -330,6 +341,8 @@ func MustLoad() {
 		viper.SetDefault("ai.llm_interaction.decision_json_retry_count", 0)
 		// 歷史訊息召回窗口：單位是往前幾則同 channel 訊息，不是時間長度。
 		viper.SetDefault("ai.history_context.recent_message_limit", 8)
+		// Todo Reminder 時間正規化預設使用台灣時區；部署到其他地區時應由 app.yml 明確覆寫。
+		viper.SetDefault("ai.todo_reminder.timezone", "Asia/Taipei")
 		viper.SetDefault("ai.embedding.url", "http://127.0.0.1:9000")
 		viper.SetDefault("ai.embedding.target", "aistant.embedding")
 		viper.SetDefault("ai.embedding.timeout_seconds", 60)

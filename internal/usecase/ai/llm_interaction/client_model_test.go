@@ -24,7 +24,7 @@ func TestInteractionClientSendsConfiguredModelName(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewInteractionClientWithModel(server.URL, 5, "qwen3.5:2b", "/predict/action_decision", "/predict/question_answer", "/predict/context_analyze", "/predict/todo_analyze")
+	client := NewInteractionClientWithModel(server.URL, 5, "qwen3.5:2b", "/predict/action_decision", "/predict/question_answer", "/predict/context_analyze", "/predict/todo_analyze", "/predict/todo_due_time_normalize")
 	if client == nil {
 		t.Fatal("expected client")
 	}
@@ -56,7 +56,7 @@ func TestInteractionClientAnalyzeContextUsesContextPath(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewInteractionClientWithModel(server.URL, 5, "qwen3.5:2b", "/predict/action_decision", "/predict/question_answer", "/predict/context_analyze", "/predict/todo_analyze")
+	client := NewInteractionClientWithModel(server.URL, 5, "qwen3.5:2b", "/predict/action_decision", "/predict/question_answer", "/predict/context_analyze", "/predict/todo_analyze", "/predict/todo_due_time_normalize")
 	result, err := client.AnalyzeContext(context.Background(), "Analyze as JSON", "明天")
 	if err != nil {
 		t.Fatalf("analyze context failed: %v", err)
@@ -88,7 +88,7 @@ func TestInteractionClientAnalyzeTodoUsesTodoPath(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewInteractionClientWithModel(server.URL, 5, "qwen3.5:2b", "/predict/action_decision", "/predict/question_answer", "/predict/context_analyze", "/predict/todo_analyze")
+	client := NewInteractionClientWithModel(server.URL, 5, "qwen3.5:2b", "/predict/action_decision", "/predict/question_answer", "/predict/context_analyze", "/predict/todo_analyze", "/predict/todo_due_time_normalize")
 	result, err := client.AnalyzeTodo(context.Background(), "Analyze todo as JSON", "我晚點補")
 	if err != nil {
 		t.Fatalf("analyze todo failed: %v", err)
@@ -102,6 +102,38 @@ func TestInteractionClientAnalyzeTodoUsesTodoPath(t *testing.T) {
 	}
 	if result.Decision != "update_candidate" || result.LinkedMessageID != "msg-1" || result.Summary != "補報價單" {
 		t.Fatalf("unexpected todo result: %#v", result)
+	}
+}
+
+func TestInteractionClientAnalyzeTodoDueTimeUsesTodoDueTimePath(t *testing.T) {
+	// 這個測試鎖住 Todo Reminder due_text 正規化的 transport contract：
+	// AnalyzeTodoDueTime 必須走 dedicated /predict/todo_due_time_normalize，不可共用 todo_analyze。
+	var capturedPath string
+	var captured map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedPath = r.URL.Path
+		if err := json.NewDecoder(r.Body).Decode(&captured); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"schema_version":"v1","decision":"normalized","due_at":"2026-07-20T09:00:00+08:00","timezone":"Asia/Taipei","precision":"datetime","confidence":0.86,"missing_fields":[],"reason":"explicit weekday and time"}`))
+	}))
+	defer server.Close()
+
+	client := NewInteractionClientWithModel(server.URL, 5, "qwen3.5:2b", "/predict/action_decision", "/predict/question_answer", "/predict/context_analyze", "/predict/todo_analyze", "/predict/todo_due_time_normalize")
+	result, err := client.AnalyzeTodoDueTime(context.Background(), "Normalize due time as JSON", "下週一九點")
+	if err != nil {
+		t.Fatalf("analyze todo due time failed: %v", err)
+	}
+
+	if capturedPath != "/predict/todo_due_time_normalize" {
+		t.Fatalf("expected todo due time path, got %s", capturedPath)
+	}
+	if captured["model_name"] != "qwen3.5:2b" {
+		t.Fatalf("expected model_name qwen3.5:2b, got %#v", captured["model_name"])
+	}
+	if result.Decision != "normalized" || result.DueAt == "" || result.Timezone != "Asia/Taipei" {
+		t.Fatalf("unexpected todo due time result: %#v", result)
 	}
 }
 
@@ -127,6 +159,20 @@ func TestDecodeTodoAnalysisResponseRejectsInvalidContract(t *testing.T) {
 	}
 
 	decoded, err := decodeTodoAnalysisResponse(resp, "/predict/todo_analyze")
+	if err == nil {
+		t.Fatalf("expected contract validation error, got decoded=%+v", decoded)
+	}
+}
+
+func TestDecodeTodoDueTimeResponseRejectsInvalidContract(t *testing.T) {
+	// normalized 若沒有 RFC3339 due_at，後續 reminder scheduler 會無法安全排程。
+	// Go client 邊界必須直接拒絕，不把不完整時間寫進 candidate。
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(`{"schema_version":"v1","decision":"normalized","due_at":"明天","timezone":"Asia/Taipei","precision":"datetime","confidence":0.7,"missing_fields":[],"reason":"not normalized"}`)),
+	}
+
+	decoded, err := decodeTodoDueTimeResponse(resp, "/predict/todo_due_time_normalize")
 	if err == nil {
 		t.Fatalf("expected contract validation error, got decoded=%+v", decoded)
 	}

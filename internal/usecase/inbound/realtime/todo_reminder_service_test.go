@@ -81,6 +81,13 @@ func (s *stubContextAnalyzer) AnalyzeTodo(ctx context.Context, prompt string, te
 	return &llminteraction.TodoAnalysis{SchemaVersion: "v1", Decision: "update_candidate", LinkedMessageID: "recent-message", Summary: "補報價單", Confidence: 0.82, Reason: "接續前文待辦"}, nil
 }
 
+func (s *stubContextAnalyzer) AnalyzeTodoDueTime(ctx context.Context, prompt string, text string) (*llminteraction.TodoDueTimeAnalysis, error) {
+	_ = ctx
+	_ = prompt
+	_ = text
+	return &llminteraction.TodoDueTimeAnalysis{SchemaVersion: "v1", Decision: "no_due_time", Precision: "unknown", Confidence: 0.5, Reason: "test stub"}, nil
+}
+
 func (s *stubContextAnalyzer) AskClarifyingQuestion(ctx context.Context, text string, reason string) (*llminteraction.QuestionAnswer, error) {
 	return nil, nil
 }

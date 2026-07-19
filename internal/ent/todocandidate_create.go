@@ -137,6 +137,90 @@ func (_c *TodoCandidateCreate) SetNillableDueText(v *string) *TodoCandidateCreat
 	return _c
 }
 
+// SetDueAt sets the "due_at" field.
+func (_c *TodoCandidateCreate) SetDueAt(v time.Time) *TodoCandidateCreate {
+	_c.mutation.SetDueAt(v)
+	return _c
+}
+
+// SetNillableDueAt sets the "due_at" field if the given value is not nil.
+func (_c *TodoCandidateCreate) SetNillableDueAt(v *time.Time) *TodoCandidateCreate {
+	if v != nil {
+		_c.SetDueAt(*v)
+	}
+	return _c
+}
+
+// SetDueTimezone sets the "due_timezone" field.
+func (_c *TodoCandidateCreate) SetDueTimezone(v string) *TodoCandidateCreate {
+	_c.mutation.SetDueTimezone(v)
+	return _c
+}
+
+// SetNillableDueTimezone sets the "due_timezone" field if the given value is not nil.
+func (_c *TodoCandidateCreate) SetNillableDueTimezone(v *string) *TodoCandidateCreate {
+	if v != nil {
+		_c.SetDueTimezone(*v)
+	}
+	return _c
+}
+
+// SetDuePrecision sets the "due_precision" field.
+func (_c *TodoCandidateCreate) SetDuePrecision(v todocandidate.DuePrecision) *TodoCandidateCreate {
+	_c.mutation.SetDuePrecision(v)
+	return _c
+}
+
+// SetNillableDuePrecision sets the "due_precision" field if the given value is not nil.
+func (_c *TodoCandidateCreate) SetNillableDuePrecision(v *todocandidate.DuePrecision) *TodoCandidateCreate {
+	if v != nil {
+		_c.SetDuePrecision(*v)
+	}
+	return _c
+}
+
+// SetDueNormalizeDecision sets the "due_normalize_decision" field.
+func (_c *TodoCandidateCreate) SetDueNormalizeDecision(v todocandidate.DueNormalizeDecision) *TodoCandidateCreate {
+	_c.mutation.SetDueNormalizeDecision(v)
+	return _c
+}
+
+// SetNillableDueNormalizeDecision sets the "due_normalize_decision" field if the given value is not nil.
+func (_c *TodoCandidateCreate) SetNillableDueNormalizeDecision(v *todocandidate.DueNormalizeDecision) *TodoCandidateCreate {
+	if v != nil {
+		_c.SetDueNormalizeDecision(*v)
+	}
+	return _c
+}
+
+// SetDueConfidence sets the "due_confidence" field.
+func (_c *TodoCandidateCreate) SetDueConfidence(v float64) *TodoCandidateCreate {
+	_c.mutation.SetDueConfidence(v)
+	return _c
+}
+
+// SetNillableDueConfidence sets the "due_confidence" field if the given value is not nil.
+func (_c *TodoCandidateCreate) SetNillableDueConfidence(v *float64) *TodoCandidateCreate {
+	if v != nil {
+		_c.SetDueConfidence(*v)
+	}
+	return _c
+}
+
+// SetDueReason sets the "due_reason" field.
+func (_c *TodoCandidateCreate) SetDueReason(v string) *TodoCandidateCreate {
+	_c.mutation.SetDueReason(v)
+	return _c
+}
+
+// SetNillableDueReason sets the "due_reason" field if the given value is not nil.
+func (_c *TodoCandidateCreate) SetNillableDueReason(v *string) *TodoCandidateCreate {
+	if v != nil {
+		_c.SetDueReason(*v)
+	}
+	return _c
+}
+
 // SetMissingFields sets the "missing_fields" field.
 func (_c *TodoCandidateCreate) SetMissingFields(v []string) *TodoCandidateCreate {
 	_c.mutation.SetMissingFields(v)
@@ -252,6 +336,14 @@ func (_c *TodoCandidateCreate) defaults() {
 		v := todocandidate.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.DuePrecision(); !ok {
+		v := todocandidate.DefaultDuePrecision
+		_c.mutation.SetDuePrecision(v)
+	}
+	if _, ok := _c.mutation.DueConfidence(); !ok {
+		v := todocandidate.DefaultDueConfidence
+		_c.mutation.SetDueConfidence(v)
+	}
 	if _, ok := _c.mutation.Confidence(); !ok {
 		v := todocandidate.DefaultConfidence
 		_c.mutation.SetConfidence(v)
@@ -294,6 +386,22 @@ func (_c *TodoCandidateCreate) check() error {
 		if err := todocandidate.LastDecisionValidator(v); err != nil {
 			return &ValidationError{Name: "last_decision", err: fmt.Errorf(`ent: validator failed for field "TodoCandidate.last_decision": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.DuePrecision(); !ok {
+		return &ValidationError{Name: "due_precision", err: errors.New(`ent: missing required field "TodoCandidate.due_precision"`)}
+	}
+	if v, ok := _c.mutation.DuePrecision(); ok {
+		if err := todocandidate.DuePrecisionValidator(v); err != nil {
+			return &ValidationError{Name: "due_precision", err: fmt.Errorf(`ent: validator failed for field "TodoCandidate.due_precision": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.DueNormalizeDecision(); ok {
+		if err := todocandidate.DueNormalizeDecisionValidator(v); err != nil {
+			return &ValidationError{Name: "due_normalize_decision", err: fmt.Errorf(`ent: validator failed for field "TodoCandidate.due_normalize_decision": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.DueConfidence(); !ok {
+		return &ValidationError{Name: "due_confidence", err: errors.New(`ent: missing required field "TodoCandidate.due_confidence"`)}
 	}
 	if _, ok := _c.mutation.Confidence(); !ok {
 		return &ValidationError{Name: "confidence", err: errors.New(`ent: missing required field "TodoCandidate.confidence"`)}
@@ -369,6 +477,30 @@ func (_c *TodoCandidateCreate) createSpec() (*TodoCandidate, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.DueText(); ok {
 		_spec.SetField(todocandidate.FieldDueText, field.TypeString, value)
 		_node.DueText = value
+	}
+	if value, ok := _c.mutation.DueAt(); ok {
+		_spec.SetField(todocandidate.FieldDueAt, field.TypeTime, value)
+		_node.DueAt = &value
+	}
+	if value, ok := _c.mutation.DueTimezone(); ok {
+		_spec.SetField(todocandidate.FieldDueTimezone, field.TypeString, value)
+		_node.DueTimezone = value
+	}
+	if value, ok := _c.mutation.DuePrecision(); ok {
+		_spec.SetField(todocandidate.FieldDuePrecision, field.TypeEnum, value)
+		_node.DuePrecision = value
+	}
+	if value, ok := _c.mutation.DueNormalizeDecision(); ok {
+		_spec.SetField(todocandidate.FieldDueNormalizeDecision, field.TypeEnum, value)
+		_node.DueNormalizeDecision = &value
+	}
+	if value, ok := _c.mutation.DueConfidence(); ok {
+		_spec.SetField(todocandidate.FieldDueConfidence, field.TypeFloat64, value)
+		_node.DueConfidence = value
+	}
+	if value, ok := _c.mutation.DueReason(); ok {
+		_spec.SetField(todocandidate.FieldDueReason, field.TypeString, value)
+		_node.DueReason = value
 	}
 	if value, ok := _c.mutation.MissingFields(); ok {
 		_spec.SetField(todocandidate.FieldMissingFields, field.TypeJSON, value)

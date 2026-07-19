@@ -1232,6 +1232,82 @@ input TodoCandidateWhereInput {
   dueTextEqualFold: String
   dueTextContainsFold: String
   """
+  due_at field predicates
+  """
+  dueAt: Time
+  dueAtNEQ: Time
+  dueAtIn: [Time!]
+  dueAtNotIn: [Time!]
+  dueAtGT: Time
+  dueAtGTE: Time
+  dueAtLT: Time
+  dueAtLTE: Time
+  dueAtIsNil: Boolean
+  dueAtNotNil: Boolean
+  """
+  due_timezone field predicates
+  """
+  dueTimezone: String
+  dueTimezoneNEQ: String
+  dueTimezoneIn: [String!]
+  dueTimezoneNotIn: [String!]
+  dueTimezoneGT: String
+  dueTimezoneGTE: String
+  dueTimezoneLT: String
+  dueTimezoneLTE: String
+  dueTimezoneContains: String
+  dueTimezoneHasPrefix: String
+  dueTimezoneHasSuffix: String
+  dueTimezoneIsNil: Boolean
+  dueTimezoneNotNil: Boolean
+  dueTimezoneEqualFold: String
+  dueTimezoneContainsFold: String
+  """
+  due_precision field predicates
+  """
+  duePrecision: TodoCandidateDuePrecision
+  duePrecisionNEQ: TodoCandidateDuePrecision
+  duePrecisionIn: [TodoCandidateDuePrecision!]
+  duePrecisionNotIn: [TodoCandidateDuePrecision!]
+  """
+  due_normalize_decision field predicates
+  """
+  dueNormalizeDecision: TodoCandidateDueNormalizeDecision
+  dueNormalizeDecisionNEQ: TodoCandidateDueNormalizeDecision
+  dueNormalizeDecisionIn: [TodoCandidateDueNormalizeDecision!]
+  dueNormalizeDecisionNotIn: [TodoCandidateDueNormalizeDecision!]
+  dueNormalizeDecisionIsNil: Boolean
+  dueNormalizeDecisionNotNil: Boolean
+  """
+  due_confidence field predicates
+  """
+  dueConfidence: Float
+  dueConfidenceNEQ: Float
+  dueConfidenceIn: [Float!]
+  dueConfidenceNotIn: [Float!]
+  dueConfidenceGT: Float
+  dueConfidenceGTE: Float
+  dueConfidenceLT: Float
+  dueConfidenceLTE: Float
+  """
+  due_reason field predicates
+  """
+  dueReason: String
+  dueReasonNEQ: String
+  dueReasonIn: [String!]
+  dueReasonNotIn: [String!]
+  dueReasonGT: String
+  dueReasonGTE: String
+  dueReasonLT: String
+  dueReasonLTE: String
+  dueReasonContains: String
+  dueReasonHasPrefix: String
+  dueReasonHasSuffix: String
+  dueReasonIsNil: Boolean
+  dueReasonNotNil: Boolean
+  dueReasonEqualFold: String
+  dueReasonContainsFold: String
+  """
   confidence field predicates
   """
   confidence: Float

@@ -265,8 +265,12 @@ func init() {
 	todocandidate.DefaultUpdatedAt = todocandidateDescUpdatedAt.Default.(func() time.Time)
 	// todocandidate.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	todocandidate.UpdateDefaultUpdatedAt = todocandidateDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// todocandidateDescDueConfidence is the schema descriptor for due_confidence field.
+	todocandidateDescDueConfidence := todocandidateFields[13].Descriptor()
+	// todocandidate.DefaultDueConfidence holds the default value on creation for the due_confidence field.
+	todocandidate.DefaultDueConfidence = todocandidateDescDueConfidence.Default.(float64)
 	// todocandidateDescConfidence is the schema descriptor for confidence field.
-	todocandidateDescConfidence := todocandidateFields[10].Descriptor()
+	todocandidateDescConfidence := todocandidateFields[16].Descriptor()
 	// todocandidate.DefaultConfidence holds the default value on creation for the confidence field.
 	todocandidate.DefaultConfidence = todocandidateDescConfidence.Default.(float64)
 	// todocandidateDescID is the schema descriptor for id field.

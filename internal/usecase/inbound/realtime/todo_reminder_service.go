@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"assistant-api/internal/ent"
 	llminteraction "assistant-api/internal/usecase/ai/llm_interaction"
@@ -29,6 +30,12 @@ type TodoCandidateInput struct {
 	Summary         string
 	Assignees       []string
 	DueText         string
+	DueAt           *time.Time
+	DueTimezone     string
+	DuePrecision    string
+	DueDecision     string
+	DueConfidence   float64
+	DueReason       string
 	MissingFields   []string
 	Confidence      float64
 	Reason          string
@@ -51,6 +58,7 @@ type TodoReminderService struct {
 	llm                  llminteraction.InteractionService
 	ranker               reranker.Service
 	recentLimit          int
+	timezone             string
 }
 
 // TodoReminderServiceOptions 提供待辦提醒服務的可觀測性設定。
@@ -61,6 +69,7 @@ type TodoReminderServiceOptions struct {
 	LLM                  llminteraction.InteractionService
 	Ranker               reranker.Service
 	RecentLimit          int
+	Timezone             string
 }
 
 // NewTodoReminderService 建立待辦提醒即時服務。
@@ -71,6 +80,7 @@ func NewTodoReminderService(options TodoReminderServiceOptions) *TodoReminderSer
 		persistTodoCandidate: options.PersistTodoCandidate,
 		llm:                  options.LLM,
 		ranker:               options.Ranker,
+		timezone:             strings.TrimSpace(options.Timezone),
 		// RecentLimit 必須由 config 層解析後注入；預設值集中在 ai.history_context.recent_message_limit，
 		// usecase 不再內建 8，避免未來調整召回窗口時出現「設定檔一份、程式碼一份」的漂移。
 		recentLimit: options.RecentLimit,
@@ -244,6 +254,7 @@ func (s *TodoReminderService) persistTodoCandidateAnalysis(ctx context.Context, 
 		)
 		return
 	}
+	dueTime := s.normalizeTodoDueTime(ctx, messageCtx, analysis)
 	item, err := s.persistTodoCandidate(ctx, TodoCandidateInput{
 		ChannelID:       messageCtx.SavedMessage.ChannelID,
 		MessageID:       messageCtx.SavedMessage.ID,
@@ -252,6 +263,12 @@ func (s *TodoReminderService) persistTodoCandidateAnalysis(ctx context.Context, 
 		Summary:         strings.TrimSpace(analysis.Summary),
 		Assignees:       append([]string(nil), analysis.Assignees...),
 		DueText:         strings.TrimSpace(analysis.DueText),
+		DueAt:           dueTime.dueAt,
+		DueTimezone:     dueTime.timezone,
+		DuePrecision:    dueTime.precision,
+		DueDecision:     dueTime.decision,
+		DueConfidence:   dueTime.confidence,
+		DueReason:       dueTime.reason,
 		MissingFields:   append([]string(nil), analysis.MissingFields...),
 		Confidence:      analysis.Confidence,
 		Reason:          strings.TrimSpace(analysis.Reason),
@@ -287,6 +304,94 @@ func parseOptionalUUID(value string) (uuid.UUID, error) {
 		return uuid.Nil, err
 	}
 	return parsed, nil
+}
+
+type normalizedTodoDueTime struct {
+	dueAt      *time.Time
+	timezone   string
+	precision  string
+	decision   string
+	confidence float64
+	reason     string
+}
+
+func (s *TodoReminderService) normalizeTodoDueTime(ctx context.Context, messageCtx MessageContext, analysis *llminteraction.TodoAnalysis) normalizedTodoDueTime {
+	dueText := strings.TrimSpace(analysis.DueText)
+	if s == nil || s.llm == nil || messageCtx.SavedMessage == nil || dueText == "" {
+		return normalizedTodoDueTime{}
+	}
+	timezone := strings.TrimSpace(s.timezone)
+	if timezone == "" {
+		// timezone 必須由 config 注入；缺設定時只跳過時間正規化，不阻止 candidate 本身落庫。
+		zap.L().Warn("todo reminder due time normalization skipped: timezone is not configured",
+			zap.String("platform", s.platformLabel),
+			zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+		)
+		return normalizedTodoDueTime{}
+	}
+	location, err := time.LoadLocation(timezone)
+	if err != nil {
+		zap.L().Warn("todo reminder due time normalization skipped: timezone is invalid",
+			zap.String("platform", s.platformLabel),
+			zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+			zap.String("timezone", timezone),
+			zap.Error(err),
+		)
+		return normalizedTodoDueTime{}
+	}
+	if messageCtx.SavedMessage.CreatedAt.IsZero() {
+		// reference_time 是相對時間解析的基準；缺失時不猜現在時間，避免重放舊訊息時解析成錯誤日期。
+		zap.L().Warn("todo reminder due time normalization skipped: reference time is empty",
+			zap.String("platform", s.platformLabel),
+			zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+		)
+		return normalizedTodoDueTime{}
+	}
+	prompt := buildTodoDueTimePrompt(messageCtx, analysis, messageCtx.SavedMessage.CreatedAt.In(location), timezone)
+	zap.L().Info("todo reminder due time normalizer request prepared",
+		zap.String("platform", s.platformLabel),
+		zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+		zap.String("due_text", dueText),
+		zap.String("timezone", timezone),
+		zap.String("prompt", prompt),
+	)
+	result, err := s.llm.AnalyzeTodoDueTime(ctx, prompt, dueText)
+	if err != nil {
+		zap.L().Warn("todo reminder due time normalization failed",
+			zap.String("platform", s.platformLabel),
+			zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+			zap.String("due_text", dueText),
+			zap.Error(err),
+		)
+		return normalizedTodoDueTime{}
+	}
+	if result == nil {
+		return normalizedTodoDueTime{}
+	}
+	zap.L().Info("todo reminder due time normalized",
+		zap.String("platform", s.platformLabel),
+		zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+		zap.String("decision", strings.TrimSpace(result.Decision)),
+		zap.String("due_at", strings.TrimSpace(result.DueAt)),
+		zap.String("timezone", strings.TrimSpace(result.Timezone)),
+		zap.String("precision", strings.TrimSpace(result.Precision)),
+		zap.Float64("confidence", result.Confidence),
+		zap.String("reason", strings.TrimSpace(result.Reason)),
+	)
+	if strings.TrimSpace(result.Decision) != "normalized" {
+		return normalizedTodoDueTime{decision: strings.TrimSpace(result.Decision), timezone: strings.TrimSpace(result.Timezone), precision: strings.TrimSpace(result.Precision), confidence: result.Confidence, reason: strings.TrimSpace(result.Reason)}
+	}
+	parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(result.DueAt))
+	if err != nil {
+		zap.L().Warn("todo reminder due time normalization skipped: due_at is invalid",
+			zap.String("platform", s.platformLabel),
+			zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+			zap.String("due_at", strings.TrimSpace(result.DueAt)),
+			zap.Error(err),
+		)
+		return normalizedTodoDueTime{}
+	}
+	return normalizedTodoDueTime{dueAt: &parsed, decision: strings.TrimSpace(result.Decision), timezone: strings.TrimSpace(result.Timezone), precision: strings.TrimSpace(result.Precision), confidence: result.Confidence, reason: strings.TrimSpace(result.Reason)}
 }
 
 func (s *TodoReminderService) rerankImplicitReplyCandidates(ctx context.Context, query string, recentMessages []*ent.ChannelMessage) ([]*ent.ChannelMessage, error) {
@@ -444,4 +549,28 @@ func buildImplicitReplyTodoPrompt(recentMessages []*ent.ChannelMessage, result C
 		result.ScoreMargin,
 	))
 	return builder.String()
+}
+
+func buildTodoDueTimePrompt(messageCtx MessageContext, analysis *llminteraction.TodoAnalysis, referenceTime time.Time, timezone string) string {
+	return strings.TrimSpace(fmt.Sprintf(`你是 Todo Reminder 的時間正規化器。請把 due_text 依 reference_time 與 timezone 轉成 RFC3339 due_at。
+只能輸出 todo_due_time JSON contract：schema_version, decision, due_at, timezone, precision, confidence, missing_fields, reason。
+
+規則：
+- decision 只能是 normalized、needs_more_info、no_due_time。
+- normalized 時 due_at 必須是 RFC3339，例如 2026-07-20T09:00:00+08:00，timezone 必須使用輸入 timezone。
+- 若 due_text 只有日期沒有時間，precision 使用 date，due_at 可用該日期 09:00:00 作為候選提醒時間，但 reason 必須說明時間是預設候選。
+- 若 due_text 太模糊而無法安全排程，decision 使用 needs_more_info 並填 missing_fields。
+- 不可輸出額外欄位，不可用自然語言包住 JSON。
+
+reference_time=%s
+timezone=%s
+current_text=%q
+summary=%q
+due_text=%q`,
+		referenceTime.Format(time.RFC3339),
+		strings.TrimSpace(timezone),
+		strings.TrimSpace(messageCtx.Message.Text),
+		strings.TrimSpace(analysis.Summary),
+		strings.TrimSpace(analysis.DueText),
+	))
 }

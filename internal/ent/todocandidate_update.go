@@ -157,6 +157,121 @@ func (_u *TodoCandidateUpdate) ClearDueText() *TodoCandidateUpdate {
 	return _u
 }
 
+// SetDueAt sets the "due_at" field.
+func (_u *TodoCandidateUpdate) SetDueAt(v time.Time) *TodoCandidateUpdate {
+	_u.mutation.SetDueAt(v)
+	return _u
+}
+
+// SetNillableDueAt sets the "due_at" field if the given value is not nil.
+func (_u *TodoCandidateUpdate) SetNillableDueAt(v *time.Time) *TodoCandidateUpdate {
+	if v != nil {
+		_u.SetDueAt(*v)
+	}
+	return _u
+}
+
+// ClearDueAt clears the value of the "due_at" field.
+func (_u *TodoCandidateUpdate) ClearDueAt() *TodoCandidateUpdate {
+	_u.mutation.ClearDueAt()
+	return _u
+}
+
+// SetDueTimezone sets the "due_timezone" field.
+func (_u *TodoCandidateUpdate) SetDueTimezone(v string) *TodoCandidateUpdate {
+	_u.mutation.SetDueTimezone(v)
+	return _u
+}
+
+// SetNillableDueTimezone sets the "due_timezone" field if the given value is not nil.
+func (_u *TodoCandidateUpdate) SetNillableDueTimezone(v *string) *TodoCandidateUpdate {
+	if v != nil {
+		_u.SetDueTimezone(*v)
+	}
+	return _u
+}
+
+// ClearDueTimezone clears the value of the "due_timezone" field.
+func (_u *TodoCandidateUpdate) ClearDueTimezone() *TodoCandidateUpdate {
+	_u.mutation.ClearDueTimezone()
+	return _u
+}
+
+// SetDuePrecision sets the "due_precision" field.
+func (_u *TodoCandidateUpdate) SetDuePrecision(v todocandidate.DuePrecision) *TodoCandidateUpdate {
+	_u.mutation.SetDuePrecision(v)
+	return _u
+}
+
+// SetNillableDuePrecision sets the "due_precision" field if the given value is not nil.
+func (_u *TodoCandidateUpdate) SetNillableDuePrecision(v *todocandidate.DuePrecision) *TodoCandidateUpdate {
+	if v != nil {
+		_u.SetDuePrecision(*v)
+	}
+	return _u
+}
+
+// SetDueNormalizeDecision sets the "due_normalize_decision" field.
+func (_u *TodoCandidateUpdate) SetDueNormalizeDecision(v todocandidate.DueNormalizeDecision) *TodoCandidateUpdate {
+	_u.mutation.SetDueNormalizeDecision(v)
+	return _u
+}
+
+// SetNillableDueNormalizeDecision sets the "due_normalize_decision" field if the given value is not nil.
+func (_u *TodoCandidateUpdate) SetNillableDueNormalizeDecision(v *todocandidate.DueNormalizeDecision) *TodoCandidateUpdate {
+	if v != nil {
+		_u.SetDueNormalizeDecision(*v)
+	}
+	return _u
+}
+
+// ClearDueNormalizeDecision clears the value of the "due_normalize_decision" field.
+func (_u *TodoCandidateUpdate) ClearDueNormalizeDecision() *TodoCandidateUpdate {
+	_u.mutation.ClearDueNormalizeDecision()
+	return _u
+}
+
+// SetDueConfidence sets the "due_confidence" field.
+func (_u *TodoCandidateUpdate) SetDueConfidence(v float64) *TodoCandidateUpdate {
+	_u.mutation.ResetDueConfidence()
+	_u.mutation.SetDueConfidence(v)
+	return _u
+}
+
+// SetNillableDueConfidence sets the "due_confidence" field if the given value is not nil.
+func (_u *TodoCandidateUpdate) SetNillableDueConfidence(v *float64) *TodoCandidateUpdate {
+	if v != nil {
+		_u.SetDueConfidence(*v)
+	}
+	return _u
+}
+
+// AddDueConfidence adds value to the "due_confidence" field.
+func (_u *TodoCandidateUpdate) AddDueConfidence(v float64) *TodoCandidateUpdate {
+	_u.mutation.AddDueConfidence(v)
+	return _u
+}
+
+// SetDueReason sets the "due_reason" field.
+func (_u *TodoCandidateUpdate) SetDueReason(v string) *TodoCandidateUpdate {
+	_u.mutation.SetDueReason(v)
+	return _u
+}
+
+// SetNillableDueReason sets the "due_reason" field if the given value is not nil.
+func (_u *TodoCandidateUpdate) SetNillableDueReason(v *string) *TodoCandidateUpdate {
+	if v != nil {
+		_u.SetDueReason(*v)
+	}
+	return _u
+}
+
+// ClearDueReason clears the value of the "due_reason" field.
+func (_u *TodoCandidateUpdate) ClearDueReason() *TodoCandidateUpdate {
+	_u.mutation.ClearDueReason()
+	return _u
+}
+
 // SetMissingFields sets the "missing_fields" field.
 func (_u *TodoCandidateUpdate) SetMissingFields(v []string) *TodoCandidateUpdate {
 	_u.mutation.SetMissingFields(v)
@@ -291,6 +406,16 @@ func (_u *TodoCandidateUpdate) check() error {
 			return &ValidationError{Name: "last_decision", err: fmt.Errorf(`ent: validator failed for field "TodoCandidate.last_decision": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DuePrecision(); ok {
+		if err := todocandidate.DuePrecisionValidator(v); err != nil {
+			return &ValidationError{Name: "due_precision", err: fmt.Errorf(`ent: validator failed for field "TodoCandidate.due_precision": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.DueNormalizeDecision(); ok {
+		if err := todocandidate.DueNormalizeDecisionValidator(v); err != nil {
+			return &ValidationError{Name: "due_normalize_decision", err: fmt.Errorf(`ent: validator failed for field "TodoCandidate.due_normalize_decision": %w`, err)}
+		}
+	}
 	if _u.mutation.ChannelCleared() && len(_u.mutation.ChannelIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "TodoCandidate.channel"`)
 	}
@@ -346,6 +471,39 @@ func (_u *TodoCandidateUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.DueTextCleared() {
 		_spec.ClearField(todocandidate.FieldDueText, field.TypeString)
+	}
+	if value, ok := _u.mutation.DueAt(); ok {
+		_spec.SetField(todocandidate.FieldDueAt, field.TypeTime, value)
+	}
+	if _u.mutation.DueAtCleared() {
+		_spec.ClearField(todocandidate.FieldDueAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.DueTimezone(); ok {
+		_spec.SetField(todocandidate.FieldDueTimezone, field.TypeString, value)
+	}
+	if _u.mutation.DueTimezoneCleared() {
+		_spec.ClearField(todocandidate.FieldDueTimezone, field.TypeString)
+	}
+	if value, ok := _u.mutation.DuePrecision(); ok {
+		_spec.SetField(todocandidate.FieldDuePrecision, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.DueNormalizeDecision(); ok {
+		_spec.SetField(todocandidate.FieldDueNormalizeDecision, field.TypeEnum, value)
+	}
+	if _u.mutation.DueNormalizeDecisionCleared() {
+		_spec.ClearField(todocandidate.FieldDueNormalizeDecision, field.TypeEnum)
+	}
+	if value, ok := _u.mutation.DueConfidence(); ok {
+		_spec.SetField(todocandidate.FieldDueConfidence, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedDueConfidence(); ok {
+		_spec.AddField(todocandidate.FieldDueConfidence, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.DueReason(); ok {
+		_spec.SetField(todocandidate.FieldDueReason, field.TypeString, value)
+	}
+	if _u.mutation.DueReasonCleared() {
+		_spec.ClearField(todocandidate.FieldDueReason, field.TypeString)
 	}
 	if value, ok := _u.mutation.MissingFields(); ok {
 		_spec.SetField(todocandidate.FieldMissingFields, field.TypeJSON, value)
@@ -574,6 +732,121 @@ func (_u *TodoCandidateUpdateOne) ClearDueText() *TodoCandidateUpdateOne {
 	return _u
 }
 
+// SetDueAt sets the "due_at" field.
+func (_u *TodoCandidateUpdateOne) SetDueAt(v time.Time) *TodoCandidateUpdateOne {
+	_u.mutation.SetDueAt(v)
+	return _u
+}
+
+// SetNillableDueAt sets the "due_at" field if the given value is not nil.
+func (_u *TodoCandidateUpdateOne) SetNillableDueAt(v *time.Time) *TodoCandidateUpdateOne {
+	if v != nil {
+		_u.SetDueAt(*v)
+	}
+	return _u
+}
+
+// ClearDueAt clears the value of the "due_at" field.
+func (_u *TodoCandidateUpdateOne) ClearDueAt() *TodoCandidateUpdateOne {
+	_u.mutation.ClearDueAt()
+	return _u
+}
+
+// SetDueTimezone sets the "due_timezone" field.
+func (_u *TodoCandidateUpdateOne) SetDueTimezone(v string) *TodoCandidateUpdateOne {
+	_u.mutation.SetDueTimezone(v)
+	return _u
+}
+
+// SetNillableDueTimezone sets the "due_timezone" field if the given value is not nil.
+func (_u *TodoCandidateUpdateOne) SetNillableDueTimezone(v *string) *TodoCandidateUpdateOne {
+	if v != nil {
+		_u.SetDueTimezone(*v)
+	}
+	return _u
+}
+
+// ClearDueTimezone clears the value of the "due_timezone" field.
+func (_u *TodoCandidateUpdateOne) ClearDueTimezone() *TodoCandidateUpdateOne {
+	_u.mutation.ClearDueTimezone()
+	return _u
+}
+
+// SetDuePrecision sets the "due_precision" field.
+func (_u *TodoCandidateUpdateOne) SetDuePrecision(v todocandidate.DuePrecision) *TodoCandidateUpdateOne {
+	_u.mutation.SetDuePrecision(v)
+	return _u
+}
+
+// SetNillableDuePrecision sets the "due_precision" field if the given value is not nil.
+func (_u *TodoCandidateUpdateOne) SetNillableDuePrecision(v *todocandidate.DuePrecision) *TodoCandidateUpdateOne {
+	if v != nil {
+		_u.SetDuePrecision(*v)
+	}
+	return _u
+}
+
+// SetDueNormalizeDecision sets the "due_normalize_decision" field.
+func (_u *TodoCandidateUpdateOne) SetDueNormalizeDecision(v todocandidate.DueNormalizeDecision) *TodoCandidateUpdateOne {
+	_u.mutation.SetDueNormalizeDecision(v)
+	return _u
+}
+
+// SetNillableDueNormalizeDecision sets the "due_normalize_decision" field if the given value is not nil.
+func (_u *TodoCandidateUpdateOne) SetNillableDueNormalizeDecision(v *todocandidate.DueNormalizeDecision) *TodoCandidateUpdateOne {
+	if v != nil {
+		_u.SetDueNormalizeDecision(*v)
+	}
+	return _u
+}
+
+// ClearDueNormalizeDecision clears the value of the "due_normalize_decision" field.
+func (_u *TodoCandidateUpdateOne) ClearDueNormalizeDecision() *TodoCandidateUpdateOne {
+	_u.mutation.ClearDueNormalizeDecision()
+	return _u
+}
+
+// SetDueConfidence sets the "due_confidence" field.
+func (_u *TodoCandidateUpdateOne) SetDueConfidence(v float64) *TodoCandidateUpdateOne {
+	_u.mutation.ResetDueConfidence()
+	_u.mutation.SetDueConfidence(v)
+	return _u
+}
+
+// SetNillableDueConfidence sets the "due_confidence" field if the given value is not nil.
+func (_u *TodoCandidateUpdateOne) SetNillableDueConfidence(v *float64) *TodoCandidateUpdateOne {
+	if v != nil {
+		_u.SetDueConfidence(*v)
+	}
+	return _u
+}
+
+// AddDueConfidence adds value to the "due_confidence" field.
+func (_u *TodoCandidateUpdateOne) AddDueConfidence(v float64) *TodoCandidateUpdateOne {
+	_u.mutation.AddDueConfidence(v)
+	return _u
+}
+
+// SetDueReason sets the "due_reason" field.
+func (_u *TodoCandidateUpdateOne) SetDueReason(v string) *TodoCandidateUpdateOne {
+	_u.mutation.SetDueReason(v)
+	return _u
+}
+
+// SetNillableDueReason sets the "due_reason" field if the given value is not nil.
+func (_u *TodoCandidateUpdateOne) SetNillableDueReason(v *string) *TodoCandidateUpdateOne {
+	if v != nil {
+		_u.SetDueReason(*v)
+	}
+	return _u
+}
+
+// ClearDueReason clears the value of the "due_reason" field.
+func (_u *TodoCandidateUpdateOne) ClearDueReason() *TodoCandidateUpdateOne {
+	_u.mutation.ClearDueReason()
+	return _u
+}
+
 // SetMissingFields sets the "missing_fields" field.
 func (_u *TodoCandidateUpdateOne) SetMissingFields(v []string) *TodoCandidateUpdateOne {
 	_u.mutation.SetMissingFields(v)
@@ -721,6 +994,16 @@ func (_u *TodoCandidateUpdateOne) check() error {
 			return &ValidationError{Name: "last_decision", err: fmt.Errorf(`ent: validator failed for field "TodoCandidate.last_decision": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DuePrecision(); ok {
+		if err := todocandidate.DuePrecisionValidator(v); err != nil {
+			return &ValidationError{Name: "due_precision", err: fmt.Errorf(`ent: validator failed for field "TodoCandidate.due_precision": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.DueNormalizeDecision(); ok {
+		if err := todocandidate.DueNormalizeDecisionValidator(v); err != nil {
+			return &ValidationError{Name: "due_normalize_decision", err: fmt.Errorf(`ent: validator failed for field "TodoCandidate.due_normalize_decision": %w`, err)}
+		}
+	}
 	if _u.mutation.ChannelCleared() && len(_u.mutation.ChannelIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "TodoCandidate.channel"`)
 	}
@@ -793,6 +1076,39 @@ func (_u *TodoCandidateUpdateOne) sqlSave(ctx context.Context) (_node *TodoCandi
 	}
 	if _u.mutation.DueTextCleared() {
 		_spec.ClearField(todocandidate.FieldDueText, field.TypeString)
+	}
+	if value, ok := _u.mutation.DueAt(); ok {
+		_spec.SetField(todocandidate.FieldDueAt, field.TypeTime, value)
+	}
+	if _u.mutation.DueAtCleared() {
+		_spec.ClearField(todocandidate.FieldDueAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.DueTimezone(); ok {
+		_spec.SetField(todocandidate.FieldDueTimezone, field.TypeString, value)
+	}
+	if _u.mutation.DueTimezoneCleared() {
+		_spec.ClearField(todocandidate.FieldDueTimezone, field.TypeString)
+	}
+	if value, ok := _u.mutation.DuePrecision(); ok {
+		_spec.SetField(todocandidate.FieldDuePrecision, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.DueNormalizeDecision(); ok {
+		_spec.SetField(todocandidate.FieldDueNormalizeDecision, field.TypeEnum, value)
+	}
+	if _u.mutation.DueNormalizeDecisionCleared() {
+		_spec.ClearField(todocandidate.FieldDueNormalizeDecision, field.TypeEnum)
+	}
+	if value, ok := _u.mutation.DueConfidence(); ok {
+		_spec.SetField(todocandidate.FieldDueConfidence, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedDueConfidence(); ok {
+		_spec.AddField(todocandidate.FieldDueConfidence, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.DueReason(); ok {
+		_spec.SetField(todocandidate.FieldDueReason, field.TypeString, value)
+	}
+	if _u.mutation.DueReasonCleared() {
+		_spec.ClearField(todocandidate.FieldDueReason, field.TypeString)
 	}
 	if value, ok := _u.mutation.MissingFields(); ok {
 		_spec.SetField(todocandidate.FieldMissingFields, field.TypeJSON, value)
