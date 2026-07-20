@@ -15,8 +15,17 @@ import (
 )
 
 type stubRecentMessageStore struct {
-	calls int
-	items []*ent.ChannelMessage
+	calls       int
+	parentCalls int
+	parent      *ent.ChannelMessage
+	items       []*ent.ChannelMessage
+}
+
+func (s *stubRecentMessageStore) ResolveParentMessage(ctx context.Context, message *ent.ChannelMessage) (*ent.ChannelMessage, error) {
+	_ = ctx
+	_ = message
+	s.parentCalls++
+	return s.parent, nil
 }
 
 func (s *stubRecentMessageStore) FindRecentMessagesBefore(ctx context.Context, message *ent.ChannelMessage, limit int) ([]*ent.ChannelMessage, error) {
@@ -129,7 +138,7 @@ func TestTodoReminderServiceAnalyzesImplicitReplyContext(t *testing.T) {
 func TestBuildImplicitReplyTodoPromptRequiresArrayFields(t *testing.T) {
 	// 本地小模型容易把 assignees 輸出成字串或物件；prompt 必須明確鎖住 array<string>，
 	// 讓 Python validator 的 validation retry 可以修正同一份 contract，而不是放寬解析規則。
-	prompt := buildImplicitReplyTodoPrompt(nil, ClassificationResult{Tag: "todo", Signal: ClassificationSignalCandidate, Confidence: 0.9})
+	prompt := buildImplicitReplyTodoPrompt(nil, nil, ClassificationResult{Tag: "todo", Signal: ClassificationSignalCandidate, Confidence: 0.9})
 
 	if !strings.Contains(prompt, "assignees 與 missing_fields 永遠是 string array") {
 		t.Fatalf("expected prompt to require string array fields, got %q", prompt)
@@ -142,7 +151,7 @@ func TestBuildImplicitReplyTodoPromptRequiresArrayFields(t *testing.T) {
 func TestBuildImplicitReplyTodoPromptTreatsReminderLanguageAsCandidate(t *testing.T) {
 	// 使用者常用「提醒我」「記得」這類日常語氣建立待辦；prompt 必須明確要求 analyzer
 	// 依可追蹤事項判斷，而不是因為語氣不像正式指令就回 no_action。
-	prompt := buildImplicitReplyTodoPrompt(nil, ClassificationResult{Tag: "todo", Signal: ClassificationSignalCandidate, Confidence: 0.9})
+	prompt := buildImplicitReplyTodoPrompt(nil, nil, ClassificationResult{Tag: "todo", Signal: ClassificationSignalCandidate, Confidence: 0.9})
 
 	if !strings.Contains(prompt, "日常提醒語氣") || !strings.Contains(prompt, "不可只因為語氣日常就判 no_action") {
 		t.Fatalf("expected prompt to treat reminder language as todo candidate, got %q", prompt)
@@ -237,23 +246,31 @@ func TestTodoReminderServiceDoesNotPersistNoAction(t *testing.T) {
 	}
 }
 
-func TestTodoReminderServiceSkipsImplicitReplyWhenExplicitReplyExists(t *testing.T) {
-	// 顯式平台 reply 已經有 reply_to_msg_id 可走既有 command/reply chain；
-	// implicit linker 不應重複查最近訊息，避免同一則 reply 被兩條路徑同時判斷。
-	repo := &stubRecentMessageStore{}
+func TestTodoReminderServiceAnalyzesExplicitReplyContextOutsideRecentWindow(t *testing.T) {
+	// 顯式平台 reply/quote 是使用者直接指定的上下文，不應受 recent history window 限制；
+	// todo reminder 應直接查 parent message，並避免再跑 implicit recent query。
+	channelID := uuid.New()
+	parentMessageID := uuid.New()
+	repo := &stubRecentMessageStore{parent: &ent.ChannelMessage{ID: parentMessageID, ChannelID: channelID, SenderName: "主管", Content: "下個月一號前交預算表", CreatedAt: time.Now().Add(-24 * time.Hour)}}
 	analyzer := &stubContextAnalyzer{}
 	service := NewTodoReminderService(TodoReminderServiceOptions{Repo: repo, LLM: analyzer, PlatformLabel: "test"})
 
 	service.HandleClassification(context.Background(), MessageContext{
 		Message:      &unifiedmessage.Message{ChannelID: "channel-1", PlatformMessageID: "m-2", ReplyToMsgID: "m-1", MessageType: "text", Text: "我晚點弄"},
-		SavedMessage: &ent.ChannelMessage{ID: uuid.New(), ChannelID: uuid.New(), Content: "我晚點弄", CreatedAt: time.Now()},
+		SavedMessage: &ent.ChannelMessage{ID: uuid.New(), ChannelID: channelID, ReplyToMsgID: "m-1", Content: "我來處理", CreatedAt: time.Now()},
 	}, ClassificationResult{Tag: "todo", Signal: ClassificationSignalCandidate})
 
+	if repo.parentCalls != 1 {
+		t.Fatalf("expected explicit reply parent query to be called once, got %d", repo.parentCalls)
+	}
 	if repo.calls != 0 {
 		t.Fatalf("expected explicit reply to skip recent message query, got %d calls", repo.calls)
 	}
-	if analyzer.calls != 0 {
-		t.Fatalf("expected explicit reply to skip todo analyzer, got %d calls", analyzer.calls)
+	if analyzer.calls != 1 {
+		t.Fatalf("expected explicit reply to call todo analyzer once, got %d calls", analyzer.calls)
+	}
+	if !strings.Contains(analyzer.prompt, "Explicit reply/quote target") || !strings.Contains(analyzer.prompt, parentMessageID.String()) || !strings.Contains(analyzer.prompt, "下個月一號前交預算表") {
+		t.Fatalf("expected prompt to include explicit reply target, got %q", analyzer.prompt)
 	}
 }
 

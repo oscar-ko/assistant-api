@@ -14,9 +14,10 @@ import (
 	"go.uber.org/zap"
 )
 
-// RecentMessageStore 提供 implicit reply linker 需要的近端上下文查詢能力。
+// RecentMessageStore 提供 todo reply linker 需要的上下文查詢能力。
 // 這裡只依賴最小方法，避免 realtime usecase 直接綁死 repository concrete type。
 type RecentMessageStore interface {
+	ResolveParentMessage(ctx context.Context, message *ent.ChannelMessage) (*ent.ChannelMessage, error)
 	FindRecentMessagesBefore(ctx context.Context, message *ent.ChannelMessage, limit int) ([]*ent.ChannelMessage, error)
 }
 
@@ -122,7 +123,73 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 		return
 	}
 	if strings.TrimSpace(messageCtx.Message.ReplyToMsgID) != "" {
-		// 顯式平台 reply 會走既有 reply chain；這裡只處理「沒有按 reply」的隱式接續。
+		// 顯式平台 reply/quote 是強關聯，不受 recent history window 限制；直接查被引用訊息。
+		explicitReplyTarget, err := s.repo.ResolveParentMessage(ctx, messageCtx.SavedMessage)
+		if err != nil {
+			zap.L().Warn("todo reminder explicit reply context skipped: parent message query failed",
+				zap.String("platform", s.platformLabel),
+				zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+				zap.String("reply_to_msg_id", strings.TrimSpace(messageCtx.Message.ReplyToMsgID)),
+				zap.Error(err),
+			)
+			return
+		}
+		if explicitReplyTarget == nil {
+			zap.L().Warn("todo reminder explicit reply context skipped: parent message not found",
+				zap.String("platform", s.platformLabel),
+				zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+				zap.String("reply_to_msg_id", strings.TrimSpace(messageCtx.Message.ReplyToMsgID)),
+			)
+			return
+		}
+
+		zap.L().Info("todo reminder explicit reply context resolved",
+			zap.String("platform", s.platformLabel),
+			zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+			zap.String("reply_to_msg_id", strings.TrimSpace(messageCtx.Message.ReplyToMsgID)),
+			zap.String("parent_message_id", explicitReplyTarget.ID.String()),
+			zap.String("parent_text", strings.TrimSpace(explicitReplyTarget.Content)),
+		)
+		prompt := buildImplicitReplyTodoPrompt(explicitReplyTarget, nil, result)
+		zap.L().Info("todo reminder todo analyzer request prepared",
+			zap.String("platform", s.platformLabel),
+			zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+			zap.String("current_text", strings.TrimSpace(messageCtx.Message.Text)),
+			zap.String("prompt", prompt),
+			zap.Int("prompt_length", len([]rune(prompt))),
+		)
+		analysis, err := s.llm.AnalyzeTodo(ctx, prompt, strings.TrimSpace(messageCtx.Message.Text))
+		if err != nil {
+			zap.L().Warn("todo reminder explicit reply todo analysis failed",
+				zap.String("platform", s.platformLabel),
+				zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+				zap.Error(err),
+			)
+			return
+		}
+		if analysis == nil {
+			return
+		}
+
+		zap.L().Info("todo reminder explicit reply todo analyzed",
+			zap.String("platform", s.platformLabel),
+			zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+			zap.String("decision", strings.TrimSpace(analysis.Decision)),
+			zap.String("linked_message_id", strings.TrimSpace(analysis.LinkedMessageID)),
+			zap.String("summary", strings.TrimSpace(analysis.Summary)),
+			zap.Strings("assignees", append([]string(nil), analysis.Assignees...)),
+			zap.String("due_text", strings.TrimSpace(analysis.DueText)),
+			zap.Float64("confidence", analysis.Confidence),
+			zap.Strings("missing_fields", append([]string(nil), analysis.MissingFields...)),
+			zap.String("reason", strings.TrimSpace(analysis.Reason)),
+		)
+		s.persistTodoCandidateAnalysis(ctx, messageCtx, analysis)
 		return
 	}
 	if s.recentLimit <= 0 {
@@ -195,7 +262,7 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 
 	// todo analyzer 是最後一道結構化判斷：它會在 bounded context 內輸出 todo 專用 decision，
 	// 下游只讀 schema，不需要靠自然語言或關鍵字猜測使用者是不是在接前文。
-	prompt := buildImplicitReplyTodoPrompt(recentMessages, result)
+	prompt := buildImplicitReplyTodoPrompt(nil, recentMessages, result)
 	zap.L().Info("todo reminder todo analyzer request prepared",
 		zap.String("platform", s.platformLabel),
 		zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
@@ -525,18 +592,26 @@ func formatRankedDocumentLogEntries(documents []reranker.RankedDocument) []map[s
 	return entries
 }
 
-func buildImplicitReplyTodoPrompt(recentMessages []*ent.ChannelMessage, result ClassificationResult) string {
+func buildImplicitReplyTodoPrompt(explicitReplyTarget *ent.ChannelMessage, recentMessages []*ent.ChannelMessage, result ClassificationResult) string {
 	var builder strings.Builder
 	builder.WriteString("你是 Todo Reminder 的內部 structured analyzer。請判斷 Current message 是否應形成、更新、承接或取消待辦候選，即使使用者沒有按平台 reply。\n")
 	builder.WriteString("只能輸出 todo_analysis JSON contract：schema_version, decision, linked_message_id, summary, assignees, due_text, confidence, missing_fields, reason。\n")
 	builder.WriteString("decision 只能是 create_candidate、update_candidate、acknowledge、cancel_candidate、needs_more_info、no_action。\n")
-	builder.WriteString("linked_message_id 必須來自 Recent messages 的 id；全新待辦或 no_action 時使用空字串。\n")
+	builder.WriteString("linked_message_id 必須來自 Explicit reply/quote target 或 Recent messages 的 id；全新待辦或 no_action 時使用空字串。\n")
+	builder.WriteString("若存在 Explicit reply/quote target，這是使用者明確引用的訊息，即使很久以前也優先作為接續上下文。\n")
 	builder.WriteString("提醒、請記得、到時提醒我、不要忘記、幫我記一下等日常提醒語氣，只要包含可追蹤事項、承諾、交付、時間或對象，就屬於 Todo candidate；不可只因為語氣日常就判 no_action。\n")
 	builder.WriteString("summary 是整理後的待辦內容；due_text 保留使用者原本的時間字面，不要自行正規化日期；assignees 保留訊息中可見的人名或稱呼。\n")
 	builder.WriteString("欄位型別必須固定：schema_version/decision/linked_message_id/summary/due_text/reason 是 string，confidence 是 number，assignees 與 missing_fields 永遠是 string array；沒有人名或缺漏欄位時輸出 []，不可輸出字串、物件或 null。\n")
 	builder.WriteString("needs_more_info 時 missing_fields 必須指出缺 summary、assignees 或 due_text 等欄位；no_action 時 linked_message_id、summary、assignees、due_text、missing_fields 都必須為空。\n")
 	builder.WriteString("JSON shape 範例：{\"schema_version\":\"v1\",\"decision\":\"no_action\",\"linked_message_id\":\"\",\"summary\":\"\",\"assignees\":[],\"due_text\":\"\",\"confidence\":0.0,\"missing_fields\":[],\"reason\":\"...\"}\n")
 	builder.WriteString("不可輸出額外欄位，不可用自然語言包住 JSON。\n\n")
+	builder.WriteString("Explicit reply/quote target:\n")
+	if explicitReplyTarget != nil {
+		builder.WriteString(fmt.Sprintf("id=%s sender=%s text=%q\n", explicitReplyTarget.ID.String(), strings.TrimSpace(explicitReplyTarget.SenderName), strings.TrimSpace(explicitReplyTarget.Content)))
+	} else {
+		builder.WriteString("none\n")
+	}
+	builder.WriteString("\n")
 	builder.WriteString("Recent messages:\n")
 	for index, item := range recentMessages {
 		if item == nil {
