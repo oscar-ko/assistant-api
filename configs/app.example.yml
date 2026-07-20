@@ -54,6 +54,9 @@ ai:
     todo_reminder:
         # due_text 正規化使用的 IANA timezone；不同部署地區請明確覆寫。
         timezone: "Asia/Taipei"
+        # 顯式 reply/quote 往上追溯 parent message 的最大層數。
+        # 每層 parent 會建立一個 message window 並依時間合併；此值應小而明確，避免 prompt 過長。
+        reply_chain_max_depth: 4
 
     # LLM 互動服務（第三階段）
     llm_interaction:

@@ -62,6 +62,9 @@ type TodoReminderConfig struct {
 	// Timezone 是 due_text 正規化時使用的 IANA timezone，例如 Asia/Taipei。
 	// 它屬於 todo reminder 行為設定，不放在 history_context，避免把歷史召回窗口和時間解析混在一起。
 	Timezone string `mapstructure:"timezone" yaml:"timezone"`
+	// ReplyChainMaxDepth 控制顯式 reply/quote 往上追溯幾層 parent message。
+	// 每一層 parent 都會形成自己的 message window；設太大會讓 prompt 快速膨脹，因此必須由設定檔明確指定。
+	ReplyChainMaxDepth int `mapstructure:"reply_chain_max_depth" yaml:"reply_chain_max_depth"`
 }
 
 // ClassifierConfig controls the local message classifier used by realtime handlers.

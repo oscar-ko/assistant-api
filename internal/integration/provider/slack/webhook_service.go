@@ -142,7 +142,10 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 		LLM:         options.LLMInteraction,
 		Ranker:      rerankerClient,
 		RecentLimit: config.AI.HistoryContext.RecentMessageLimit,
-		Timezone:    config.AI.TodoReminder.Timezone,
+		// ReplyChainMaxDepth 屬於 Todo Reminder 的顯式 reply/quote 語境組裝策略；
+		// RecentLimit 只決定每個 message window 的大小，兩者語意不同，因此分開注入。
+		ReplyChainMaxDepth: config.AI.TodoReminder.ReplyChainMaxDepth,
+		Timezone:           config.AI.TodoReminder.Timezone,
 	})
 	messageClassifier := realtime.NewMessageClassificationService(realtime.MessageClassificationServiceOptions{
 		TextScanGate:  repo,

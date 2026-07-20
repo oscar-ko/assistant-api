@@ -758,6 +758,60 @@ func (r *ChannelMessageRepo) FindRecentMessagesBefore(ctx context.Context, messa
 	return items, nil
 }
 
+// FindMessageWindowAround 取得同一 channel 內、指定 anchor message 前後的訊息窗口。
+//
+// 用途：
+// - 支援顯式 reply/quote context assembly：被引用訊息可能很舊，但它附近的對話仍可能補充 assignee、時間或取消條件。
+// - anchor message 會固定包含在回傳結果中，讓上層可以把多個 window 去重後依時間組合。
+// - beforeLimit/afterLimit 只控制 anchor 前後各自取幾則；小於等於 0 時代表該側不取。
+func (r *ChannelMessageRepo) FindMessageWindowAround(ctx context.Context, message *ent.ChannelMessage, beforeLimit int, afterLimit int) ([]*ent.ChannelMessage, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("channel repository not initialized")
+	}
+	if message == nil || message.ChannelID == uuid.Nil || message.ID == uuid.Nil {
+		return nil, nil
+	}
+
+	items := make([]*ent.ChannelMessage, 0, beforeLimit+afterLimit+1)
+	if beforeLimit > 0 {
+		beforeItems, err := r.db.ChannelMessage.Query().
+			Where(
+				channelmessage.ChannelIDEQ(message.ChannelID),
+				channelmessage.IDNEQ(message.ID),
+				channelmessage.CreatedAtLT(message.CreatedAt),
+			).
+			Order(ent.Desc(channelmessage.FieldCreatedAt)).
+			Limit(beforeLimit).
+			All(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("query channel messages before anchor failed: %w", err)
+		}
+		for left, right := 0, len(beforeItems)-1; left < right; left, right = left+1, right-1 {
+			beforeItems[left], beforeItems[right] = beforeItems[right], beforeItems[left]
+		}
+		items = append(items, beforeItems...)
+	}
+
+	items = append(items, message)
+
+	if afterLimit > 0 {
+		afterItems, err := r.db.ChannelMessage.Query().
+			Where(
+				channelmessage.ChannelIDEQ(message.ChannelID),
+				channelmessage.IDNEQ(message.ID),
+				channelmessage.CreatedAtGT(message.CreatedAt),
+			).
+			Order(ent.Asc(channelmessage.FieldCreatedAt)).
+			Limit(afterLimit).
+			All(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("query channel messages after anchor failed: %w", err)
+		}
+		items = append(items, afterItems...)
+	}
+	return items, nil
+}
+
 // FindLatestActionOperationByMessageID 取得某則訊息最新的 action api_operation。
 //
 // 為什麼取「最新」：

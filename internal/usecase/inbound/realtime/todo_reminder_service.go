@@ -3,6 +3,7 @@ package realtime
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 // 這裡只依賴最小方法，避免 realtime usecase 直接綁死 repository concrete type。
 type RecentMessageStore interface {
 	ResolveParentMessage(ctx context.Context, message *ent.ChannelMessage) (*ent.ChannelMessage, error)
+	FindMessageWindowAround(ctx context.Context, message *ent.ChannelMessage, beforeLimit int, afterLimit int) ([]*ent.ChannelMessage, error)
 	FindRecentMessagesBefore(ctx context.Context, message *ent.ChannelMessage, limit int) ([]*ent.ChannelMessage, error)
 }
 
@@ -59,6 +61,7 @@ type TodoReminderService struct {
 	llm                  llminteraction.InteractionService
 	ranker               reranker.Service
 	recentLimit          int
+	replyChainMaxDepth   int
 	timezone             string
 }
 
@@ -70,6 +73,7 @@ type TodoReminderServiceOptions struct {
 	LLM                  llminteraction.InteractionService
 	Ranker               reranker.Service
 	RecentLimit          int
+	ReplyChainMaxDepth   int
 	Timezone             string
 }
 
@@ -85,6 +89,9 @@ func NewTodoReminderService(options TodoReminderServiceOptions) *TodoReminderSer
 		// RecentLimit 必須由 config 層解析後注入；預設值集中在 ai.history_context.recent_message_limit，
 		// usecase 不再內建 8，避免未來調整召回窗口時出現「設定檔一份、程式碼一份」的漂移。
 		recentLimit: options.RecentLimit,
+		// ReplyChainMaxDepth 同樣必須由 config 注入；usecase 不內建 4，
+		// 避免 prompt 成本與 reply chain 追溯深度在設定檔外悄悄漂移。
+		replyChainMaxDepth: options.ReplyChainMaxDepth,
 	}
 }
 
@@ -161,9 +168,16 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 			zap.String("parent_message_id", explicitReplyTarget.ID.String()),
 			zap.String("parent_text", strings.TrimSpace(explicitReplyTarget.Content)),
 		)
-		// explicit reply/quote 已經提供唯一的上下文錨點，因此 prompt 只帶 parent message，
-		// 不再混入 recent messages；這能避免 analyzer 在「被引用舊訊息」和「最近訊息」之間搖擺。
-		prompt := buildImplicitReplyTodoPrompt(explicitReplyTarget, nil, result)
+		// explicit reply/quote 提供主要上下文錨點；但完整語意常散落在多個 message window：
+		// 1. 被 reply/quote 的 parent message 附近，可能有人補了負責人、時間或取消條件。
+		// 2. 目前訊息附近，可能有最新補充或同一串待辦的後續對話。
+		// 3. 如果 parent message 本身又 reply 了更早的訊息，則沿著 reply chain 再加入上一層 window。
+		// 所有 window 會去重並依 CreatedAt 組合，讓 analyzer 看到時間脈絡，而不是只看一串 rerank 候選。
+		contextMessages, err := s.buildExplicitReplyContextMessages(ctx, messageCtx, explicitReplyTarget)
+		if err != nil {
+			return
+		}
+		prompt := buildImplicitReplyTodoPrompt(explicitReplyTarget, contextMessages, result)
 		zap.L().Info("todo reminder todo analyzer request prepared",
 			zap.String("platform", s.platformLabel),
 			zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
@@ -309,6 +323,146 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 		zap.String("reason", strings.TrimSpace(analysis.Reason)),
 	)
 	s.persistTodoCandidateAnalysis(ctx, messageCtx, analysis)
+}
+
+func (s *TodoReminderService) buildExplicitReplyContextMessages(ctx context.Context, messageCtx MessageContext, explicitReplyTarget *ent.ChannelMessage) ([]*ent.ChannelMessage, error) {
+	if s == nil || s.repo == nil || messageCtx.Message == nil || messageCtx.SavedMessage == nil {
+		return nil, nil
+	}
+	if s.replyChainMaxDepth <= 0 {
+		// reply chain 深度會直接放大「anchor 數量 x 每個 anchor 的 message window」，
+		// 因此不能在 usecase 偷補預設值；缺設定時只使用第一層 explicit target，並把設定問題寫進 log。
+		zap.L().Warn("todo reminder explicit reply chain depth is not configured; only direct reply target will be used",
+			zap.String("platform", s.platformLabel),
+			zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+			zap.Int("reply_chain_max_depth", s.replyChainMaxDepth),
+		)
+	}
+	anchors := []*ent.ChannelMessage{explicitReplyTarget}
+	lastAnchor := explicitReplyTarget
+	visited := map[uuid.UUID]struct{}{
+		explicitReplyTarget.ID: {},
+	}
+	for depth := 1; depth < s.replyChainMaxDepth; depth++ {
+		if lastAnchor == nil || strings.TrimSpace(lastAnchor.ReplyToMsgID) == "" {
+			break
+		}
+		parent, err := s.repo.ResolveParentMessage(ctx, lastAnchor)
+		if err != nil {
+			zap.L().Warn("todo reminder explicit reply chain truncated: parent message query failed",
+				zap.String("platform", s.platformLabel),
+				zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+				zap.String("reply_to_msg_id", strings.TrimSpace(lastAnchor.ReplyToMsgID)),
+				zap.Int("depth", depth),
+				zap.Error(err),
+			)
+			return nil, err
+		}
+		if parent == nil {
+			zap.L().Warn("todo reminder explicit reply chain truncated: parent message not found",
+				zap.String("platform", s.platformLabel),
+				zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+				zap.String("reply_to_msg_id", strings.TrimSpace(lastAnchor.ReplyToMsgID)),
+				zap.Int("depth", depth),
+			)
+			break
+		}
+		if _, ok := visited[parent.ID]; ok {
+			zap.L().Warn("todo reminder explicit reply chain truncated: cycle detected",
+				zap.String("platform", s.platformLabel),
+				zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+				zap.String("parent_message_id", parent.ID.String()),
+				zap.Int("depth", depth),
+			)
+			break
+		}
+		visited[parent.ID] = struct{}{}
+		anchors = append(anchors, parent)
+		lastAnchor = parent
+	}
+
+	if s.recentLimit <= 0 {
+		zap.L().Warn("todo reminder explicit reply context windows limited to anchors: recent limit is not configured",
+			zap.String("platform", s.platformLabel),
+			zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+			zap.Int("recent_limit", s.recentLimit),
+		)
+		return mergeChannelMessageWindows(anchors, messageCtx.SavedMessage.ID), nil
+	}
+
+	windows := make([]*ent.ChannelMessage, 0, len(anchors)*((s.recentLimit*2)+1)+s.recentLimit)
+	for _, anchor := range anchors {
+		window, err := s.repo.FindMessageWindowAround(ctx, anchor, s.recentLimit, s.recentLimit)
+		if err != nil {
+			zap.L().Warn("todo reminder explicit reply context skipped: anchor window query failed",
+				zap.String("platform", s.platformLabel),
+				zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+				zap.String("anchor_message_id", anchor.ID.String()),
+				zap.Error(err),
+			)
+			return nil, err
+		}
+		windows = append(windows, window...)
+	}
+	currentWindow, err := s.repo.FindMessageWindowAround(ctx, messageCtx.SavedMessage, s.recentLimit, 0)
+	if err != nil {
+		zap.L().Warn("todo reminder explicit reply context skipped: current window query failed",
+			zap.String("platform", s.platformLabel),
+			zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+			zap.Error(err),
+		)
+		return nil, err
+	}
+	windows = append(windows, currentWindow...)
+	contextMessages := mergeChannelMessageWindows(windows, messageCtx.SavedMessage.ID)
+	zap.L().Info("todo reminder explicit reply context windows ready",
+		zap.String("platform", s.platformLabel),
+		zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+		zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+		zap.Int("anchor_count", len(anchors)),
+		zap.Int("context_message_count", len(contextMessages)),
+		zap.Any("anchors", formatChannelMessageLogEntries(anchors)),
+		zap.Any("context_messages", formatChannelMessageLogEntries(contextMessages)),
+	)
+	return contextMessages, nil
+}
+
+func mergeChannelMessageWindows(items []*ent.ChannelMessage, excludeMessageIDs ...uuid.UUID) []*ent.ChannelMessage {
+	excluded := make(map[uuid.UUID]struct{}, len(excludeMessageIDs))
+	for _, id := range excludeMessageIDs {
+		if id != uuid.Nil {
+			excluded[id] = struct{}{}
+		}
+	}
+	seen := make(map[uuid.UUID]struct{}, len(items))
+	merged := make([]*ent.ChannelMessage, 0, len(items))
+	for _, item := range items {
+		if item == nil || item.ID == uuid.Nil {
+			continue
+		}
+		if _, ok := excluded[item.ID]; ok {
+			continue
+		}
+		if _, ok := seen[item.ID]; ok {
+			continue
+		}
+		seen[item.ID] = struct{}{}
+		merged = append(merged, item)
+	}
+	sort.SliceStable(merged, func(left int, right int) bool {
+		if merged[left].CreatedAt.Equal(merged[right].CreatedAt) {
+			return merged[left].ID.String() < merged[right].ID.String()
+		}
+		return merged[left].CreatedAt.Before(merged[right].CreatedAt)
+	})
+	return merged
 }
 
 func (s *TodoReminderService) persistTodoCandidateAnalysis(ctx context.Context, messageCtx MessageContext, analysis *llminteraction.TodoAnalysis) {
@@ -606,14 +760,15 @@ func buildImplicitReplyTodoPrompt(explicitReplyTarget *ent.ChannelMessage, recen
 	var builder strings.Builder
 	// 同一份 todo_analysis contract 同時支援兩種上下文來源：
 	// 1. Explicit reply/quote target：平台明確指出的 parent message，不受 recentLimit 影響。
-	// 2. Recent messages：沒有 reply/quote 時，才用 bounded window 交給 analyzer 判斷是否隱式接續。
+	// 2. Context messages：多個 message window 去重後依時間排序；沒有 reply/quote 時則是單一 recent window。
 	// prompt 明確要求 linked_message_id 只能來自這兩個區塊，讓下游 persistence 可以用 message id
 	// 回查既有 TodoCandidate，避免模型編造不可追蹤的 linkage。
 	builder.WriteString("你是 Todo Reminder 的內部 structured analyzer。請判斷 Current message 是否應形成、更新、承接或取消待辦候選，即使使用者沒有按平台 reply。\n")
 	builder.WriteString("只能輸出 todo_analysis JSON contract：schema_version, decision, linked_message_id, summary, assignees, due_text, confidence, missing_fields, reason。\n")
 	builder.WriteString("decision 只能是 create_candidate、update_candidate、acknowledge、cancel_candidate、needs_more_info、no_action。\n")
-	builder.WriteString("linked_message_id 必須來自 Explicit reply/quote target 或 Recent messages 的 id；全新待辦或 no_action 時使用空字串。\n")
+	builder.WriteString("linked_message_id 必須來自 Explicit reply/quote target 或 Context messages 的 id；全新待辦或 no_action 時使用空字串。\n")
 	builder.WriteString("若存在 Explicit reply/quote target，這是使用者明確引用的訊息，即使很久以前也優先作為接續上下文。\n")
+	builder.WriteString("Context messages 可能由多個 message window 組合而成，已去重並依時間排序；請把它當成補充脈絡，不要忽略較舊的 explicit target。\n")
 	builder.WriteString("提醒、請記得、到時提醒我、不要忘記、幫我記一下等日常提醒語氣，只要包含可追蹤事項、承諾、交付、時間或對象，就屬於 Todo candidate；不可只因為語氣日常就判 no_action。\n")
 	builder.WriteString("summary 是整理後的待辦內容；due_text 保留使用者原本的時間字面，不要自行正規化日期；assignees 保留訊息中可見的人名或稱呼。\n")
 	builder.WriteString("欄位型別必須固定：schema_version/decision/linked_message_id/summary/due_text/reason 是 string，confidence 是 number，assignees 與 missing_fields 永遠是 string array；沒有人名或缺漏欄位時輸出 []，不可輸出字串、物件或 null。\n")
@@ -627,7 +782,7 @@ func buildImplicitReplyTodoPrompt(explicitReplyTarget *ent.ChannelMessage, recen
 		builder.WriteString("none\n")
 	}
 	builder.WriteString("\n")
-	builder.WriteString("Recent messages:\n")
+	builder.WriteString("Context messages:\n")
 	for index, item := range recentMessages {
 		if item == nil {
 			continue
