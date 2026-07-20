@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+
+	"github.com/google/uuid"
 )
 
 type SendLineTextInput struct {
@@ -16,6 +18,258 @@ type SendLineTextInput struct {
 type SendLineTextPayload struct {
 	Status string `json:"status"`
 	To     string `json:"to"`
+}
+
+type SimulateLineTodoConversationInput struct {
+	ChannelID        uuid.UUID `json:"channelID"`
+	ParticipantCount int       `json:"participantCount"`
+	MessageCount     int       `json:"messageCount"`
+}
+
+type SimulateLineTodoConversationPayload struct {
+	Status        string                          `json:"status"`
+	ChannelID     uuid.UUID                       `json:"channelID"`
+	LineChannelID string                          `json:"lineChannelID"`
+	Participants  []*SimulatedLineTodoParticipant `json:"participants"`
+	Messages      []*SimulatedLineTodoMessage     `json:"messages"`
+}
+
+type SimulatedLineTodoMessage struct {
+	SpeakerUserID     uuid.UUID  `json:"speakerUserID"`
+	LineUserID        string     `json:"lineUserID"`
+	DisplayName       string     `json:"displayName"`
+	Text              string     `json:"text"`
+	LineText          string     `json:"lineText"`
+	PlatformMessageID string     `json:"platformMessageID"`
+	SavedMessageID    *uuid.UUID `json:"savedMessageID,omitempty"`
+	SentLineMessageID *string    `json:"sentLineMessageID,omitempty"`
+}
+
+type SimulatedLineTodoParticipant struct {
+	UserID      uuid.UUID `json:"userID"`
+	LineUserID  string    `json:"lineUserID"`
+	DisplayName string    `json:"displayName"`
+}
+
+type ActionActionCode string
+
+const (
+	ActionActionCodeEnable      ActionActionCode = "enable"
+	ActionActionCodeDisable     ActionActionCode = "disable"
+	ActionActionCodeConfigure   ActionActionCode = "configure"
+	ActionActionCodeQueryStatus ActionActionCode = "query_status"
+)
+
+var AllActionActionCode = []ActionActionCode{
+	ActionActionCodeEnable,
+	ActionActionCodeDisable,
+	ActionActionCodeConfigure,
+	ActionActionCodeQueryStatus,
+}
+
+func (e ActionActionCode) IsValid() bool {
+	switch e {
+	case ActionActionCodeEnable, ActionActionCodeDisable, ActionActionCodeConfigure, ActionActionCodeQueryStatus:
+		return true
+	}
+	return false
+}
+
+func (e ActionActionCode) String() string {
+	return string(e)
+}
+
+func (e *ActionActionCode) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ActionActionCode(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ActionActionCode", str)
+	}
+	return nil
+}
+
+func (e ActionActionCode) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type ActionResultStatus string
+
+const (
+	ActionResultStatusSuccess          ActionResultStatus = "success"
+	ActionResultStatusMissingParameter ActionResultStatus = "missing_parameter"
+	ActionResultStatusFailed           ActionResultStatus = "failed"
+)
+
+var AllActionResultStatus = []ActionResultStatus{
+	ActionResultStatusSuccess,
+	ActionResultStatusMissingParameter,
+	ActionResultStatusFailed,
+}
+
+func (e ActionResultStatus) IsValid() bool {
+	switch e {
+	case ActionResultStatusSuccess, ActionResultStatusMissingParameter, ActionResultStatusFailed:
+		return true
+	}
+	return false
+}
+
+func (e ActionResultStatus) String() string {
+	return string(e)
+}
+
+func (e *ActionResultStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ActionResultStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ActionResultStatus", str)
+	}
+	return nil
+}
+
+func (e ActionResultStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type ChannelMessageMentionIdentityKind string
+
+const (
+	ChannelMessageMentionIdentityKindUser    ChannelMessageMentionIdentityKind = "user"
+	ChannelMessageMentionIdentityKindBot     ChannelMessageMentionIdentityKind = "bot"
+	ChannelMessageMentionIdentityKindUnknown ChannelMessageMentionIdentityKind = "unknown"
+)
+
+var AllChannelMessageMentionIdentityKind = []ChannelMessageMentionIdentityKind{
+	ChannelMessageMentionIdentityKindUser,
+	ChannelMessageMentionIdentityKindBot,
+	ChannelMessageMentionIdentityKindUnknown,
+}
+
+func (e ChannelMessageMentionIdentityKind) IsValid() bool {
+	switch e {
+	case ChannelMessageMentionIdentityKindUser, ChannelMessageMentionIdentityKindBot, ChannelMessageMentionIdentityKindUnknown:
+		return true
+	}
+	return false
+}
+
+func (e ChannelMessageMentionIdentityKind) String() string {
+	return string(e)
+}
+
+func (e *ChannelMessageMentionIdentityKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ChannelMessageMentionIdentityKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ChannelMessageMentionIdentityKind", str)
+	}
+	return nil
+}
+
+func (e ChannelMessageMentionIdentityKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type ChannelMessageMentionPlatform string
+
+const (
+	ChannelMessageMentionPlatformLine     ChannelMessageMentionPlatform = "line"
+	ChannelMessageMentionPlatformWhatsapp ChannelMessageMentionPlatform = "whatsapp"
+	ChannelMessageMentionPlatformSlack    ChannelMessageMentionPlatform = "slack"
+	ChannelMessageMentionPlatformTelegram ChannelMessageMentionPlatform = "telegram"
+)
+
+var AllChannelMessageMentionPlatform = []ChannelMessageMentionPlatform{
+	ChannelMessageMentionPlatformLine,
+	ChannelMessageMentionPlatformWhatsapp,
+	ChannelMessageMentionPlatformSlack,
+	ChannelMessageMentionPlatformTelegram,
+}
+
+func (e ChannelMessageMentionPlatform) IsValid() bool {
+	switch e {
+	case ChannelMessageMentionPlatformLine, ChannelMessageMentionPlatformWhatsapp, ChannelMessageMentionPlatformSlack, ChannelMessageMentionPlatformTelegram:
+		return true
+	}
+	return false
+}
+
+func (e ChannelMessageMentionPlatform) String() string {
+	return string(e)
+}
+
+func (e *ChannelMessageMentionPlatform) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ChannelMessageMentionPlatform(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ChannelMessageMentionPlatform", str)
+	}
+	return nil
+}
+
+func (e ChannelMessageMentionPlatform) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type ChannelMessageMentionResolutionStatus string
+
+const (
+	ChannelMessageMentionResolutionStatusResolved    ChannelMessageMentionResolutionStatus = "resolved"
+	ChannelMessageMentionResolutionStatusUnresolved  ChannelMessageMentionResolutionStatus = "unresolved"
+	ChannelMessageMentionResolutionStatusAmbiguous   ChannelMessageMentionResolutionStatus = "ambiguous"
+	ChannelMessageMentionResolutionStatusUnsupported ChannelMessageMentionResolutionStatus = "unsupported"
+)
+
+var AllChannelMessageMentionResolutionStatus = []ChannelMessageMentionResolutionStatus{
+	ChannelMessageMentionResolutionStatusResolved,
+	ChannelMessageMentionResolutionStatusUnresolved,
+	ChannelMessageMentionResolutionStatusAmbiguous,
+	ChannelMessageMentionResolutionStatusUnsupported,
+}
+
+func (e ChannelMessageMentionResolutionStatus) IsValid() bool {
+	switch e {
+	case ChannelMessageMentionResolutionStatusResolved, ChannelMessageMentionResolutionStatusUnresolved, ChannelMessageMentionResolutionStatusAmbiguous, ChannelMessageMentionResolutionStatusUnsupported:
+		return true
+	}
+	return false
+}
+
+func (e ChannelMessageMentionResolutionStatus) String() string {
+	return string(e)
+}
+
+func (e *ChannelMessageMentionResolutionStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ChannelMessageMentionResolutionStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ChannelMessageMentionResolutionStatus", str)
+	}
+	return nil
+}
+
+func (e ChannelMessageMentionResolutionStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type ChannelPlatform string
@@ -101,5 +355,275 @@ func (e *ChannelType) UnmarshalGQL(v any) error {
 }
 
 func (e ChannelType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type TodoCandidateAssigneeResolutionStatus string
+
+const (
+	TodoCandidateAssigneeResolutionStatusResolved    TodoCandidateAssigneeResolutionStatus = "resolved"
+	TodoCandidateAssigneeResolutionStatusUnresolved  TodoCandidateAssigneeResolutionStatus = "unresolved"
+	TodoCandidateAssigneeResolutionStatusAmbiguous   TodoCandidateAssigneeResolutionStatus = "ambiguous"
+	TodoCandidateAssigneeResolutionStatusUnsupported TodoCandidateAssigneeResolutionStatus = "unsupported"
+)
+
+var AllTodoCandidateAssigneeResolutionStatus = []TodoCandidateAssigneeResolutionStatus{
+	TodoCandidateAssigneeResolutionStatusResolved,
+	TodoCandidateAssigneeResolutionStatusUnresolved,
+	TodoCandidateAssigneeResolutionStatusAmbiguous,
+	TodoCandidateAssigneeResolutionStatusUnsupported,
+}
+
+func (e TodoCandidateAssigneeResolutionStatus) IsValid() bool {
+	switch e {
+	case TodoCandidateAssigneeResolutionStatusResolved, TodoCandidateAssigneeResolutionStatusUnresolved, TodoCandidateAssigneeResolutionStatusAmbiguous, TodoCandidateAssigneeResolutionStatusUnsupported:
+		return true
+	}
+	return false
+}
+
+func (e TodoCandidateAssigneeResolutionStatus) String() string {
+	return string(e)
+}
+
+func (e *TodoCandidateAssigneeResolutionStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TodoCandidateAssigneeResolutionStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TodoCandidateAssigneeResolutionStatus", str)
+	}
+	return nil
+}
+
+func (e TodoCandidateAssigneeResolutionStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type TodoCandidateAssigneeSource string
+
+const (
+	TodoCandidateAssigneeSourceMention      TodoCandidateAssigneeSource = "mention"
+	TodoCandidateAssigneeSourceAnalyzer     TodoCandidateAssigneeSource = "analyzer"
+	TodoCandidateAssigneeSourceSender       TodoCandidateAssigneeSource = "sender"
+	TodoCandidateAssigneeSourceReplyContext TodoCandidateAssigneeSource = "reply_context"
+)
+
+var AllTodoCandidateAssigneeSource = []TodoCandidateAssigneeSource{
+	TodoCandidateAssigneeSourceMention,
+	TodoCandidateAssigneeSourceAnalyzer,
+	TodoCandidateAssigneeSourceSender,
+	TodoCandidateAssigneeSourceReplyContext,
+}
+
+func (e TodoCandidateAssigneeSource) IsValid() bool {
+	switch e {
+	case TodoCandidateAssigneeSourceMention, TodoCandidateAssigneeSourceAnalyzer, TodoCandidateAssigneeSourceSender, TodoCandidateAssigneeSourceReplyContext:
+		return true
+	}
+	return false
+}
+
+func (e TodoCandidateAssigneeSource) String() string {
+	return string(e)
+}
+
+func (e *TodoCandidateAssigneeSource) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TodoCandidateAssigneeSource(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TodoCandidateAssigneeSource", str)
+	}
+	return nil
+}
+
+func (e TodoCandidateAssigneeSource) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type TodoCandidateDueNormalizeDecision string
+
+const (
+	TodoCandidateDueNormalizeDecisionNormalized    TodoCandidateDueNormalizeDecision = "normalized"
+	TodoCandidateDueNormalizeDecisionNeedsMoreInfo TodoCandidateDueNormalizeDecision = "needs_more_info"
+	TodoCandidateDueNormalizeDecisionNoDueTime     TodoCandidateDueNormalizeDecision = "no_due_time"
+)
+
+var AllTodoCandidateDueNormalizeDecision = []TodoCandidateDueNormalizeDecision{
+	TodoCandidateDueNormalizeDecisionNormalized,
+	TodoCandidateDueNormalizeDecisionNeedsMoreInfo,
+	TodoCandidateDueNormalizeDecisionNoDueTime,
+}
+
+func (e TodoCandidateDueNormalizeDecision) IsValid() bool {
+	switch e {
+	case TodoCandidateDueNormalizeDecisionNormalized, TodoCandidateDueNormalizeDecisionNeedsMoreInfo, TodoCandidateDueNormalizeDecisionNoDueTime:
+		return true
+	}
+	return false
+}
+
+func (e TodoCandidateDueNormalizeDecision) String() string {
+	return string(e)
+}
+
+func (e *TodoCandidateDueNormalizeDecision) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TodoCandidateDueNormalizeDecision(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TodoCandidateDueNormalizeDecision", str)
+	}
+	return nil
+}
+
+func (e TodoCandidateDueNormalizeDecision) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type TodoCandidateDuePrecision string
+
+const (
+	TodoCandidateDuePrecisionDatetime       TodoCandidateDuePrecision = "datetime"
+	TodoCandidateDuePrecisionDate           TodoCandidateDuePrecision = "date"
+	TodoCandidateDuePrecisionRelativeWindow TodoCandidateDuePrecision = "relative_window"
+	TodoCandidateDuePrecisionUnknown        TodoCandidateDuePrecision = "unknown"
+)
+
+var AllTodoCandidateDuePrecision = []TodoCandidateDuePrecision{
+	TodoCandidateDuePrecisionDatetime,
+	TodoCandidateDuePrecisionDate,
+	TodoCandidateDuePrecisionRelativeWindow,
+	TodoCandidateDuePrecisionUnknown,
+}
+
+func (e TodoCandidateDuePrecision) IsValid() bool {
+	switch e {
+	case TodoCandidateDuePrecisionDatetime, TodoCandidateDuePrecisionDate, TodoCandidateDuePrecisionRelativeWindow, TodoCandidateDuePrecisionUnknown:
+		return true
+	}
+	return false
+}
+
+func (e TodoCandidateDuePrecision) String() string {
+	return string(e)
+}
+
+func (e *TodoCandidateDuePrecision) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TodoCandidateDuePrecision(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TodoCandidateDuePrecision", str)
+	}
+	return nil
+}
+
+func (e TodoCandidateDuePrecision) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type TodoCandidateLastDecision string
+
+const (
+	TodoCandidateLastDecisionCreateCandidate TodoCandidateLastDecision = "create_candidate"
+	TodoCandidateLastDecisionUpdateCandidate TodoCandidateLastDecision = "update_candidate"
+	TodoCandidateLastDecisionAcknowledge     TodoCandidateLastDecision = "acknowledge"
+	TodoCandidateLastDecisionCancelCandidate TodoCandidateLastDecision = "cancel_candidate"
+	TodoCandidateLastDecisionNeedsMoreInfo   TodoCandidateLastDecision = "needs_more_info"
+)
+
+var AllTodoCandidateLastDecision = []TodoCandidateLastDecision{
+	TodoCandidateLastDecisionCreateCandidate,
+	TodoCandidateLastDecisionUpdateCandidate,
+	TodoCandidateLastDecisionAcknowledge,
+	TodoCandidateLastDecisionCancelCandidate,
+	TodoCandidateLastDecisionNeedsMoreInfo,
+}
+
+func (e TodoCandidateLastDecision) IsValid() bool {
+	switch e {
+	case TodoCandidateLastDecisionCreateCandidate, TodoCandidateLastDecisionUpdateCandidate, TodoCandidateLastDecisionAcknowledge, TodoCandidateLastDecisionCancelCandidate, TodoCandidateLastDecisionNeedsMoreInfo:
+		return true
+	}
+	return false
+}
+
+func (e TodoCandidateLastDecision) String() string {
+	return string(e)
+}
+
+func (e *TodoCandidateLastDecision) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TodoCandidateLastDecision(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TodoCandidateLastDecision", str)
+	}
+	return nil
+}
+
+func (e TodoCandidateLastDecision) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type TodoCandidateStatus string
+
+const (
+	TodoCandidateStatusCandidate     TodoCandidateStatus = "candidate"
+	TodoCandidateStatusNeedsMoreInfo TodoCandidateStatus = "needs_more_info"
+	TodoCandidateStatusAcknowledged  TodoCandidateStatus = "acknowledged"
+	TodoCandidateStatusCancelled     TodoCandidateStatus = "cancelled"
+)
+
+var AllTodoCandidateStatus = []TodoCandidateStatus{
+	TodoCandidateStatusCandidate,
+	TodoCandidateStatusNeedsMoreInfo,
+	TodoCandidateStatusAcknowledged,
+	TodoCandidateStatusCancelled,
+}
+
+func (e TodoCandidateStatus) IsValid() bool {
+	switch e {
+	case TodoCandidateStatusCandidate, TodoCandidateStatusNeedsMoreInfo, TodoCandidateStatusAcknowledged, TodoCandidateStatusCancelled:
+		return true
+	}
+	return false
+}
+
+func (e TodoCandidateStatus) String() string {
+	return string(e)
+}
+
+func (e *TodoCandidateStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TodoCandidateStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TodoCandidateStatus", str)
+	}
+	return nil
+}
+
+func (e TodoCandidateStatus) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }

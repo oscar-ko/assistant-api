@@ -31,6 +31,9 @@ type Mutation {
     createUser(input: CreateUserInput!): User!
     updateUser(id: ID!, input: UpdateUserInput!): User!
     sendLineText(input: SendLineTextInput!): SendLineTextPayload!
+    simulateLineTodoConversation(
+        input: SimulateLineTodoConversationInput!
+    ): SimulateLineTodoConversationPayload!
 }
 
 input SendLineTextInput {
@@ -41,4 +44,35 @@ input SendLineTextInput {
 type SendLineTextPayload {
     status: String!
     to: String!
+}
+
+input SimulateLineTodoConversationInput {
+    channelID: ID! = "da1d5fc5-1da3-4c82-aacf-b16f79ab3867"
+    participantCount: Int!
+    messageCount: Int!
+}
+
+type SimulatedLineTodoParticipant {
+    userID: ID!
+    lineUserID: String!
+    displayName: String!
+}
+
+type SimulatedLineTodoMessage {
+    speakerUserID: ID!
+    lineUserID: String!
+    displayName: String!
+    text: String!
+    lineText: String!
+    platformMessageID: String!
+    savedMessageID: ID
+    sentLineMessageID: String
+}
+
+type SimulateLineTodoConversationPayload {
+    status: String!
+    channelID: ID!
+    lineChannelID: String!
+    participants: [SimulatedLineTodoParticipant!]!
+    messages: [SimulatedLineTodoMessage!]!
 }
