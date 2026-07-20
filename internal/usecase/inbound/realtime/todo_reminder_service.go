@@ -123,7 +123,12 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 		return
 	}
 	if strings.TrimSpace(messageCtx.Message.ReplyToMsgID) != "" {
-		// 顯式平台 reply/quote 是強關聯，不受 recent history window 限制；直接查被引用訊息。
+		// 顯式平台 reply/quote 是使用者主動指定的強關聯，不是「從最近幾則訊息猜測」的弱關聯。
+		// 因此這條路不能受 recent history window 限制：使用者可能引用幾小時或幾天前的待辦訊息，
+		// 只要平台給了 reply_to_msg_id，就應該直接回資料庫查那一則被引用訊息。
+		//
+		// LINE 的 quotedMessageId、Slack 的 thread parent 會在 adapter 層統一寫入 ReplyToMsgID；
+		// repository 的 ResolveParentMessage 集中管理 triggered_message_id / reply_to_msg_id 的解析順序。
 		explicitReplyTarget, err := s.repo.ResolveParentMessage(ctx, messageCtx.SavedMessage)
 		if err != nil {
 			zap.L().Warn("todo reminder explicit reply context skipped: parent message query failed",
@@ -136,6 +141,9 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 			return
 		}
 		if explicitReplyTarget == nil {
+			// 這裡刻意不退回 recent messages 猜測。
+			// 使用者既然按了 reply/quote，語意錨點就是那則 parent message；如果本地資料庫查不到，
+			// 改用近端窗口很容易把另一個待辦誤認成承接目標，造成錯誤更新或取消候選。
 			zap.L().Warn("todo reminder explicit reply context skipped: parent message not found",
 				zap.String("platform", s.platformLabel),
 				zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
@@ -153,6 +161,8 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 			zap.String("parent_message_id", explicitReplyTarget.ID.String()),
 			zap.String("parent_text", strings.TrimSpace(explicitReplyTarget.Content)),
 		)
+		// explicit reply/quote 已經提供唯一的上下文錨點，因此 prompt 只帶 parent message，
+		// 不再混入 recent messages；這能避免 analyzer 在「被引用舊訊息」和「最近訊息」之間搖擺。
 		prompt := buildImplicitReplyTodoPrompt(explicitReplyTarget, nil, result)
 		zap.L().Info("todo reminder todo analyzer request prepared",
 			zap.String("platform", s.platformLabel),
@@ -594,6 +604,11 @@ func formatRankedDocumentLogEntries(documents []reranker.RankedDocument) []map[s
 
 func buildImplicitReplyTodoPrompt(explicitReplyTarget *ent.ChannelMessage, recentMessages []*ent.ChannelMessage, result ClassificationResult) string {
 	var builder strings.Builder
+	// 同一份 todo_analysis contract 同時支援兩種上下文來源：
+	// 1. Explicit reply/quote target：平台明確指出的 parent message，不受 recentLimit 影響。
+	// 2. Recent messages：沒有 reply/quote 時，才用 bounded window 交給 analyzer 判斷是否隱式接續。
+	// prompt 明確要求 linked_message_id 只能來自這兩個區塊，讓下游 persistence 可以用 message id
+	// 回查既有 TodoCandidate，避免模型編造不可追蹤的 linkage。
 	builder.WriteString("你是 Todo Reminder 的內部 structured analyzer。請判斷 Current message 是否應形成、更新、承接或取消待辦候選，即使使用者沒有按平台 reply。\n")
 	builder.WriteString("只能輸出 todo_analysis JSON contract：schema_version, decision, linked_message_id, summary, assignees, due_text, confidence, missing_fields, reason。\n")
 	builder.WriteString("decision 只能是 create_candidate、update_candidate、acknowledge、cancel_candidate、needs_more_info、no_action。\n")
