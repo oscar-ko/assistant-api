@@ -5065,11 +5065,19 @@ type TodoWhereInput struct {
 	UpdatedAtLT    *time.Time  `json:"updatedAtLT,omitempty"`
 	UpdatedAtLTE   *time.Time  `json:"updatedAtLTE,omitempty"`
 
+	// "channel_id" field predicates.
+	ChannelID      *uuid.UUID  `json:"channelID,omitempty"`
+	ChannelIDNEQ   *uuid.UUID  `json:"channelIDNEQ,omitempty"`
+	ChannelIDIn    []uuid.UUID `json:"channelIDIn,omitempty"`
+	ChannelIDNotIn []uuid.UUID `json:"channelIDNotIn,omitempty"`
+
 	// "source_candidate_id" field predicates.
-	SourceCandidateID      *uuid.UUID  `json:"sourceCandidateID,omitempty"`
-	SourceCandidateIDNEQ   *uuid.UUID  `json:"sourceCandidateIDNEQ,omitempty"`
-	SourceCandidateIDIn    []uuid.UUID `json:"sourceCandidateIDIn,omitempty"`
-	SourceCandidateIDNotIn []uuid.UUID `json:"sourceCandidateIDNotIn,omitempty"`
+	SourceCandidateID       *uuid.UUID  `json:"sourceCandidateID,omitempty"`
+	SourceCandidateIDNEQ    *uuid.UUID  `json:"sourceCandidateIDNEQ,omitempty"`
+	SourceCandidateIDIn     []uuid.UUID `json:"sourceCandidateIDIn,omitempty"`
+	SourceCandidateIDNotIn  []uuid.UUID `json:"sourceCandidateIDNotIn,omitempty"`
+	SourceCandidateIDIsNil  bool        `json:"sourceCandidateIDIsNil,omitempty"`
+	SourceCandidateIDNotNil bool        `json:"sourceCandidateIDNotNil,omitempty"`
 
 	// "status" field predicates.
 	Status      *todo.Status  `json:"status,omitempty"`
@@ -5077,22 +5085,93 @@ type TodoWhereInput struct {
 	StatusIn    []todo.Status `json:"statusIn,omitempty"`
 	StatusNotIn []todo.Status `json:"statusNotIn,omitempty"`
 
-	// "promotion_reason" field predicates.
-	PromotionReason             *string  `json:"promotionReason,omitempty"`
-	PromotionReasonNEQ          *string  `json:"promotionReasonNEQ,omitempty"`
-	PromotionReasonIn           []string `json:"promotionReasonIn,omitempty"`
-	PromotionReasonNotIn        []string `json:"promotionReasonNotIn,omitempty"`
-	PromotionReasonGT           *string  `json:"promotionReasonGT,omitempty"`
-	PromotionReasonGTE          *string  `json:"promotionReasonGTE,omitempty"`
-	PromotionReasonLT           *string  `json:"promotionReasonLT,omitempty"`
-	PromotionReasonLTE          *string  `json:"promotionReasonLTE,omitempty"`
-	PromotionReasonContains     *string  `json:"promotionReasonContains,omitempty"`
-	PromotionReasonHasPrefix    *string  `json:"promotionReasonHasPrefix,omitempty"`
-	PromotionReasonHasSuffix    *string  `json:"promotionReasonHasSuffix,omitempty"`
-	PromotionReasonIsNil        bool     `json:"promotionReasonIsNil,omitempty"`
-	PromotionReasonNotNil       bool     `json:"promotionReasonNotNil,omitempty"`
-	PromotionReasonEqualFold    *string  `json:"promotionReasonEqualFold,omitempty"`
-	PromotionReasonContainsFold *string  `json:"promotionReasonContainsFold,omitempty"`
+	// "title" field predicates.
+	Title             *string  `json:"title,omitempty"`
+	TitleNEQ          *string  `json:"titleNEQ,omitempty"`
+	TitleIn           []string `json:"titleIn,omitempty"`
+	TitleNotIn        []string `json:"titleNotIn,omitempty"`
+	TitleGT           *string  `json:"titleGT,omitempty"`
+	TitleGTE          *string  `json:"titleGTE,omitempty"`
+	TitleLT           *string  `json:"titleLT,omitempty"`
+	TitleLTE          *string  `json:"titleLTE,omitempty"`
+	TitleContains     *string  `json:"titleContains,omitempty"`
+	TitleHasPrefix    *string  `json:"titleHasPrefix,omitempty"`
+	TitleHasSuffix    *string  `json:"titleHasSuffix,omitempty"`
+	TitleEqualFold    *string  `json:"titleEqualFold,omitempty"`
+	TitleContainsFold *string  `json:"titleContainsFold,omitempty"`
+
+	// "due_at" field predicates.
+	DueAt       *time.Time  `json:"dueAt,omitempty"`
+	DueAtNEQ    *time.Time  `json:"dueAtNEQ,omitempty"`
+	DueAtIn     []time.Time `json:"dueAtIn,omitempty"`
+	DueAtNotIn  []time.Time `json:"dueAtNotIn,omitempty"`
+	DueAtGT     *time.Time  `json:"dueAtGT,omitempty"`
+	DueAtGTE    *time.Time  `json:"dueAtGTE,omitempty"`
+	DueAtLT     *time.Time  `json:"dueAtLT,omitempty"`
+	DueAtLTE    *time.Time  `json:"dueAtLTE,omitempty"`
+	DueAtIsNil  bool        `json:"dueAtIsNil,omitempty"`
+	DueAtNotNil bool        `json:"dueAtNotNil,omitempty"`
+
+	// "due_timezone" field predicates.
+	DueTimezone             *string  `json:"dueTimezone,omitempty"`
+	DueTimezoneNEQ          *string  `json:"dueTimezoneNEQ,omitempty"`
+	DueTimezoneIn           []string `json:"dueTimezoneIn,omitempty"`
+	DueTimezoneNotIn        []string `json:"dueTimezoneNotIn,omitempty"`
+	DueTimezoneGT           *string  `json:"dueTimezoneGT,omitempty"`
+	DueTimezoneGTE          *string  `json:"dueTimezoneGTE,omitempty"`
+	DueTimezoneLT           *string  `json:"dueTimezoneLT,omitempty"`
+	DueTimezoneLTE          *string  `json:"dueTimezoneLTE,omitempty"`
+	DueTimezoneContains     *string  `json:"dueTimezoneContains,omitempty"`
+	DueTimezoneHasPrefix    *string  `json:"dueTimezoneHasPrefix,omitempty"`
+	DueTimezoneHasSuffix    *string  `json:"dueTimezoneHasSuffix,omitempty"`
+	DueTimezoneIsNil        bool     `json:"dueTimezoneIsNil,omitempty"`
+	DueTimezoneNotNil       bool     `json:"dueTimezoneNotNil,omitempty"`
+	DueTimezoneEqualFold    *string  `json:"dueTimezoneEqualFold,omitempty"`
+	DueTimezoneContainsFold *string  `json:"dueTimezoneContainsFold,omitempty"`
+
+	// "due_precision" field predicates.
+	DuePrecision      *todo.DuePrecision  `json:"duePrecision,omitempty"`
+	DuePrecisionNEQ   *todo.DuePrecision  `json:"duePrecisionNEQ,omitempty"`
+	DuePrecisionIn    []todo.DuePrecision `json:"duePrecisionIn,omitempty"`
+	DuePrecisionNotIn []todo.DuePrecision `json:"duePrecisionNotIn,omitempty"`
+
+	// "location_text" field predicates.
+	LocationText             *string  `json:"locationText,omitempty"`
+	LocationTextNEQ          *string  `json:"locationTextNEQ,omitempty"`
+	LocationTextIn           []string `json:"locationTextIn,omitempty"`
+	LocationTextNotIn        []string `json:"locationTextNotIn,omitempty"`
+	LocationTextGT           *string  `json:"locationTextGT,omitempty"`
+	LocationTextGTE          *string  `json:"locationTextGTE,omitempty"`
+	LocationTextLT           *string  `json:"locationTextLT,omitempty"`
+	LocationTextLTE          *string  `json:"locationTextLTE,omitempty"`
+	LocationTextContains     *string  `json:"locationTextContains,omitempty"`
+	LocationTextHasPrefix    *string  `json:"locationTextHasPrefix,omitempty"`
+	LocationTextHasSuffix    *string  `json:"locationTextHasSuffix,omitempty"`
+	LocationTextIsNil        bool     `json:"locationTextIsNil,omitempty"`
+	LocationTextNotNil       bool     `json:"locationTextNotNil,omitempty"`
+	LocationTextEqualFold    *string  `json:"locationTextEqualFold,omitempty"`
+	LocationTextContainsFold *string  `json:"locationTextContainsFold,omitempty"`
+
+	// "object_text" field predicates.
+	ObjectText             *string  `json:"objectText,omitempty"`
+	ObjectTextNEQ          *string  `json:"objectTextNEQ,omitempty"`
+	ObjectTextIn           []string `json:"objectTextIn,omitempty"`
+	ObjectTextNotIn        []string `json:"objectTextNotIn,omitempty"`
+	ObjectTextGT           *string  `json:"objectTextGT,omitempty"`
+	ObjectTextGTE          *string  `json:"objectTextGTE,omitempty"`
+	ObjectTextLT           *string  `json:"objectTextLT,omitempty"`
+	ObjectTextLTE          *string  `json:"objectTextLTE,omitempty"`
+	ObjectTextContains     *string  `json:"objectTextContains,omitempty"`
+	ObjectTextHasPrefix    *string  `json:"objectTextHasPrefix,omitempty"`
+	ObjectTextHasSuffix    *string  `json:"objectTextHasSuffix,omitempty"`
+	ObjectTextIsNil        bool     `json:"objectTextIsNil,omitempty"`
+	ObjectTextNotNil       bool     `json:"objectTextNotNil,omitempty"`
+	ObjectTextEqualFold    *string  `json:"objectTextEqualFold,omitempty"`
+	ObjectTextContainsFold *string  `json:"objectTextContainsFold,omitempty"`
+
+	// "channel" edge predicates.
+	HasChannel     *bool                `json:"hasChannel,omitempty"`
+	HasChannelWith []*ChannelWhereInput `json:"hasChannelWith,omitempty"`
 
 	// "source_candidate" edge predicates.
 	HasSourceCandidate     *bool                      `json:"hasSourceCandidate,omitempty"`
@@ -5242,6 +5321,18 @@ func (i *TodoWhereInput) P() (predicate.Todo, error) {
 	if i.UpdatedAtLTE != nil {
 		predicates = append(predicates, todo.UpdatedAtLTE(*i.UpdatedAtLTE))
 	}
+	if i.ChannelID != nil {
+		predicates = append(predicates, todo.ChannelIDEQ(*i.ChannelID))
+	}
+	if i.ChannelIDNEQ != nil {
+		predicates = append(predicates, todo.ChannelIDNEQ(*i.ChannelIDNEQ))
+	}
+	if len(i.ChannelIDIn) > 0 {
+		predicates = append(predicates, todo.ChannelIDIn(i.ChannelIDIn...))
+	}
+	if len(i.ChannelIDNotIn) > 0 {
+		predicates = append(predicates, todo.ChannelIDNotIn(i.ChannelIDNotIn...))
+	}
 	if i.SourceCandidateID != nil {
 		predicates = append(predicates, todo.SourceCandidateIDEQ(*i.SourceCandidateID))
 	}
@@ -5253,6 +5344,12 @@ func (i *TodoWhereInput) P() (predicate.Todo, error) {
 	}
 	if len(i.SourceCandidateIDNotIn) > 0 {
 		predicates = append(predicates, todo.SourceCandidateIDNotIn(i.SourceCandidateIDNotIn...))
+	}
+	if i.SourceCandidateIDIsNil {
+		predicates = append(predicates, todo.SourceCandidateIDIsNil())
+	}
+	if i.SourceCandidateIDNotNil {
+		predicates = append(predicates, todo.SourceCandidateIDNotNil())
 	}
 	if i.Status != nil {
 		predicates = append(predicates, todo.StatusEQ(*i.Status))
@@ -5266,52 +5363,241 @@ func (i *TodoWhereInput) P() (predicate.Todo, error) {
 	if len(i.StatusNotIn) > 0 {
 		predicates = append(predicates, todo.StatusNotIn(i.StatusNotIn...))
 	}
-	if i.PromotionReason != nil {
-		predicates = append(predicates, todo.PromotionReasonEQ(*i.PromotionReason))
+	if i.Title != nil {
+		predicates = append(predicates, todo.TitleEQ(*i.Title))
 	}
-	if i.PromotionReasonNEQ != nil {
-		predicates = append(predicates, todo.PromotionReasonNEQ(*i.PromotionReasonNEQ))
+	if i.TitleNEQ != nil {
+		predicates = append(predicates, todo.TitleNEQ(*i.TitleNEQ))
 	}
-	if len(i.PromotionReasonIn) > 0 {
-		predicates = append(predicates, todo.PromotionReasonIn(i.PromotionReasonIn...))
+	if len(i.TitleIn) > 0 {
+		predicates = append(predicates, todo.TitleIn(i.TitleIn...))
 	}
-	if len(i.PromotionReasonNotIn) > 0 {
-		predicates = append(predicates, todo.PromotionReasonNotIn(i.PromotionReasonNotIn...))
+	if len(i.TitleNotIn) > 0 {
+		predicates = append(predicates, todo.TitleNotIn(i.TitleNotIn...))
 	}
-	if i.PromotionReasonGT != nil {
-		predicates = append(predicates, todo.PromotionReasonGT(*i.PromotionReasonGT))
+	if i.TitleGT != nil {
+		predicates = append(predicates, todo.TitleGT(*i.TitleGT))
 	}
-	if i.PromotionReasonGTE != nil {
-		predicates = append(predicates, todo.PromotionReasonGTE(*i.PromotionReasonGTE))
+	if i.TitleGTE != nil {
+		predicates = append(predicates, todo.TitleGTE(*i.TitleGTE))
 	}
-	if i.PromotionReasonLT != nil {
-		predicates = append(predicates, todo.PromotionReasonLT(*i.PromotionReasonLT))
+	if i.TitleLT != nil {
+		predicates = append(predicates, todo.TitleLT(*i.TitleLT))
 	}
-	if i.PromotionReasonLTE != nil {
-		predicates = append(predicates, todo.PromotionReasonLTE(*i.PromotionReasonLTE))
+	if i.TitleLTE != nil {
+		predicates = append(predicates, todo.TitleLTE(*i.TitleLTE))
 	}
-	if i.PromotionReasonContains != nil {
-		predicates = append(predicates, todo.PromotionReasonContains(*i.PromotionReasonContains))
+	if i.TitleContains != nil {
+		predicates = append(predicates, todo.TitleContains(*i.TitleContains))
 	}
-	if i.PromotionReasonHasPrefix != nil {
-		predicates = append(predicates, todo.PromotionReasonHasPrefix(*i.PromotionReasonHasPrefix))
+	if i.TitleHasPrefix != nil {
+		predicates = append(predicates, todo.TitleHasPrefix(*i.TitleHasPrefix))
 	}
-	if i.PromotionReasonHasSuffix != nil {
-		predicates = append(predicates, todo.PromotionReasonHasSuffix(*i.PromotionReasonHasSuffix))
+	if i.TitleHasSuffix != nil {
+		predicates = append(predicates, todo.TitleHasSuffix(*i.TitleHasSuffix))
 	}
-	if i.PromotionReasonIsNil {
-		predicates = append(predicates, todo.PromotionReasonIsNil())
+	if i.TitleEqualFold != nil {
+		predicates = append(predicates, todo.TitleEqualFold(*i.TitleEqualFold))
 	}
-	if i.PromotionReasonNotNil {
-		predicates = append(predicates, todo.PromotionReasonNotNil())
+	if i.TitleContainsFold != nil {
+		predicates = append(predicates, todo.TitleContainsFold(*i.TitleContainsFold))
 	}
-	if i.PromotionReasonEqualFold != nil {
-		predicates = append(predicates, todo.PromotionReasonEqualFold(*i.PromotionReasonEqualFold))
+	if i.DueAt != nil {
+		predicates = append(predicates, todo.DueAtEQ(*i.DueAt))
 	}
-	if i.PromotionReasonContainsFold != nil {
-		predicates = append(predicates, todo.PromotionReasonContainsFold(*i.PromotionReasonContainsFold))
+	if i.DueAtNEQ != nil {
+		predicates = append(predicates, todo.DueAtNEQ(*i.DueAtNEQ))
+	}
+	if len(i.DueAtIn) > 0 {
+		predicates = append(predicates, todo.DueAtIn(i.DueAtIn...))
+	}
+	if len(i.DueAtNotIn) > 0 {
+		predicates = append(predicates, todo.DueAtNotIn(i.DueAtNotIn...))
+	}
+	if i.DueAtGT != nil {
+		predicates = append(predicates, todo.DueAtGT(*i.DueAtGT))
+	}
+	if i.DueAtGTE != nil {
+		predicates = append(predicates, todo.DueAtGTE(*i.DueAtGTE))
+	}
+	if i.DueAtLT != nil {
+		predicates = append(predicates, todo.DueAtLT(*i.DueAtLT))
+	}
+	if i.DueAtLTE != nil {
+		predicates = append(predicates, todo.DueAtLTE(*i.DueAtLTE))
+	}
+	if i.DueAtIsNil {
+		predicates = append(predicates, todo.DueAtIsNil())
+	}
+	if i.DueAtNotNil {
+		predicates = append(predicates, todo.DueAtNotNil())
+	}
+	if i.DueTimezone != nil {
+		predicates = append(predicates, todo.DueTimezoneEQ(*i.DueTimezone))
+	}
+	if i.DueTimezoneNEQ != nil {
+		predicates = append(predicates, todo.DueTimezoneNEQ(*i.DueTimezoneNEQ))
+	}
+	if len(i.DueTimezoneIn) > 0 {
+		predicates = append(predicates, todo.DueTimezoneIn(i.DueTimezoneIn...))
+	}
+	if len(i.DueTimezoneNotIn) > 0 {
+		predicates = append(predicates, todo.DueTimezoneNotIn(i.DueTimezoneNotIn...))
+	}
+	if i.DueTimezoneGT != nil {
+		predicates = append(predicates, todo.DueTimezoneGT(*i.DueTimezoneGT))
+	}
+	if i.DueTimezoneGTE != nil {
+		predicates = append(predicates, todo.DueTimezoneGTE(*i.DueTimezoneGTE))
+	}
+	if i.DueTimezoneLT != nil {
+		predicates = append(predicates, todo.DueTimezoneLT(*i.DueTimezoneLT))
+	}
+	if i.DueTimezoneLTE != nil {
+		predicates = append(predicates, todo.DueTimezoneLTE(*i.DueTimezoneLTE))
+	}
+	if i.DueTimezoneContains != nil {
+		predicates = append(predicates, todo.DueTimezoneContains(*i.DueTimezoneContains))
+	}
+	if i.DueTimezoneHasPrefix != nil {
+		predicates = append(predicates, todo.DueTimezoneHasPrefix(*i.DueTimezoneHasPrefix))
+	}
+	if i.DueTimezoneHasSuffix != nil {
+		predicates = append(predicates, todo.DueTimezoneHasSuffix(*i.DueTimezoneHasSuffix))
+	}
+	if i.DueTimezoneIsNil {
+		predicates = append(predicates, todo.DueTimezoneIsNil())
+	}
+	if i.DueTimezoneNotNil {
+		predicates = append(predicates, todo.DueTimezoneNotNil())
+	}
+	if i.DueTimezoneEqualFold != nil {
+		predicates = append(predicates, todo.DueTimezoneEqualFold(*i.DueTimezoneEqualFold))
+	}
+	if i.DueTimezoneContainsFold != nil {
+		predicates = append(predicates, todo.DueTimezoneContainsFold(*i.DueTimezoneContainsFold))
+	}
+	if i.DuePrecision != nil {
+		predicates = append(predicates, todo.DuePrecisionEQ(*i.DuePrecision))
+	}
+	if i.DuePrecisionNEQ != nil {
+		predicates = append(predicates, todo.DuePrecisionNEQ(*i.DuePrecisionNEQ))
+	}
+	if len(i.DuePrecisionIn) > 0 {
+		predicates = append(predicates, todo.DuePrecisionIn(i.DuePrecisionIn...))
+	}
+	if len(i.DuePrecisionNotIn) > 0 {
+		predicates = append(predicates, todo.DuePrecisionNotIn(i.DuePrecisionNotIn...))
+	}
+	if i.LocationText != nil {
+		predicates = append(predicates, todo.LocationTextEQ(*i.LocationText))
+	}
+	if i.LocationTextNEQ != nil {
+		predicates = append(predicates, todo.LocationTextNEQ(*i.LocationTextNEQ))
+	}
+	if len(i.LocationTextIn) > 0 {
+		predicates = append(predicates, todo.LocationTextIn(i.LocationTextIn...))
+	}
+	if len(i.LocationTextNotIn) > 0 {
+		predicates = append(predicates, todo.LocationTextNotIn(i.LocationTextNotIn...))
+	}
+	if i.LocationTextGT != nil {
+		predicates = append(predicates, todo.LocationTextGT(*i.LocationTextGT))
+	}
+	if i.LocationTextGTE != nil {
+		predicates = append(predicates, todo.LocationTextGTE(*i.LocationTextGTE))
+	}
+	if i.LocationTextLT != nil {
+		predicates = append(predicates, todo.LocationTextLT(*i.LocationTextLT))
+	}
+	if i.LocationTextLTE != nil {
+		predicates = append(predicates, todo.LocationTextLTE(*i.LocationTextLTE))
+	}
+	if i.LocationTextContains != nil {
+		predicates = append(predicates, todo.LocationTextContains(*i.LocationTextContains))
+	}
+	if i.LocationTextHasPrefix != nil {
+		predicates = append(predicates, todo.LocationTextHasPrefix(*i.LocationTextHasPrefix))
+	}
+	if i.LocationTextHasSuffix != nil {
+		predicates = append(predicates, todo.LocationTextHasSuffix(*i.LocationTextHasSuffix))
+	}
+	if i.LocationTextIsNil {
+		predicates = append(predicates, todo.LocationTextIsNil())
+	}
+	if i.LocationTextNotNil {
+		predicates = append(predicates, todo.LocationTextNotNil())
+	}
+	if i.LocationTextEqualFold != nil {
+		predicates = append(predicates, todo.LocationTextEqualFold(*i.LocationTextEqualFold))
+	}
+	if i.LocationTextContainsFold != nil {
+		predicates = append(predicates, todo.LocationTextContainsFold(*i.LocationTextContainsFold))
+	}
+	if i.ObjectText != nil {
+		predicates = append(predicates, todo.ObjectTextEQ(*i.ObjectText))
+	}
+	if i.ObjectTextNEQ != nil {
+		predicates = append(predicates, todo.ObjectTextNEQ(*i.ObjectTextNEQ))
+	}
+	if len(i.ObjectTextIn) > 0 {
+		predicates = append(predicates, todo.ObjectTextIn(i.ObjectTextIn...))
+	}
+	if len(i.ObjectTextNotIn) > 0 {
+		predicates = append(predicates, todo.ObjectTextNotIn(i.ObjectTextNotIn...))
+	}
+	if i.ObjectTextGT != nil {
+		predicates = append(predicates, todo.ObjectTextGT(*i.ObjectTextGT))
+	}
+	if i.ObjectTextGTE != nil {
+		predicates = append(predicates, todo.ObjectTextGTE(*i.ObjectTextGTE))
+	}
+	if i.ObjectTextLT != nil {
+		predicates = append(predicates, todo.ObjectTextLT(*i.ObjectTextLT))
+	}
+	if i.ObjectTextLTE != nil {
+		predicates = append(predicates, todo.ObjectTextLTE(*i.ObjectTextLTE))
+	}
+	if i.ObjectTextContains != nil {
+		predicates = append(predicates, todo.ObjectTextContains(*i.ObjectTextContains))
+	}
+	if i.ObjectTextHasPrefix != nil {
+		predicates = append(predicates, todo.ObjectTextHasPrefix(*i.ObjectTextHasPrefix))
+	}
+	if i.ObjectTextHasSuffix != nil {
+		predicates = append(predicates, todo.ObjectTextHasSuffix(*i.ObjectTextHasSuffix))
+	}
+	if i.ObjectTextIsNil {
+		predicates = append(predicates, todo.ObjectTextIsNil())
+	}
+	if i.ObjectTextNotNil {
+		predicates = append(predicates, todo.ObjectTextNotNil())
+	}
+	if i.ObjectTextEqualFold != nil {
+		predicates = append(predicates, todo.ObjectTextEqualFold(*i.ObjectTextEqualFold))
+	}
+	if i.ObjectTextContainsFold != nil {
+		predicates = append(predicates, todo.ObjectTextContainsFold(*i.ObjectTextContainsFold))
 	}
 
+	if i.HasChannel != nil {
+		p := todo.HasChannel()
+		if !*i.HasChannel {
+			p = todo.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasChannelWith) > 0 {
+		with := make([]predicate.Channel, 0, len(i.HasChannelWith))
+		for _, w := range i.HasChannelWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasChannelWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, todo.HasChannelWith(with...))
+	}
 	if i.HasSourceCandidate != nil {
 		p := todo.HasSourceCandidate()
 		if !*i.HasSourceCandidate {

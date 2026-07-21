@@ -12,6 +12,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 )
 
@@ -48,23 +49,129 @@ func (_u *TodoUpdate) SetNillableStatus(v *todo.Status) *TodoUpdate {
 	return _u
 }
 
-// SetPromotionReason sets the "promotion_reason" field.
-func (_u *TodoUpdate) SetPromotionReason(v string) *TodoUpdate {
-	_u.mutation.SetPromotionReason(v)
+// SetTitle sets the "title" field.
+func (_u *TodoUpdate) SetTitle(v string) *TodoUpdate {
+	_u.mutation.SetTitle(v)
 	return _u
 }
 
-// SetNillablePromotionReason sets the "promotion_reason" field if the given value is not nil.
-func (_u *TodoUpdate) SetNillablePromotionReason(v *string) *TodoUpdate {
+// SetNillableTitle sets the "title" field if the given value is not nil.
+func (_u *TodoUpdate) SetNillableTitle(v *string) *TodoUpdate {
 	if v != nil {
-		_u.SetPromotionReason(*v)
+		_u.SetTitle(*v)
 	}
 	return _u
 }
 
-// ClearPromotionReason clears the value of the "promotion_reason" field.
-func (_u *TodoUpdate) ClearPromotionReason() *TodoUpdate {
-	_u.mutation.ClearPromotionReason()
+// SetAssignees sets the "assignees" field.
+func (_u *TodoUpdate) SetAssignees(v []string) *TodoUpdate {
+	_u.mutation.SetAssignees(v)
+	return _u
+}
+
+// AppendAssignees appends value to the "assignees" field.
+func (_u *TodoUpdate) AppendAssignees(v []string) *TodoUpdate {
+	_u.mutation.AppendAssignees(v)
+	return _u
+}
+
+// ClearAssignees clears the value of the "assignees" field.
+func (_u *TodoUpdate) ClearAssignees() *TodoUpdate {
+	_u.mutation.ClearAssignees()
+	return _u
+}
+
+// SetDueAt sets the "due_at" field.
+func (_u *TodoUpdate) SetDueAt(v time.Time) *TodoUpdate {
+	_u.mutation.SetDueAt(v)
+	return _u
+}
+
+// SetNillableDueAt sets the "due_at" field if the given value is not nil.
+func (_u *TodoUpdate) SetNillableDueAt(v *time.Time) *TodoUpdate {
+	if v != nil {
+		_u.SetDueAt(*v)
+	}
+	return _u
+}
+
+// ClearDueAt clears the value of the "due_at" field.
+func (_u *TodoUpdate) ClearDueAt() *TodoUpdate {
+	_u.mutation.ClearDueAt()
+	return _u
+}
+
+// SetDueTimezone sets the "due_timezone" field.
+func (_u *TodoUpdate) SetDueTimezone(v string) *TodoUpdate {
+	_u.mutation.SetDueTimezone(v)
+	return _u
+}
+
+// SetNillableDueTimezone sets the "due_timezone" field if the given value is not nil.
+func (_u *TodoUpdate) SetNillableDueTimezone(v *string) *TodoUpdate {
+	if v != nil {
+		_u.SetDueTimezone(*v)
+	}
+	return _u
+}
+
+// ClearDueTimezone clears the value of the "due_timezone" field.
+func (_u *TodoUpdate) ClearDueTimezone() *TodoUpdate {
+	_u.mutation.ClearDueTimezone()
+	return _u
+}
+
+// SetDuePrecision sets the "due_precision" field.
+func (_u *TodoUpdate) SetDuePrecision(v todo.DuePrecision) *TodoUpdate {
+	_u.mutation.SetDuePrecision(v)
+	return _u
+}
+
+// SetNillableDuePrecision sets the "due_precision" field if the given value is not nil.
+func (_u *TodoUpdate) SetNillableDuePrecision(v *todo.DuePrecision) *TodoUpdate {
+	if v != nil {
+		_u.SetDuePrecision(*v)
+	}
+	return _u
+}
+
+// SetLocationText sets the "location_text" field.
+func (_u *TodoUpdate) SetLocationText(v string) *TodoUpdate {
+	_u.mutation.SetLocationText(v)
+	return _u
+}
+
+// SetNillableLocationText sets the "location_text" field if the given value is not nil.
+func (_u *TodoUpdate) SetNillableLocationText(v *string) *TodoUpdate {
+	if v != nil {
+		_u.SetLocationText(*v)
+	}
+	return _u
+}
+
+// ClearLocationText clears the value of the "location_text" field.
+func (_u *TodoUpdate) ClearLocationText() *TodoUpdate {
+	_u.mutation.ClearLocationText()
+	return _u
+}
+
+// SetObjectText sets the "object_text" field.
+func (_u *TodoUpdate) SetObjectText(v string) *TodoUpdate {
+	_u.mutation.SetObjectText(v)
+	return _u
+}
+
+// SetNillableObjectText sets the "object_text" field if the given value is not nil.
+func (_u *TodoUpdate) SetNillableObjectText(v *string) *TodoUpdate {
+	if v != nil {
+		_u.SetObjectText(*v)
+	}
+	return _u
+}
+
+// ClearObjectText clears the value of the "object_text" field.
+func (_u *TodoUpdate) ClearObjectText() *TodoUpdate {
+	_u.mutation.ClearObjectText()
 	return _u
 }
 
@@ -116,8 +223,13 @@ func (_u *TodoUpdate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Todo.status": %w`, err)}
 		}
 	}
-	if _u.mutation.SourceCandidateCleared() && len(_u.mutation.SourceCandidateIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Todo.source_candidate"`)
+	if v, ok := _u.mutation.DuePrecision(); ok {
+		if err := todo.DuePrecisionValidator(v); err != nil {
+			return &ValidationError{Name: "due_precision", err: fmt.Errorf(`ent: validator failed for field "Todo.due_precision": %w`, err)}
+		}
+	}
+	if _u.mutation.ChannelCleared() && len(_u.mutation.ChannelIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "Todo.channel"`)
 	}
 	return nil
 }
@@ -140,11 +252,46 @@ func (_u *TodoUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(todo.FieldStatus, field.TypeEnum, value)
 	}
-	if value, ok := _u.mutation.PromotionReason(); ok {
-		_spec.SetField(todo.FieldPromotionReason, field.TypeString, value)
+	if value, ok := _u.mutation.Title(); ok {
+		_spec.SetField(todo.FieldTitle, field.TypeString, value)
 	}
-	if _u.mutation.PromotionReasonCleared() {
-		_spec.ClearField(todo.FieldPromotionReason, field.TypeString)
+	if value, ok := _u.mutation.Assignees(); ok {
+		_spec.SetField(todo.FieldAssignees, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedAssignees(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, todo.FieldAssignees, value)
+		})
+	}
+	if _u.mutation.AssigneesCleared() {
+		_spec.ClearField(todo.FieldAssignees, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.DueAt(); ok {
+		_spec.SetField(todo.FieldDueAt, field.TypeTime, value)
+	}
+	if _u.mutation.DueAtCleared() {
+		_spec.ClearField(todo.FieldDueAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.DueTimezone(); ok {
+		_spec.SetField(todo.FieldDueTimezone, field.TypeString, value)
+	}
+	if _u.mutation.DueTimezoneCleared() {
+		_spec.ClearField(todo.FieldDueTimezone, field.TypeString)
+	}
+	if value, ok := _u.mutation.DuePrecision(); ok {
+		_spec.SetField(todo.FieldDuePrecision, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.LocationText(); ok {
+		_spec.SetField(todo.FieldLocationText, field.TypeString, value)
+	}
+	if _u.mutation.LocationTextCleared() {
+		_spec.ClearField(todo.FieldLocationText, field.TypeString)
+	}
+	if value, ok := _u.mutation.ObjectText(); ok {
+		_spec.SetField(todo.FieldObjectText, field.TypeString, value)
+	}
+	if _u.mutation.ObjectTextCleared() {
+		_spec.ClearField(todo.FieldObjectText, field.TypeString)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -186,23 +333,129 @@ func (_u *TodoUpdateOne) SetNillableStatus(v *todo.Status) *TodoUpdateOne {
 	return _u
 }
 
-// SetPromotionReason sets the "promotion_reason" field.
-func (_u *TodoUpdateOne) SetPromotionReason(v string) *TodoUpdateOne {
-	_u.mutation.SetPromotionReason(v)
+// SetTitle sets the "title" field.
+func (_u *TodoUpdateOne) SetTitle(v string) *TodoUpdateOne {
+	_u.mutation.SetTitle(v)
 	return _u
 }
 
-// SetNillablePromotionReason sets the "promotion_reason" field if the given value is not nil.
-func (_u *TodoUpdateOne) SetNillablePromotionReason(v *string) *TodoUpdateOne {
+// SetNillableTitle sets the "title" field if the given value is not nil.
+func (_u *TodoUpdateOne) SetNillableTitle(v *string) *TodoUpdateOne {
 	if v != nil {
-		_u.SetPromotionReason(*v)
+		_u.SetTitle(*v)
 	}
 	return _u
 }
 
-// ClearPromotionReason clears the value of the "promotion_reason" field.
-func (_u *TodoUpdateOne) ClearPromotionReason() *TodoUpdateOne {
-	_u.mutation.ClearPromotionReason()
+// SetAssignees sets the "assignees" field.
+func (_u *TodoUpdateOne) SetAssignees(v []string) *TodoUpdateOne {
+	_u.mutation.SetAssignees(v)
+	return _u
+}
+
+// AppendAssignees appends value to the "assignees" field.
+func (_u *TodoUpdateOne) AppendAssignees(v []string) *TodoUpdateOne {
+	_u.mutation.AppendAssignees(v)
+	return _u
+}
+
+// ClearAssignees clears the value of the "assignees" field.
+func (_u *TodoUpdateOne) ClearAssignees() *TodoUpdateOne {
+	_u.mutation.ClearAssignees()
+	return _u
+}
+
+// SetDueAt sets the "due_at" field.
+func (_u *TodoUpdateOne) SetDueAt(v time.Time) *TodoUpdateOne {
+	_u.mutation.SetDueAt(v)
+	return _u
+}
+
+// SetNillableDueAt sets the "due_at" field if the given value is not nil.
+func (_u *TodoUpdateOne) SetNillableDueAt(v *time.Time) *TodoUpdateOne {
+	if v != nil {
+		_u.SetDueAt(*v)
+	}
+	return _u
+}
+
+// ClearDueAt clears the value of the "due_at" field.
+func (_u *TodoUpdateOne) ClearDueAt() *TodoUpdateOne {
+	_u.mutation.ClearDueAt()
+	return _u
+}
+
+// SetDueTimezone sets the "due_timezone" field.
+func (_u *TodoUpdateOne) SetDueTimezone(v string) *TodoUpdateOne {
+	_u.mutation.SetDueTimezone(v)
+	return _u
+}
+
+// SetNillableDueTimezone sets the "due_timezone" field if the given value is not nil.
+func (_u *TodoUpdateOne) SetNillableDueTimezone(v *string) *TodoUpdateOne {
+	if v != nil {
+		_u.SetDueTimezone(*v)
+	}
+	return _u
+}
+
+// ClearDueTimezone clears the value of the "due_timezone" field.
+func (_u *TodoUpdateOne) ClearDueTimezone() *TodoUpdateOne {
+	_u.mutation.ClearDueTimezone()
+	return _u
+}
+
+// SetDuePrecision sets the "due_precision" field.
+func (_u *TodoUpdateOne) SetDuePrecision(v todo.DuePrecision) *TodoUpdateOne {
+	_u.mutation.SetDuePrecision(v)
+	return _u
+}
+
+// SetNillableDuePrecision sets the "due_precision" field if the given value is not nil.
+func (_u *TodoUpdateOne) SetNillableDuePrecision(v *todo.DuePrecision) *TodoUpdateOne {
+	if v != nil {
+		_u.SetDuePrecision(*v)
+	}
+	return _u
+}
+
+// SetLocationText sets the "location_text" field.
+func (_u *TodoUpdateOne) SetLocationText(v string) *TodoUpdateOne {
+	_u.mutation.SetLocationText(v)
+	return _u
+}
+
+// SetNillableLocationText sets the "location_text" field if the given value is not nil.
+func (_u *TodoUpdateOne) SetNillableLocationText(v *string) *TodoUpdateOne {
+	if v != nil {
+		_u.SetLocationText(*v)
+	}
+	return _u
+}
+
+// ClearLocationText clears the value of the "location_text" field.
+func (_u *TodoUpdateOne) ClearLocationText() *TodoUpdateOne {
+	_u.mutation.ClearLocationText()
+	return _u
+}
+
+// SetObjectText sets the "object_text" field.
+func (_u *TodoUpdateOne) SetObjectText(v string) *TodoUpdateOne {
+	_u.mutation.SetObjectText(v)
+	return _u
+}
+
+// SetNillableObjectText sets the "object_text" field if the given value is not nil.
+func (_u *TodoUpdateOne) SetNillableObjectText(v *string) *TodoUpdateOne {
+	if v != nil {
+		_u.SetObjectText(*v)
+	}
+	return _u
+}
+
+// ClearObjectText clears the value of the "object_text" field.
+func (_u *TodoUpdateOne) ClearObjectText() *TodoUpdateOne {
+	_u.mutation.ClearObjectText()
 	return _u
 }
 
@@ -267,8 +520,13 @@ func (_u *TodoUpdateOne) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Todo.status": %w`, err)}
 		}
 	}
-	if _u.mutation.SourceCandidateCleared() && len(_u.mutation.SourceCandidateIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Todo.source_candidate"`)
+	if v, ok := _u.mutation.DuePrecision(); ok {
+		if err := todo.DuePrecisionValidator(v); err != nil {
+			return &ValidationError{Name: "due_precision", err: fmt.Errorf(`ent: validator failed for field "Todo.due_precision": %w`, err)}
+		}
+	}
+	if _u.mutation.ChannelCleared() && len(_u.mutation.ChannelIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "Todo.channel"`)
 	}
 	return nil
 }
@@ -308,11 +566,46 @@ func (_u *TodoUpdateOne) sqlSave(ctx context.Context) (_node *Todo, err error) {
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(todo.FieldStatus, field.TypeEnum, value)
 	}
-	if value, ok := _u.mutation.PromotionReason(); ok {
-		_spec.SetField(todo.FieldPromotionReason, field.TypeString, value)
+	if value, ok := _u.mutation.Title(); ok {
+		_spec.SetField(todo.FieldTitle, field.TypeString, value)
 	}
-	if _u.mutation.PromotionReasonCleared() {
-		_spec.ClearField(todo.FieldPromotionReason, field.TypeString)
+	if value, ok := _u.mutation.Assignees(); ok {
+		_spec.SetField(todo.FieldAssignees, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedAssignees(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, todo.FieldAssignees, value)
+		})
+	}
+	if _u.mutation.AssigneesCleared() {
+		_spec.ClearField(todo.FieldAssignees, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.DueAt(); ok {
+		_spec.SetField(todo.FieldDueAt, field.TypeTime, value)
+	}
+	if _u.mutation.DueAtCleared() {
+		_spec.ClearField(todo.FieldDueAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.DueTimezone(); ok {
+		_spec.SetField(todo.FieldDueTimezone, field.TypeString, value)
+	}
+	if _u.mutation.DueTimezoneCleared() {
+		_spec.ClearField(todo.FieldDueTimezone, field.TypeString)
+	}
+	if value, ok := _u.mutation.DuePrecision(); ok {
+		_spec.SetField(todo.FieldDuePrecision, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.LocationText(); ok {
+		_spec.SetField(todo.FieldLocationText, field.TypeString, value)
+	}
+	if _u.mutation.LocationTextCleared() {
+		_spec.ClearField(todo.FieldLocationText, field.TypeString)
+	}
+	if value, ok := _u.mutation.ObjectText(); ok {
+		_spec.SetField(todo.FieldObjectText, field.TypeString, value)
+	}
+	if _u.mutation.ObjectTextCleared() {
+		_spec.ClearField(todo.FieldObjectText, field.TypeString)
 	}
 	_node = &Todo{config: _u.config}
 	_spec.Assign = _node.assignValues

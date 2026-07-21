@@ -2272,6 +2272,22 @@ func (c *TodoClient) GetX(ctx context.Context, id uuid.UUID) *Todo {
 	return obj
 }
 
+// QueryChannel queries the channel edge of a Todo.
+func (c *TodoClient) QueryChannel(_m *Todo) *ChannelQuery {
+	query := (&ChannelClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(todo.Table, todo.FieldID, id),
+			sqlgraph.To(channel.Table, channel.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, todo.ChannelTable, todo.ChannelColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QuerySourceCandidate queries the source_candidate edge of a Todo.
 func (c *TodoClient) QuerySourceCandidate(_m *Todo) *TodoCandidateQuery {
 	query := (&TodoCandidateClient{config: c.config}).Query()

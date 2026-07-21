@@ -929,9 +929,9 @@ func (r *ChannelMessageRepo) promoteTodoCandidate(ctx context.Context, candidate
 		return nil
 	}
 	if candidate.Status == todocandidate.StatusCancelled {
-		// candidate 被取消時不刪正式 Todo，而是保留紀錄並轉 cancelled，
-		// 讓後續 audit 可以看見「曾經成立，後來由哪個 candidate 取消」。
-		return r.cancelTodoFromCandidate(ctx, candidate.ID, "source candidate was cancelled")
+		// candidate 被取消時不刪正式 Todo，而是保留紀錄並轉 cancelled。
+		// 取消原因、模型理由與追蹤資料留在 TodoCandidate；Todo 只維持產品狀態。
+		return r.cancelTodoFromCandidate(ctx, candidate.ID)
 	}
 	if !isTodoCandidatePromotionReady(candidate) {
 		return nil
@@ -945,9 +945,14 @@ func (r *ChannelMessageRepo) promoteTodoCandidate(ctx context.Context, candidate
 	}
 	if existing == nil {
 		create := r.db.Todo.Create().
+			SetChannelID(candidate.ChannelID).
 			SetSourceCandidateID(candidate.ID).
 			SetStatus(todo.StatusActive).
-			SetPromotionReason("candidate has summary, normalized due_at, and no missing fields")
+			SetTitle(strings.TrimSpace(candidate.Summary)).
+			SetAssignees(normalizeStringSlice(candidate.Assignees)).
+			SetDueAt(*candidate.DueAt).
+			SetDueTimezone(strings.TrimSpace(candidate.DueTimezone)).
+			SetDuePrecision(todo.DuePrecision(candidate.DuePrecision))
 		if _, err := create.Save(ctx); err != nil {
 			return fmt.Errorf("create promoted todo failed: %w", err)
 		}
@@ -956,7 +961,11 @@ func (r *ChannelMessageRepo) promoteTodoCandidate(ctx context.Context, candidate
 
 	update := r.db.Todo.UpdateOneID(existing.ID).
 		SetStatus(todo.StatusActive).
-		SetPromotionReason("source candidate was updated and remains promotion-ready")
+		SetTitle(strings.TrimSpace(candidate.Summary)).
+		SetAssignees(normalizeStringSlice(candidate.Assignees)).
+		SetDueAt(*candidate.DueAt).
+		SetDueTimezone(strings.TrimSpace(candidate.DueTimezone)).
+		SetDuePrecision(todo.DuePrecision(candidate.DuePrecision))
 	if _, err := update.Save(ctx); err != nil {
 		return fmt.Errorf("update promoted todo failed: %w", err)
 	}
@@ -981,7 +990,7 @@ func isTodoCandidatePromotionReady(candidate *ent.TodoCandidate) bool {
 	return true
 }
 
-func (r *ChannelMessageRepo) cancelTodoFromCandidate(ctx context.Context, candidateID uuid.UUID, reason string) error {
+func (r *ChannelMessageRepo) cancelTodoFromCandidate(ctx context.Context, candidateID uuid.UUID) error {
 	if candidateID == uuid.Nil {
 		return nil
 	}
@@ -996,7 +1005,6 @@ func (r *ChannelMessageRepo) cancelTodoFromCandidate(ctx context.Context, candid
 	}
 	if _, err := r.db.Todo.UpdateOneID(existing.ID).
 		SetStatus(todo.StatusCancelled).
-		SetPromotionReason(strings.TrimSpace(reason)).
 		Save(ctx); err != nil {
 		return fmt.Errorf("cancel promoted todo failed: %w", err)
 	}

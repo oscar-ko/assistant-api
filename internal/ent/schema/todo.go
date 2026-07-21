@@ -12,8 +12,8 @@ import (
 
 // Todo 是由 TodoCandidate promotion 後形成的正式待辦事項。
 //
-// Candidate 保存模型抽取、時間正規化與訊息上下文；Todo 則只代表產品層已可追蹤、提醒或顯示的正式狀態。
-// 因此這張表不重複 summary、assignees、due_at 等 candidate 已有欄位，顯示與排程資料一律透過 source_candidate edge 讀取。
+// Todo 是產品層乾淨的待辦資料表，只保存「人、事、時、地、物」與正式待辦狀態。
+// AI analyzer 的 decision、confidence、missing_fields、reason、linked message 等追蹤資料不放在這裡；需要排查來源時再透過 source_candidate 關聯回 TodoCandidate。
 type Todo struct {
 	ent.Schema
 }
@@ -29,23 +29,32 @@ func (Todo) Mixin() []ent.Mixin {
 // Fields of the Todo.
 func (Todo) Fields() []ent.Field {
 	return []ent.Field{
-		field.UUID("source_candidate_id", uuid.UUID{}).Immutable().Comment("來源 Todo candidate ID；用來回溯 analyzer/promotion 判斷"),
+		field.UUID("channel_id", uuid.UUID{}).Immutable().Comment("正式待辦所屬 channel ID；產品查詢與權限邊界使用"),
+		field.UUID("source_candidate_id", uuid.UUID{}).Optional().Nillable().Immutable().Comment("來源 Todo candidate ID；只用來回溯 AI 分析與 promotion evidence，人工建立的純 Todo 可為空"),
 		field.Enum("status").Values("active", "completed", "cancelled").Default("active").Comment("正式待辦狀態；active 代表仍需追蹤或提醒"),
-		field.String("promotion_reason").Optional().Comment("promotion gate 通過或取消正式待辦的原因，供 debug/audit 使用"),
+		field.String("title").Comment("事：正式待辦要完成的事項標題，供列表與提醒直接顯示"),
+		field.JSON("assignees", []string{}).Optional().Comment("人：負責人或承接者的產品層名稱清單"),
+		field.Time("due_at").Optional().Nillable().Comment("時：正式提醒或到期時間；沒有時間的待辦可先為空"),
+		field.String("due_timezone").Optional().Comment("時：due_at 使用的 IANA timezone，例如 Asia/Taipei"),
+		field.Enum("due_precision").Values("datetime", "date", "relative_window", "unknown").Default("unknown").Comment("時：時間精度，描述 due_at 是精確時間、日期或相對區間"),
+		field.String("location_text").Optional().Comment("地：待辦發生或交付的地點字面；目前 promotion 沒有抽到時保持空值"),
+		field.String("object_text").Optional().Comment("物：待辦涉及的文件、物品、系統或交付物字面；目前 promotion 沒有抽到時保持空值"),
 	}
 }
 
 // Edges of the Todo.
 func (Todo) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.To("source_candidate", TodoCandidate.Type).Field("source_candidate_id").Required().Unique().Immutable().Comment("正式待辦唯一的資料來源；channel、訊息、摘要、時間與 assignee 都從 candidate 讀取"),
+		edge.To("channel", Channel.Type).Field("channel_id").Required().Unique().Immutable().Comment("正式待辦所屬 channel"),
+		edge.To("source_candidate", TodoCandidate.Type).Field("source_candidate_id").Unique().Immutable().Comment("AI promotion 來源；只保存分析/evidence 關聯，不作為 Todo 五要素的主要讀取來源"),
 	}
 }
 
 // Indexes of the Todo.
 func (Todo) Indexes() []ent.Index {
 	return []ent.Index{
-		index.Fields("status"),
+		index.Fields("channel_id", "status"),
+		index.Fields("channel_id", "due_at"),
 		index.Fields("source_candidate_id").Unique(),
 	}
 }

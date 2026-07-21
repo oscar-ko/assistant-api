@@ -3,8 +3,10 @@
 package ent
 
 import (
+	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -24,12 +26,26 @@ type Todo struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// 最後更新時間
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
-	// 來源 Todo candidate ID；用來回溯 analyzer/promotion 判斷
-	SourceCandidateID uuid.UUID `json:"source_candidate_id,omitempty"`
+	// 正式待辦所屬 channel ID；產品查詢與權限邊界使用
+	ChannelID uuid.UUID `json:"channel_id,omitempty"`
+	// 來源 Todo candidate ID；只用來回溯 AI 分析與 promotion evidence，人工建立的純 Todo 可為空
+	SourceCandidateID *uuid.UUID `json:"source_candidate_id,omitempty"`
 	// 正式待辦狀態；active 代表仍需追蹤或提醒
 	Status todo.Status `json:"status,omitempty"`
-	// promotion gate 通過或取消正式待辦的原因，供 debug/audit 使用
-	PromotionReason string `json:"promotion_reason,omitempty"`
+	// 事：正式待辦要完成的事項標題，供列表與提醒直接顯示
+	Title string `json:"title,omitempty"`
+	// 人：負責人或承接者的產品層名稱清單
+	Assignees []string `json:"assignees,omitempty"`
+	// 時：正式提醒或到期時間；沒有時間的待辦可先為空
+	DueAt *time.Time `json:"due_at,omitempty"`
+	// 時：due_at 使用的 IANA timezone，例如 Asia/Taipei
+	DueTimezone string `json:"due_timezone,omitempty"`
+	// 時：時間精度，描述 due_at 是精確時間、日期或相對區間
+	DuePrecision todo.DuePrecision `json:"due_precision,omitempty"`
+	// 地：待辦發生或交付的地點字面；目前 promotion 沒有抽到時保持空值
+	LocationText string `json:"location_text,omitempty"`
+	// 物：待辦涉及的文件、物品、系統或交付物字面；目前 promotion 沒有抽到時保持空值
+	ObjectText string `json:"object_text,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the TodoQuery when eager-loading is set.
 	Edges        TodoEdges `json:"edges"`
@@ -38,13 +54,26 @@ type Todo struct {
 
 // TodoEdges holds the relations/edges for other nodes in the graph.
 type TodoEdges struct {
-	// 正式待辦唯一的資料來源；channel、訊息、摘要、時間與 assignee 都從 candidate 讀取
+	// 正式待辦所屬 channel
+	Channel *Channel `json:"channel,omitempty"`
+	// AI promotion 來源；只保存分析/evidence 關聯，不作為 Todo 五要素的主要讀取來源
 	SourceCandidate *TodoCandidate `json:"source_candidate,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 	// totalCount holds the count of the edges above.
-	totalCount [1]map[string]int
+	totalCount [2]map[string]int
+}
+
+// ChannelOrErr returns the Channel value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e TodoEdges) ChannelOrErr() (*Channel, error) {
+	if e.Channel != nil {
+		return e.Channel, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: channel.Label}
+	}
+	return nil, &NotLoadedError{edge: "channel"}
 }
 
 // SourceCandidateOrErr returns the SourceCandidate value or an error if the edge
@@ -52,7 +81,7 @@ type TodoEdges struct {
 func (e TodoEdges) SourceCandidateOrErr() (*TodoCandidate, error) {
 	if e.SourceCandidate != nil {
 		return e.SourceCandidate, nil
-	} else if e.loadedTypes[0] {
+	} else if e.loadedTypes[1] {
 		return nil, &NotFoundError{label: todocandidate.Label}
 	}
 	return nil, &NotLoadedError{edge: "source_candidate"}
@@ -63,11 +92,15 @@ func (*Todo) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case todo.FieldStatus, todo.FieldPromotionReason:
+		case todo.FieldSourceCandidateID:
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
+		case todo.FieldAssignees:
+			values[i] = new([]byte)
+		case todo.FieldStatus, todo.FieldTitle, todo.FieldDueTimezone, todo.FieldDuePrecision, todo.FieldLocationText, todo.FieldObjectText:
 			values[i] = new(sql.NullString)
-		case todo.FieldCreatedAt, todo.FieldUpdatedAt:
+		case todo.FieldCreatedAt, todo.FieldUpdatedAt, todo.FieldDueAt:
 			values[i] = new(sql.NullTime)
-		case todo.FieldID, todo.FieldSourceCandidateID:
+		case todo.FieldID, todo.FieldChannelID:
 			values[i] = new(uuid.UUID)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -102,11 +135,18 @@ func (_m *Todo) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.UpdatedAt = value.Time
 			}
-		case todo.FieldSourceCandidateID:
+		case todo.FieldChannelID:
 			if value, ok := values[i].(*uuid.UUID); !ok {
-				return fmt.Errorf("unexpected type %T for field source_candidate_id", values[i])
+				return fmt.Errorf("unexpected type %T for field channel_id", values[i])
 			} else if value != nil {
-				_m.SourceCandidateID = *value
+				_m.ChannelID = *value
+			}
+		case todo.FieldSourceCandidateID:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field source_candidate_id", values[i])
+			} else if value.Valid {
+				_m.SourceCandidateID = new(uuid.UUID)
+				*_m.SourceCandidateID = *value.S.(*uuid.UUID)
 			}
 		case todo.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -114,11 +154,50 @@ func (_m *Todo) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Status = todo.Status(value.String)
 			}
-		case todo.FieldPromotionReason:
+		case todo.FieldTitle:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field promotion_reason", values[i])
+				return fmt.Errorf("unexpected type %T for field title", values[i])
 			} else if value.Valid {
-				_m.PromotionReason = value.String
+				_m.Title = value.String
+			}
+		case todo.FieldAssignees:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field assignees", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Assignees); err != nil {
+					return fmt.Errorf("unmarshal field assignees: %w", err)
+				}
+			}
+		case todo.FieldDueAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field due_at", values[i])
+			} else if value.Valid {
+				_m.DueAt = new(time.Time)
+				*_m.DueAt = value.Time
+			}
+		case todo.FieldDueTimezone:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field due_timezone", values[i])
+			} else if value.Valid {
+				_m.DueTimezone = value.String
+			}
+		case todo.FieldDuePrecision:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field due_precision", values[i])
+			} else if value.Valid {
+				_m.DuePrecision = todo.DuePrecision(value.String)
+			}
+		case todo.FieldLocationText:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field location_text", values[i])
+			} else if value.Valid {
+				_m.LocationText = value.String
+			}
+		case todo.FieldObjectText:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field object_text", values[i])
+			} else if value.Valid {
+				_m.ObjectText = value.String
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -131,6 +210,11 @@ func (_m *Todo) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (_m *Todo) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
+}
+
+// QueryChannel queries the "channel" edge of the Todo entity.
+func (_m *Todo) QueryChannel() *ChannelQuery {
+	return NewTodoClient(_m.config).QueryChannel(_m)
 }
 
 // QuerySourceCandidate queries the "source_candidate" edge of the Todo entity.
@@ -167,14 +251,39 @@ func (_m *Todo) String() string {
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
 	builder.WriteString(", ")
-	builder.WriteString("source_candidate_id=")
-	builder.WriteString(fmt.Sprintf("%v", _m.SourceCandidateID))
+	builder.WriteString("channel_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ChannelID))
+	builder.WriteString(", ")
+	if v := _m.SourceCandidateID; v != nil {
+		builder.WriteString("source_candidate_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))
 	builder.WriteString(", ")
-	builder.WriteString("promotion_reason=")
-	builder.WriteString(_m.PromotionReason)
+	builder.WriteString("title=")
+	builder.WriteString(_m.Title)
+	builder.WriteString(", ")
+	builder.WriteString("assignees=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Assignees))
+	builder.WriteString(", ")
+	if v := _m.DueAt; v != nil {
+		builder.WriteString("due_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("due_timezone=")
+	builder.WriteString(_m.DueTimezone)
+	builder.WriteString(", ")
+	builder.WriteString("due_precision=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DuePrecision))
+	builder.WriteString(", ")
+	builder.WriteString("location_text=")
+	builder.WriteString(_m.LocationText)
+	builder.WriteString(", ")
+	builder.WriteString("object_text=")
+	builder.WriteString(_m.ObjectText)
 	builder.WriteByte(')')
 	return builder.String()
 }

@@ -1740,12 +1740,21 @@ input TodoWhereInput {
   updatedAtLT: Time
   updatedAtLTE: Time
   """
+  channel_id field predicates
+  """
+  channelID: ID
+  channelIDNEQ: ID
+  channelIDIn: [ID!]
+  channelIDNotIn: [ID!]
+  """
   source_candidate_id field predicates
   """
   sourceCandidateID: ID
   sourceCandidateIDNEQ: ID
   sourceCandidateIDIn: [ID!]
   sourceCandidateIDNotIn: [ID!]
+  sourceCandidateIDIsNil: Boolean
+  sourceCandidateIDNotNil: Boolean
   """
   status field predicates
   """
@@ -1754,23 +1763,100 @@ input TodoWhereInput {
   statusIn: [TodoStatus!]
   statusNotIn: [TodoStatus!]
   """
-  promotion_reason field predicates
+  title field predicates
   """
-  promotionReason: String
-  promotionReasonNEQ: String
-  promotionReasonIn: [String!]
-  promotionReasonNotIn: [String!]
-  promotionReasonGT: String
-  promotionReasonGTE: String
-  promotionReasonLT: String
-  promotionReasonLTE: String
-  promotionReasonContains: String
-  promotionReasonHasPrefix: String
-  promotionReasonHasSuffix: String
-  promotionReasonIsNil: Boolean
-  promotionReasonNotNil: Boolean
-  promotionReasonEqualFold: String
-  promotionReasonContainsFold: String
+  title: String
+  titleNEQ: String
+  titleIn: [String!]
+  titleNotIn: [String!]
+  titleGT: String
+  titleGTE: String
+  titleLT: String
+  titleLTE: String
+  titleContains: String
+  titleHasPrefix: String
+  titleHasSuffix: String
+  titleEqualFold: String
+  titleContainsFold: String
+  """
+  due_at field predicates
+  """
+  dueAt: Time
+  dueAtNEQ: Time
+  dueAtIn: [Time!]
+  dueAtNotIn: [Time!]
+  dueAtGT: Time
+  dueAtGTE: Time
+  dueAtLT: Time
+  dueAtLTE: Time
+  dueAtIsNil: Boolean
+  dueAtNotNil: Boolean
+  """
+  due_timezone field predicates
+  """
+  dueTimezone: String
+  dueTimezoneNEQ: String
+  dueTimezoneIn: [String!]
+  dueTimezoneNotIn: [String!]
+  dueTimezoneGT: String
+  dueTimezoneGTE: String
+  dueTimezoneLT: String
+  dueTimezoneLTE: String
+  dueTimezoneContains: String
+  dueTimezoneHasPrefix: String
+  dueTimezoneHasSuffix: String
+  dueTimezoneIsNil: Boolean
+  dueTimezoneNotNil: Boolean
+  dueTimezoneEqualFold: String
+  dueTimezoneContainsFold: String
+  """
+  due_precision field predicates
+  """
+  duePrecision: TodoDuePrecision
+  duePrecisionNEQ: TodoDuePrecision
+  duePrecisionIn: [TodoDuePrecision!]
+  duePrecisionNotIn: [TodoDuePrecision!]
+  """
+  location_text field predicates
+  """
+  locationText: String
+  locationTextNEQ: String
+  locationTextIn: [String!]
+  locationTextNotIn: [String!]
+  locationTextGT: String
+  locationTextGTE: String
+  locationTextLT: String
+  locationTextLTE: String
+  locationTextContains: String
+  locationTextHasPrefix: String
+  locationTextHasSuffix: String
+  locationTextIsNil: Boolean
+  locationTextNotNil: Boolean
+  locationTextEqualFold: String
+  locationTextContainsFold: String
+  """
+  object_text field predicates
+  """
+  objectText: String
+  objectTextNEQ: String
+  objectTextIn: [String!]
+  objectTextNotIn: [String!]
+  objectTextGT: String
+  objectTextGTE: String
+  objectTextLT: String
+  objectTextLTE: String
+  objectTextContains: String
+  objectTextHasPrefix: String
+  objectTextHasSuffix: String
+  objectTextIsNil: Boolean
+  objectTextNotNil: Boolean
+  objectTextEqualFold: String
+  objectTextContainsFold: String
+  """
+  channel edge predicates
+  """
+  hasChannel: Boolean
+  hasChannelWith: [ChannelWhereInput!]
   """
   source_candidate edge predicates
   """

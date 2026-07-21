@@ -1434,6 +1434,21 @@ func (_q *TodoQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 	for _, field := range graphql.CollectFields(opCtx, collected.Selections, satisfies) {
 		switch field.Name {
 
+		case "channel":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&ChannelClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, channelImplementors)...); err != nil {
+				return err
+			}
+			_q.withChannel = query
+			if _, ok := fieldSeen[todo.FieldChannelID]; !ok {
+				selectedFields = append(selectedFields, todo.FieldChannelID)
+				fieldSeen[todo.FieldChannelID] = struct{}{}
+			}
+
 		case "sourceCandidate":
 			var (
 				alias = field.Alias
@@ -1458,6 +1473,11 @@ func (_q *TodoQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 				selectedFields = append(selectedFields, todo.FieldUpdatedAt)
 				fieldSeen[todo.FieldUpdatedAt] = struct{}{}
 			}
+		case "channelID":
+			if _, ok := fieldSeen[todo.FieldChannelID]; !ok {
+				selectedFields = append(selectedFields, todo.FieldChannelID)
+				fieldSeen[todo.FieldChannelID] = struct{}{}
+			}
 		case "sourceCandidateID":
 			if _, ok := fieldSeen[todo.FieldSourceCandidateID]; !ok {
 				selectedFields = append(selectedFields, todo.FieldSourceCandidateID)
@@ -1468,10 +1488,40 @@ func (_q *TodoQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 				selectedFields = append(selectedFields, todo.FieldStatus)
 				fieldSeen[todo.FieldStatus] = struct{}{}
 			}
-		case "promotionReason":
-			if _, ok := fieldSeen[todo.FieldPromotionReason]; !ok {
-				selectedFields = append(selectedFields, todo.FieldPromotionReason)
-				fieldSeen[todo.FieldPromotionReason] = struct{}{}
+		case "title":
+			if _, ok := fieldSeen[todo.FieldTitle]; !ok {
+				selectedFields = append(selectedFields, todo.FieldTitle)
+				fieldSeen[todo.FieldTitle] = struct{}{}
+			}
+		case "assignees":
+			if _, ok := fieldSeen[todo.FieldAssignees]; !ok {
+				selectedFields = append(selectedFields, todo.FieldAssignees)
+				fieldSeen[todo.FieldAssignees] = struct{}{}
+			}
+		case "dueAt":
+			if _, ok := fieldSeen[todo.FieldDueAt]; !ok {
+				selectedFields = append(selectedFields, todo.FieldDueAt)
+				fieldSeen[todo.FieldDueAt] = struct{}{}
+			}
+		case "dueTimezone":
+			if _, ok := fieldSeen[todo.FieldDueTimezone]; !ok {
+				selectedFields = append(selectedFields, todo.FieldDueTimezone)
+				fieldSeen[todo.FieldDueTimezone] = struct{}{}
+			}
+		case "duePrecision":
+			if _, ok := fieldSeen[todo.FieldDuePrecision]; !ok {
+				selectedFields = append(selectedFields, todo.FieldDuePrecision)
+				fieldSeen[todo.FieldDuePrecision] = struct{}{}
+			}
+		case "locationText":
+			if _, ok := fieldSeen[todo.FieldLocationText]; !ok {
+				selectedFields = append(selectedFields, todo.FieldLocationText)
+				fieldSeen[todo.FieldLocationText] = struct{}{}
+			}
+		case "objectText":
+			if _, ok := fieldSeen[todo.FieldObjectText]; !ok {
+				selectedFields = append(selectedFields, todo.FieldObjectText)
+				fieldSeen[todo.FieldObjectText] = struct{}{}
 			}
 		case "id":
 		case "__typename":
