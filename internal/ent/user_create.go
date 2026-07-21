@@ -7,6 +7,7 @@ import (
 	"assistant-api/internal/ent/channelservicemember"
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/slack"
+	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidateassignee"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
@@ -125,6 +126,21 @@ func (_c *UserCreate) AddTodoCandidateAssignees(v ...*TodoCandidateAssignee) *Us
 		ids[i] = v[i].ID
 	}
 	return _c.AddTodoCandidateAssigneeIDs(ids...)
+}
+
+// AddTodoIDs adds the "todos" edge to the Todo entity by IDs.
+func (_c *UserCreate) AddTodoIDs(ids ...uuid.UUID) *UserCreate {
+	_c.mutation.AddTodoIDs(ids...)
+	return _c
+}
+
+// AddTodos adds the "todos" edges to the Todo entity.
+func (_c *UserCreate) AddTodos(v ...*Todo) *UserCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddTodoIDs(ids...)
 }
 
 // AddOwnedTranslationLocaleIDs adds the "owned_translation_locales" edge to the TranslationLocale entity by IDs.
@@ -317,6 +333,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(todocandidateassignee.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.TodosIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.TodosTable,
+			Columns: []string{user.TodosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todo.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

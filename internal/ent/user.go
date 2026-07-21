@@ -40,19 +40,22 @@ type UserEdges struct {
 	ChannelMessageMentions []*ChannelMessageMention `json:"channel_message_mentions,omitempty"`
 	// 非 mention 來源解析到此使用者的 Todo candidate assignee evidence
 	TodoCandidateAssignees []*TodoCandidateAssignee `json:"todo_candidate_assignees,omitempty"`
+	// 此使用者擁有的正式待辦；每一筆 Todo 都跟著單一 owner user 走
+	Todos []*Todo `json:"todos,omitempty"`
 	// 使用者新增的翻譯目標語言設定
 	OwnedTranslationLocales []*TranslationLocale `json:"owned_translation_locales,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [6]bool
+	loadedTypes [7]bool
 	// totalCount holds the count of the edges above.
-	totalCount [6]map[string]int
+	totalCount [7]map[string]int
 
 	namedLine                    map[string][]*Line
 	namedSlack                   map[string][]*Slack
 	namedChannelServiceMembers   map[string][]*ChannelServiceMember
 	namedChannelMessageMentions  map[string][]*ChannelMessageMention
 	namedTodoCandidateAssignees  map[string][]*TodoCandidateAssignee
+	namedTodos                   map[string][]*Todo
 	namedOwnedTranslationLocales map[string][]*TranslationLocale
 }
 
@@ -101,10 +104,19 @@ func (e UserEdges) TodoCandidateAssigneesOrErr() ([]*TodoCandidateAssignee, erro
 	return nil, &NotLoadedError{edge: "todo_candidate_assignees"}
 }
 
+// TodosOrErr returns the Todos value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) TodosOrErr() ([]*Todo, error) {
+	if e.loadedTypes[5] {
+		return e.Todos, nil
+	}
+	return nil, &NotLoadedError{edge: "todos"}
+}
+
 // OwnedTranslationLocalesOrErr returns the OwnedTranslationLocales value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) OwnedTranslationLocalesOrErr() ([]*TranslationLocale, error) {
-	if e.loadedTypes[5] {
+	if e.loadedTypes[6] {
 		return e.OwnedTranslationLocales, nil
 	}
 	return nil, &NotLoadedError{edge: "owned_translation_locales"}
@@ -188,6 +200,11 @@ func (_m *User) QueryChannelMessageMentions() *ChannelMessageMentionQuery {
 // QueryTodoCandidateAssignees queries the "todo_candidate_assignees" edge of the User entity.
 func (_m *User) QueryTodoCandidateAssignees() *TodoCandidateAssigneeQuery {
 	return NewUserClient(_m.config).QueryTodoCandidateAssignees(_m)
+}
+
+// QueryTodos queries the "todos" edge of the User entity.
+func (_m *User) QueryTodos() *TodoQuery {
+	return NewUserClient(_m.config).QueryTodos(_m)
 }
 
 // QueryOwnedTranslationLocales queries the "owned_translation_locales" edge of the User entity.
@@ -344,6 +361,30 @@ func (_m *User) appendNamedTodoCandidateAssignees(name string, edges ...*TodoCan
 		_m.Edges.namedTodoCandidateAssignees[name] = []*TodoCandidateAssignee{}
 	} else {
 		_m.Edges.namedTodoCandidateAssignees[name] = append(_m.Edges.namedTodoCandidateAssignees[name], edges...)
+	}
+}
+
+// NamedTodos returns the Todos named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *User) NamedTodos(name string) ([]*Todo, error) {
+	if _m.Edges.namedTodos == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedTodos[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *User) appendNamedTodos(name string, edges ...*Todo) {
+	if _m.Edges.namedTodos == nil {
+		_m.Edges.namedTodos = make(map[string][]*Todo)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedTodos[name] = []*Todo{}
+	} else {
+		_m.Edges.namedTodos[name] = append(_m.Edges.namedTodos[name], edges...)
 	}
 }
 

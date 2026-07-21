@@ -938,38 +938,84 @@ func (r *ChannelMessageRepo) promoteTodoCandidate(ctx context.Context, candidate
 	}
 
 	// promotion gate 只接受已正規化 due_at 且欄位完整的 candidate。
-	// analyzer 仍負責語意抽取；repository 只把可追蹤、可提醒的 candidate 升級成正式 Todo。
-	existing, err := r.db.Todo.Query().Where(todo.SourceCandidateIDEQ(candidate.ID)).Only(ctx)
-	if err != nil && !ent.IsNotFound(err) {
-		return fmt.Errorf("query promoted todo failed: %w", err)
+	// analyzer 仍負責語意抽取；repository 只為已解析成系統 User 的 assignee 建立「一人一筆」正式 Todo。
+	ownerUserIDs, err := r.resolveTodoPromotionOwnerUserIDs(ctx, candidate.ID)
+	if err != nil {
+		return err
 	}
-	if existing == nil {
-		create := r.db.Todo.Create().
+	if len(ownerUserIDs) == 0 {
+		return nil
+	}
+	for _, ownerUserID := range ownerUserIDs {
+		existing, err := r.db.Todo.Query().Where(
+			todo.SourceCandidateIDEQ(candidate.ID),
+			todo.OwnerUserIDEQ(ownerUserID),
+		).Only(ctx)
+		if err != nil && !ent.IsNotFound(err) {
+			return fmt.Errorf("query promoted todo failed: %w", err)
+		}
+		if existing == nil {
+			create := r.db.Todo.Create().
 			SetChannelID(candidate.ChannelID).
+			SetOwnerUserID(ownerUserID).
 			SetSourceCandidateID(candidate.ID).
 			SetStatus(todo.StatusActive).
 			SetTitle(strings.TrimSpace(candidate.Summary)).
-			SetAssignees(normalizeStringSlice(candidate.Assignees)).
 			SetDueAt(*candidate.DueAt).
 			SetDueTimezone(strings.TrimSpace(candidate.DueTimezone)).
 			SetDuePrecision(todo.DuePrecision(candidate.DuePrecision))
-		if _, err := create.Save(ctx); err != nil {
-			return fmt.Errorf("create promoted todo failed: %w", err)
+			if _, err := create.Save(ctx); err != nil {
+				return fmt.Errorf("create promoted todo failed: %w", err)
+			}
+			continue
 		}
-		return nil
-	}
 
-	update := r.db.Todo.UpdateOneID(existing.ID).
-		SetStatus(todo.StatusActive).
-		SetTitle(strings.TrimSpace(candidate.Summary)).
-		SetAssignees(normalizeStringSlice(candidate.Assignees)).
-		SetDueAt(*candidate.DueAt).
-		SetDueTimezone(strings.TrimSpace(candidate.DueTimezone)).
-		SetDuePrecision(todo.DuePrecision(candidate.DuePrecision))
-	if _, err := update.Save(ctx); err != nil {
-		return fmt.Errorf("update promoted todo failed: %w", err)
+		update := r.db.Todo.UpdateOneID(existing.ID).
+			SetStatus(todo.StatusActive).
+			SetTitle(strings.TrimSpace(candidate.Summary)).
+			SetDueAt(*candidate.DueAt).
+			SetDueTimezone(strings.TrimSpace(candidate.DueTimezone)).
+			SetDuePrecision(todo.DuePrecision(candidate.DuePrecision))
+		if _, err := update.Save(ctx); err != nil {
+			return fmt.Errorf("update promoted todo failed: %w", err)
+		}
 	}
 	return nil
+}
+
+func (r *ChannelMessageRepo) resolveTodoPromotionOwnerUserIDs(ctx context.Context, candidateID uuid.UUID) ([]uuid.UUID, error) {
+	if candidateID == uuid.Nil {
+		return nil, nil
+	}
+	assignees, err := r.db.TodoCandidateAssignee.Query().
+		Where(todocandidateassignee.CandidateIDEQ(candidateID)).
+		WithSourceMessageMention().
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query todo candidate assignees for promotion failed: %w", err)
+	}
+	seen := make(map[uuid.UUID]struct{}, len(assignees))
+	ownerUserIDs := make([]uuid.UUID, 0, len(assignees))
+	for _, assignee := range assignees {
+		if assignee == nil {
+			continue
+		}
+		ownerUserID := uuid.Nil
+		if assignee.ResolvedUserID != nil {
+			ownerUserID = *assignee.ResolvedUserID
+		} else if assignee.Edges.SourceMessageMention != nil && assignee.Edges.SourceMessageMention.UserID != nil {
+			ownerUserID = *assignee.Edges.SourceMessageMention.UserID
+		}
+		if ownerUserID == uuid.Nil {
+			continue
+		}
+		if _, ok := seen[ownerUserID]; ok {
+			continue
+		}
+		seen[ownerUserID] = struct{}{}
+		ownerUserIDs = append(ownerUserIDs, ownerUserID)
+	}
+	return ownerUserIDs, nil
 }
 
 func isTodoCandidatePromotionReady(candidate *ent.TodoCandidate) bool {
@@ -996,17 +1042,19 @@ func (r *ChannelMessageRepo) cancelTodoFromCandidate(ctx context.Context, candid
 	}
 	// 取消流程只處理已經被 promote 的 Todo；若 candidate 尚未形成正式 Todo，
 	// NotFound 代表沒有正式事項要取消，保留 candidate 自身狀態即可。
-	existing, err := r.db.Todo.Query().Where(todo.SourceCandidateIDEQ(candidateID)).Only(ctx)
+	existing, err := r.db.Todo.Query().Where(todo.SourceCandidateIDEQ(candidateID)).All(ctx)
 	if err != nil {
-		if ent.IsNotFound(err) {
-			return nil
-		}
 		return fmt.Errorf("query todo for cancellation failed: %w", err)
 	}
-	if _, err := r.db.Todo.UpdateOneID(existing.ID).
-		SetStatus(todo.StatusCancelled).
-		Save(ctx); err != nil {
-		return fmt.Errorf("cancel promoted todo failed: %w", err)
+	for _, item := range existing {
+		if item == nil {
+			continue
+		}
+		if _, err := r.db.Todo.UpdateOneID(item.ID).
+			SetStatus(todo.StatusCancelled).
+			Save(ctx); err != nil {
+			return fmt.Errorf("cancel promoted todo failed: %w", err)
+		}
 	}
 	return nil
 }

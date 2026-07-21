@@ -5071,6 +5071,12 @@ type TodoWhereInput struct {
 	ChannelIDIn    []uuid.UUID `json:"channelIDIn,omitempty"`
 	ChannelIDNotIn []uuid.UUID `json:"channelIDNotIn,omitempty"`
 
+	// "owner_user_id" field predicates.
+	OwnerUserID      *uuid.UUID  `json:"ownerUserID,omitempty"`
+	OwnerUserIDNEQ   *uuid.UUID  `json:"ownerUserIDNEQ,omitempty"`
+	OwnerUserIDIn    []uuid.UUID `json:"ownerUserIDIn,omitempty"`
+	OwnerUserIDNotIn []uuid.UUID `json:"ownerUserIDNotIn,omitempty"`
+
 	// "source_candidate_id" field predicates.
 	SourceCandidateID       *uuid.UUID  `json:"sourceCandidateID,omitempty"`
 	SourceCandidateIDNEQ    *uuid.UUID  `json:"sourceCandidateIDNEQ,omitempty"`
@@ -5172,6 +5178,10 @@ type TodoWhereInput struct {
 	// "channel" edge predicates.
 	HasChannel     *bool                `json:"hasChannel,omitempty"`
 	HasChannelWith []*ChannelWhereInput `json:"hasChannelWith,omitempty"`
+
+	// "owner" edge predicates.
+	HasOwner     *bool             `json:"hasOwner,omitempty"`
+	HasOwnerWith []*UserWhereInput `json:"hasOwnerWith,omitempty"`
 
 	// "source_candidate" edge predicates.
 	HasSourceCandidate     *bool                      `json:"hasSourceCandidate,omitempty"`
@@ -5332,6 +5342,18 @@ func (i *TodoWhereInput) P() (predicate.Todo, error) {
 	}
 	if len(i.ChannelIDNotIn) > 0 {
 		predicates = append(predicates, todo.ChannelIDNotIn(i.ChannelIDNotIn...))
+	}
+	if i.OwnerUserID != nil {
+		predicates = append(predicates, todo.OwnerUserIDEQ(*i.OwnerUserID))
+	}
+	if i.OwnerUserIDNEQ != nil {
+		predicates = append(predicates, todo.OwnerUserIDNEQ(*i.OwnerUserIDNEQ))
+	}
+	if len(i.OwnerUserIDIn) > 0 {
+		predicates = append(predicates, todo.OwnerUserIDIn(i.OwnerUserIDIn...))
+	}
+	if len(i.OwnerUserIDNotIn) > 0 {
+		predicates = append(predicates, todo.OwnerUserIDNotIn(i.OwnerUserIDNotIn...))
 	}
 	if i.SourceCandidateID != nil {
 		predicates = append(predicates, todo.SourceCandidateIDEQ(*i.SourceCandidateID))
@@ -5597,6 +5619,24 @@ func (i *TodoWhereInput) P() (predicate.Todo, error) {
 			with = append(with, p)
 		}
 		predicates = append(predicates, todo.HasChannelWith(with...))
+	}
+	if i.HasOwner != nil {
+		p := todo.HasOwner()
+		if !*i.HasOwner {
+			p = todo.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasOwnerWith) > 0 {
+		with := make([]predicate.User, 0, len(i.HasOwnerWith))
+		for _, w := range i.HasOwnerWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasOwnerWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, todo.HasOwnerWith(with...))
 	}
 	if i.HasSourceCandidate != nil {
 		p := todo.HasSourceCandidate()
@@ -7437,6 +7477,10 @@ type UserWhereInput struct {
 	HasTodoCandidateAssignees     *bool                              `json:"hasTodoCandidateAssignees,omitempty"`
 	HasTodoCandidateAssigneesWith []*TodoCandidateAssigneeWhereInput `json:"hasTodoCandidateAssigneesWith,omitempty"`
 
+	// "todos" edge predicates.
+	HasTodos     *bool             `json:"hasTodos,omitempty"`
+	HasTodosWith []*TodoWhereInput `json:"hasTodosWith,omitempty"`
+
 	// "owned_translation_locales" edge predicates.
 	HasOwnedTranslationLocales     *bool                          `json:"hasOwnedTranslationLocales,omitempty"`
 	HasOwnedTranslationLocalesWith []*TranslationLocaleWhereInput `json:"hasOwnedTranslationLocalesWith,omitempty"`
@@ -7705,6 +7749,24 @@ func (i *UserWhereInput) P() (predicate.User, error) {
 			with = append(with, p)
 		}
 		predicates = append(predicates, user.HasTodoCandidateAssigneesWith(with...))
+	}
+	if i.HasTodos != nil {
+		p := user.HasTodos()
+		if !*i.HasTodos {
+			p = user.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasTodosWith) > 0 {
+		with := make([]predicate.Todo, 0, len(i.HasTodosWith))
+		for _, w := range i.HasTodosWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasTodosWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, user.HasTodosWith(with...))
 	}
 	if i.HasOwnedTranslationLocales != nil {
 		p := user.HasOwnedTranslationLocales()

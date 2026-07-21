@@ -8,6 +8,7 @@ import (
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/slack"
+	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidateassignee"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
@@ -35,6 +36,7 @@ type UserQuery struct {
 	withChannelServiceMembers        *ChannelServiceMemberQuery
 	withChannelMessageMentions       *ChannelMessageMentionQuery
 	withTodoCandidateAssignees       *TodoCandidateAssigneeQuery
+	withTodos                        *TodoQuery
 	withOwnedTranslationLocales      *TranslationLocaleQuery
 	modifiers                        []func(*sql.Selector)
 	loadTotal                        []func(context.Context, []*User) error
@@ -43,6 +45,7 @@ type UserQuery struct {
 	withNamedChannelServiceMembers   map[string]*ChannelServiceMemberQuery
 	withNamedChannelMessageMentions  map[string]*ChannelMessageMentionQuery
 	withNamedTodoCandidateAssignees  map[string]*TodoCandidateAssigneeQuery
+	withNamedTodos                   map[string]*TodoQuery
 	withNamedOwnedTranslationLocales map[string]*TranslationLocaleQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -183,6 +186,28 @@ func (_q *UserQuery) QueryTodoCandidateAssignees() *TodoCandidateAssigneeQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(todocandidateassignee.Table, todocandidateassignee.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, true, user.TodoCandidateAssigneesTable, user.TodoCandidateAssigneesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryTodos chains the current query on the "todos" edge.
+func (_q *UserQuery) QueryTodos() *TodoQuery {
+	query := (&TodoClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(todo.Table, todo.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, user.TodosTable, user.TodosColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -409,6 +434,7 @@ func (_q *UserQuery) Clone() *UserQuery {
 		withChannelServiceMembers:   _q.withChannelServiceMembers.Clone(),
 		withChannelMessageMentions:  _q.withChannelMessageMentions.Clone(),
 		withTodoCandidateAssignees:  _q.withTodoCandidateAssignees.Clone(),
+		withTodos:                   _q.withTodos.Clone(),
 		withOwnedTranslationLocales: _q.withOwnedTranslationLocales.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
@@ -468,6 +494,17 @@ func (_q *UserQuery) WithTodoCandidateAssignees(opts ...func(*TodoCandidateAssig
 		opt(query)
 	}
 	_q.withTodoCandidateAssignees = query
+	return _q
+}
+
+// WithTodos tells the query-builder to eager-load the nodes that are connected to
+// the "todos" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithTodos(opts ...func(*TodoQuery)) *UserQuery {
+	query := (&TodoClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withTodos = query
 	return _q
 }
 
@@ -560,12 +597,13 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [6]bool{
+		loadedTypes = [7]bool{
 			_q.withLine != nil,
 			_q.withSlack != nil,
 			_q.withChannelServiceMembers != nil,
 			_q.withChannelMessageMentions != nil,
 			_q.withTodoCandidateAssignees != nil,
+			_q.withTodos != nil,
 			_q.withOwnedTranslationLocales != nil,
 		}
 	)
@@ -631,6 +669,13 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 			return nil, err
 		}
 	}
+	if query := _q.withTodos; query != nil {
+		if err := _q.loadTodos(ctx, query, nodes,
+			func(n *User) { n.Edges.Todos = []*Todo{} },
+			func(n *User, e *Todo) { n.Edges.Todos = append(n.Edges.Todos, e) }); err != nil {
+			return nil, err
+		}
+	}
 	if query := _q.withOwnedTranslationLocales; query != nil {
 		if err := _q.loadOwnedTranslationLocales(ctx, query, nodes,
 			func(n *User) { n.Edges.OwnedTranslationLocales = []*TranslationLocale{} },
@@ -672,6 +717,13 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := _q.loadTodoCandidateAssignees(ctx, query, nodes,
 			func(n *User) { n.appendNamedTodoCandidateAssignees(name) },
 			func(n *User, e *TodoCandidateAssignee) { n.appendNamedTodoCandidateAssignees(name, e) }); err != nil {
+			return nil, err
+		}
+	}
+	for name, query := range _q.withNamedTodos {
+		if err := _q.loadTodos(ctx, query, nodes,
+			func(n *User) { n.appendNamedTodos(name) },
+			func(n *User, e *Todo) { n.appendNamedTodos(name, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -841,6 +893,36 @@ func (_q *UserQuery) loadTodoCandidateAssignees(ctx context.Context, query *Todo
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "resolved_user_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadTodos(ctx context.Context, query *TodoQuery, nodes []*User, init func(*User), assign func(*User, *Todo)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(todo.FieldOwnerUserID)
+	}
+	query.Where(predicate.Todo(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.TodosColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.OwnerUserID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "owner_user_id" returned %v for node %v`, fk, n.ID)
 		}
 		assign(node, n)
 	}
@@ -1028,6 +1110,20 @@ func (_q *UserQuery) WithNamedTodoCandidateAssignees(name string, opts ...func(*
 		_q.withNamedTodoCandidateAssignees = make(map[string]*TodoCandidateAssigneeQuery)
 	}
 	_q.withNamedTodoCandidateAssignees[name] = query
+	return _q
+}
+
+// WithNamedTodos tells the query-builder to eager-load the nodes that are connected to the "todos"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithNamedTodos(name string, opts ...func(*TodoQuery)) *UserQuery {
+	query := (&TodoClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if _q.withNamedTodos == nil {
+		_q.withNamedTodos = make(map[string]*TodoQuery)
+	}
+	_q.withNamedTodos[name] = query
 	return _q
 }
 

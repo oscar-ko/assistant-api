@@ -12,7 +12,6 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 )
 
@@ -60,24 +59,6 @@ func (_u *TodoUpdate) SetNillableTitle(v *string) *TodoUpdate {
 	if v != nil {
 		_u.SetTitle(*v)
 	}
-	return _u
-}
-
-// SetAssignees sets the "assignees" field.
-func (_u *TodoUpdate) SetAssignees(v []string) *TodoUpdate {
-	_u.mutation.SetAssignees(v)
-	return _u
-}
-
-// AppendAssignees appends value to the "assignees" field.
-func (_u *TodoUpdate) AppendAssignees(v []string) *TodoUpdate {
-	_u.mutation.AppendAssignees(v)
-	return _u
-}
-
-// ClearAssignees clears the value of the "assignees" field.
-func (_u *TodoUpdate) ClearAssignees() *TodoUpdate {
-	_u.mutation.ClearAssignees()
 	return _u
 }
 
@@ -231,6 +212,9 @@ func (_u *TodoUpdate) check() error {
 	if _u.mutation.ChannelCleared() && len(_u.mutation.ChannelIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Todo.channel"`)
 	}
+	if _u.mutation.OwnerCleared() && len(_u.mutation.OwnerIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "Todo.owner"`)
+	}
 	return nil
 }
 
@@ -254,17 +238,6 @@ func (_u *TodoUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Title(); ok {
 		_spec.SetField(todo.FieldTitle, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.Assignees(); ok {
-		_spec.SetField(todo.FieldAssignees, field.TypeJSON, value)
-	}
-	if value, ok := _u.mutation.AppendedAssignees(); ok {
-		_spec.AddModifier(func(u *sql.UpdateBuilder) {
-			sqljson.Append(u, todo.FieldAssignees, value)
-		})
-	}
-	if _u.mutation.AssigneesCleared() {
-		_spec.ClearField(todo.FieldAssignees, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.DueAt(); ok {
 		_spec.SetField(todo.FieldDueAt, field.TypeTime, value)
@@ -344,24 +317,6 @@ func (_u *TodoUpdateOne) SetNillableTitle(v *string) *TodoUpdateOne {
 	if v != nil {
 		_u.SetTitle(*v)
 	}
-	return _u
-}
-
-// SetAssignees sets the "assignees" field.
-func (_u *TodoUpdateOne) SetAssignees(v []string) *TodoUpdateOne {
-	_u.mutation.SetAssignees(v)
-	return _u
-}
-
-// AppendAssignees appends value to the "assignees" field.
-func (_u *TodoUpdateOne) AppendAssignees(v []string) *TodoUpdateOne {
-	_u.mutation.AppendAssignees(v)
-	return _u
-}
-
-// ClearAssignees clears the value of the "assignees" field.
-func (_u *TodoUpdateOne) ClearAssignees() *TodoUpdateOne {
-	_u.mutation.ClearAssignees()
 	return _u
 }
 
@@ -528,6 +483,9 @@ func (_u *TodoUpdateOne) check() error {
 	if _u.mutation.ChannelCleared() && len(_u.mutation.ChannelIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Todo.channel"`)
 	}
+	if _u.mutation.OwnerCleared() && len(_u.mutation.OwnerIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "Todo.owner"`)
+	}
 	return nil
 }
 
@@ -568,17 +526,6 @@ func (_u *TodoUpdateOne) sqlSave(ctx context.Context) (_node *Todo, err error) {
 	}
 	if value, ok := _u.mutation.Title(); ok {
 		_spec.SetField(todo.FieldTitle, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.Assignees(); ok {
-		_spec.SetField(todo.FieldAssignees, field.TypeJSON, value)
-	}
-	if value, ok := _u.mutation.AppendedAssignees(); ok {
-		_spec.AddModifier(func(u *sql.UpdateBuilder) {
-			sqljson.Append(u, todo.FieldAssignees, value)
-		})
-	}
-	if _u.mutation.AssigneesCleared() {
-		_spec.ClearField(todo.FieldAssignees, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.DueAt(); ok {
 		_spec.SetField(todo.FieldDueAt, field.TypeTime, value)

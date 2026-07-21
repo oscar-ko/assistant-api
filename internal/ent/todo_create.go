@@ -6,6 +6,7 @@ import (
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
+	"assistant-api/internal/ent/user"
 	"context"
 	"errors"
 	"fmt"
@@ -57,6 +58,12 @@ func (_c *TodoCreate) SetChannelID(v uuid.UUID) *TodoCreate {
 	return _c
 }
 
+// SetOwnerUserID sets the "owner_user_id" field.
+func (_c *TodoCreate) SetOwnerUserID(v uuid.UUID) *TodoCreate {
+	_c.mutation.SetOwnerUserID(v)
+	return _c
+}
+
 // SetSourceCandidateID sets the "source_candidate_id" field.
 func (_c *TodoCreate) SetSourceCandidateID(v uuid.UUID) *TodoCreate {
 	_c.mutation.SetSourceCandidateID(v)
@@ -88,12 +95,6 @@ func (_c *TodoCreate) SetNillableStatus(v *todo.Status) *TodoCreate {
 // SetTitle sets the "title" field.
 func (_c *TodoCreate) SetTitle(v string) *TodoCreate {
 	_c.mutation.SetTitle(v)
-	return _c
-}
-
-// SetAssignees sets the "assignees" field.
-func (_c *TodoCreate) SetAssignees(v []string) *TodoCreate {
-	_c.mutation.SetAssignees(v)
 	return _c
 }
 
@@ -186,6 +187,17 @@ func (_c *TodoCreate) SetChannel(v *Channel) *TodoCreate {
 	return _c.SetChannelID(v.ID)
 }
 
+// SetOwnerID sets the "owner" edge to the User entity by ID.
+func (_c *TodoCreate) SetOwnerID(id uuid.UUID) *TodoCreate {
+	_c.mutation.SetOwnerID(id)
+	return _c
+}
+
+// SetOwner sets the "owner" edge to the User entity.
+func (_c *TodoCreate) SetOwner(v *User) *TodoCreate {
+	return _c.SetOwnerID(v.ID)
+}
+
 // SetSourceCandidate sets the "source_candidate" edge to the TodoCandidate entity.
 func (_c *TodoCreate) SetSourceCandidate(v *TodoCandidate) *TodoCreate {
 	return _c.SetSourceCandidateID(v.ID)
@@ -259,6 +271,9 @@ func (_c *TodoCreate) check() error {
 	if _, ok := _c.mutation.ChannelID(); !ok {
 		return &ValidationError{Name: "channel_id", err: errors.New(`ent: missing required field "Todo.channel_id"`)}
 	}
+	if _, ok := _c.mutation.OwnerUserID(); !ok {
+		return &ValidationError{Name: "owner_user_id", err: errors.New(`ent: missing required field "Todo.owner_user_id"`)}
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "Todo.status"`)}
 	}
@@ -280,6 +295,9 @@ func (_c *TodoCreate) check() error {
 	}
 	if len(_c.mutation.ChannelIDs()) == 0 {
 		return &ValidationError{Name: "channel", err: errors.New(`ent: missing required edge "Todo.channel"`)}
+	}
+	if len(_c.mutation.OwnerIDs()) == 0 {
+		return &ValidationError{Name: "owner", err: errors.New(`ent: missing required edge "Todo.owner"`)}
 	}
 	return nil
 }
@@ -332,10 +350,6 @@ func (_c *TodoCreate) createSpec() (*Todo, *sqlgraph.CreateSpec) {
 		_spec.SetField(todo.FieldTitle, field.TypeString, value)
 		_node.Title = value
 	}
-	if value, ok := _c.mutation.Assignees(); ok {
-		_spec.SetField(todo.FieldAssignees, field.TypeJSON, value)
-		_node.Assignees = value
-	}
 	if value, ok := _c.mutation.DueAt(); ok {
 		_spec.SetField(todo.FieldDueAt, field.TypeTime, value)
 		_node.DueAt = &value
@@ -371,6 +385,23 @@ func (_c *TodoCreate) createSpec() (*Todo, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.ChannelID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.OwnerIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   todo.OwnerTable,
+			Columns: []string{todo.OwnerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.OwnerUserID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.SourceCandidateIDs(); len(nodes) > 0 {

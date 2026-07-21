@@ -7,6 +7,7 @@ import (
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
+	"assistant-api/internal/ent/user"
 	"context"
 	"fmt"
 	"math"
@@ -26,6 +27,7 @@ type TodoQuery struct {
 	inters              []Interceptor
 	predicates          []predicate.Todo
 	withChannel         *ChannelQuery
+	withOwner           *UserQuery
 	withSourceCandidate *TodoCandidateQuery
 	modifiers           []func(*sql.Selector)
 	loadTotal           []func(context.Context, []*Todo) error
@@ -80,6 +82,28 @@ func (_q *TodoQuery) QueryChannel() *ChannelQuery {
 			sqlgraph.From(todo.Table, todo.FieldID, selector),
 			sqlgraph.To(channel.Table, channel.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, false, todo.ChannelTable, todo.ChannelColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryOwner chains the current query on the "owner" edge.
+func (_q *TodoQuery) QueryOwner() *UserQuery {
+	query := (&UserClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(todo.Table, todo.FieldID, selector),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, todo.OwnerTable, todo.OwnerColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -302,6 +326,7 @@ func (_q *TodoQuery) Clone() *TodoQuery {
 		inters:              append([]Interceptor{}, _q.inters...),
 		predicates:          append([]predicate.Todo{}, _q.predicates...),
 		withChannel:         _q.withChannel.Clone(),
+		withOwner:           _q.withOwner.Clone(),
 		withSourceCandidate: _q.withSourceCandidate.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
@@ -317,6 +342,17 @@ func (_q *TodoQuery) WithChannel(opts ...func(*ChannelQuery)) *TodoQuery {
 		opt(query)
 	}
 	_q.withChannel = query
+	return _q
+}
+
+// WithOwner tells the query-builder to eager-load the nodes that are connected to
+// the "owner" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TodoQuery) WithOwner(opts ...func(*UserQuery)) *TodoQuery {
+	query := (&UserClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withOwner = query
 	return _q
 }
 
@@ -409,8 +445,9 @@ func (_q *TodoQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Todo, e
 	var (
 		nodes       = []*Todo{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [3]bool{
 			_q.withChannel != nil,
+			_q.withOwner != nil,
 			_q.withSourceCandidate != nil,
 		}
 	)
@@ -438,6 +475,12 @@ func (_q *TodoQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Todo, e
 	if query := _q.withChannel; query != nil {
 		if err := _q.loadChannel(ctx, query, nodes, nil,
 			func(n *Todo, e *Channel) { n.Edges.Channel = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withOwner; query != nil {
+		if err := _q.loadOwner(ctx, query, nodes, nil,
+			func(n *Todo, e *User) { n.Edges.Owner = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -477,6 +520,35 @@ func (_q *TodoQuery) loadChannel(ctx context.Context, query *ChannelQuery, nodes
 		nodes, ok := nodeids[n.ID]
 		if !ok {
 			return fmt.Errorf(`unexpected foreign-key "channel_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
+func (_q *TodoQuery) loadOwner(ctx context.Context, query *UserQuery, nodes []*Todo, init func(*Todo), assign func(*Todo, *User)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*Todo)
+	for i := range nodes {
+		fk := nodes[i].OwnerUserID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(user.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "owner_user_id" returned %v`, n.ID)
 		}
 		for i := range nodes {
 			assign(nodes[i], n)
@@ -547,6 +619,9 @@ func (_q *TodoQuery) querySpec() *sqlgraph.QuerySpec {
 		}
 		if _q.withChannel != nil {
 			_spec.Node.AddColumnOnce(todo.FieldChannelID)
+		}
+		if _q.withOwner != nil {
+			_spec.Node.AddColumnOnce(todo.FieldOwnerUserID)
 		}
 		if _q.withSourceCandidate != nil {
 			_spec.Node.AddColumnOnce(todo.FieldSourceCandidateID)

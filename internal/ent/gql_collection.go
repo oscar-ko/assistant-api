@@ -1449,6 +1449,21 @@ func (_q *TodoQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 				fieldSeen[todo.FieldChannelID] = struct{}{}
 			}
 
+		case "owner":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&UserClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, userImplementors)...); err != nil {
+				return err
+			}
+			_q.withOwner = query
+			if _, ok := fieldSeen[todo.FieldOwnerUserID]; !ok {
+				selectedFields = append(selectedFields, todo.FieldOwnerUserID)
+				fieldSeen[todo.FieldOwnerUserID] = struct{}{}
+			}
+
 		case "sourceCandidate":
 			var (
 				alias = field.Alias
@@ -1478,6 +1493,11 @@ func (_q *TodoQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 				selectedFields = append(selectedFields, todo.FieldChannelID)
 				fieldSeen[todo.FieldChannelID] = struct{}{}
 			}
+		case "ownerUserID":
+			if _, ok := fieldSeen[todo.FieldOwnerUserID]; !ok {
+				selectedFields = append(selectedFields, todo.FieldOwnerUserID)
+				fieldSeen[todo.FieldOwnerUserID] = struct{}{}
+			}
 		case "sourceCandidateID":
 			if _, ok := fieldSeen[todo.FieldSourceCandidateID]; !ok {
 				selectedFields = append(selectedFields, todo.FieldSourceCandidateID)
@@ -1492,11 +1512,6 @@ func (_q *TodoQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 			if _, ok := fieldSeen[todo.FieldTitle]; !ok {
 				selectedFields = append(selectedFields, todo.FieldTitle)
 				fieldSeen[todo.FieldTitle] = struct{}{}
-			}
-		case "assignees":
-			if _, ok := fieldSeen[todo.FieldAssignees]; !ok {
-				selectedFields = append(selectedFields, todo.FieldAssignees)
-				fieldSeen[todo.FieldAssignees] = struct{}{}
 			}
 		case "dueAt":
 			if _, ok := fieldSeen[todo.FieldDueAt]; !ok {
@@ -2172,6 +2187,19 @@ func (_q *UserQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 				return err
 			}
 			_q.WithNamedTodoCandidateAssignees(alias, func(wq *TodoCandidateAssigneeQuery) {
+				*wq = *query
+			})
+
+		case "todos":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&TodoClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, todoImplementors)...); err != nil {
+				return err
+			}
+			_q.WithNamedTodos(alias, func(wq *TodoQuery) {
 				*wq = *query
 			})
 

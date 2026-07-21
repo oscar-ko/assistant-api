@@ -240,6 +240,14 @@ func (_m *Todo) Channel(ctx context.Context) (*Channel, error) {
 	return result, err
 }
 
+func (_m *Todo) Owner(ctx context.Context) (*User, error) {
+	result, err := _m.Edges.OwnerOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryOwner().Only(ctx)
+	}
+	return result, err
+}
+
 func (_m *Todo) SourceCandidate(ctx context.Context) (*TodoCandidate, error) {
 	result, err := _m.Edges.SourceCandidateOrErr()
 	if IsNotLoaded(err) {
@@ -396,6 +404,18 @@ func (_m *User) TodoCandidateAssignees(ctx context.Context) (result []*TodoCandi
 	}
 	if IsNotLoaded(err) {
 		result, err = _m.QueryTodoCandidateAssignees().All(ctx)
+	}
+	return result, err
+}
+
+func (_m *User) Todos(ctx context.Context) (result []*Todo, err error) {
+	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
+		result, err = _m.NamedTodos(graphql.GetFieldContext(ctx).Field.Alias)
+	} else {
+		result, err = _m.Edges.TodosOrErr()
+	}
+	if IsNotLoaded(err) {
+		result, err = _m.QueryTodos().All(ctx)
 	}
 	return result, err
 }

@@ -27,6 +27,8 @@ const (
 	EdgeChannelMessageMentions = "channel_message_mentions"
 	// EdgeTodoCandidateAssignees holds the string denoting the todo_candidate_assignees edge name in mutations.
 	EdgeTodoCandidateAssignees = "todo_candidate_assignees"
+	// EdgeTodos holds the string denoting the todos edge name in mutations.
+	EdgeTodos = "todos"
 	// EdgeOwnedTranslationLocales holds the string denoting the owned_translation_locales edge name in mutations.
 	EdgeOwnedTranslationLocales = "owned_translation_locales"
 	// Table holds the table name of the user in the database.
@@ -66,6 +68,13 @@ const (
 	TodoCandidateAssigneesInverseTable = "todo_candidate_assignees"
 	// TodoCandidateAssigneesColumn is the table column denoting the todo_candidate_assignees relation/edge.
 	TodoCandidateAssigneesColumn = "resolved_user_id"
+	// TodosTable is the table that holds the todos relation/edge.
+	TodosTable = "todos"
+	// TodosInverseTable is the table name for the Todo entity.
+	// It exists in this package in order to avoid circular dependency with the "todo" package.
+	TodosInverseTable = "todos"
+	// TodosColumn is the table column denoting the todos relation/edge.
+	TodosColumn = "owner_user_id"
 	// OwnedTranslationLocalesTable is the table that holds the owned_translation_locales relation/edge.
 	OwnedTranslationLocalesTable = "translation_locales"
 	// OwnedTranslationLocalesInverseTable is the table name for the TranslationLocale entity.
@@ -189,6 +198,20 @@ func ByTodoCandidateAssignees(term sql.OrderTerm, terms ...sql.OrderTerm) OrderO
 	}
 }
 
+// ByTodosCount orders the results by todos count.
+func ByTodosCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newTodosStep(), opts...)
+	}
+}
+
+// ByTodos orders the results by todos terms.
+func ByTodos(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newTodosStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByOwnedTranslationLocalesCount orders the results by owned_translation_locales count.
 func ByOwnedTranslationLocalesCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -235,6 +258,13 @@ func newTodoCandidateAssigneesStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(TodoCandidateAssigneesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, true, TodoCandidateAssigneesTable, TodoCandidateAssigneesColumn),
+	)
+}
+func newTodosStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(TodosInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, true, TodosTable, TodosColumn),
 	)
 }
 func newOwnedTranslationLocalesStep() *sqlgraph.Step {

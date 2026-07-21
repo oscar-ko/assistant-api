@@ -421,13 +421,13 @@ var (
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "completed", "cancelled"}, Default: "active"},
 		{Name: "title", Type: field.TypeString},
-		{Name: "assignees", Type: field.TypeJSON, Nullable: true},
 		{Name: "due_at", Type: field.TypeTime, Nullable: true},
 		{Name: "due_timezone", Type: field.TypeString, Nullable: true},
 		{Name: "due_precision", Type: field.TypeEnum, Enums: []string{"datetime", "date", "relative_window", "unknown"}, Default: "unknown"},
 		{Name: "location_text", Type: field.TypeString, Nullable: true},
 		{Name: "object_text", Type: field.TypeString, Nullable: true},
 		{Name: "channel_id", Type: field.TypeUUID},
+		{Name: "owner_user_id", Type: field.TypeUUID},
 		{Name: "source_candidate_id", Type: field.TypeUUID, Nullable: true},
 	}
 	// TodosTable holds the schema information for the "todos" table.
@@ -438,8 +438,14 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "todos_channels_channel",
-				Columns:    []*schema.Column{TodosColumns[11]},
+				Columns:    []*schema.Column{TodosColumns[10]},
 				RefColumns: []*schema.Column{ChannelsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "todos_users_owner",
+				Columns:    []*schema.Column{TodosColumns[11]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
@@ -453,17 +459,22 @@ var (
 			{
 				Name:    "todo_channel_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{TodosColumns[11], TodosColumns[3]},
+				Columns: []*schema.Column{TodosColumns[10], TodosColumns[3]},
+			},
+			{
+				Name:    "todo_channel_id_owner_user_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{TodosColumns[10], TodosColumns[11], TodosColumns[3]},
 			},
 			{
 				Name:    "todo_channel_id_due_at",
 				Unique:  false,
-				Columns: []*schema.Column{TodosColumns[11], TodosColumns[6]},
+				Columns: []*schema.Column{TodosColumns[10], TodosColumns[5]},
 			},
 			{
-				Name:    "todo_source_candidate_id",
+				Name:    "todo_source_candidate_id_owner_user_id",
 				Unique:  true,
-				Columns: []*schema.Column{TodosColumns[12]},
+				Columns: []*schema.Column{TodosColumns[12], TodosColumns[11]},
 			},
 		},
 	}
@@ -717,7 +728,8 @@ func init() {
 	LinesTable.ForeignKeys[0].RefTable = UsersTable
 	SlacksTable.ForeignKeys[0].RefTable = UsersTable
 	TodosTable.ForeignKeys[0].RefTable = ChannelsTable
-	TodosTable.ForeignKeys[1].RefTable = TodoCandidatesTable
+	TodosTable.ForeignKeys[1].RefTable = UsersTable
+	TodosTable.ForeignKeys[2].RefTable = TodoCandidatesTable
 	TodoCandidatesTable.ForeignKeys[0].RefTable = ChannelsTable
 	TodoCandidatesTable.ForeignKeys[1].RefTable = ChannelMessagesTable
 	TodoCandidatesTable.ForeignKeys[2].RefTable = ChannelMessagesTable

@@ -9448,8 +9448,6 @@ type TodoMutation struct {
 	updated_at              *time.Time
 	status                  *todo.Status
 	title                   *string
-	assignees               *[]string
-	appendassignees         []string
 	due_at                  *time.Time
 	due_timezone            *string
 	due_precision           *todo.DuePrecision
@@ -9458,6 +9456,8 @@ type TodoMutation struct {
 	clearedFields           map[string]struct{}
 	channel                 *uuid.UUID
 	clearedchannel          bool
+	owner                   *uuid.UUID
+	clearedowner            bool
 	source_candidate        *uuid.UUID
 	clearedsource_candidate bool
 	done                    bool
@@ -9677,6 +9677,42 @@ func (m *TodoMutation) ResetChannelID() {
 	m.channel = nil
 }
 
+// SetOwnerUserID sets the "owner_user_id" field.
+func (m *TodoMutation) SetOwnerUserID(u uuid.UUID) {
+	m.owner = &u
+}
+
+// OwnerUserID returns the value of the "owner_user_id" field in the mutation.
+func (m *TodoMutation) OwnerUserID() (r uuid.UUID, exists bool) {
+	v := m.owner
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOwnerUserID returns the old "owner_user_id" field's value of the Todo entity.
+// If the Todo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoMutation) OldOwnerUserID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOwnerUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOwnerUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOwnerUserID: %w", err)
+	}
+	return oldValue.OwnerUserID, nil
+}
+
+// ResetOwnerUserID resets all changes to the "owner_user_id" field.
+func (m *TodoMutation) ResetOwnerUserID() {
+	m.owner = nil
+}
+
 // SetSourceCandidateID sets the "source_candidate_id" field.
 func (m *TodoMutation) SetSourceCandidateID(u uuid.UUID) {
 	m.source_candidate = &u
@@ -9796,71 +9832,6 @@ func (m *TodoMutation) OldTitle(ctx context.Context) (v string, err error) {
 // ResetTitle resets all changes to the "title" field.
 func (m *TodoMutation) ResetTitle() {
 	m.title = nil
-}
-
-// SetAssignees sets the "assignees" field.
-func (m *TodoMutation) SetAssignees(s []string) {
-	m.assignees = &s
-	m.appendassignees = nil
-}
-
-// Assignees returns the value of the "assignees" field in the mutation.
-func (m *TodoMutation) Assignees() (r []string, exists bool) {
-	v := m.assignees
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldAssignees returns the old "assignees" field's value of the Todo entity.
-// If the Todo object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TodoMutation) OldAssignees(ctx context.Context) (v []string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldAssignees is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldAssignees requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldAssignees: %w", err)
-	}
-	return oldValue.Assignees, nil
-}
-
-// AppendAssignees adds s to the "assignees" field.
-func (m *TodoMutation) AppendAssignees(s []string) {
-	m.appendassignees = append(m.appendassignees, s...)
-}
-
-// AppendedAssignees returns the list of values that were appended to the "assignees" field in this mutation.
-func (m *TodoMutation) AppendedAssignees() ([]string, bool) {
-	if len(m.appendassignees) == 0 {
-		return nil, false
-	}
-	return m.appendassignees, true
-}
-
-// ClearAssignees clears the value of the "assignees" field.
-func (m *TodoMutation) ClearAssignees() {
-	m.assignees = nil
-	m.appendassignees = nil
-	m.clearedFields[todo.FieldAssignees] = struct{}{}
-}
-
-// AssigneesCleared returns if the "assignees" field was cleared in this mutation.
-func (m *TodoMutation) AssigneesCleared() bool {
-	_, ok := m.clearedFields[todo.FieldAssignees]
-	return ok
-}
-
-// ResetAssignees resets all changes to the "assignees" field.
-func (m *TodoMutation) ResetAssignees() {
-	m.assignees = nil
-	m.appendassignees = nil
-	delete(m.clearedFields, todo.FieldAssignees)
 }
 
 // SetDueAt sets the "due_at" field.
@@ -10122,6 +10093,46 @@ func (m *TodoMutation) ResetChannel() {
 	m.clearedchannel = false
 }
 
+// SetOwnerID sets the "owner" edge to the User entity by id.
+func (m *TodoMutation) SetOwnerID(id uuid.UUID) {
+	m.owner = &id
+}
+
+// ClearOwner clears the "owner" edge to the User entity.
+func (m *TodoMutation) ClearOwner() {
+	m.clearedowner = true
+	m.clearedFields[todo.FieldOwnerUserID] = struct{}{}
+}
+
+// OwnerCleared reports if the "owner" edge to the User entity was cleared.
+func (m *TodoMutation) OwnerCleared() bool {
+	return m.clearedowner
+}
+
+// OwnerID returns the "owner" edge ID in the mutation.
+func (m *TodoMutation) OwnerID() (id uuid.UUID, exists bool) {
+	if m.owner != nil {
+		return *m.owner, true
+	}
+	return
+}
+
+// OwnerIDs returns the "owner" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// OwnerID instead. It exists only for internal usage by the builders.
+func (m *TodoMutation) OwnerIDs() (ids []uuid.UUID) {
+	if id := m.owner; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetOwner resets all changes to the "owner" edge.
+func (m *TodoMutation) ResetOwner() {
+	m.owner = nil
+	m.clearedowner = false
+}
+
 // ClearSourceCandidate clears the "source_candidate" edge to the TodoCandidate entity.
 func (m *TodoMutation) ClearSourceCandidate() {
 	m.clearedsource_candidate = true
@@ -10193,6 +10204,9 @@ func (m *TodoMutation) Fields() []string {
 	if m.channel != nil {
 		fields = append(fields, todo.FieldChannelID)
 	}
+	if m.owner != nil {
+		fields = append(fields, todo.FieldOwnerUserID)
+	}
 	if m.source_candidate != nil {
 		fields = append(fields, todo.FieldSourceCandidateID)
 	}
@@ -10201,9 +10215,6 @@ func (m *TodoMutation) Fields() []string {
 	}
 	if m.title != nil {
 		fields = append(fields, todo.FieldTitle)
-	}
-	if m.assignees != nil {
-		fields = append(fields, todo.FieldAssignees)
 	}
 	if m.due_at != nil {
 		fields = append(fields, todo.FieldDueAt)
@@ -10234,14 +10245,14 @@ func (m *TodoMutation) Field(name string) (ent.Value, bool) {
 		return m.UpdatedAt()
 	case todo.FieldChannelID:
 		return m.ChannelID()
+	case todo.FieldOwnerUserID:
+		return m.OwnerUserID()
 	case todo.FieldSourceCandidateID:
 		return m.SourceCandidateID()
 	case todo.FieldStatus:
 		return m.Status()
 	case todo.FieldTitle:
 		return m.Title()
-	case todo.FieldAssignees:
-		return m.Assignees()
 	case todo.FieldDueAt:
 		return m.DueAt()
 	case todo.FieldDueTimezone:
@@ -10267,14 +10278,14 @@ func (m *TodoMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldUpdatedAt(ctx)
 	case todo.FieldChannelID:
 		return m.OldChannelID(ctx)
+	case todo.FieldOwnerUserID:
+		return m.OldOwnerUserID(ctx)
 	case todo.FieldSourceCandidateID:
 		return m.OldSourceCandidateID(ctx)
 	case todo.FieldStatus:
 		return m.OldStatus(ctx)
 	case todo.FieldTitle:
 		return m.OldTitle(ctx)
-	case todo.FieldAssignees:
-		return m.OldAssignees(ctx)
 	case todo.FieldDueAt:
 		return m.OldDueAt(ctx)
 	case todo.FieldDueTimezone:
@@ -10315,6 +10326,13 @@ func (m *TodoMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetChannelID(v)
 		return nil
+	case todo.FieldOwnerUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOwnerUserID(v)
+		return nil
 	case todo.FieldSourceCandidateID:
 		v, ok := value.(uuid.UUID)
 		if !ok {
@@ -10335,13 +10353,6 @@ func (m *TodoMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTitle(v)
-		return nil
-	case todo.FieldAssignees:
-		v, ok := value.([]string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetAssignees(v)
 		return nil
 	case todo.FieldDueAt:
 		v, ok := value.(time.Time)
@@ -10411,9 +10422,6 @@ func (m *TodoMutation) ClearedFields() []string {
 	if m.FieldCleared(todo.FieldSourceCandidateID) {
 		fields = append(fields, todo.FieldSourceCandidateID)
 	}
-	if m.FieldCleared(todo.FieldAssignees) {
-		fields = append(fields, todo.FieldAssignees)
-	}
 	if m.FieldCleared(todo.FieldDueAt) {
 		fields = append(fields, todo.FieldDueAt)
 	}
@@ -10442,9 +10450,6 @@ func (m *TodoMutation) ClearField(name string) error {
 	switch name {
 	case todo.FieldSourceCandidateID:
 		m.ClearSourceCandidateID()
-		return nil
-	case todo.FieldAssignees:
-		m.ClearAssignees()
 		return nil
 	case todo.FieldDueAt:
 		m.ClearDueAt()
@@ -10475,6 +10480,9 @@ func (m *TodoMutation) ResetField(name string) error {
 	case todo.FieldChannelID:
 		m.ResetChannelID()
 		return nil
+	case todo.FieldOwnerUserID:
+		m.ResetOwnerUserID()
+		return nil
 	case todo.FieldSourceCandidateID:
 		m.ResetSourceCandidateID()
 		return nil
@@ -10483,9 +10491,6 @@ func (m *TodoMutation) ResetField(name string) error {
 		return nil
 	case todo.FieldTitle:
 		m.ResetTitle()
-		return nil
-	case todo.FieldAssignees:
-		m.ResetAssignees()
 		return nil
 	case todo.FieldDueAt:
 		m.ResetDueAt()
@@ -10508,9 +10513,12 @@ func (m *TodoMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TodoMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.channel != nil {
 		edges = append(edges, todo.EdgeChannel)
+	}
+	if m.owner != nil {
+		edges = append(edges, todo.EdgeOwner)
 	}
 	if m.source_candidate != nil {
 		edges = append(edges, todo.EdgeSourceCandidate)
@@ -10526,6 +10534,10 @@ func (m *TodoMutation) AddedIDs(name string) []ent.Value {
 		if id := m.channel; id != nil {
 			return []ent.Value{*id}
 		}
+	case todo.EdgeOwner:
+		if id := m.owner; id != nil {
+			return []ent.Value{*id}
+		}
 	case todo.EdgeSourceCandidate:
 		if id := m.source_candidate; id != nil {
 			return []ent.Value{*id}
@@ -10536,7 +10548,7 @@ func (m *TodoMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TodoMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	return edges
 }
 
@@ -10548,9 +10560,12 @@ func (m *TodoMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TodoMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.clearedchannel {
 		edges = append(edges, todo.EdgeChannel)
+	}
+	if m.clearedowner {
+		edges = append(edges, todo.EdgeOwner)
 	}
 	if m.clearedsource_candidate {
 		edges = append(edges, todo.EdgeSourceCandidate)
@@ -10564,6 +10579,8 @@ func (m *TodoMutation) EdgeCleared(name string) bool {
 	switch name {
 	case todo.EdgeChannel:
 		return m.clearedchannel
+	case todo.EdgeOwner:
+		return m.clearedowner
 	case todo.EdgeSourceCandidate:
 		return m.clearedsource_candidate
 	}
@@ -10576,6 +10593,9 @@ func (m *TodoMutation) ClearEdge(name string) error {
 	switch name {
 	case todo.EdgeChannel:
 		m.ClearChannel()
+		return nil
+	case todo.EdgeOwner:
+		m.ClearOwner()
 		return nil
 	case todo.EdgeSourceCandidate:
 		m.ClearSourceCandidate()
@@ -10590,6 +10610,9 @@ func (m *TodoMutation) ResetEdge(name string) error {
 	switch name {
 	case todo.EdgeChannel:
 		m.ResetChannel()
+		return nil
+	case todo.EdgeOwner:
+		m.ResetOwner()
 		return nil
 	case todo.EdgeSourceCandidate:
 		m.ResetSourceCandidate()
@@ -14322,6 +14345,9 @@ type UserMutation struct {
 	todo_candidate_assignees         map[uuid.UUID]struct{}
 	removedtodo_candidate_assignees  map[uuid.UUID]struct{}
 	clearedtodo_candidate_assignees  bool
+	todos                            map[uuid.UUID]struct{}
+	removedtodos                     map[uuid.UUID]struct{}
+	clearedtodos                     bool
 	owned_translation_locales        map[uuid.UUID]struct{}
 	removedowned_translation_locales map[uuid.UUID]struct{}
 	clearedowned_translation_locales bool
@@ -14776,6 +14802,60 @@ func (m *UserMutation) ResetTodoCandidateAssignees() {
 	m.removedtodo_candidate_assignees = nil
 }
 
+// AddTodoIDs adds the "todos" edge to the Todo entity by ids.
+func (m *UserMutation) AddTodoIDs(ids ...uuid.UUID) {
+	if m.todos == nil {
+		m.todos = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.todos[ids[i]] = struct{}{}
+	}
+}
+
+// ClearTodos clears the "todos" edge to the Todo entity.
+func (m *UserMutation) ClearTodos() {
+	m.clearedtodos = true
+}
+
+// TodosCleared reports if the "todos" edge to the Todo entity was cleared.
+func (m *UserMutation) TodosCleared() bool {
+	return m.clearedtodos
+}
+
+// RemoveTodoIDs removes the "todos" edge to the Todo entity by IDs.
+func (m *UserMutation) RemoveTodoIDs(ids ...uuid.UUID) {
+	if m.removedtodos == nil {
+		m.removedtodos = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.todos, ids[i])
+		m.removedtodos[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedTodos returns the removed IDs of the "todos" edge to the Todo entity.
+func (m *UserMutation) RemovedTodosIDs() (ids []uuid.UUID) {
+	for id := range m.removedtodos {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// TodosIDs returns the "todos" edge IDs in the mutation.
+func (m *UserMutation) TodosIDs() (ids []uuid.UUID) {
+	for id := range m.todos {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetTodos resets all changes to the "todos" edge.
+func (m *UserMutation) ResetTodos() {
+	m.todos = nil
+	m.clearedtodos = false
+	m.removedtodos = nil
+}
+
 // AddOwnedTranslationLocaleIDs adds the "owned_translation_locales" edge to the TranslationLocale entity by ids.
 func (m *UserMutation) AddOwnedTranslationLocaleIDs(ids ...uuid.UUID) {
 	if m.owned_translation_locales == nil {
@@ -14980,7 +15060,7 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 7)
 	if m.line != nil {
 		edges = append(edges, user.EdgeLine)
 	}
@@ -14995,6 +15075,9 @@ func (m *UserMutation) AddedEdges() []string {
 	}
 	if m.todo_candidate_assignees != nil {
 		edges = append(edges, user.EdgeTodoCandidateAssignees)
+	}
+	if m.todos != nil {
+		edges = append(edges, user.EdgeTodos)
 	}
 	if m.owned_translation_locales != nil {
 		edges = append(edges, user.EdgeOwnedTranslationLocales)
@@ -15036,6 +15119,12 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeTodos:
+		ids := make([]ent.Value, 0, len(m.todos))
+		for id := range m.todos {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeOwnedTranslationLocales:
 		ids := make([]ent.Value, 0, len(m.owned_translation_locales))
 		for id := range m.owned_translation_locales {
@@ -15048,7 +15137,7 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 7)
 	if m.removedline != nil {
 		edges = append(edges, user.EdgeLine)
 	}
@@ -15063,6 +15152,9 @@ func (m *UserMutation) RemovedEdges() []string {
 	}
 	if m.removedtodo_candidate_assignees != nil {
 		edges = append(edges, user.EdgeTodoCandidateAssignees)
+	}
+	if m.removedtodos != nil {
+		edges = append(edges, user.EdgeTodos)
 	}
 	if m.removedowned_translation_locales != nil {
 		edges = append(edges, user.EdgeOwnedTranslationLocales)
@@ -15104,6 +15196,12 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeTodos:
+		ids := make([]ent.Value, 0, len(m.removedtodos))
+		for id := range m.removedtodos {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeOwnedTranslationLocales:
 		ids := make([]ent.Value, 0, len(m.removedowned_translation_locales))
 		for id := range m.removedowned_translation_locales {
@@ -15116,7 +15214,7 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 7)
 	if m.clearedline {
 		edges = append(edges, user.EdgeLine)
 	}
@@ -15131,6 +15229,9 @@ func (m *UserMutation) ClearedEdges() []string {
 	}
 	if m.clearedtodo_candidate_assignees {
 		edges = append(edges, user.EdgeTodoCandidateAssignees)
+	}
+	if m.clearedtodos {
+		edges = append(edges, user.EdgeTodos)
 	}
 	if m.clearedowned_translation_locales {
 		edges = append(edges, user.EdgeOwnedTranslationLocales)
@@ -15152,6 +15253,8 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 		return m.clearedchannel_message_mentions
 	case user.EdgeTodoCandidateAssignees:
 		return m.clearedtodo_candidate_assignees
+	case user.EdgeTodos:
+		return m.clearedtodos
 	case user.EdgeOwnedTranslationLocales:
 		return m.clearedowned_translation_locales
 	}
@@ -15184,6 +15287,9 @@ func (m *UserMutation) ResetEdge(name string) error {
 		return nil
 	case user.EdgeTodoCandidateAssignees:
 		m.ResetTodoCandidateAssignees()
+		return nil
+	case user.EdgeTodos:
+		m.ResetTodos()
 		return nil
 	case user.EdgeOwnedTranslationLocales:
 		m.ResetOwnedTranslationLocales()

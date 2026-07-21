@@ -310,6 +310,29 @@ func HasTodoCandidateAssigneesWith(preds ...predicate.TodoCandidateAssignee) pre
 	})
 }
 
+// HasTodos applies the HasEdge predicate on the "todos" edge.
+func HasTodos() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, TodosTable, TodosColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasTodosWith applies the HasEdge predicate on the "todos" edge with a given conditions (other predicates).
+func HasTodosWith(preds ...predicate.Todo) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newTodosStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasOwnedTranslationLocales applies the HasEdge predicate on the "owned_translation_locales" edge.
 func HasOwnedTranslationLocales() predicate.User {
 	return predicate.User(func(s *sql.Selector) {

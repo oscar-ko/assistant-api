@@ -55,6 +55,9 @@ func (User) Edges() []ent.Edge {
 		edge.From("todo_candidate_assignees", TodoCandidateAssignee.Type).
 			Ref("resolved_user").
 			Comment("非 mention 來源解析到此使用者的 Todo candidate assignee evidence"),
+		edge.From("todos", Todo.Type).
+			Ref("owner").
+			Comment("此使用者擁有的正式待辦；每一筆 Todo 都跟著單一 owner user 走"),
 		edge.From("owned_translation_locales", TranslationLocale.Type).
 			Ref("owner").
 			Comment("使用者新增的翻譯目標語言設定"),

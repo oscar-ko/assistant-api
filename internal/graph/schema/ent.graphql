@@ -919,6 +919,7 @@ input CreateUserInput {
   channelServiceMemberIDs: [ID!]
   channelMessageMentionIDs: [ID!]
   todoCandidateAssigneeIDs: [ID!]
+  todoIDs: [ID!]
   ownedTranslationLocaleIDs: [ID!]
 }
 """
@@ -1747,6 +1748,13 @@ input TodoWhereInput {
   channelIDIn: [ID!]
   channelIDNotIn: [ID!]
   """
+  owner_user_id field predicates
+  """
+  ownerUserID: ID
+  ownerUserIDNEQ: ID
+  ownerUserIDIn: [ID!]
+  ownerUserIDNotIn: [ID!]
+  """
   source_candidate_id field predicates
   """
   sourceCandidateID: ID
@@ -1857,6 +1865,11 @@ input TodoWhereInput {
   """
   hasChannel: Boolean
   hasChannelWith: [ChannelWhereInput!]
+  """
+  owner edge predicates
+  """
+  hasOwner: Boolean
+  hasOwnerWith: [UserWhereInput!]
   """
   source_candidate edge predicates
   """
@@ -1985,6 +1998,9 @@ input UpdateUserInput {
   addTodoCandidateAssigneeIDs: [ID!]
   removeTodoCandidateAssigneeIDs: [ID!]
   clearTodoCandidateAssignees: Boolean
+  addTodoIDs: [ID!]
+  removeTodoIDs: [ID!]
+  clearTodos: Boolean
   addOwnedTranslationLocaleIDs: [ID!]
   removeOwnedTranslationLocaleIDs: [ID!]
   clearOwnedTranslationLocales: Boolean
@@ -2065,6 +2081,11 @@ input UserWhereInput {
   """
   hasTodoCandidateAssignees: Boolean
   hasTodoCandidateAssigneesWith: [TodoCandidateAssigneeWhereInput!]
+  """
+  todos edge predicates
+  """
+  hasTodos: Boolean
+  hasTodosWith: [TodoWhereInput!]
   """
   owned_translation_locales edge predicates
   """

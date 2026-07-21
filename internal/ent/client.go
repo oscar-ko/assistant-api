@@ -2288,6 +2288,22 @@ func (c *TodoClient) QueryChannel(_m *Todo) *ChannelQuery {
 	return query
 }
 
+// QueryOwner queries the owner edge of a Todo.
+func (c *TodoClient) QueryOwner(_m *Todo) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(todo.Table, todo.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, todo.OwnerTable, todo.OwnerColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QuerySourceCandidate queries the source_candidate edge of a Todo.
 func (c *TodoClient) QuerySourceCandidate(_m *Todo) *TodoCandidateQuery {
 	query := (&TodoCandidateClient{config: c.config}).Query()
@@ -3085,6 +3101,22 @@ func (c *UserClient) QueryTodoCandidateAssignees(_m *User) *TodoCandidateAssigne
 			sqlgraph.From(user.Table, user.FieldID, id),
 			sqlgraph.To(todocandidateassignee.Table, todocandidateassignee.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, true, user.TodoCandidateAssigneesTable, user.TodoCandidateAssigneesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryTodos queries the todos edge of a User.
+func (c *UserClient) QueryTodos(_m *User) *TodoQuery {
+	query := (&TodoClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(todo.Table, todo.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, user.TodosTable, user.TodosColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil

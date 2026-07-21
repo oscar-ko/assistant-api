@@ -15,6 +15,7 @@ type CreateUserInput struct {
 	ChannelServiceMemberIDs   []uuid.UUID
 	ChannelMessageMentionIDs  []uuid.UUID
 	TodoCandidateAssigneeIDs  []uuid.UUID
+	TodoIDs                   []uuid.UUID
 	OwnedTranslationLocaleIDs []uuid.UUID
 }
 
@@ -36,6 +37,9 @@ func (i *CreateUserInput) Mutate(m *UserMutation) {
 	}
 	if v := i.TodoCandidateAssigneeIDs; len(v) > 0 {
 		m.AddTodoCandidateAssigneeIDs(v...)
+	}
+	if v := i.TodoIDs; len(v) > 0 {
+		m.AddTodoIDs(v...)
 	}
 	if v := i.OwnedTranslationLocaleIDs; len(v) > 0 {
 		m.AddOwnedTranslationLocaleIDs(v...)
@@ -67,6 +71,9 @@ type UpdateUserInput struct {
 	ClearTodoCandidateAssignees     bool
 	AddTodoCandidateAssigneeIDs     []uuid.UUID
 	RemoveTodoCandidateAssigneeIDs  []uuid.UUID
+	ClearTodos                      bool
+	AddTodoIDs                      []uuid.UUID
+	RemoveTodoIDs                   []uuid.UUID
 	ClearOwnedTranslationLocales    bool
 	AddOwnedTranslationLocaleIDs    []uuid.UUID
 	RemoveOwnedTranslationLocaleIDs []uuid.UUID
@@ -124,6 +131,15 @@ func (i *UpdateUserInput) Mutate(m *UserMutation) {
 	}
 	if v := i.RemoveTodoCandidateAssigneeIDs; len(v) > 0 {
 		m.RemoveTodoCandidateAssigneeIDs(v...)
+	}
+	if i.ClearTodos {
+		m.ClearTodos()
+	}
+	if v := i.AddTodoIDs; len(v) > 0 {
+		m.AddTodoIDs(v...)
+	}
+	if v := i.RemoveTodoIDs; len(v) > 0 {
+		m.RemoveTodoIDs(v...)
 	}
 	if i.ClearOwnedTranslationLocales {
 		m.ClearOwnedTranslationLocales()

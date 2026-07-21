@@ -6,7 +6,7 @@ import (
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
-	"encoding/json"
+	"assistant-api/internal/ent/user"
 	"fmt"
 	"strings"
 	"time"
@@ -28,14 +28,14 @@ type Todo struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// 正式待辦所屬 channel ID；產品查詢與權限邊界使用
 	ChannelID uuid.UUID `json:"channel_id,omitempty"`
+	// 此待辦所屬使用者 ID；每個人都有自己的 Todo row，可獨立修改標題與時間
+	OwnerUserID uuid.UUID `json:"owner_user_id,omitempty"`
 	// 來源 Todo candidate ID；只用來回溯 AI 分析與 promotion evidence，人工建立的純 Todo 可為空
 	SourceCandidateID *uuid.UUID `json:"source_candidate_id,omitempty"`
 	// 正式待辦狀態；active 代表仍需追蹤或提醒
 	Status todo.Status `json:"status,omitempty"`
 	// 事：正式待辦要完成的事項標題，供列表與提醒直接顯示
 	Title string `json:"title,omitempty"`
-	// 人：負責人或承接者的產品層名稱清單
-	Assignees []string `json:"assignees,omitempty"`
 	// 時：正式提醒或到期時間；沒有時間的待辦可先為空
 	DueAt *time.Time `json:"due_at,omitempty"`
 	// 時：due_at 使用的 IANA timezone，例如 Asia/Taipei
@@ -56,13 +56,15 @@ type Todo struct {
 type TodoEdges struct {
 	// 正式待辦所屬 channel
 	Channel *Channel `json:"channel,omitempty"`
+	// 此待辦所屬使用者；同一個 candidate 若指派多人，會 promotion 成多筆不同 owner 的 Todo
+	Owner *User `json:"owner,omitempty"`
 	// AI promotion 來源；只保存分析/evidence 關聯，不作為 Todo 五要素的主要讀取來源
 	SourceCandidate *TodoCandidate `json:"source_candidate,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 	// totalCount holds the count of the edges above.
-	totalCount [2]map[string]int
+	totalCount [3]map[string]int
 }
 
 // ChannelOrErr returns the Channel value or an error if the edge
@@ -76,12 +78,23 @@ func (e TodoEdges) ChannelOrErr() (*Channel, error) {
 	return nil, &NotLoadedError{edge: "channel"}
 }
 
+// OwnerOrErr returns the Owner value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e TodoEdges) OwnerOrErr() (*User, error) {
+	if e.Owner != nil {
+		return e.Owner, nil
+	} else if e.loadedTypes[1] {
+		return nil, &NotFoundError{label: user.Label}
+	}
+	return nil, &NotLoadedError{edge: "owner"}
+}
+
 // SourceCandidateOrErr returns the SourceCandidate value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
 func (e TodoEdges) SourceCandidateOrErr() (*TodoCandidate, error) {
 	if e.SourceCandidate != nil {
 		return e.SourceCandidate, nil
-	} else if e.loadedTypes[1] {
+	} else if e.loadedTypes[2] {
 		return nil, &NotFoundError{label: todocandidate.Label}
 	}
 	return nil, &NotLoadedError{edge: "source_candidate"}
@@ -94,13 +107,11 @@ func (*Todo) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case todo.FieldSourceCandidateID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
-		case todo.FieldAssignees:
-			values[i] = new([]byte)
 		case todo.FieldStatus, todo.FieldTitle, todo.FieldDueTimezone, todo.FieldDuePrecision, todo.FieldLocationText, todo.FieldObjectText:
 			values[i] = new(sql.NullString)
 		case todo.FieldCreatedAt, todo.FieldUpdatedAt, todo.FieldDueAt:
 			values[i] = new(sql.NullTime)
-		case todo.FieldID, todo.FieldChannelID:
+		case todo.FieldID, todo.FieldChannelID, todo.FieldOwnerUserID:
 			values[i] = new(uuid.UUID)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -141,6 +152,12 @@ func (_m *Todo) assignValues(columns []string, values []any) error {
 			} else if value != nil {
 				_m.ChannelID = *value
 			}
+		case todo.FieldOwnerUserID:
+			if value, ok := values[i].(*uuid.UUID); !ok {
+				return fmt.Errorf("unexpected type %T for field owner_user_id", values[i])
+			} else if value != nil {
+				_m.OwnerUserID = *value
+			}
 		case todo.FieldSourceCandidateID:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
 				return fmt.Errorf("unexpected type %T for field source_candidate_id", values[i])
@@ -159,14 +176,6 @@ func (_m *Todo) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field title", values[i])
 			} else if value.Valid {
 				_m.Title = value.String
-			}
-		case todo.FieldAssignees:
-			if value, ok := values[i].(*[]byte); !ok {
-				return fmt.Errorf("unexpected type %T for field assignees", values[i])
-			} else if value != nil && len(*value) > 0 {
-				if err := json.Unmarshal(*value, &_m.Assignees); err != nil {
-					return fmt.Errorf("unmarshal field assignees: %w", err)
-				}
 			}
 		case todo.FieldDueAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -217,6 +226,11 @@ func (_m *Todo) QueryChannel() *ChannelQuery {
 	return NewTodoClient(_m.config).QueryChannel(_m)
 }
 
+// QueryOwner queries the "owner" edge of the Todo entity.
+func (_m *Todo) QueryOwner() *UserQuery {
+	return NewTodoClient(_m.config).QueryOwner(_m)
+}
+
 // QuerySourceCandidate queries the "source_candidate" edge of the Todo entity.
 func (_m *Todo) QuerySourceCandidate() *TodoCandidateQuery {
 	return NewTodoClient(_m.config).QuerySourceCandidate(_m)
@@ -254,6 +268,9 @@ func (_m *Todo) String() string {
 	builder.WriteString("channel_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ChannelID))
 	builder.WriteString(", ")
+	builder.WriteString("owner_user_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.OwnerUserID))
+	builder.WriteString(", ")
 	if v := _m.SourceCandidateID; v != nil {
 		builder.WriteString("source_candidate_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
@@ -264,9 +281,6 @@ func (_m *Todo) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("title=")
 	builder.WriteString(_m.Title)
-	builder.WriteString(", ")
-	builder.WriteString("assignees=")
-	builder.WriteString(fmt.Sprintf("%v", _m.Assignees))
 	builder.WriteString(", ")
 	if v := _m.DueAt; v != nil {
 		builder.WriteString("due_at=")

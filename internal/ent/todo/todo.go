@@ -24,14 +24,14 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// FieldChannelID holds the string denoting the channel_id field in the database.
 	FieldChannelID = "channel_id"
+	// FieldOwnerUserID holds the string denoting the owner_user_id field in the database.
+	FieldOwnerUserID = "owner_user_id"
 	// FieldSourceCandidateID holds the string denoting the source_candidate_id field in the database.
 	FieldSourceCandidateID = "source_candidate_id"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldTitle holds the string denoting the title field in the database.
 	FieldTitle = "title"
-	// FieldAssignees holds the string denoting the assignees field in the database.
-	FieldAssignees = "assignees"
 	// FieldDueAt holds the string denoting the due_at field in the database.
 	FieldDueAt = "due_at"
 	// FieldDueTimezone holds the string denoting the due_timezone field in the database.
@@ -44,6 +44,8 @@ const (
 	FieldObjectText = "object_text"
 	// EdgeChannel holds the string denoting the channel edge name in mutations.
 	EdgeChannel = "channel"
+	// EdgeOwner holds the string denoting the owner edge name in mutations.
+	EdgeOwner = "owner"
 	// EdgeSourceCandidate holds the string denoting the source_candidate edge name in mutations.
 	EdgeSourceCandidate = "source_candidate"
 	// Table holds the table name of the todo in the database.
@@ -55,6 +57,13 @@ const (
 	ChannelInverseTable = "channels"
 	// ChannelColumn is the table column denoting the channel relation/edge.
 	ChannelColumn = "channel_id"
+	// OwnerTable is the table that holds the owner relation/edge.
+	OwnerTable = "todos"
+	// OwnerInverseTable is the table name for the User entity.
+	// It exists in this package in order to avoid circular dependency with the "user" package.
+	OwnerInverseTable = "users"
+	// OwnerColumn is the table column denoting the owner relation/edge.
+	OwnerColumn = "owner_user_id"
 	// SourceCandidateTable is the table that holds the source_candidate relation/edge.
 	SourceCandidateTable = "todos"
 	// SourceCandidateInverseTable is the table name for the TodoCandidate entity.
@@ -70,10 +79,10 @@ var Columns = []string{
 	FieldCreatedAt,
 	FieldUpdatedAt,
 	FieldChannelID,
+	FieldOwnerUserID,
 	FieldSourceCandidateID,
 	FieldStatus,
 	FieldTitle,
-	FieldAssignees,
 	FieldDueAt,
 	FieldDueTimezone,
 	FieldDuePrecision,
@@ -180,6 +189,11 @@ func ByChannelID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldChannelID, opts...).ToFunc()
 }
 
+// ByOwnerUserID orders the results by the owner_user_id field.
+func ByOwnerUserID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOwnerUserID, opts...).ToFunc()
+}
+
 // BySourceCandidateID orders the results by the source_candidate_id field.
 func BySourceCandidateID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSourceCandidateID, opts...).ToFunc()
@@ -227,6 +241,13 @@ func ByChannelField(field string, opts ...sql.OrderTermOption) OrderOption {
 	}
 }
 
+// ByOwnerField orders the results by owner field.
+func ByOwnerField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newOwnerStep(), sql.OrderByField(field, opts...))
+	}
+}
+
 // BySourceCandidateField orders the results by source_candidate field.
 func BySourceCandidateField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -238,6 +259,13 @@ func newChannelStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ChannelInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, false, ChannelTable, ChannelColumn),
+	)
+}
+func newOwnerStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(OwnerInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, false, OwnerTable, OwnerColumn),
 	)
 }
 func newSourceCandidateStep() *sqlgraph.Step {

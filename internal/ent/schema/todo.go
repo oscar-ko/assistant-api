@@ -10,9 +10,11 @@ import (
 	"github.com/google/uuid"
 )
 
-// Todo 是由 TodoCandidate promotion 後形成的正式待辦事項。
+// Todo 是使用者擁有的正式待辦事項。
 //
-// Todo 是產品層乾淨的待辦資料表，只保存「人、事、時、地、物」與正式待辦狀態。
+// Todo 是產品層乾淨的待辦資料表，一筆資料只屬於一個使用者。
+// 使用者後續可以直接修改自己的 title、due_at 等欄位，因此正式 Todo 不能只是多人 assignee 清單的快照。
+// 這裡只保存該使用者的「事、時、地、物」與正式待辦狀態。
 // AI analyzer 的 decision、confidence、missing_fields、reason、linked message 等追蹤資料不放在這裡；需要排查來源時再透過 source_candidate 關聯回 TodoCandidate。
 type Todo struct {
 	ent.Schema
@@ -30,10 +32,10 @@ func (Todo) Mixin() []ent.Mixin {
 func (Todo) Fields() []ent.Field {
 	return []ent.Field{
 		field.UUID("channel_id", uuid.UUID{}).Immutable().Comment("正式待辦所屬 channel ID；產品查詢與權限邊界使用"),
+		field.UUID("owner_user_id", uuid.UUID{}).Immutable().Comment("此待辦所屬使用者 ID；每個人都有自己的 Todo row，可獨立修改標題與時間"),
 		field.UUID("source_candidate_id", uuid.UUID{}).Optional().Nillable().Immutable().Comment("來源 Todo candidate ID；只用來回溯 AI 分析與 promotion evidence，人工建立的純 Todo 可為空"),
 		field.Enum("status").Values("active", "completed", "cancelled").Default("active").Comment("正式待辦狀態；active 代表仍需追蹤或提醒"),
 		field.String("title").Comment("事：正式待辦要完成的事項標題，供列表與提醒直接顯示"),
-		field.JSON("assignees", []string{}).Optional().Comment("人：負責人或承接者的產品層名稱清單"),
 		field.Time("due_at").Optional().Nillable().Comment("時：正式提醒或到期時間；沒有時間的待辦可先為空"),
 		field.String("due_timezone").Optional().Comment("時：due_at 使用的 IANA timezone，例如 Asia/Taipei"),
 		field.Enum("due_precision").Values("datetime", "date", "relative_window", "unknown").Default("unknown").Comment("時：時間精度，描述 due_at 是精確時間、日期或相對區間"),
@@ -46,6 +48,7 @@ func (Todo) Fields() []ent.Field {
 func (Todo) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("channel", Channel.Type).Field("channel_id").Required().Unique().Immutable().Comment("正式待辦所屬 channel"),
+		edge.To("owner", User.Type).Field("owner_user_id").Required().Unique().Immutable().Comment("此待辦所屬使用者；同一個 candidate 若指派多人，會 promotion 成多筆不同 owner 的 Todo"),
 		edge.To("source_candidate", TodoCandidate.Type).Field("source_candidate_id").Unique().Immutable().Comment("AI promotion 來源；只保存分析/evidence 關聯，不作為 Todo 五要素的主要讀取來源"),
 	}
 }
@@ -54,8 +57,9 @@ func (Todo) Edges() []ent.Edge {
 func (Todo) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("channel_id", "status"),
+		index.Fields("channel_id", "owner_user_id", "status"),
 		index.Fields("channel_id", "due_at"),
-		index.Fields("source_candidate_id").Unique(),
+		index.Fields("source_candidate_id", "owner_user_id").Unique(),
 	}
 }
 

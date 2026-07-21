@@ -71,6 +71,11 @@ func ChannelID(v uuid.UUID) predicate.Todo {
 	return predicate.Todo(sql.FieldEQ(FieldChannelID, v))
 }
 
+// OwnerUserID applies equality check predicate on the "owner_user_id" field. It's identical to OwnerUserIDEQ.
+func OwnerUserID(v uuid.UUID) predicate.Todo {
+	return predicate.Todo(sql.FieldEQ(FieldOwnerUserID, v))
+}
+
 // SourceCandidateID applies equality check predicate on the "source_candidate_id" field. It's identical to SourceCandidateIDEQ.
 func SourceCandidateID(v uuid.UUID) predicate.Todo {
 	return predicate.Todo(sql.FieldEQ(FieldSourceCandidateID, v))
@@ -201,6 +206,26 @@ func ChannelIDNotIn(vs ...uuid.UUID) predicate.Todo {
 	return predicate.Todo(sql.FieldNotIn(FieldChannelID, vs...))
 }
 
+// OwnerUserIDEQ applies the EQ predicate on the "owner_user_id" field.
+func OwnerUserIDEQ(v uuid.UUID) predicate.Todo {
+	return predicate.Todo(sql.FieldEQ(FieldOwnerUserID, v))
+}
+
+// OwnerUserIDNEQ applies the NEQ predicate on the "owner_user_id" field.
+func OwnerUserIDNEQ(v uuid.UUID) predicate.Todo {
+	return predicate.Todo(sql.FieldNEQ(FieldOwnerUserID, v))
+}
+
+// OwnerUserIDIn applies the In predicate on the "owner_user_id" field.
+func OwnerUserIDIn(vs ...uuid.UUID) predicate.Todo {
+	return predicate.Todo(sql.FieldIn(FieldOwnerUserID, vs...))
+}
+
+// OwnerUserIDNotIn applies the NotIn predicate on the "owner_user_id" field.
+func OwnerUserIDNotIn(vs ...uuid.UUID) predicate.Todo {
+	return predicate.Todo(sql.FieldNotIn(FieldOwnerUserID, vs...))
+}
+
 // SourceCandidateIDEQ applies the EQ predicate on the "source_candidate_id" field.
 func SourceCandidateIDEQ(v uuid.UUID) predicate.Todo {
 	return predicate.Todo(sql.FieldEQ(FieldSourceCandidateID, v))
@@ -314,16 +339,6 @@ func TitleEqualFold(v string) predicate.Todo {
 // TitleContainsFold applies the ContainsFold predicate on the "title" field.
 func TitleContainsFold(v string) predicate.Todo {
 	return predicate.Todo(sql.FieldContainsFold(FieldTitle, v))
-}
-
-// AssigneesIsNil applies the IsNil predicate on the "assignees" field.
-func AssigneesIsNil() predicate.Todo {
-	return predicate.Todo(sql.FieldIsNull(FieldAssignees))
-}
-
-// AssigneesNotNil applies the NotNil predicate on the "assignees" field.
-func AssigneesNotNil() predicate.Todo {
-	return predicate.Todo(sql.FieldNotNull(FieldAssignees))
 }
 
 // DueAtEQ applies the EQ predicate on the "due_at" field.
@@ -636,6 +651,29 @@ func HasChannel() predicate.Todo {
 func HasChannelWith(preds ...predicate.Channel) predicate.Todo {
 	return predicate.Todo(func(s *sql.Selector) {
 		step := newChannelStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasOwner applies the HasEdge predicate on the "owner" edge.
+func HasOwner() predicate.Todo {
+	return predicate.Todo(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, OwnerTable, OwnerColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasOwnerWith applies the HasEdge predicate on the "owner" edge with a given conditions (other predicates).
+func HasOwnerWith(preds ...predicate.User) predicate.Todo {
+	return predicate.Todo(func(s *sql.Selector) {
+		step := newOwnerStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

@@ -8,6 +8,7 @@ import (
 	"assistant-api/internal/ent/line"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/slack"
+	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidateassignee"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
@@ -137,6 +138,21 @@ func (_u *UserUpdate) AddTodoCandidateAssignees(v ...*TodoCandidateAssignee) *Us
 	return _u.AddTodoCandidateAssigneeIDs(ids...)
 }
 
+// AddTodoIDs adds the "todos" edge to the Todo entity by IDs.
+func (_u *UserUpdate) AddTodoIDs(ids ...uuid.UUID) *UserUpdate {
+	_u.mutation.AddTodoIDs(ids...)
+	return _u
+}
+
+// AddTodos adds the "todos" edges to the Todo entity.
+func (_u *UserUpdate) AddTodos(v ...*Todo) *UserUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTodoIDs(ids...)
+}
+
 // AddOwnedTranslationLocaleIDs adds the "owned_translation_locales" edge to the TranslationLocale entity by IDs.
 func (_u *UserUpdate) AddOwnedTranslationLocaleIDs(ids ...uuid.UUID) *UserUpdate {
 	_u.mutation.AddOwnedTranslationLocaleIDs(ids...)
@@ -260,6 +276,27 @@ func (_u *UserUpdate) RemoveTodoCandidateAssignees(v ...*TodoCandidateAssignee) 
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveTodoCandidateAssigneeIDs(ids...)
+}
+
+// ClearTodos clears all "todos" edges to the Todo entity.
+func (_u *UserUpdate) ClearTodos() *UserUpdate {
+	_u.mutation.ClearTodos()
+	return _u
+}
+
+// RemoveTodoIDs removes the "todos" edge to Todo entities by IDs.
+func (_u *UserUpdate) RemoveTodoIDs(ids ...uuid.UUID) *UserUpdate {
+	_u.mutation.RemoveTodoIDs(ids...)
+	return _u
+}
+
+// RemoveTodos removes "todos" edges to Todo entities.
+func (_u *UserUpdate) RemoveTodos(v ...*Todo) *UserUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTodoIDs(ids...)
 }
 
 // ClearOwnedTranslationLocales clears all "owned_translation_locales" edges to the TranslationLocale entity.
@@ -568,6 +605,51 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.TodosCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.TodosTable,
+			Columns: []string{user.TodosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todo.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTodosIDs(); len(nodes) > 0 && !_u.mutation.TodosCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.TodosTable,
+			Columns: []string{user.TodosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todo.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TodosIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.TodosTable,
+			Columns: []string{user.TodosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todo.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.OwnedTranslationLocalesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -736,6 +818,21 @@ func (_u *UserUpdateOne) AddTodoCandidateAssignees(v ...*TodoCandidateAssignee) 
 	return _u.AddTodoCandidateAssigneeIDs(ids...)
 }
 
+// AddTodoIDs adds the "todos" edge to the Todo entity by IDs.
+func (_u *UserUpdateOne) AddTodoIDs(ids ...uuid.UUID) *UserUpdateOne {
+	_u.mutation.AddTodoIDs(ids...)
+	return _u
+}
+
+// AddTodos adds the "todos" edges to the Todo entity.
+func (_u *UserUpdateOne) AddTodos(v ...*Todo) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTodoIDs(ids...)
+}
+
 // AddOwnedTranslationLocaleIDs adds the "owned_translation_locales" edge to the TranslationLocale entity by IDs.
 func (_u *UserUpdateOne) AddOwnedTranslationLocaleIDs(ids ...uuid.UUID) *UserUpdateOne {
 	_u.mutation.AddOwnedTranslationLocaleIDs(ids...)
@@ -859,6 +956,27 @@ func (_u *UserUpdateOne) RemoveTodoCandidateAssignees(v ...*TodoCandidateAssigne
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveTodoCandidateAssigneeIDs(ids...)
+}
+
+// ClearTodos clears all "todos" edges to the Todo entity.
+func (_u *UserUpdateOne) ClearTodos() *UserUpdateOne {
+	_u.mutation.ClearTodos()
+	return _u
+}
+
+// RemoveTodoIDs removes the "todos" edge to Todo entities by IDs.
+func (_u *UserUpdateOne) RemoveTodoIDs(ids ...uuid.UUID) *UserUpdateOne {
+	_u.mutation.RemoveTodoIDs(ids...)
+	return _u
+}
+
+// RemoveTodos removes "todos" edges to Todo entities.
+func (_u *UserUpdateOne) RemoveTodos(v ...*Todo) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTodoIDs(ids...)
 }
 
 // ClearOwnedTranslationLocales clears all "owned_translation_locales" edges to the TranslationLocale entity.
@@ -1190,6 +1308,51 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(todocandidateassignee.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.TodosCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.TodosTable,
+			Columns: []string{user.TodosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todo.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTodosIDs(); len(nodes) > 0 && !_u.mutation.TodosCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.TodosTable,
+			Columns: []string{user.TodosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todo.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TodosIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.TodosTable,
+			Columns: []string{user.TodosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todo.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
