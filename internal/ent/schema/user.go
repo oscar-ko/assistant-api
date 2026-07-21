@@ -57,6 +57,7 @@ func (User) Edges() []ent.Edge {
 			Comment("非 mention 來源解析到此使用者的 Todo candidate assignee evidence"),
 		edge.From("todos", Todo.Type).
 			Ref("owner").
+			// Todo 是跟著使用者走的正式資料；這條 edge 讓使用者可以直接查自己的待辦，不必從 channel 或 candidate 反推。
 			Comment("此使用者擁有的正式待辦；每一筆 Todo 都跟著單一 owner user 走"),
 		edge.From("owned_translation_locales", TranslationLocale.Type).
 			Ref("owner").

@@ -32,7 +32,11 @@ func (Todo) Mixin() []ent.Mixin {
 func (Todo) Fields() []ent.Field {
 	return []ent.Field{
 		field.UUID("channel_id", uuid.UUID{}).Immutable().Comment("正式待辦所屬 channel ID；產品查詢與權限邊界使用"),
+		// owner_user_id 是 Todo 的產品主體：同一個對話 candidate 指派多人時，會拆成多筆 owner 不同的 Todo。
+		// 後續使用者改標題、改時間或完成狀態時，只會影響自己的這一筆資料。
 		field.UUID("owner_user_id", uuid.UUID{}).Immutable().Comment("此待辦所屬使用者 ID；每個人都有自己的 Todo row，可獨立修改標題與時間"),
+		// source_candidate_id 只保留 AI promotion 來源，不參與 Todo 本身的人事時地物語意。
+		// 手動建立的 Todo 沒有 AI evidence，因此允許為空。
 		field.UUID("source_candidate_id", uuid.UUID{}).Optional().Nillable().Immutable().Comment("來源 Todo candidate ID；只用來回溯 AI 分析與 promotion evidence，人工建立的純 Todo 可為空"),
 		field.Enum("status").Values("active", "completed", "cancelled").Default("active").Comment("正式待辦狀態；active 代表仍需追蹤或提醒"),
 		field.String("title").Comment("事：正式待辦要完成的事項標題，供列表與提醒直接顯示"),
@@ -57,8 +61,10 @@ func (Todo) Edges() []ent.Edge {
 func (Todo) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("channel_id", "status"),
+		// 使用者常見查詢是「我的未完成待辦」，因此 owner/status 需要同一個 channel 邊界內的複合索引。
 		index.Fields("channel_id", "owner_user_id", "status"),
 		index.Fields("channel_id", "due_at"),
+		// 同一個 candidate 可以 promotion 成多個 owner 的 Todo，但同一 owner 只能有一筆，避免重試造成重複待辦。
 		index.Fields("source_candidate_id", "owner_user_id").Unique(),
 	}
 }

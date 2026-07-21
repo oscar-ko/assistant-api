@@ -947,6 +947,8 @@ func (r *ChannelMessageRepo) promoteTodoCandidate(ctx context.Context, candidate
 		return nil
 	}
 	for _, ownerUserID := range ownerUserIDs {
+		// promotion 以 candidate+owner 作為 idempotency key：同一個 candidate 指派多個人會建立多筆 Todo，
+		// 但重跑 analyzer 或 normalizer 時，同一個人的 Todo 只會被更新，不會重複建立。
 		existing, err := r.db.Todo.Query().Where(
 			todo.SourceCandidateIDEQ(candidate.ID),
 			todo.OwnerUserIDEQ(ownerUserID),
@@ -956,14 +958,14 @@ func (r *ChannelMessageRepo) promoteTodoCandidate(ctx context.Context, candidate
 		}
 		if existing == nil {
 			create := r.db.Todo.Create().
-			SetChannelID(candidate.ChannelID).
-			SetOwnerUserID(ownerUserID).
-			SetSourceCandidateID(candidate.ID).
-			SetStatus(todo.StatusActive).
-			SetTitle(strings.TrimSpace(candidate.Summary)).
-			SetDueAt(*candidate.DueAt).
-			SetDueTimezone(strings.TrimSpace(candidate.DueTimezone)).
-			SetDuePrecision(todo.DuePrecision(candidate.DuePrecision))
+				SetChannelID(candidate.ChannelID).
+				SetOwnerUserID(ownerUserID).
+				SetSourceCandidateID(candidate.ID).
+				SetStatus(todo.StatusActive).
+				SetTitle(strings.TrimSpace(candidate.Summary)).
+				SetDueAt(*candidate.DueAt).
+				SetDueTimezone(strings.TrimSpace(candidate.DueTimezone)).
+				SetDuePrecision(todo.DuePrecision(candidate.DuePrecision))
 			if _, err := create.Save(ctx); err != nil {
 				return fmt.Errorf("create promoted todo failed: %w", err)
 			}
@@ -987,6 +989,8 @@ func (r *ChannelMessageRepo) resolveTodoPromotionOwnerUserIDs(ctx context.Contex
 	if candidateID == uuid.Nil {
 		return nil, nil
 	}
+	// owner 只能來自已解析成系統 User 的 assignee evidence。
+	// mention 來源會回頭讀 source_message_mention.user_id；analyzer 字面來源則使用 TodoCandidateAssignee.resolved_user_id。
 	assignees, err := r.db.TodoCandidateAssignee.Query().
 		Where(todocandidateassignee.CandidateIDEQ(candidateID)).
 		WithSourceMessageMention().
@@ -1001,9 +1005,11 @@ func (r *ChannelMessageRepo) resolveTodoPromotionOwnerUserIDs(ctx context.Contex
 			continue
 		}
 		ownerUserID := uuid.Nil
+		// 非 mention 的 analyzer/sender/reply_context evidence 會直接寫 resolved_user_id。
 		if assignee.ResolvedUserID != nil {
 			ownerUserID = *assignee.ResolvedUserID
 		} else if assignee.Edges.SourceMessageMention != nil && assignee.Edges.SourceMessageMention.UserID != nil {
+			// mention evidence 不複製 user_id 到 TodoCandidateAssignee，避免訊息 mention 事實被重複保存。
 			ownerUserID = *assignee.Edges.SourceMessageMention.UserID
 		}
 		if ownerUserID == uuid.Nil {
