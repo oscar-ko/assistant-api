@@ -39,6 +39,9 @@ type Slack func(*sql.Selector)
 // SlackWorkspace is the predicate function for slackworkspace builders.
 type SlackWorkspace func(*sql.Selector)
 
+// Todo is the predicate function for todo builders.
+type Todo func(*sql.Selector)
+
 // TodoCandidate is the predicate function for todocandidate builders.
 type TodoCandidate func(*sql.Selector)
 

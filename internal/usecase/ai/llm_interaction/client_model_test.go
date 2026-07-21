@@ -100,6 +100,15 @@ func TestInteractionClientAnalyzeTodoUsesTodoPath(t *testing.T) {
 	if captured["model_name"] != "qwen3.5:2b" {
 		t.Fatalf("expected model_name qwen3.5:2b, got %#v", captured["model_name"])
 	}
+	validationRetryPrompt, ok := captured["validation_retry_prompt"].(string)
+	if !ok {
+		t.Fatalf("validation_retry_prompt missing or invalid: %#v", captured["validation_retry_prompt"])
+	}
+	for _, fragment := range []string{"todo_analysis", "confidence: number, required", "Validation failure: {validation_error}"} {
+		if !strings.Contains(validationRetryPrompt, fragment) {
+			t.Fatalf("expected todo validation retry prompt to contain %q, got %s", fragment, validationRetryPrompt)
+		}
+	}
 	if result.Decision != "update_candidate" || result.LinkedMessageID != "msg-1" || result.Summary != "補報價單" {
 		t.Fatalf("unexpected todo result: %#v", result)
 	}

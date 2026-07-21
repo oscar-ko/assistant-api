@@ -140,6 +140,18 @@ func (f SlackWorkspaceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Val
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SlackWorkspaceMutation", m)
 }
 
+// The TodoFunc type is an adapter to allow the use of ordinary
+// function as Todo mutator.
+type TodoFunc func(context.Context, *ent.TodoMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f TodoFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TodoMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TodoMutation", m)
+}
+
 // The TodoCandidateFunc type is an adapter to allow the use of ordinary
 // function as TodoCandidate mutator.
 type TodoCandidateFunc func(context.Context, *ent.TodoCandidateMutation) (ent.Value, error)

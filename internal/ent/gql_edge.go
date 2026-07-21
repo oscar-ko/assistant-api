@@ -232,6 +232,38 @@ func (_m *Slack) User(ctx context.Context) (*User, error) {
 	return result, err
 }
 
+func (_m *Todo) Channel(ctx context.Context) (*Channel, error) {
+	result, err := _m.Edges.ChannelOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryChannel().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *Todo) SourceCandidate(ctx context.Context) (*TodoCandidate, error) {
+	result, err := _m.Edges.SourceCandidateOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QuerySourceCandidate().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *Todo) SourceMessage(ctx context.Context) (*ChannelMessage, error) {
+	result, err := _m.Edges.SourceMessageOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QuerySourceMessage().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *Todo) LastMessage(ctx context.Context) (*ChannelMessage, error) {
+	result, err := _m.Edges.LastMessageOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryLastMessage().Only(ctx)
+	}
+	return result, err
+}
+
 func (_m *TodoCandidate) Channel(ctx context.Context) (*Channel, error) {
 	result, err := _m.Edges.ChannelOrErr()
 	if IsNotLoaded(err) {

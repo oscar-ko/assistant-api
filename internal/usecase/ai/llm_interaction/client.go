@@ -477,7 +477,7 @@ func (c *interactionClient) buildRequest(ctx context.Context, path string, promp
 		// modelName 為空時會被 omitempty 省略，讓既有只靠 OLLAMA_MODEL 的本地部署仍可運作。
 		ModelName:             strings.TrimSpace(c.modelName),
 		JSONDecodeRetryPrompt: buildJSONDecodeRetryPrompt(composedPrompt),
-		ValidationRetryPrompt: buildValidationRetryPrompt(composedPrompt),
+		ValidationRetryPrompt: buildValidationRetryPromptForPath(path, composedPrompt),
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -515,6 +515,35 @@ func buildValidationRetryPrompt(composedPrompt string) string {
 
 Your previous JSON output did not satisfy validation. Return strict JSON only.
 Follow the exact output schema and constraints already defined in the original instruction above.
+Validation failure: {validation_error}`)
+}
+
+func buildValidationRetryPromptForPath(path string, composedPrompt string) string {
+	// todo_analyze 的輸出欄位比一般 action/question 更嚴格；
+	// 用 path 分流 retry prompt，讓第二次修正仍明確回到 todo_analysis contract，而不是只靠通用「照原 schema」描述。
+	if strings.TrimSpace(path) == defaultTodoAnalyzePath {
+		return buildTodoAnalysisValidationRetryPrompt(composedPrompt)
+	}
+	return buildValidationRetryPrompt(composedPrompt)
+}
+
+func buildTodoAnalysisValidationRetryPrompt(composedPrompt string) string {
+	// 這裡刻意把完整 contract block 再放進 validation retry：
+	// 小模型第一次漏欄位時，第二次若只看到 validation_error，容易只補單一欄位而忘記其他 required key。
+	return strings.TrimSpace(composedPrompt + `
+
+Your previous JSON output did not satisfy todo_analysis validation. Return strict JSON only.
+Output exactly these fields and no others:
+` + todoAnalysisContractPromptBlock() + `
+
+Todo-specific validation rules:
+- decision must be one of create_candidate, update_candidate, acknowledge, cancel_candidate, needs_more_info, no_action.
+- confidence is required and must be a JSON number between 0 and 1.
+- assignees and missing_fields are always JSON string arrays; use [] when empty.
+- linked_message_id, summary, due_text, and reason are always JSON strings; use "" when empty.
+- needs_more_info requires missing_fields to name the missing fields.
+- no_action requires linked_message_id, summary, assignees, due_text, and missing_fields to be empty.
+- update_candidate, acknowledge, and cancel_candidate require linked_message_id.
 Validation failure: {validation_error}`)
 }
 

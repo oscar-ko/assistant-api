@@ -414,6 +414,78 @@ var (
 			},
 		},
 	}
+	// TodosColumns holds the columns for the "todos" table.
+	TodosColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "completed", "cancelled"}, Default: "active"},
+		{Name: "title", Type: field.TypeString},
+		{Name: "assignees", Type: field.TypeJSON, Nullable: true},
+		{Name: "due_at", Type: field.TypeTime},
+		{Name: "due_timezone", Type: field.TypeString},
+		{Name: "due_precision", Type: field.TypeEnum, Enums: []string{"datetime", "date", "relative_window", "unknown"}, Default: "unknown"},
+		{Name: "confidence", Type: field.TypeFloat64, Default: 0},
+		{Name: "promotion_reason", Type: field.TypeString, Nullable: true},
+		{Name: "channel_id", Type: field.TypeUUID},
+		{Name: "source_candidate_id", Type: field.TypeUUID},
+		{Name: "source_message_id", Type: field.TypeUUID},
+		{Name: "last_message_id", Type: field.TypeUUID},
+	}
+	// TodosTable holds the schema information for the "todos" table.
+	TodosTable = &schema.Table{
+		Name:       "todos",
+		Columns:    TodosColumns,
+		PrimaryKey: []*schema.Column{TodosColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "todos_channels_channel",
+				Columns:    []*schema.Column{TodosColumns[11]},
+				RefColumns: []*schema.Column{ChannelsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "todos_todo_candidates_source_candidate",
+				Columns:    []*schema.Column{TodosColumns[12]},
+				RefColumns: []*schema.Column{TodoCandidatesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "todos_channel_messages_source_message",
+				Columns:    []*schema.Column{TodosColumns[13]},
+				RefColumns: []*schema.Column{ChannelMessagesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "todos_channel_messages_last_message",
+				Columns:    []*schema.Column{TodosColumns[14]},
+				RefColumns: []*schema.Column{ChannelMessagesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "todo_channel_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{TodosColumns[11], TodosColumns[3]},
+			},
+			{
+				Name:    "todo_channel_id_due_at",
+				Unique:  false,
+				Columns: []*schema.Column{TodosColumns[11], TodosColumns[6]},
+			},
+			{
+				Name:    "todo_channel_id_source_candidate_id",
+				Unique:  true,
+				Columns: []*schema.Column{TodosColumns[11], TodosColumns[12]},
+			},
+			{
+				Name:    "todo_channel_id_source_message_id",
+				Unique:  false,
+				Columns: []*schema.Column{TodosColumns[11], TodosColumns[13]},
+			},
+		},
+	}
 	// TodoCandidatesColumns holds the columns for the "todo_candidates" table.
 	TodoCandidatesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -641,6 +713,7 @@ var (
 		SkillsTable,
 		SlacksTable,
 		SlackWorkspacesTable,
+		TodosTable,
 		TodoCandidatesTable,
 		TodoCandidateAssigneesTable,
 		TranslationLocalesTable,
@@ -662,6 +735,10 @@ func init() {
 	ChannelServiceMembersTable.ForeignKeys[2].RefTable = SkillsTable
 	LinesTable.ForeignKeys[0].RefTable = UsersTable
 	SlacksTable.ForeignKeys[0].RefTable = UsersTable
+	TodosTable.ForeignKeys[0].RefTable = ChannelsTable
+	TodosTable.ForeignKeys[1].RefTable = TodoCandidatesTable
+	TodosTable.ForeignKeys[2].RefTable = ChannelMessagesTable
+	TodosTable.ForeignKeys[3].RefTable = ChannelMessagesTable
 	TodoCandidatesTable.ForeignKeys[0].RefTable = ChannelsTable
 	TodoCandidatesTable.ForeignKeys[1].RefTable = ChannelMessagesTable
 	TodoCandidatesTable.ForeignKeys[2].RefTable = ChannelMessagesTable

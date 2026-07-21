@@ -177,6 +177,28 @@ func TestBuildImplicitReplyTodoPromptTreatsReminderLanguageAsCandidate(t *testin
 	}
 }
 
+func TestBuildTodoDueTimePromptRejectsNullAndRequiresUnknownPrecision(t *testing.T) {
+	// due-time normalizer 的 needs_more_info/no_due_time 也必須符合固定 schema；
+	// 小模型不可用 null 或省略 precision，否則 9003 strict validator 會拒絕。
+	prompt := buildTodoDueTimePrompt(
+		MessageContext{Message: &unifiedmessage.Message{Text: "提醒我晚點處理"}},
+		&llminteraction.TodoAnalysis{Summary: "處理事項", DueText: "晚點"},
+		time.Date(2026, 7, 21, 10, 30, 0, 0, time.FixedZone("Asia/Taipei", 8*60*60)),
+		"Asia/Taipei",
+	)
+
+	for _, expected := range []string{
+		"不可輸出 null",
+		"precision 使用 unknown",
+		`"precision":"unknown"`,
+		`"missing_fields":["time"]`,
+	} {
+		if !strings.Contains(prompt, expected) {
+			t.Fatalf("expected due-time prompt to contain %q, got %q", expected, prompt)
+		}
+	}
+}
+
 func TestTodoReminderServicePersistsTodoCandidateAnalysis(t *testing.T) {
 	// structured analyzer 已經完成語意判斷後，realtime service 只把固定 schema 轉成 candidate persistence input；
 	// 這裡鎖住 create_candidate 會用目前訊息當 source/last message，不再停留在純 log-only。

@@ -802,13 +802,18 @@ func buildImplicitReplyTodoPrompt(explicitReplyTarget *ent.ChannelMessage, recen
 func buildTodoDueTimePrompt(messageCtx MessageContext, analysis *llminteraction.TodoAnalysis, referenceTime time.Time, timezone string) string {
 	return strings.TrimSpace(fmt.Sprintf(`你是 Todo Reminder 的時間正規化器。請把 due_text 依 reference_time 與 timezone 轉成 RFC3339 due_at。
 只能輸出 todo_due_time JSON contract：schema_version, decision, due_at, timezone, precision, confidence, missing_fields, reason。
+輸出必須是一個完整 JSON object，所有欄位名稱必須用雙引號包住，欄位之間必須用逗號分隔。
 
 規則：
 - decision 只能是 normalized、needs_more_info、no_due_time。
 - normalized 時 due_at 必須是 RFC3339，例如 2026-07-20T09:00:00+08:00，timezone 必須使用輸入 timezone。
 - 若 due_text 只有日期沒有時間，precision 使用 date，due_at 可用該日期 09:00:00 作為候選提醒時間，但 reason 必須說明時間是預設候選。
-- 若 due_text 太模糊而無法安全排程，decision 使用 needs_more_info 並填 missing_fields。
+- 若 due_text 太模糊而無法安全排程，decision 使用 needs_more_info，due_at 使用空字串，timezone 使用輸入 timezone，precision 使用 unknown，confidence 使用 0 到 0.5，並填 missing_fields。
+- no_due_time 時 due_at 使用空字串，timezone 使用輸入 timezone，precision 使用 unknown，confidence 使用 0 到 0.5。
+- 不可輸出 null；沒有值時使用空字串、空陣列或 precision=unknown。
 - 不可輸出額外欄位，不可用自然語言包住 JSON。
+
+輸出範例：{"schema_version":"v1","decision":"needs_more_info","due_at":"","timezone":"Asia/Taipei","precision":"unknown","confidence":0.4,"missing_fields":["time"],"reason":"缺少明確時間"}
 
 reference_time=%s
 timezone=%s

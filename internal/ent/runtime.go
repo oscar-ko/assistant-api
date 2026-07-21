@@ -15,6 +15,7 @@ import (
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/slackworkspace"
+	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
 	"assistant-api/internal/ent/translationlocale"
@@ -279,6 +280,31 @@ func init() {
 	slackworkspaceDescID := slackworkspaceMixinFields0[0].Descriptor()
 	// slackworkspace.DefaultID holds the default value on creation for the id field.
 	slackworkspace.DefaultID = slackworkspaceDescID.Default.(func() uuid.UUID)
+	todoMixin := schema.Todo{}.Mixin()
+	todoMixinFields0 := todoMixin[0].Fields()
+	_ = todoMixinFields0
+	todoMixinFields1 := todoMixin[1].Fields()
+	_ = todoMixinFields1
+	todoFields := schema.Todo{}.Fields()
+	_ = todoFields
+	// todoDescCreatedAt is the schema descriptor for created_at field.
+	todoDescCreatedAt := todoMixinFields1[0].Descriptor()
+	// todo.DefaultCreatedAt holds the default value on creation for the created_at field.
+	todo.DefaultCreatedAt = todoDescCreatedAt.Default.(func() time.Time)
+	// todoDescUpdatedAt is the schema descriptor for updated_at field.
+	todoDescUpdatedAt := todoMixinFields1[1].Descriptor()
+	// todo.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	todo.DefaultUpdatedAt = todoDescUpdatedAt.Default.(func() time.Time)
+	// todo.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	todo.UpdateDefaultUpdatedAt = todoDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// todoDescConfidence is the schema descriptor for confidence field.
+	todoDescConfidence := todoFields[10].Descriptor()
+	// todo.DefaultConfidence holds the default value on creation for the confidence field.
+	todo.DefaultConfidence = todoDescConfidence.Default.(float64)
+	// todoDescID is the schema descriptor for id field.
+	todoDescID := todoMixinFields0[0].Descriptor()
+	// todo.DefaultID holds the default value on creation for the id field.
+	todo.DefaultID = todoDescID.Default.(func() uuid.UUID)
 	todocandidateMixin := schema.TodoCandidate{}.Mixin()
 	todocandidateMixinFields0 := todocandidateMixin[0].Fields()
 	_ = todocandidateMixinFields0

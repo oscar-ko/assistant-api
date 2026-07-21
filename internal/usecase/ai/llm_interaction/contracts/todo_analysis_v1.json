@@ -1,0 +1,68 @@
+{
+  "name": "todo_analysis",
+  "schema_version": "v1",
+  "output_fields": [
+    {
+      "name": "schema_version",
+      "type": "string",
+      "required": true,
+      "const": "v1"
+    },
+    {
+      "name": "decision",
+      "type": "string",
+      "required": true,
+      "enum": [
+        "create_candidate",
+        "update_candidate",
+        "acknowledge",
+        "cancel_candidate",
+        "needs_more_info",
+        "no_action"
+      ]
+    },
+    {
+      "name": "linked_message_id",
+      "type": "string",
+      "required": true,
+      "notes": "must be one of the provided context or explicit reply message IDs for linked decisions; use empty string for a brand new candidate or no_action"
+    },
+    {
+      "name": "summary",
+      "type": "string",
+      "required": true,
+      "notes": "human-readable todo summary; required for create_candidate, update_candidate, acknowledge, cancel_candidate; empty string for no_action"
+    },
+    {
+      "name": "assignees",
+      "type": "array[string]",
+      "required": true,
+      "notes": "visible assignee names only; use empty array when no assignee is visible"
+    },
+    {
+      "name": "due_text",
+      "type": "string",
+      "required": true,
+      "notes": "original due-time wording; do not normalize dates; use empty string when absent"
+    },
+    {
+      "name": "confidence",
+      "type": "number",
+      "required": true,
+      "minimum": 0,
+      "maximum": 1
+    },
+    {
+      "name": "missing_fields",
+      "type": "array[string]",
+      "required": true,
+      "notes": "required and non-empty for needs_more_info; use empty array otherwise"
+    },
+    {
+      "name": "reason",
+      "type": "string",
+      "required": true,
+      "notes": "plain text decision explanation only"
+    }
+  ]
+}

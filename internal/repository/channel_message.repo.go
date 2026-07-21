@@ -18,6 +18,7 @@ import (
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/slack"
+	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
 	"assistant-api/internal/ent/translationlocale"
@@ -899,7 +900,11 @@ func (r *ChannelMessageRepo) SaveTodoCandidateFromAnalysis(ctx context.Context, 
 		return nil, err
 	}
 	if decision == todocandidate.LastDecisionCreateCandidate || decision == todocandidate.LastDecisionNeedsMoreInfo {
-		return r.createTodoCandidate(ctx, input, decision, status)
+		item, err := r.createTodoCandidate(ctx, input, decision, status)
+		if err != nil {
+			return nil, err
+		}
+		return item, r.promoteTodoCandidate(ctx, item)
 	}
 
 	if input.LinkedMessageID == uuid.Nil {
@@ -912,7 +917,106 @@ func (r *ChannelMessageRepo) SaveTodoCandidateFromAnalysis(ctx context.Context, 
 	if existing == nil {
 		return nil, fmt.Errorf("todo candidate linked message %s has no existing candidate", input.LinkedMessageID)
 	}
-	return r.updateTodoCandidate(ctx, existing.ID, input, decision, status)
+	item, err := r.updateTodoCandidate(ctx, existing.ID, input, decision, status)
+	if err != nil {
+		return nil, err
+	}
+	return item, r.promoteTodoCandidate(ctx, item)
+}
+
+func (r *ChannelMessageRepo) promoteTodoCandidate(ctx context.Context, candidate *ent.TodoCandidate) error {
+	if r == nil || r.db == nil || candidate == nil {
+		return nil
+	}
+	if candidate.Status == todocandidate.StatusCancelled {
+		// candidate 被取消時不刪正式 Todo，而是保留紀錄並轉 cancelled，
+		// 讓後續 audit 可以看見「曾經成立，後來由哪個 candidate 取消」。
+		return r.cancelTodoFromCandidate(ctx, candidate.ID, "source candidate was cancelled")
+	}
+	if !isTodoCandidatePromotionReady(candidate) {
+		return nil
+	}
+
+	// promotion gate 只接受已正規化 due_at 且欄位完整的 candidate。
+	// analyzer 仍負責語意抽取；repository 只把可追蹤、可提醒的 candidate 升級成正式 Todo。
+	existing, err := r.db.Todo.Query().Where(todo.SourceCandidateIDEQ(candidate.ID)).Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return fmt.Errorf("query promoted todo failed: %w", err)
+	}
+	if existing == nil {
+		create := r.db.Todo.Create().
+			SetChannelID(candidate.ChannelID).
+			SetSourceCandidateID(candidate.ID).
+			SetSourceMessageID(candidate.SourceMessageID).
+			SetLastMessageID(candidate.LastMessageID).
+			SetStatus(todo.StatusActive).
+			SetTitle(strings.TrimSpace(candidate.Summary)).
+			SetAssignees(normalizeStringSlice(candidate.Assignees)).
+			SetDueAt(*candidate.DueAt).
+			SetDueTimezone(strings.TrimSpace(candidate.DueTimezone)).
+			SetDuePrecision(todo.DuePrecision(candidate.DuePrecision)).
+			SetConfidence(candidate.Confidence).
+			SetPromotionReason("candidate has summary, normalized due_at, and no missing fields")
+		if _, err := create.Save(ctx); err != nil {
+			return fmt.Errorf("create promoted todo failed: %w", err)
+		}
+		return nil
+	}
+
+	update := r.db.Todo.UpdateOneID(existing.ID).
+		SetLastMessageID(candidate.LastMessageID).
+		SetStatus(todo.StatusActive).
+		SetTitle(strings.TrimSpace(candidate.Summary)).
+		SetAssignees(normalizeStringSlice(candidate.Assignees)).
+		SetDueAt(*candidate.DueAt).
+		SetDueTimezone(strings.TrimSpace(candidate.DueTimezone)).
+		SetDuePrecision(todo.DuePrecision(candidate.DuePrecision)).
+		SetConfidence(candidate.Confidence).
+		SetPromotionReason("source candidate was updated and remains promotion-ready")
+	if _, err := update.Save(ctx); err != nil {
+		return fmt.Errorf("update promoted todo failed: %w", err)
+	}
+	return nil
+}
+
+func isTodoCandidatePromotionReady(candidate *ent.TodoCandidate) bool {
+	// promotion gate 是 Candidate -> Todo 的唯一資料完整性檢查點：
+	// 只允許狀態可用、摘要可顯示、due_at 已正規化且沒有 missing_fields 的 candidate 進正式 Todo。
+	if candidate == nil {
+		return false
+	}
+	if candidate.Status != todocandidate.StatusCandidate && candidate.Status != todocandidate.StatusAcknowledged {
+		return false
+	}
+	if strings.TrimSpace(candidate.Summary) == "" || candidate.DueAt == nil {
+		return false
+	}
+	if len(normalizeStringSlice(candidate.MissingFields)) > 0 {
+		return false
+	}
+	return true
+}
+
+func (r *ChannelMessageRepo) cancelTodoFromCandidate(ctx context.Context, candidateID uuid.UUID, reason string) error {
+	if candidateID == uuid.Nil {
+		return nil
+	}
+	// 取消流程只處理已經被 promote 的 Todo；若 candidate 尚未形成正式 Todo，
+	// NotFound 代表沒有正式事項要取消，保留 candidate 自身狀態即可。
+	existing, err := r.db.Todo.Query().Where(todo.SourceCandidateIDEQ(candidateID)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("query todo for cancellation failed: %w", err)
+	}
+	if _, err := r.db.Todo.UpdateOneID(existing.ID).
+		SetStatus(todo.StatusCancelled).
+		SetPromotionReason(strings.TrimSpace(reason)).
+		Save(ctx); err != nil {
+		return fmt.Errorf("cancel promoted todo failed: %w", err)
+	}
+	return nil
 }
 
 func (r *ChannelMessageRepo) createTodoCandidate(ctx context.Context, input SaveTodoCandidateInput, decision todocandidate.LastDecision, status todocandidate.Status) (*ent.TodoCandidate, error) {

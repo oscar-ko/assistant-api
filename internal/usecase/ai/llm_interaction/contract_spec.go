@@ -14,6 +14,9 @@ var actionDecisionContractRaw []byte
 //go:embed contracts/question_answer_v1.json
 var questionAnswerContractRaw []byte
 
+//go:embed contracts/todo_analysis_v1.json
+var todoAnalysisContractRaw []byte
+
 type outputFieldSpec struct {
 	Name     string   `json:"name"`
 	Type     string   `json:"type"`
@@ -35,6 +38,7 @@ var (
 	contractSpecOnce sync.Once
 	actionSpec       promptContractSpec
 	questionSpec     promptContractSpec
+	todoSpec         promptContractSpec
 	contractSpecErr  error
 )
 
@@ -44,6 +48,10 @@ func loadContractSpecs() {
 		return
 	}
 	questionSpec, contractSpecErr = parsePromptContractSpec(questionAnswerContractRaw)
+	if contractSpecErr != nil {
+		return
+	}
+	todoSpec, contractSpecErr = parsePromptContractSpec(todoAnalysisContractRaw)
 }
 
 func parsePromptContractSpec(raw []byte) (promptContractSpec, error) {
@@ -87,6 +95,14 @@ func getQuestionAnswerContractSpec() (promptContractSpec, error) {
 	return questionSpec, nil
 }
 
+func getTodoAnalysisContractSpec() (promptContractSpec, error) {
+	contractSpecOnce.Do(loadContractSpecs)
+	if contractSpecErr != nil {
+		return promptContractSpec{}, contractSpecErr
+	}
+	return todoSpec, nil
+}
+
 func actionDecisionContractPromptBlock() string {
 	spec, err := getActionDecisionContractSpec()
 	if err != nil {
@@ -99,6 +115,16 @@ func questionAnswerContractPromptBlock() string {
 	spec, err := getQuestionAnswerContractSpec()
 	if err != nil {
 		return "schema_version, answer, confidence"
+	}
+	return renderPromptContractBlock(spec)
+}
+
+func todoAnalysisContractPromptBlock() string {
+	// Todo analyzer 的 retry prompt 與 primary prompt 共用同一份 contract spec，
+	// 避免 Python validator、Go prompt 與測試各自維護欄位清單後產生漂移。
+	spec, err := getTodoAnalysisContractSpec()
+	if err != nil {
+		return "schema_version, decision, linked_message_id, summary, assignees, due_text, confidence, missing_fields, reason"
 	}
 	return renderPromptContractBlock(spec)
 }

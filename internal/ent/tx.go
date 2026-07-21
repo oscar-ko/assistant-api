@@ -34,6 +34,8 @@ type Tx struct {
 	Slack *SlackClient
 	// SlackWorkspace is the client for interacting with the SlackWorkspace builders.
 	SlackWorkspace *SlackWorkspaceClient
+	// Todo is the client for interacting with the Todo builders.
+	Todo *TodoClient
 	// TodoCandidate is the client for interacting with the TodoCandidate builders.
 	TodoCandidate *TodoCandidateClient
 	// TodoCandidateAssignee is the client for interacting with the TodoCandidateAssignee builders.
@@ -184,6 +186,7 @@ func (tx *Tx) init() {
 	tx.Skill = NewSkillClient(tx.config)
 	tx.Slack = NewSlackClient(tx.config)
 	tx.SlackWorkspace = NewSlackWorkspaceClient(tx.config)
+	tx.Todo = NewTodoClient(tx.config)
 	tx.TodoCandidate = NewTodoCandidateClient(tx.config)
 	tx.TodoCandidateAssignee = NewTodoCandidateAssigneeClient(tx.config)
 	tx.TranslationLocale = NewTranslationLocaleClient(tx.config)
