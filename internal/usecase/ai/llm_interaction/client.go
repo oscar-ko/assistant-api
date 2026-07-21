@@ -476,7 +476,7 @@ func (c *interactionClient) buildRequest(ctx context.Context, path string, promp
 		Prompt: composedPrompt,
 		// modelName 為空時會被 omitempty 省略，讓既有只靠 OLLAMA_MODEL 的本地部署仍可運作。
 		ModelName:             strings.TrimSpace(c.modelName),
-		JSONDecodeRetryPrompt: buildJSONDecodeRetryPrompt(composedPrompt),
+		JSONDecodeRetryPrompt: buildJSONDecodeRetryPromptForPath(path, composedPrompt),
 		ValidationRetryPrompt: buildValidationRetryPromptForPath(path, composedPrompt),
 	}
 	body, err := json.Marshal(payload)
@@ -506,6 +506,31 @@ func buildJSONDecodeRetryPrompt(composedPrompt string) string {
 Your previous output was not valid JSON. Return exactly one-line JSON only.
 Do not include markdown or extra keys.
 Follow the exact output schema and constraints already defined in the original instruction above.`)
+}
+
+func buildJSONDecodeRetryPromptForPath(path string, composedPrompt string) string {
+	// todo_analyze 的 JSON 失敗常見於小模型把 contract 欄位片段拼成 key；
+	// 重試時直接重述完整 todo_analysis contract，讓第二輪修正聚焦在固定欄位，而不是只靠通用 JSON 指令。
+	if strings.TrimSpace(path) == defaultTodoAnalyzePath {
+		return buildTodoAnalysisJSONDecodeRetryPrompt(composedPrompt)
+	}
+	return buildJSONDecodeRetryPrompt(composedPrompt)
+}
+
+func buildTodoAnalysisJSONDecodeRetryPrompt(composedPrompt string) string {
+	return strings.TrimSpace(composedPrompt + `
+
+Your previous output was not valid JSON for todo_analysis. Return exactly one complete JSON object and nothing else.
+Output exactly these fields and no others:
+` + todoAnalysisContractPromptBlock() + `
+
+Todo JSON formatting rules:
+- Use double quotes around every key and string value.
+- Use commas between fields.
+- Do not put JSON fragments inside key names.
+- assignees and missing_fields must be JSON arrays, never strings or objects.
+- Use "" for empty string fields and [] for empty array fields.
+- Do not include markdown, code fences, explanations, or extra keys.`)
 }
 
 func buildValidationRetryPrompt(composedPrompt string) string {

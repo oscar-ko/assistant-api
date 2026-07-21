@@ -100,6 +100,15 @@ func TestInteractionClientAnalyzeTodoUsesTodoPath(t *testing.T) {
 	if captured["model_name"] != "qwen3.5:2b" {
 		t.Fatalf("expected model_name qwen3.5:2b, got %#v", captured["model_name"])
 	}
+	jsonRetryPrompt, ok := captured["json_decode_retry_prompt"].(string)
+	if !ok {
+		t.Fatalf("json_decode_retry_prompt missing or invalid: %#v", captured["json_decode_retry_prompt"])
+	}
+	for _, fragment := range []string{"todo_analysis", "Do not put JSON fragments inside key names", "assignees and missing_fields must be JSON arrays"} {
+		if !strings.Contains(jsonRetryPrompt, fragment) {
+			t.Fatalf("expected todo json retry prompt to contain %q, got %s", fragment, jsonRetryPrompt)
+		}
+	}
 	validationRetryPrompt, ok := captured["validation_retry_prompt"].(string)
 	if !ok {
 		t.Fatalf("validation_retry_prompt missing or invalid: %#v", captured["validation_retry_prompt"])

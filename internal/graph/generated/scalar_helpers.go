@@ -34,6 +34,7 @@ func (ec *executionContext) _UUID(ctx context.Context, sel ast.SelectionSet, v *
 //  1. 已經是 pgvector.Vector（例如內部直接傳递）：直接回傳。
 //  2. 字串（例如 "[0.1,0.2,0.3]"，pgvector 在 Postgres 的存儲/顯示格式）：交由 parseGraphQLVector 解析。
 //  3. 數字陣列（GraphQL 查詢中直接寫 [0.1, 0.2, 0.3]）：逐項用 graphql.UnmarshalFloat 解析。
+//
 // 其他未知型別則先嘗試當作字串解碼後再證向量，確保盡可能寬容不同來源的輸入。
 func (ec *executionContext) unmarshalInputVector(ctx context.Context, v any) (pgvector.Vector, error) {
 	_ = ctx
