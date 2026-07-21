@@ -164,16 +164,17 @@ postgresql:
     password: ""
     parameters: "sslmode=disable"
 
-# LINE 平台整合設定（OAuth + webhook bot 資訊）。
+# LINE 平台整合設定。OAuth redirect/scopes 共用；每個 bot 有自己的 channel 憑證。
 line:
-    channel_token: ""
-    channel_secret: ""
-    channel_id: ""
-    bot_user_id: ""
-    client_secret: ""
     redirect_uri: "https://uninebriated-nonexplorative-kasey.ngrok-free.dev/line/bind"
-    assistant_bot_url: "https://line.me/R/ti/p/@001ondgw"
     scopes: "openid profile email"
+    bots:
+        - key: "default"
+          channel_id: ""
+          channel_secret: ""
+          channel_token: ""
+          bot_user_id: ""
+          assistant_bot_url: "https://line.me/R/ti/p/@001ondgw"
 
 # Slack 平台整合設定（Events API + OAuth 安裝）。
 slack:

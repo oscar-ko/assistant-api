@@ -107,7 +107,7 @@ func newTestPipelineWebhookService(filter topkfilter.Service, llm llminteraction
 	decisionSvc := commanddecision.NewService(nil)
 	flow := conversationflow.NewFromFactory(conversationflow.FactoryOptions{
 		PlatformLabel:               "line",
-		BotSenderID:                 config.Line.BotUserID,
+		BotSenderID:                 "BOT001",
 		SuccessText:                 "指令已執行成功",
 		CommandConfidenceThreshold:  config.AI.LLMInteraction.CommandConfidenceThreshold,
 		QuestionConfidenceThreshold: config.AI.LLMInteraction.QuestionConfidenceThreshold,
@@ -123,6 +123,7 @@ func newTestPipelineWebhookService(filter topkfilter.Service, llm llminteraction
 		decisionService:       decisionSvc,
 		followUpSender:        push,
 		commandFlow:           flow,
+		configuredBotUserID:   "BOT001",
 		messagePipeline: &messagepipeline.Handler{
 			PlatformLabel: "line",
 			Persistence:   persistSvc,

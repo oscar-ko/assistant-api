@@ -32,46 +32,6 @@ func (r *actionResultWhereInputResolver) StatusNotIn(ctx context.Context, obj *e
 	panic(fmt.Errorf("not implemented: StatusNotIn - statusNotIn"))
 }
 
-// Embedding is the resolver for the embedding field.
-func (r *actionRouteWhereInputResolver) Embedding(ctx context.Context, obj *ent.ActionRouteWhereInput, data *string) error {
-	panic(fmt.Errorf("not implemented: Embedding - embedding"))
-}
-
-// EmbeddingNeq is the resolver for the embeddingNEQ field.
-func (r *actionRouteWhereInputResolver) EmbeddingNeq(ctx context.Context, obj *ent.ActionRouteWhereInput, data *string) error {
-	panic(fmt.Errorf("not implemented: EmbeddingNeq - embeddingNEQ"))
-}
-
-// EmbeddingIn is the resolver for the embeddingIn field.
-func (r *actionRouteWhereInputResolver) EmbeddingIn(ctx context.Context, obj *ent.ActionRouteWhereInput, data []string) error {
-	panic(fmt.Errorf("not implemented: EmbeddingIn - embeddingIn"))
-}
-
-// EmbeddingNotIn is the resolver for the embeddingNotIn field.
-func (r *actionRouteWhereInputResolver) EmbeddingNotIn(ctx context.Context, obj *ent.ActionRouteWhereInput, data []string) error {
-	panic(fmt.Errorf("not implemented: EmbeddingNotIn - embeddingNotIn"))
-}
-
-// EmbeddingGt is the resolver for the embeddingGT field.
-func (r *actionRouteWhereInputResolver) EmbeddingGt(ctx context.Context, obj *ent.ActionRouteWhereInput, data *string) error {
-	panic(fmt.Errorf("not implemented: EmbeddingGt - embeddingGT"))
-}
-
-// EmbeddingGte is the resolver for the embeddingGTE field.
-func (r *actionRouteWhereInputResolver) EmbeddingGte(ctx context.Context, obj *ent.ActionRouteWhereInput, data *string) error {
-	panic(fmt.Errorf("not implemented: EmbeddingGte - embeddingGTE"))
-}
-
-// EmbeddingLt is the resolver for the embeddingLT field.
-func (r *actionRouteWhereInputResolver) EmbeddingLt(ctx context.Context, obj *ent.ActionRouteWhereInput, data *string) error {
-	panic(fmt.Errorf("not implemented: EmbeddingLt - embeddingLT"))
-}
-
-// EmbeddingLte is the resolver for the embeddingLTE field.
-func (r *actionRouteWhereInputResolver) EmbeddingLte(ctx context.Context, obj *ent.ActionRouteWhereInput, data *string) error {
-	panic(fmt.Errorf("not implemented: EmbeddingLte - embeddingLTE"))
-}
-
 // ActionCode is the resolver for the actionCode field.
 func (r *actionWhereInputResolver) ActionCode(ctx context.Context, obj *ent.ActionWhereInput, data *model.ActionActionCode) error {
 	panic(fmt.Errorf("not implemented: ActionCode - actionCode"))
@@ -150,46 +110,6 @@ func (r *channelMessageMentionWhereInputResolver) ResolutionStatusIn(ctx context
 // ResolutionStatusNotIn is the resolver for the resolutionStatusNotIn field.
 func (r *channelMessageMentionWhereInputResolver) ResolutionStatusNotIn(ctx context.Context, obj *ent.ChannelMessageMentionWhereInput, data []model.ChannelMessageMentionResolutionStatus) error {
 	panic(fmt.Errorf("not implemented: ResolutionStatusNotIn - resolutionStatusNotIn"))
-}
-
-// SenderUserID is the resolver for the senderUserID field.
-func (r *channelMessageWhereInputResolver) SenderUserID(ctx context.Context, obj *ent.ChannelMessageWhereInput, data *string) error {
-	panic(fmt.Errorf("not implemented: SenderUserID - senderUserID"))
-}
-
-// SenderUserIdneq is the resolver for the senderUserIDNEQ field.
-func (r *channelMessageWhereInputResolver) SenderUserIdneq(ctx context.Context, obj *ent.ChannelMessageWhereInput, data *string) error {
-	panic(fmt.Errorf("not implemented: SenderUserIdneq - senderUserIDNEQ"))
-}
-
-// SenderUserIDIn is the resolver for the senderUserIDIn field.
-func (r *channelMessageWhereInputResolver) SenderUserIDIn(ctx context.Context, obj *ent.ChannelMessageWhereInput, data []string) error {
-	panic(fmt.Errorf("not implemented: SenderUserIDIn - senderUserIDIn"))
-}
-
-// SenderUserIDNotIn is the resolver for the senderUserIDNotIn field.
-func (r *channelMessageWhereInputResolver) SenderUserIDNotIn(ctx context.Context, obj *ent.ChannelMessageWhereInput, data []string) error {
-	panic(fmt.Errorf("not implemented: SenderUserIDNotIn - senderUserIDNotIn"))
-}
-
-// SenderUserIdgt is the resolver for the senderUserIDGT field.
-func (r *channelMessageWhereInputResolver) SenderUserIdgt(ctx context.Context, obj *ent.ChannelMessageWhereInput, data *string) error {
-	panic(fmt.Errorf("not implemented: SenderUserIdgt - senderUserIDGT"))
-}
-
-// SenderUserIdgte is the resolver for the senderUserIDGTE field.
-func (r *channelMessageWhereInputResolver) SenderUserIdgte(ctx context.Context, obj *ent.ChannelMessageWhereInput, data *string) error {
-	panic(fmt.Errorf("not implemented: SenderUserIdgte - senderUserIDGTE"))
-}
-
-// SenderUserIdlt is the resolver for the senderUserIDLT field.
-func (r *channelMessageWhereInputResolver) SenderUserIdlt(ctx context.Context, obj *ent.ChannelMessageWhereInput, data *string) error {
-	panic(fmt.Errorf("not implemented: SenderUserIdlt - senderUserIDLT"))
-}
-
-// SenderUserIdlte is the resolver for the senderUserIDLTE field.
-func (r *channelMessageWhereInputResolver) SenderUserIdlte(ctx context.Context, obj *ent.ChannelMessageWhereInput, data *string) error {
-	panic(fmt.Errorf("not implemented: SenderUserIdlte - senderUserIDLTE"))
 }
 
 // Platform is the resolver for the platform field.
@@ -352,14 +272,49 @@ func (r *todoCandidateWhereInputResolver) DueNormalizeDecisionNotIn(ctx context.
 	panic(fmt.Errorf("not implemented: DueNormalizeDecisionNotIn - dueNormalizeDecisionNotIn"))
 }
 
+// Status is the resolver for the status field.
+func (r *todoWhereInputResolver) Status(ctx context.Context, obj *ent.TodoWhereInput, data *model.TodoStatus) error {
+	panic(fmt.Errorf("not implemented: Status - status"))
+}
+
+// StatusNeq is the resolver for the statusNEQ field.
+func (r *todoWhereInputResolver) StatusNeq(ctx context.Context, obj *ent.TodoWhereInput, data *model.TodoStatus) error {
+	panic(fmt.Errorf("not implemented: StatusNeq - statusNEQ"))
+}
+
+// StatusIn is the resolver for the statusIn field.
+func (r *todoWhereInputResolver) StatusIn(ctx context.Context, obj *ent.TodoWhereInput, data []model.TodoStatus) error {
+	panic(fmt.Errorf("not implemented: StatusIn - statusIn"))
+}
+
+// StatusNotIn is the resolver for the statusNotIn field.
+func (r *todoWhereInputResolver) StatusNotIn(ctx context.Context, obj *ent.TodoWhereInput, data []model.TodoStatus) error {
+	panic(fmt.Errorf("not implemented: StatusNotIn - statusNotIn"))
+}
+
+// DuePrecision is the resolver for the duePrecision field.
+func (r *todoWhereInputResolver) DuePrecision(ctx context.Context, obj *ent.TodoWhereInput, data *model.TodoDuePrecision) error {
+	panic(fmt.Errorf("not implemented: DuePrecision - duePrecision"))
+}
+
+// DuePrecisionNeq is the resolver for the duePrecisionNEQ field.
+func (r *todoWhereInputResolver) DuePrecisionNeq(ctx context.Context, obj *ent.TodoWhereInput, data *model.TodoDuePrecision) error {
+	panic(fmt.Errorf("not implemented: DuePrecisionNeq - duePrecisionNEQ"))
+}
+
+// DuePrecisionIn is the resolver for the duePrecisionIn field.
+func (r *todoWhereInputResolver) DuePrecisionIn(ctx context.Context, obj *ent.TodoWhereInput, data []model.TodoDuePrecision) error {
+	panic(fmt.Errorf("not implemented: DuePrecisionIn - duePrecisionIn"))
+}
+
+// DuePrecisionNotIn is the resolver for the duePrecisionNotIn field.
+func (r *todoWhereInputResolver) DuePrecisionNotIn(ctx context.Context, obj *ent.TodoWhereInput, data []model.TodoDuePrecision) error {
+	panic(fmt.Errorf("not implemented: DuePrecisionNotIn - duePrecisionNotIn"))
+}
+
 // ActionResultWhereInput returns generated.ActionResultWhereInputResolver implementation.
 func (r *Resolver) ActionResultWhereInput() generated.ActionResultWhereInputResolver {
 	return &actionResultWhereInputResolver{r}
-}
-
-// ActionRouteWhereInput returns generated.ActionRouteWhereInputResolver implementation.
-func (r *Resolver) ActionRouteWhereInput() generated.ActionRouteWhereInputResolver {
-	return &actionRouteWhereInputResolver{r}
 }
 
 // ActionWhereInput returns generated.ActionWhereInputResolver implementation.
@@ -370,11 +325,6 @@ func (r *Resolver) ActionWhereInput() generated.ActionWhereInputResolver {
 // ChannelMessageMentionWhereInput returns generated.ChannelMessageMentionWhereInputResolver implementation.
 func (r *Resolver) ChannelMessageMentionWhereInput() generated.ChannelMessageMentionWhereInputResolver {
 	return &channelMessageMentionWhereInputResolver{r}
-}
-
-// ChannelMessageWhereInput returns generated.ChannelMessageWhereInputResolver implementation.
-func (r *Resolver) ChannelMessageWhereInput() generated.ChannelMessageWhereInputResolver {
-	return &channelMessageWhereInputResolver{r}
 }
 
 // ChannelWhereInput returns generated.ChannelWhereInputResolver implementation.
@@ -392,11 +342,22 @@ func (r *Resolver) TodoCandidateWhereInput() generated.TodoCandidateWhereInputRe
 	return &todoCandidateWhereInputResolver{r}
 }
 
+// TodoWhereInput returns generated.TodoWhereInputResolver implementation.
+func (r *Resolver) TodoWhereInput() generated.TodoWhereInputResolver {
+	return &todoWhereInputResolver{r}
+}
+
 type actionResultWhereInputResolver struct{ *Resolver }
-type actionRouteWhereInputResolver struct{ *Resolver }
 type actionWhereInputResolver struct{ *Resolver }
 type channelMessageMentionWhereInputResolver struct{ *Resolver }
-type channelMessageWhereInputResolver struct{ *Resolver }
 type channelWhereInputResolver struct{ *Resolver }
 type todoCandidateAssigneeWhereInputResolver struct{ *Resolver }
 type todoCandidateWhereInputResolver struct{ *Resolver }
+type todoWhereInputResolver struct{ *Resolver }
+
+// 說明：ActionRouteWhereInputResolver（embedding 相關比較）與
+// ChannelMessageWhereInputResolver（senderUserID 相關比較）過去需要手動實作，
+// 是因為 embedding / senderUserID 欄位當時對應到沒有內建 unmarshal/marshal 支援的型別（string）。
+// 新增 Vector 與 UUID 兩個自訂 scalar（見 internal/graph/generated/scalar_helpers.go）後，
+// gqlgen 已能自動處理這兩個型別的序列化，不再需要這些手寫 resolver，
+// 因此 gqlgen 重新產生時會將它們視為過時程式碼移除。

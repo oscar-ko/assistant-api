@@ -33,7 +33,16 @@ type pushMessageService struct {
 
 // NewPushMessageService 依設定建立 LINE Messaging API client。
 func NewPushMessageService() (PushMessageService, error) {
-	token := strings.TrimSpace(config.Line.ChannelToken)
+	bot, err := config.Line.DefaultBot()
+	if err != nil {
+		return nil, err
+	}
+	return NewPushMessageServiceForBot(bot)
+}
+
+// NewPushMessageServiceForBot 依指定 LINE bot 設定建立 Messaging API client。
+func NewPushMessageServiceForBot(bot config.LineBotConfig) (PushMessageService, error) {
+	token := strings.TrimSpace(bot.ChannelToken)
 	if token == "" {
 		return nil, fmt.Errorf("line channel token is empty")
 	}

@@ -10,6 +10,26 @@ import (
 	"github.com/google/uuid"
 )
 
+// 清理開發用 realtime Todo 資料後的統計結果。
+//
+// 每個 count 都代表對應資料表實際刪除的筆數，方便確認下次模擬前沒有殘留 Todo、candidate、mention 或 action result。
+type ClearDevRealtimeTodoDataPayload struct {
+	// 清理操作狀態。
+	Status string `json:"status"`
+	// 刪除的正式 Todo 筆數；這是每個使用者自己的待辦資料，清理 candidate 前必須先刪除。
+	TodoCount int `json:"todoCount"`
+	// 刪除的 ChannelMessage 筆數。
+	ChannelMessageCount int `json:"channelMessageCount"`
+	// 刪除的 TodoCandidate 筆數。
+	TodoCandidateCount int `json:"todoCandidateCount"`
+	// 刪除的 TodoCandidateAssignee evidence 筆數。
+	TodoCandidateAssigneeCount int `json:"todoCandidateAssigneeCount"`
+	// 刪除的 ChannelMessageMention 筆數。
+	ChannelMessageMentionCount int `json:"channelMessageMentionCount"`
+	// 刪除的 ActionResult 筆數。
+	ActionResultCount int `json:"actionResultCount"`
+}
+
 type SendLineTextInput struct {
 	LineUserID string `json:"lineUserID"`
 	Text       string `json:"text"`
@@ -20,31 +40,81 @@ type SendLineTextPayload struct {
 	To     string `json:"to"`
 }
 
+// 模擬 LINE Todo 對話的輸入參數。
+//
+// channelID 預設指向本機 seed/dev channel；participantCount 控制模擬群組中的人數；
+// messageCount 控制要產生幾則對話；analysisWaitMilliseconds 則用來在寫入訊息後等待非同步分析流程，
+// 讓呼叫端可以選擇立即回傳或等待 candidate/promotion 完成後再檢查結果。
 type SimulateLineTodoConversationInput struct {
-	ChannelID        uuid.UUID `json:"channelID"`
-	ParticipantCount int       `json:"participantCount"`
-	MessageCount     int       `json:"messageCount"`
+	// 要寫入模擬訊息的 channel ID；預設值為本機開發環境的 LINE channel。
+	ChannelID uuid.UUID `json:"channelID"`
+	// 模擬對話中的參與者數量；會影響訊息 speaker 與 mention/assignee 的分布。
+	ParticipantCount int `json:"participantCount"`
+	// 要產生的模擬訊息數量；數量越多，越容易覆蓋 create/update/ack/cancel 等 candidate 狀態流。
+	MessageCount int `json:"messageCount"`
+	// 每則訊息送進 pipeline 後額外等待的毫秒數，用來觀察非同步 realtime analyzer 的落庫結果。
+	AnalysisWaitMilliseconds int `json:"analysisWaitMilliseconds"`
 }
 
+// 模擬 LINE Todo 對話的執行結果。
+//
+// payload 同時回傳 channel、參與者、每則訊息與 candidate 數量，讓開發者可以在一次 GraphQL 呼叫後，
+// 直接判斷資料是否成功穿過 message persistence、mention extraction、todo analyzer 與 candidate persistence。
 type SimulateLineTodoConversationPayload struct {
-	Status        string                          `json:"status"`
-	ChannelID     uuid.UUID                       `json:"channelID"`
-	LineChannelID string                          `json:"lineChannelID"`
-	Participants  []*SimulatedLineTodoParticipant `json:"participants"`
-	Messages      []*SimulatedLineTodoMessage     `json:"messages"`
+	// 本次模擬操作狀態；通常用於快速判斷 helper 是否執行完成。
+	Status string `json:"status"`
+	// 本次模擬寫入的系統 channel ID。
+	ChannelID uuid.UUID `json:"channelID"`
+	// 本次模擬對應的 LINE channel ID。
+	LineChannelID string `json:"lineChannelID"`
+	// 實際套用的 analyzer 等待毫秒數。
+	AnalysisWaitMilliseconds int `json:"analysisWaitMilliseconds"`
+	// 本次模擬完成後查到的 TodoCandidate 筆數。
+	TodoCandidateCount int `json:"todoCandidateCount"`
+	// 本次模擬建立或使用的參與者清單。
+	Participants []*SimulatedLineTodoParticipant `json:"participants"`
+	// 本次模擬產生的訊息與各自 Todo pipeline 結果。
+	Messages []*SimulatedLineTodoMessage `json:"messages"`
 }
 
+// 單則模擬 LINE 訊息與其 Todo pipeline 結果。
+//
+// 前半部欄位描述這則訊息如何被送出；savedMessageID / sentLineMessageID 描述平台與資料庫落點；
+// todoCandidate* 欄位則是此訊息若觸發 Todo analyzer 時，對應 candidate 的最新狀態摘要。
 type SimulatedLineTodoMessage struct {
-	SpeakerUserID     uuid.UUID  `json:"speakerUserID"`
-	LineUserID        string     `json:"lineUserID"`
-	DisplayName       string     `json:"displayName"`
-	Text              string     `json:"text"`
-	LineText          string     `json:"lineText"`
-	PlatformMessageID string     `json:"platformMessageID"`
-	SavedMessageID    *uuid.UUID `json:"savedMessageID,omitempty"`
-	SentLineMessageID *string    `json:"sentLineMessageID,omitempty"`
+	// 此訊息的系統內部發話者 User ID。
+	SpeakerUserID uuid.UUID `json:"speakerUserID"`
+	// 此訊息的 LINE 發話者 userId。
+	LineUserID string `json:"lineUserID"`
+	// 此訊息在對話中顯示的發話者名稱。
+	DisplayName string `json:"displayName"`
+	// 送進內部 message pipeline 的純文字內容。
+	Text string `json:"text"`
+	// 模擬 LINE 平台實際收到或送出的文字內容，可包含平台格式差異。
+	LineText string `json:"lineText"`
+	// 模擬平台訊息 ID，用來測試 reply/linking 與 message lookup。
+	PlatformMessageID string `json:"platformMessageID"`
+	// 訊息成功保存後的 ChannelMessage ID；若保存失敗則為空。
+	SavedMessageID *uuid.UUID `json:"savedMessageID,omitempty"`
+	// 若測試流程有模擬送出 LINE 訊息，這裡保存回傳的平台訊息 ID。
+	SentLineMessageID *string `json:"sentLineMessageID,omitempty"`
+	// 此訊息觸發或更新的 TodoCandidate ID；未觸發 Todo pipeline 時為空。
+	TodoCandidateID *uuid.UUID `json:"todoCandidateID,omitempty"`
+	// 該 candidate 的最新狀態，例如 candidate、needs_more_info、acknowledged 或 cancelled。
+	TodoCandidateStatus *string `json:"todoCandidateStatus,omitempty"`
+	// Todo analyzer 對此訊息的 decision，例如 create_candidate 或 update_candidate。
+	TodoCandidateDecision *string `json:"todoCandidateDecision,omitempty"`
+	// candidate 目前的摘要，用來快速確認 analyzer 是否抽到正確待辦事項。
+	TodoCandidateSummary *string `json:"todoCandidateSummary,omitempty"`
+	// candidate 最新 decision/reason，供開發時判斷模型為何建立、更新或取消。
+	TodoCandidateReason *string `json:"todoCandidateReason,omitempty"`
+	// 若此訊息被判定接續既有待辦，這裡保存 analyzer 連結到的歷史訊息 ID。
+	TodoCandidateLinkedMessageID *uuid.UUID `json:"todoCandidateLinkedMessageID,omitempty"`
 }
 
+// 模擬對話中的參與者。
+//
+// userID 是系統內部 User ID；lineUserID 是平台側身分；displayName 是對話中顯示與 assignee resolver 使用的名稱。
 type SimulatedLineTodoParticipant struct {
 	UserID      uuid.UUID `json:"userID"`
 	LineUserID  string    `json:"lineUserID"`
@@ -625,5 +695,93 @@ func (e *TodoCandidateStatus) UnmarshalGQL(v any) error {
 }
 
 func (e TodoCandidateStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type TodoDuePrecision string
+
+const (
+	TodoDuePrecisionDatetime       TodoDuePrecision = "datetime"
+	TodoDuePrecisionDate           TodoDuePrecision = "date"
+	TodoDuePrecisionRelativeWindow TodoDuePrecision = "relative_window"
+	TodoDuePrecisionUnknown        TodoDuePrecision = "unknown"
+)
+
+var AllTodoDuePrecision = []TodoDuePrecision{
+	TodoDuePrecisionDatetime,
+	TodoDuePrecisionDate,
+	TodoDuePrecisionRelativeWindow,
+	TodoDuePrecisionUnknown,
+}
+
+func (e TodoDuePrecision) IsValid() bool {
+	switch e {
+	case TodoDuePrecisionDatetime, TodoDuePrecisionDate, TodoDuePrecisionRelativeWindow, TodoDuePrecisionUnknown:
+		return true
+	}
+	return false
+}
+
+func (e TodoDuePrecision) String() string {
+	return string(e)
+}
+
+func (e *TodoDuePrecision) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TodoDuePrecision(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TodoDuePrecision", str)
+	}
+	return nil
+}
+
+func (e TodoDuePrecision) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type TodoStatus string
+
+const (
+	TodoStatusActive    TodoStatus = "active"
+	TodoStatusCompleted TodoStatus = "completed"
+	TodoStatusCancelled TodoStatus = "cancelled"
+)
+
+var AllTodoStatus = []TodoStatus{
+	TodoStatusActive,
+	TodoStatusCompleted,
+	TodoStatusCancelled,
+}
+
+func (e TodoStatus) IsValid() bool {
+	switch e {
+	case TodoStatusActive, TodoStatusCompleted, TodoStatusCancelled:
+		return true
+	}
+	return false
+}
+
+func (e TodoStatus) String() string {
+	return string(e)
+}
+
+func (e *TodoStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TodoStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TodoStatus", str)
+	}
+	return nil
+}
+
+func (e TodoStatus) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }

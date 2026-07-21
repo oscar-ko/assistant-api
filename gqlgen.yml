@@ -25,9 +25,18 @@ models:
     ID:
         model:
             - github.com/google/uuid.UUID
+    # UUID scalar 是 ent 自動產生的 where input（例如 senderUserID）所需要的獨立型別，
+    # 對應到跟 ID 相同的 Go 型別，避免額外定義一份重複的 UUID 處理邏輯。
+    UUID:
+        model:
+            - github.com/google/uuid.UUID
     Time:
         model:
             - github.com/99designs/gqlgen/graphql.Time
+    # Vector scalar 對應 pgvector 向量型別，用於 ActionRoute 的 embedding 欄位過濾（entgql 自動產生的 where input）。
+    Vector:
+        model:
+            - github.com/pgvector/pgvector-go.Vector
     Node:
         model:
             - assistant-api/internal/ent.Noder

@@ -48,6 +48,10 @@ type WebhookService struct {
 	nonCommandDispatcher  *realtime.Dispatcher
 	commandFlow           *conversationflow.Orchestrator
 	messagePipeline       *messagepipeline.Handler
+	// configuredBotUserID 記錄此 webhook service 實例對應的 LINE bot user id。
+	// 多 bot 情境下，每個 bot 各自建立一個 WebhookService 實例，
+	// 因此改用 struct 欄位保存，而不是直接讀全域設定，避免不同 bot 的 mention 判斷互相污染。
+	configuredBotUserID string
 }
 
 // WebhookServiceOptions 提供 webhook service 的擴充設定。
@@ -58,6 +62,10 @@ type WebhookServiceOptions struct {
 	LLMInteraction  llminteraction.InteractionService
 	TopKFilter      topkfilter.Service
 	FollowUpSender  PushMessageService
+	// Bot 為此 webhook service 實例要使用的 LINE bot 設定。
+	// 呼叫端（routes.go）依 URL 上的 bot_key 解析出對應 bot 後注入；
+	// 若呼叫端未帶入任何值（零值），下方建構邏輯會 fallback 成設定檔第一筆 bot（即 DefaultBot）。
+	Bot config.LineBotConfig
 }
 
 // NewWebhookService 建立預設 webhook service
@@ -67,8 +75,19 @@ func NewWebhookService(repo *repository.ChannelMessageRepo) WebhookProcessor {
 
 // NewWebhookServiceWithOptions 建立可帶擴充選項的 webhook service。
 func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options WebhookServiceOptions) WebhookProcessor {
+	bot := options.Bot
+	var err error
+	// 呼叫端未指定 Bot（三個關鍵欄位皆為空值）時，視為舊行為：使用設定檔的預設 bot。
+	// 這裡刻意用「多欄位皆空」而非單一欄位判斷，降低誤判成「呼叫端故意傳入空設定」的機率。
+	if strings.TrimSpace(bot.Key) == "" && strings.TrimSpace(bot.ChannelToken) == "" && strings.TrimSpace(bot.BotUserID) == "" {
+		bot, err = config.Line.DefaultBot()
+		if err != nil {
+			panic(err)
+		}
+	}
+	botUserID := strings.TrimSpace(bot.BotUserID)
 	var lineClient *messaging_api.MessagingApiAPI
-	if token := strings.TrimSpace(config.Line.ChannelToken); token != "" {
+	if token := strings.TrimSpace(bot.ChannelToken); token != "" {
 		if client, err := messaging_api.NewMessagingApiAPI(token); err == nil {
 			lineClient = client
 		}
@@ -115,7 +134,7 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 		ResolveOwnerUserID: func(ctx context.Context, platformUserID string) (uuid.UUID, error) {
 			return repo.ResolveUserIDByPlatformUserID(ctx, platformUserID)
 		},
-		BotSenderID:   strings.TrimSpace(config.Line.BotUserID),
+		BotSenderID:   botUserID,
 		PlatformLabel: "line:" + strings.TrimSpace(translateProfile),
 	})
 	// RecentLimit 使用中性的 history_context 設定，而不是 todo_reminder 專用 key。
@@ -163,7 +182,7 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 	// 翻譯會主動送出譯文；分類只產生 tag 並交給後續 handler，不阻斷彼此。
 	flow := conversationflow.NewFromFactory(conversationflow.FactoryOptions{
 		PlatformLabel:               "line",
-		BotSenderID:                 strings.TrimSpace(config.Line.BotUserID),
+		BotSenderID:                 botUserID,
 		SuccessText:                 "指令已執行成功",
 		CommandConfidenceThreshold:  config.AI.LLMInteraction.CommandConfidenceThreshold,
 		QuestionConfidenceThreshold: config.AI.LLMInteraction.QuestionConfidenceThreshold,
@@ -193,7 +212,17 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 		nonCommandDispatcher:  nonCommandDispatcher,
 		commandFlow:           flow,
 		messagePipeline:       pipeline,
+		configuredBotUserID:   botUserID,
 	}
+}
+
+// botUserID 回傳此 webhook service 實例對應的 LINE bot user id。
+// 統一經由此方法讀取，取代直接存取全域設定，確保多 bot 情境下每個實例只用自己的 bot 身分做 mention 判斷。
+func (s *WebhookService) botUserID() string {
+	if s == nil {
+		return ""
+	}
+	return strings.TrimSpace(s.configuredBotUserID)
 }
 
 // webhookRequest 對應 LINE webhook 最上層 payload。
@@ -314,7 +343,7 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 			continue
 		}
 
-		message, ok, reason := adaptLineEventToUnified(event)
+		message, ok, reason := adaptLineEventToUnifiedForBot(event, s.botUserID())
 		if !ok {
 			webhooklog.LogUnifiedConversionSkipped(webhooklog.UnifiedConversionSkipped{
 				Provider:      "line",
@@ -339,7 +368,7 @@ func (s *WebhookService) ProcessIncoming(body []byte, signature string) {
 		s.messagePipeline.Process(messagepipeline.Input{
 			Context:        context.Background(),
 			Message:        message,
-			BotUserID:      config.Line.BotUserID,
+			BotUserID:      s.botUserID(),
 			PlatformUserID: strings.TrimSpace(event.Source.UserID),
 			ReplyRef:       strings.TrimSpace(event.ReplyToken),
 			QuoteRef:       strings.TrimSpace(event.Message.QuoteToken),
@@ -499,7 +528,7 @@ func (s *WebhookService) ensureCommandFlow() {
 	}
 	s.commandFlow = conversationflow.NewFromFactory(conversationflow.FactoryOptions{
 		PlatformLabel:               "line",
-		BotSenderID:                 strings.TrimSpace(config.Line.BotUserID),
+		BotSenderID:                 s.botUserID(),
 		SuccessText:                 "指令已執行成功",
 		CommandConfidenceThreshold:  config.AI.LLMInteraction.CommandConfidenceThreshold,
 		QuestionConfidenceThreshold: config.AI.LLMInteraction.QuestionConfidenceThreshold,

@@ -1,0 +1,93 @@
+# 本檔完整宣告 ent 自動產生的 GraphQL where input（見 internal/graph/schema/ent.graphql）所引用到的 enum 型別。
+#
+# entgql 產生 ent.graphql 時，只會引用這些 enum 名稱，不會順便幫你宣告它們本身；
+# 若不在任何 .graphqls 檔案手動補上這些宣告，`gqlgen generate` 會因找不到型別定義而失敗。
+# 因此本檔每個 enum 的名稱與可選值，都必須與 internal/ent/schema/*.go 裡對應欄位的 enum 定義保持完全一致（名稱、順序、可選值集合），
+# 若日後修改 ent schema 中的 enum，記得同步更新此檔，否則會實際對應錯誤或編譯失敗。
+enum ActionActionCode {
+    enable
+    disable
+    configure
+    query_status
+}
+
+enum ActionResultStatus {
+    success
+    missing_parameter
+    failed
+}
+
+enum ChannelMessageMentionIdentityKind {
+    user
+    bot
+    unknown
+}
+
+enum ChannelMessageMentionPlatform {
+    line
+    whatsapp
+    slack
+    telegram
+}
+
+enum ChannelMessageMentionResolutionStatus {
+    resolved
+    unresolved
+    ambiguous
+    unsupported
+}
+
+enum TodoCandidateAssigneeResolutionStatus {
+    resolved
+    unresolved
+    ambiguous
+    unsupported
+}
+
+enum TodoCandidateAssigneeSource {
+    mention
+    analyzer
+    sender
+    reply_context
+}
+
+enum TodoCandidateDueNormalizeDecision {
+    normalized
+    needs_more_info
+    no_due_time
+}
+
+enum TodoCandidateDuePrecision {
+    datetime
+    date
+    relative_window
+    unknown
+}
+
+enum TodoCandidateLastDecision {
+    create_candidate
+    update_candidate
+    acknowledge
+    cancel_candidate
+    needs_more_info
+}
+
+enum TodoCandidateStatus {
+    candidate
+    needs_more_info
+    acknowledged
+    cancelled
+}
+
+enum TodoStatus {
+    active
+    completed
+    cancelled
+}
+
+enum TodoDuePrecision {
+    datetime
+    date
+    relative_window
+    unknown
+}

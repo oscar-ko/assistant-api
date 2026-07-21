@@ -2,15 +2,9 @@ package line
 
 import (
 	"testing"
-
-	"assistant-api/internal/config"
 )
 
 func TestAdaptLineEventToUnified_MessageEvent(t *testing.T) {
-	originalBotUserID := config.Line.BotUserID
-	config.Line.BotUserID = "BOT001"
-	defer func() { config.Line.BotUserID = originalBotUserID }()
-
 	event := webhookEvent{
 		Type: "message",
 		Source: webhookEventSource{
@@ -30,7 +24,7 @@ func TestAdaptLineEventToUnified_MessageEvent(t *testing.T) {
 		Timestamp: 123456,
 	}
 
-	msg, ok, reason := adaptLineEventToUnified(event)
+	msg, ok, reason := adaptLineEventToUnifiedForBot(event, "BOT001")
 	if !ok || msg == nil {
 		t.Fatalf("expected unified message")
 	}
@@ -69,7 +63,7 @@ func TestAdaptLineEventToUnified_MessageEvent(t *testing.T) {
 
 func TestAdaptLineEventToUnified_NonMessage(t *testing.T) {
 	event := webhookEvent{Type: "follow"}
-	msg, ok, reason := adaptLineEventToUnified(event)
+	msg, ok, reason := adaptLineEventToUnifiedForBot(event, "BOT001")
 	if ok || msg != nil {
 		t.Fatalf("expected non-message event to be ignored")
 	}

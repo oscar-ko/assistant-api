@@ -24,18 +24,21 @@ type profile struct {
 }
 
 // getProfileByAuthCode 以授權碼交換 token，並解析 LINE profile。
-func getProfileByAuthCode(code string) (*profile, error) {
+func getProfileByAuthCode(code string, bot config.LineBotConfig) (*profile, error) {
 	redirectURI := strings.TrimSpace(config.Line.RedirectURI)
 	if redirectURI == "" {
 		return nil, fmt.Errorf("line redirect_uri is empty")
+	}
+	if strings.TrimSpace(bot.ChannelID) == "" || strings.TrimSpace(bot.ChannelSecret) == "" {
+		return nil, fmt.Errorf("line oauth config is incomplete for bot %q", strings.TrimSpace(bot.Key))
 	}
 
 	resp, err := http.PostForm("https://api.line.me/oauth2/v2.1/token", url.Values{
 		"grant_type":    {"authorization_code"},
 		"code":          {code},
 		"redirect_uri":  {redirectURI},
-		"client_id":     {config.Line.ChannelID},
-		"client_secret": {config.Line.ClientSecret},
+		"client_id":     {strings.TrimSpace(bot.ChannelID)},
+		"client_secret": {strings.TrimSpace(bot.ChannelSecret)},
 	})
 	if err != nil {
 		return nil, err

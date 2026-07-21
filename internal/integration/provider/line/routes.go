@@ -43,14 +43,39 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 		panic(fmt.Errorf("failed to initialize llm interaction service: %w", err))
 	}
 	// 第三階段：LLM 互動服務，把 rerank 後的候選交給模型選出最終唯一一個 action。
-	followUpSender, _ := NewPushMessageService()
+	defaultBot, err := config.Line.DefaultBot()
+	if err != nil {
+		panic(fmt.Errorf("failed to initialize default line bot: %w", err))
+	}
+	defaultFollowUpSender, err := NewPushMessageServiceForBot(defaultBot)
+	if err != nil {
+		panic(fmt.Errorf("failed to initialize default line push service: %w", err))
+	}
 
 	// OAuth 相關端點。
 	r.GET("/line/bind", bindPage)
 	r.GET("/line/oauth/start", oauthStart)
+	r.GET("/line/oauth/start/:bot_key", oauthStart)
 	r.GET("/line/oauth/callback", oauthCallback(lineRepo, channelMessageRepo))
+	r.GET("/line/oauth/callback/:bot_key", oauthCallback(lineRepo, channelMessageRepo))
 	// Webhook 採 handler -> service 分層，便於後續替換 queue/worker 實作。
-	r.POST("/line/webhook", webhookHandler(NewWebhookServiceWithOptions(channelMessageRepo, WebhookServiceOptions{LLMInteraction: llmInteractionService, TopKFilter: filterService, FollowUpSender: followUpSender})))
+	// /line/webhook：不帶 bot_key 的舊路徑，固定使用設定檔第一筆 bot（default bot），確保既有整合不受影響。
+	r.POST("/line/webhook", webhookHandler(NewWebhookServiceWithOptions(channelMessageRepo, WebhookServiceOptions{LLMInteraction: llmInteractionService, TopKFilter: filterService, FollowUpSender: defaultFollowUpSender, Bot: defaultBot})))
+	// /line/webhook/:bot_key：多 bot 專用路徑，依 bot_key 動態解析出對應的 LINE bot 設定，
+	// 並為該次請求建立專屬的 push service 與 webhook service，避免多個 bot 共用同一份 token/user id。
+	r.POST("/line/webhook/:bot_key", func(c *gin.Context) {
+		bot, err := config.Line.BotByKey(c.Param("bot_key"))
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		followUpSender, err := NewPushMessageServiceForBot(bot)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		webhookHandler(NewWebhookServiceWithOptions(channelMessageRepo, WebhookServiceOptions{LLMInteraction: llmInteractionService, TopKFilter: filterService, FollowUpSender: followUpSender, Bot: bot}))(c)
+	})
 }
 
 // bindPage 回傳 LINE 綁定頁面。
@@ -60,8 +85,13 @@ func bindPage(c *gin.Context) {
 
 // oauthStart 啟動 LINE OAuth 流程並導向授權頁。
 func oauthStart(c *gin.Context) {
+	bot, err := lineBotFromParam(c)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
 	// OAuth 基本設定缺失時直接拒絕，避免導向後才失敗。
-	if strings.TrimSpace(config.Line.ChannelID) == "" || strings.TrimSpace(config.Line.ClientSecret) == "" {
+	if strings.TrimSpace(bot.ChannelID) == "" || strings.TrimSpace(bot.ChannelSecret) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "line oauth config is incomplete"})
 		return
 	}
@@ -73,11 +103,11 @@ func oauthStart(c *gin.Context) {
 	}
 	auth.SetStateCookie(c, stateCookieName, state, 600)
 
-	redirectURI := oauthredirect.Resolve(c.Request, config.Line.RedirectURI, "/line/oauth/callback")
+	redirectURI := oauthredirect.Resolve(c.Request, config.Line.RedirectURI, lineOAuthCallbackPath(bot))
 
 	authorizeURL := "https://access.line.me/oauth2/v2.1/authorize?" + url.Values{
 		"response_type": {"code"},
-		"client_id":     {config.Line.ChannelID},
+		"client_id":     {strings.TrimSpace(bot.ChannelID)},
 		"redirect_uri":  {redirectURI},
 		"state":         {state},
 		"scope":         {strings.TrimSpace(config.Line.Scopes)},
@@ -90,6 +120,11 @@ func oauthStart(c *gin.Context) {
 // oauthCallback 處理 LINE OAuth callback，完成綁定或建立使用者。
 func oauthCallback(repo lineBindRepository, channelRepo *repository.ChannelMessageRepo) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		bot, err := lineBotFromParam(c)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 		// 先驗證 state，阻擋 CSRF。
 		state := c.Query("state")
 		expectedState := auth.GetStateCookie(c, stateCookieName)
@@ -106,7 +141,7 @@ func oauthCallback(repo lineBindRepository, channelRepo *repository.ChannelMessa
 			return
 		}
 
-		profile, err := getProfileByAuthCode(code)
+		profile, err := getProfileByAuthCode(code, bot)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -142,8 +177,8 @@ func oauthCallback(repo lineBindRepository, channelRepo *repository.ChannelMessa
 		}
 
 		// 若有設定外部 bot URL，綁定完成後直接導頁。
-		if strings.TrimSpace(config.Line.AssistantBotURL) != "" {
-			c.Redirect(http.StatusFound, config.Line.AssistantBotURL)
+		if strings.TrimSpace(bot.AssistantBotURL) != "" {
+			c.Redirect(http.StatusFound, bot.AssistantBotURL)
 			return
 		}
 
@@ -157,4 +192,25 @@ func oauthCallback(repo lineBindRepository, channelRepo *repository.ChannelMessa
 			},
 		})
 	}
+}
+
+// lineBotFromParam 依 gin route 上的 :bot_key 參數解析出對應的 LINE bot 設定。
+// 若路由沒有 bot_key（例如 /line/oauth/start 舊路徑），BotByKey 會 fallback 成 DefaultBot。
+func lineBotFromParam(c *gin.Context) (config.LineBotConfig, error) {
+	if c == nil {
+		return config.LineBotConfig{}, fmt.Errorf("gin context is nil")
+	}
+	return config.Line.BotByKey(c.Param("bot_key"))
+}
+
+// lineOAuthCallbackPath 依 bot 設定產生對應的 OAuth callback 路徑。
+//
+// default bot（或未命名 key）沿用舊的 /line/oauth/callback，維持既有整合相容；
+// 其餘具名 bot 則導向 /line/oauth/callback/:bot_key，讓 LINE 換 token 後能導回正確 bot 的處理流程。
+func lineOAuthCallbackPath(bot config.LineBotConfig) string {
+	key := strings.TrimSpace(bot.Key)
+	if key == "" || strings.EqualFold(key, "default") {
+		return "/line/oauth/callback"
+	}
+	return "/line/oauth/callback/" + url.PathEscape(key)
 }

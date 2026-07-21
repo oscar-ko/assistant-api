@@ -22,7 +22,7 @@ import (
 /** provider/line/routes.go 中的 oauthStart() 會使用這個函式產生 state 並寫入 cookie，然後導向 LINE 授權頁。
 	authorizeURL := "https://access.line.me/oauth2/v2.1/authorize?" + url.Values{
 		"response_type": {"code"},
-		"client_id":     {config.Line.ChannelID},
+		"client_id":     {strings.TrimSpace(bot.ChannelID)},
 		"redirect_uri":  {redirectURI},
 		"state":         {state}, <-------- 這裡就是 OAuth state，用來防止 CSRF 攻擊
 		"scope":         {strings.TrimSpace(config.Line.Scopes)},

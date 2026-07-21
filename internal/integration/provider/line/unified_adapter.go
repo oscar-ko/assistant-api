@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"strings"
 
-	"assistant-api/internal/config"
 	"assistant-api/internal/integration/unifiedmessage"
 )
 
-// adaptLineEventToUnified 將 LINE webhook 事件轉成統一訊息格式。
-func adaptLineEventToUnified(event webhookEvent) (*unifiedmessage.Message, bool, string) {
+// adaptLineEventToUnifiedForBot 將 LINE webhook 事件轉成統一訊息格式。
+//
+// botUserID 由呼叫端（WebhookService）注入，而不是直接讀全域設定：
+// 多 bot 情境下，每個 webhook service 實例對應不同的 LINE bot，
+// 若在此處直接讀全域 config.Line，會讓 mention 判斷永遠對到同一個 bot，造成多 bot 誤判。
+func adaptLineEventToUnifiedForBot(event webhookEvent, botUserID string) (*unifiedmessage.Message, bool, string) {
 	if strings.TrimSpace(event.Type) != "message" {
 		return nil, false, "event type is not message"
 	}
@@ -33,7 +36,7 @@ func adaptLineEventToUnified(event webhookEvent) (*unifiedmessage.Message, bool,
 			}
 			index := mention.Index
 			length := mention.Length
-			isBot := userID != "" && strings.TrimSpace(config.Line.BotUserID) != "" && userID == strings.TrimSpace(config.Line.BotUserID)
+			isBot := userID != "" && strings.TrimSpace(botUserID) != "" && userID == strings.TrimSpace(botUserID)
 			identityKind := "user"
 			if isBot {
 				identityKind = "bot"

@@ -168,16 +168,94 @@ type RerankerConfig struct {
 	AliveFailureCooldownMS int `mapstructure:"alive_failure_cooldown_ms" yaml:"alive_failure_cooldown_ms"`
 }
 
-// LineConfig 為 LINE OAuth 綁定所需參數。
+// LineConfig 為 LINE 平台共用資訊，讓多個 LINE Bot 可以共用同一組 OAuth 導向設定。
+//
+// 設計理由：一個 LINE Login channel 底下可以掛多個 Messaging API bot；
+// redirect_uri、scopes 屬於 OAuth 導向流程共用資訊，因此獨立於 bots 清單之外，
+// 避免每新增一個 bot 就要重複填一次相同的 OAuth 設定。
 type LineConfig struct {
-	ChannelToken    string `mapstructure:"channel_token" yaml:"channel_token"`
-	ChannelSecret   string `mapstructure:"channel_secret" yaml:"channel_secret"`
-	ChannelID       string `mapstructure:"channel_id" yaml:"channel_id"`
-	BotUserID       string `mapstructure:"bot_user_id" yaml:"bot_user_id"`
-	ClientSecret    string `mapstructure:"client_secret" yaml:"client_secret"`
-	RedirectURI     string `mapstructure:"redirect_uri" yaml:"redirect_uri"`
+	// RedirectURI 為 LINE OAuth 授權完成後導回的 URL；所有 bot 共用同一個導向端點。
+	RedirectURI string `mapstructure:"redirect_uri" yaml:"redirect_uri"`
+	// Scopes 為 LINE Login 授權範圍；所有 bot 共用同一組 scope 設定。
+	Scopes string `mapstructure:"scopes" yaml:"scopes"`
+	// Bots 為此服務實際掛載的 LINE bot 清單；每個 bot 各自持有自己的 channel 憑證。
+	Bots []LineBotConfig `mapstructure:"bots" yaml:"bots"`
+}
+
+// LineBotConfig 為單一 LINE bot 的 Login（OAuth）與 Messaging API 憑證。
+//
+// 注意：channel_id / channel_secret 這兩個欄位「跟著 bot 走」，不是共用設定；
+// 因為 LINE 後台每建立一個新的 Messaging API channel，就會拿到一組獨立的 channel_id / channel_secret，
+// 混用會導致 OAuth 換 token 時打錯 channel。
+type LineBotConfig struct {
+	// Key 為此 bot 的識別代稱，用於 webhook / OAuth 路徑（例如 /line/webhook/:bot_key）與設定檔內部比對；未填時視為 "default"。
+	Key string `mapstructure:"key" yaml:"key"`
+	// ChannelID 為此 bot 專屬的 LINE Login channel ID，OAuth 換 token 時作為 client_id 使用。
+	ChannelID string `mapstructure:"channel_id" yaml:"channel_id"`
+	// ChannelSecret 為此 bot 專屬的 LINE Login channel secret，OAuth 換 token 時作為 client_secret 使用。
+	ChannelSecret string `mapstructure:"channel_secret" yaml:"channel_secret"`
+	// ChannelToken 為此 bot 的 Messaging API channel access token，用於 push/reply 訊息與建立 webhook client。
+	ChannelToken string `mapstructure:"channel_token" yaml:"channel_token"`
+	// BotUserID 為此 bot 在 LINE 平台上的 User ID（U 開頭），用於判斷群組訊息是否 mention 到 bot 本身。
+	BotUserID string `mapstructure:"bot_user_id" yaml:"bot_user_id"`
+	// AssistantBotURL 為此 bot 的加好友連結；OAuth 綁定完成後若有設定，會導頁到此網址。
 	AssistantBotURL string `mapstructure:"assistant_bot_url" yaml:"assistant_bot_url"`
-	Scopes          string `mapstructure:"scopes" yaml:"scopes"`
+}
+
+// DefaultBot 回傳未指定 bot key 時使用的 LINE bot（清單中的第一筆）。
+//
+// 用途：現有呼叫端（例如舊版 /line/webhook、/line/oauth/start 未帶 bot_key 時）
+// 需要一個明確的預設 bot，這裡固定採用設定檔 bots 清單的第一筆，
+// 並在必要欄位缺漏時直接回錯，避免服務帶著不完整憑證啟動。
+func (l LineConfig) DefaultBot() (LineBotConfig, error) {
+	if len(l.Bots) == 0 {
+		return LineBotConfig{}, fmt.Errorf("line bots is empty")
+	}
+	return normalizeLineBotConfig(l.Bots[0])
+}
+
+// BotByKey 依 key 尋找對應的 LINE bot。
+//
+// key 為空字串時等同呼叫 DefaultBot()，讓既有「不帶 bot_key」的路由可以延續舊行為；
+// 比對採用不分大小寫，避免設定檔與 URL 路徑大小寫不一致造成誤判找不到 bot。
+func (l LineConfig) BotByKey(key string) (LineBotConfig, error) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return l.DefaultBot()
+	}
+	for _, item := range l.Bots {
+		bot := item
+		if strings.TrimSpace(bot.Key) == "" {
+			bot.Key = "default"
+		}
+		if strings.EqualFold(strings.TrimSpace(bot.Key), key) {
+			return normalizeLineBotConfig(bot)
+		}
+	}
+	return LineBotConfig{}, fmt.Errorf("unknown line bot key: %s", key)
+}
+
+// normalizeLineBotConfig 補上預設 key，並驗證此 bot 是否具備啟動所需的必要憑證。
+//
+// 採 fail-fast 原則：channel_id / channel_secret / channel_token / bot_user_id
+// 任一欄位缺漏，都直接回錯，不做任何 fallback，避免服務用不完整設定啟動後才在執行期間出錯。
+func normalizeLineBotConfig(bot LineBotConfig) (LineBotConfig, error) {
+	if strings.TrimSpace(bot.Key) == "" {
+		bot.Key = "default"
+	}
+	if strings.TrimSpace(bot.ChannelID) == "" {
+		return LineBotConfig{}, fmt.Errorf("line bot %q channel_id is empty", bot.Key)
+	}
+	if strings.TrimSpace(bot.ChannelSecret) == "" {
+		return LineBotConfig{}, fmt.Errorf("line bot %q channel_secret is empty", bot.Key)
+	}
+	if strings.TrimSpace(bot.ChannelToken) == "" {
+		return LineBotConfig{}, fmt.Errorf("line bot %q channel_token is empty", bot.Key)
+	}
+	if strings.TrimSpace(bot.BotUserID) == "" {
+		return LineBotConfig{}, fmt.Errorf("line bot %q bot_user_id is empty", bot.Key)
+	}
+	return bot, nil
 }
 
 // SlackConfig 為 Slack OAuth / webhook / bot 發訊所需參數。
@@ -306,7 +384,7 @@ func MustLoad() {
 		}
 
 		viper.AutomaticEnv()
-		// 將巢狀 key（如 line.channel_id）對應為環境變數格式（LINE_CHANNEL_ID）。
+		// 將巢狀 key（如 line.bots.0.channel_id）對應為環境變數格式。
 		viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 		// 預設值可讓本機開發在最少設定下啟動。
@@ -374,14 +452,9 @@ func MustLoad() {
 		viper.SetDefault("ai.reranker.alive_probe_timeout_ms", 1500)
 		viper.SetDefault("ai.reranker.alive_success_ttl_ms", 10000)
 		viper.SetDefault("ai.reranker.alive_failure_cooldown_ms", 3000)
-		viper.SetDefault("line.channel_token", "")
-		viper.SetDefault("line.channel_secret", "")
-		viper.SetDefault("line.channel_id", "")
-		viper.SetDefault("line.bot_user_id", "")
-		viper.SetDefault("line.client_secret", "")
 		viper.SetDefault("line.redirect_uri", "")
-		viper.SetDefault("line.assistant_bot_url", "")
 		viper.SetDefault("line.scopes", "openid profile email")
+		viper.SetDefault("line.bots", []LineBotConfig{})
 		viper.SetDefault("slack.app_id", "")
 		viper.SetDefault("slack.client_id", "")
 		viper.SetDefault("slack.client_secret", "")

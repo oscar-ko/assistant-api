@@ -26,6 +26,6 @@ Database setup:
 
 LINE bind setup:
 
-- Configure `line.channel_id`, `line.client_secret`, and `line.redirect_uri`.
+- Configure shared `line.redirect_uri`, then set each bot under `line.bots[]` with `channel_id`, `channel_secret`, `channel_token`, and `bot_user_id`.
 - Open `/line/bind` to start OAuth bind flow.
 

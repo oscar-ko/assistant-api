@@ -4,6 +4,15 @@ interface Node {
 
 scalar Time
 
+# UUID 為自訂 scalar，對應 Go 的 uuid.UUID（見 gqlgen.yml 的 models.UUID 與
+# internal/graph/generated/scalar_helpers.go）；ent 自動產生的 where input 有些欄位（例如 senderUserID）
+# 使用 UUID 而非 ID，所以必須單狜宣告。
+scalar UUID
+
+# Vector 為自訂 scalar，對應 pgvector 的 Vector 型別（見 gqlgen.yml 的 models.Vector 與
+# internal/graph/generated/scalar_helpers.go），用於 ActionRoute.embedding 欄位的過濾查詢。
+scalar Vector
+
 enum ChannelPlatform {
     line
     whatsapp
@@ -31,9 +40,6 @@ type Mutation {
     createUser(input: CreateUserInput!): User!
     updateUser(id: ID!, input: UpdateUserInput!): User!
     sendLineText(input: SendLineTextInput!): SendLineTextPayload!
-    simulateLineTodoConversation(
-        input: SimulateLineTodoConversationInput!
-    ): SimulateLineTodoConversationPayload!
 }
 
 input SendLineTextInput {
@@ -44,35 +50,4 @@ input SendLineTextInput {
 type SendLineTextPayload {
     status: String!
     to: String!
-}
-
-input SimulateLineTodoConversationInput {
-    channelID: ID! = "da1d5fc5-1da3-4c82-aacf-b16f79ab3867"
-    participantCount: Int!
-    messageCount: Int!
-}
-
-type SimulatedLineTodoParticipant {
-    userID: ID!
-    lineUserID: String!
-    displayName: String!
-}
-
-type SimulatedLineTodoMessage {
-    speakerUserID: ID!
-    lineUserID: String!
-    displayName: String!
-    text: String!
-    lineText: String!
-    platformMessageID: String!
-    savedMessageID: ID
-    sentLineMessageID: String
-}
-
-type SimulateLineTodoConversationPayload {
-    status: String!
-    channelID: ID!
-    lineChannelID: String!
-    participants: [SimulatedLineTodoParticipant!]!
-    messages: [SimulatedLineTodoMessage!]!
 }
