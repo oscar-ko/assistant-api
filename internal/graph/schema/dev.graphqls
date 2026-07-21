@@ -1,10 +1,8 @@
-"""
-開發環境專用 Mutation。
-
-這個 schema 只提供本機/測試時快速模擬 Todo Reminder 對話與清理資料，
-不屬於正式產品 API contract。正式流程仍應從實際 webhook/message pipeline 進入，
-避免測試工具的便利欄位影響外部 API 設計。
-"""
+# 開發環境專用 Mutation。
+#
+# 這個 schema 只提供本機/測試時快速模擬 Todo Reminder 對話與清理資料，
+# 不屬於正式產品 API contract。正式流程仍應從實際 webhook/message pipeline 進入，
+# 避免測試工具的便利欄位影響外部 API 設計。
 extend type Mutation {
     """
     產生一段模擬 LINE Todo 對話，並依序寫入 channel message / mention / todo candidate 相關資料。
@@ -21,7 +19,7 @@ extend type Mutation {
     清除開發測試用的 realtime Todo 資料。
 
     這個操作是 destructive dev helper，目標是讓同一組模擬資料可以重跑。
-    回傳各資料表刪除筆數，方便確認 candidate、assignee evidence、mention 與 action result 都有被清乾淨。
+    回傳各資料表刪除筆數，方便確認正式 Todo、candidate、assignee evidence、mention 與 action result 都有被清乾淨。
     """
     clearDevRealtimeTodoData: ClearDevRealtimeTodoDataPayload!
 }
@@ -118,11 +116,13 @@ type SimulateLineTodoConversationPayload {
 """
 清理開發用 realtime Todo 資料後的統計結果。
 
-每個 count 都代表對應資料表實際刪除的筆數，方便確認下次模擬前沒有殘留 candidate、mention 或 action result。
+每個 count 都代表對應資料表實際刪除的筆數，方便確認下次模擬前沒有殘留 Todo、candidate、mention 或 action result。
 """
 type ClearDevRealtimeTodoDataPayload {
     """清理操作狀態。"""
     status: String!
+    """刪除的正式 Todo 筆數；這是每個使用者自己的待辦資料，清理 candidate 前必須先刪除。"""
+    todoCount: Int!
     """刪除的 ChannelMessage 筆數。"""
     channelMessageCount: Int!
     """刪除的 TodoCandidate 筆數。"""
