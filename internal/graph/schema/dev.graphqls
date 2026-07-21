@@ -1,0 +1,136 @@
+"""
+開發環境專用 Mutation。
+
+這個 schema 只提供本機/測試時快速模擬 Todo Reminder 對話與清理資料，
+不屬於正式產品 API contract。正式流程仍應從實際 webhook/message pipeline 進入，
+避免測試工具的便利欄位影響外部 API 設計。
+"""
+extend type Mutation {
+    """
+    產生一段模擬 LINE Todo 對話，並依序寫入 channel message / mention / todo candidate 相關資料。
+
+    用途是讓開發者不用真的從 LINE 發訊息，也能快速驗證 realtime Todo pipeline、
+    todo candidate 建立與後續 promotion 行為。回傳 payload 會列出每一則模擬訊息與其落庫結果，
+    方便直接在 GraphQL client 中確認是哪一則訊息觸發 candidate。
+    """
+    simulateLineTodoConversation(
+        input: SimulateLineTodoConversationInput!
+    ): SimulateLineTodoConversationPayload!
+
+    """
+    清除開發測試用的 realtime Todo 資料。
+
+    這個操作是 destructive dev helper，目標是讓同一組模擬資料可以重跑。
+    回傳各資料表刪除筆數，方便確認 candidate、assignee evidence、mention 與 action result 都有被清乾淨。
+    """
+    clearDevRealtimeTodoData: ClearDevRealtimeTodoDataPayload!
+}
+
+"""
+模擬 LINE Todo 對話的輸入參數。
+
+channelID 預設指向本機 seed/dev channel；participantCount 控制模擬群組中的人數；
+messageCount 控制要產生幾則對話；analysisWaitMilliseconds 則用來在寫入訊息後等待非同步分析流程，
+讓呼叫端可以選擇立即回傳或等待 candidate/promotion 完成後再檢查結果。
+"""
+input SimulateLineTodoConversationInput {
+    """要寫入模擬訊息的 channel ID；預設值為本機開發環境的 LINE channel。"""
+    channelID: ID! = "da1d5fc5-1da3-4c82-aacf-b16f79ab3867"
+    """模擬對話中的參與者數量；會影響訊息 speaker 與 mention/assignee 的分布。"""
+    participantCount: Int!
+    """要產生的模擬訊息數量；數量越多，越容易覆蓋 create/update/ack/cancel 等 candidate 狀態流。"""
+    messageCount: Int!
+    """每則訊息送進 pipeline 後額外等待的毫秒數，用來觀察非同步 realtime analyzer 的落庫結果。"""
+    analysisWaitMilliseconds: Int! = 0
+}
+
+"""
+模擬對話中的參與者。
+
+userID 是系統內部 User ID；lineUserID 是平台側身分；displayName 是對話中顯示與 assignee resolver 使用的名稱。
+"""
+type SimulatedLineTodoParticipant {
+    userID: ID!
+    lineUserID: String!
+    displayName: String!
+}
+
+"""
+單則模擬 LINE 訊息與其 Todo pipeline 結果。
+
+前半部欄位描述這則訊息如何被送出；savedMessageID / sentLineMessageID 描述平台與資料庫落點；
+todoCandidate* 欄位則是此訊息若觸發 Todo analyzer 時，對應 candidate 的最新狀態摘要。
+"""
+type SimulatedLineTodoMessage {
+    """此訊息的系統內部發話者 User ID。"""
+    speakerUserID: ID!
+    """此訊息的 LINE 發話者 userId。"""
+    lineUserID: String!
+    """此訊息在對話中顯示的發話者名稱。"""
+    displayName: String!
+    """送進內部 message pipeline 的純文字內容。"""
+    text: String!
+    """模擬 LINE 平台實際收到或送出的文字內容，可包含平台格式差異。"""
+    lineText: String!
+    """模擬平台訊息 ID，用來測試 reply/linking 與 message lookup。"""
+    platformMessageID: String!
+    """訊息成功保存後的 ChannelMessage ID；若保存失敗則為空。"""
+    savedMessageID: ID
+    """若測試流程有模擬送出 LINE 訊息，這裡保存回傳的平台訊息 ID。"""
+    sentLineMessageID: String
+    """此訊息觸發或更新的 TodoCandidate ID；未觸發 Todo pipeline 時為空。"""
+    todoCandidateID: ID
+    """該 candidate 的最新狀態，例如 candidate、needs_more_info、acknowledged 或 cancelled。"""
+    todoCandidateStatus: String
+    """Todo analyzer 對此訊息的 decision，例如 create_candidate 或 update_candidate。"""
+    todoCandidateDecision: String
+    """candidate 目前的摘要，用來快速確認 analyzer 是否抽到正確待辦事項。"""
+    todoCandidateSummary: String
+    """candidate 最新 decision/reason，供開發時判斷模型為何建立、更新或取消。"""
+    todoCandidateReason: String
+    """若此訊息被判定接續既有待辦，這裡保存 analyzer 連結到的歷史訊息 ID。"""
+    todoCandidateLinkedMessageID: ID
+}
+
+"""
+模擬 LINE Todo 對話的執行結果。
+
+payload 同時回傳 channel、參與者、每則訊息與 candidate 數量，讓開發者可以在一次 GraphQL 呼叫後，
+直接判斷資料是否成功穿過 message persistence、mention extraction、todo analyzer 與 candidate persistence。
+"""
+type SimulateLineTodoConversationPayload {
+    """本次模擬操作狀態；通常用於快速判斷 helper 是否執行完成。"""
+    status: String!
+    """本次模擬寫入的系統 channel ID。"""
+    channelID: ID!
+    """本次模擬對應的 LINE channel ID。"""
+    lineChannelID: String!
+    """實際套用的 analyzer 等待毫秒數。"""
+    analysisWaitMilliseconds: Int!
+    """本次模擬完成後查到的 TodoCandidate 筆數。"""
+    todoCandidateCount: Int!
+    """本次模擬建立或使用的參與者清單。"""
+    participants: [SimulatedLineTodoParticipant!]!
+    """本次模擬產生的訊息與各自 Todo pipeline 結果。"""
+    messages: [SimulatedLineTodoMessage!]!
+}
+
+"""
+清理開發用 realtime Todo 資料後的統計結果。
+
+每個 count 都代表對應資料表實際刪除的筆數，方便確認下次模擬前沒有殘留 candidate、mention 或 action result。
+"""
+type ClearDevRealtimeTodoDataPayload {
+    """清理操作狀態。"""
+    status: String!
+    """刪除的 ChannelMessage 筆數。"""
+    channelMessageCount: Int!
+    """刪除的 TodoCandidate 筆數。"""
+    todoCandidateCount: Int!
+    """刪除的 TodoCandidateAssignee evidence 筆數。"""
+    todoCandidateAssigneeCount: Int!
+    """刪除的 ChannelMessageMention 筆數。"""
+    channelMessageMentionCount: Int!
+    """刪除的 ActionResult 筆數。"""
+    actionResultCount: Int!
+}
