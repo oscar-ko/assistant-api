@@ -3,8 +3,6 @@
 package ent
 
 import (
-	"assistant-api/internal/ent/channel"
-	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
@@ -26,10 +24,7 @@ type TodoQuery struct {
 	order               []todo.OrderOption
 	inters              []Interceptor
 	predicates          []predicate.Todo
-	withChannel         *ChannelQuery
 	withSourceCandidate *TodoCandidateQuery
-	withSourceMessage   *ChannelMessageQuery
-	withLastMessage     *ChannelMessageQuery
 	modifiers           []func(*sql.Selector)
 	loadTotal           []func(context.Context, []*Todo) error
 	// intermediate query (i.e. traversal path).
@@ -68,28 +63,6 @@ func (_q *TodoQuery) Order(o ...todo.OrderOption) *TodoQuery {
 	return _q
 }
 
-// QueryChannel chains the current query on the "channel" edge.
-func (_q *TodoQuery) QueryChannel() *ChannelQuery {
-	query := (&ChannelClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(todo.Table, todo.FieldID, selector),
-			sqlgraph.To(channel.Table, channel.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, todo.ChannelTable, todo.ChannelColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
 // QuerySourceCandidate chains the current query on the "source_candidate" edge.
 func (_q *TodoQuery) QuerySourceCandidate() *TodoCandidateQuery {
 	query := (&TodoCandidateClient{config: _q.config}).Query()
@@ -105,50 +78,6 @@ func (_q *TodoQuery) QuerySourceCandidate() *TodoCandidateQuery {
 			sqlgraph.From(todo.Table, todo.FieldID, selector),
 			sqlgraph.To(todocandidate.Table, todocandidate.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, false, todo.SourceCandidateTable, todo.SourceCandidateColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
-// QuerySourceMessage chains the current query on the "source_message" edge.
-func (_q *TodoQuery) QuerySourceMessage() *ChannelMessageQuery {
-	query := (&ChannelMessageClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(todo.Table, todo.FieldID, selector),
-			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, todo.SourceMessageTable, todo.SourceMessageColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
-// QueryLastMessage chains the current query on the "last_message" edge.
-func (_q *TodoQuery) QueryLastMessage() *ChannelMessageQuery {
-	query := (&ChannelMessageClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(todo.Table, todo.FieldID, selector),
-			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, todo.LastMessageTable, todo.LastMessageColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -348,25 +277,11 @@ func (_q *TodoQuery) Clone() *TodoQuery {
 		order:               append([]todo.OrderOption{}, _q.order...),
 		inters:              append([]Interceptor{}, _q.inters...),
 		predicates:          append([]predicate.Todo{}, _q.predicates...),
-		withChannel:         _q.withChannel.Clone(),
 		withSourceCandidate: _q.withSourceCandidate.Clone(),
-		withSourceMessage:   _q.withSourceMessage.Clone(),
-		withLastMessage:     _q.withLastMessage.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
-}
-
-// WithChannel tells the query-builder to eager-load the nodes that are connected to
-// the "channel" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *TodoQuery) WithChannel(opts ...func(*ChannelQuery)) *TodoQuery {
-	query := (&ChannelClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withChannel = query
-	return _q
 }
 
 // WithSourceCandidate tells the query-builder to eager-load the nodes that are connected to
@@ -377,28 +292,6 @@ func (_q *TodoQuery) WithSourceCandidate(opts ...func(*TodoCandidateQuery)) *Tod
 		opt(query)
 	}
 	_q.withSourceCandidate = query
-	return _q
-}
-
-// WithSourceMessage tells the query-builder to eager-load the nodes that are connected to
-// the "source_message" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *TodoQuery) WithSourceMessage(opts ...func(*ChannelMessageQuery)) *TodoQuery {
-	query := (&ChannelMessageClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withSourceMessage = query
-	return _q
-}
-
-// WithLastMessage tells the query-builder to eager-load the nodes that are connected to
-// the "last_message" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *TodoQuery) WithLastMessage(opts ...func(*ChannelMessageQuery)) *TodoQuery {
-	query := (&ChannelMessageClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withLastMessage = query
 	return _q
 }
 
@@ -480,11 +373,8 @@ func (_q *TodoQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Todo, e
 	var (
 		nodes       = []*Todo{}
 		_spec       = _q.querySpec()
-		loadedTypes = [4]bool{
-			_q.withChannel != nil,
+		loadedTypes = [1]bool{
 			_q.withSourceCandidate != nil,
-			_q.withSourceMessage != nil,
-			_q.withLastMessage != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -508,27 +398,9 @@ func (_q *TodoQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Todo, e
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-	if query := _q.withChannel; query != nil {
-		if err := _q.loadChannel(ctx, query, nodes, nil,
-			func(n *Todo, e *Channel) { n.Edges.Channel = e }); err != nil {
-			return nil, err
-		}
-	}
 	if query := _q.withSourceCandidate; query != nil {
 		if err := _q.loadSourceCandidate(ctx, query, nodes, nil,
 			func(n *Todo, e *TodoCandidate) { n.Edges.SourceCandidate = e }); err != nil {
-			return nil, err
-		}
-	}
-	if query := _q.withSourceMessage; query != nil {
-		if err := _q.loadSourceMessage(ctx, query, nodes, nil,
-			func(n *Todo, e *ChannelMessage) { n.Edges.SourceMessage = e }); err != nil {
-			return nil, err
-		}
-	}
-	if query := _q.withLastMessage; query != nil {
-		if err := _q.loadLastMessage(ctx, query, nodes, nil,
-			func(n *Todo, e *ChannelMessage) { n.Edges.LastMessage = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -540,35 +412,6 @@ func (_q *TodoQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Todo, e
 	return nodes, nil
 }
 
-func (_q *TodoQuery) loadChannel(ctx context.Context, query *ChannelQuery, nodes []*Todo, init func(*Todo), assign func(*Todo, *Channel)) error {
-	ids := make([]uuid.UUID, 0, len(nodes))
-	nodeids := make(map[uuid.UUID][]*Todo)
-	for i := range nodes {
-		fk := nodes[i].ChannelID
-		if _, ok := nodeids[fk]; !ok {
-			ids = append(ids, fk)
-		}
-		nodeids[fk] = append(nodeids[fk], nodes[i])
-	}
-	if len(ids) == 0 {
-		return nil
-	}
-	query.Where(channel.IDIn(ids...))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		nodes, ok := nodeids[n.ID]
-		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "channel_id" returned %v`, n.ID)
-		}
-		for i := range nodes {
-			assign(nodes[i], n)
-		}
-	}
-	return nil
-}
 func (_q *TodoQuery) loadSourceCandidate(ctx context.Context, query *TodoCandidateQuery, nodes []*Todo, init func(*Todo), assign func(*Todo, *TodoCandidate)) error {
 	ids := make([]uuid.UUID, 0, len(nodes))
 	nodeids := make(map[uuid.UUID][]*Todo)
@@ -591,64 +434,6 @@ func (_q *TodoQuery) loadSourceCandidate(ctx context.Context, query *TodoCandida
 		nodes, ok := nodeids[n.ID]
 		if !ok {
 			return fmt.Errorf(`unexpected foreign-key "source_candidate_id" returned %v`, n.ID)
-		}
-		for i := range nodes {
-			assign(nodes[i], n)
-		}
-	}
-	return nil
-}
-func (_q *TodoQuery) loadSourceMessage(ctx context.Context, query *ChannelMessageQuery, nodes []*Todo, init func(*Todo), assign func(*Todo, *ChannelMessage)) error {
-	ids := make([]uuid.UUID, 0, len(nodes))
-	nodeids := make(map[uuid.UUID][]*Todo)
-	for i := range nodes {
-		fk := nodes[i].SourceMessageID
-		if _, ok := nodeids[fk]; !ok {
-			ids = append(ids, fk)
-		}
-		nodeids[fk] = append(nodeids[fk], nodes[i])
-	}
-	if len(ids) == 0 {
-		return nil
-	}
-	query.Where(channelmessage.IDIn(ids...))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		nodes, ok := nodeids[n.ID]
-		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "source_message_id" returned %v`, n.ID)
-		}
-		for i := range nodes {
-			assign(nodes[i], n)
-		}
-	}
-	return nil
-}
-func (_q *TodoQuery) loadLastMessage(ctx context.Context, query *ChannelMessageQuery, nodes []*Todo, init func(*Todo), assign func(*Todo, *ChannelMessage)) error {
-	ids := make([]uuid.UUID, 0, len(nodes))
-	nodeids := make(map[uuid.UUID][]*Todo)
-	for i := range nodes {
-		fk := nodes[i].LastMessageID
-		if _, ok := nodeids[fk]; !ok {
-			ids = append(ids, fk)
-		}
-		nodeids[fk] = append(nodeids[fk], nodes[i])
-	}
-	if len(ids) == 0 {
-		return nil
-	}
-	query.Where(channelmessage.IDIn(ids...))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		nodes, ok := nodeids[n.ID]
-		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "last_message_id" returned %v`, n.ID)
 		}
 		for i := range nodes {
 			assign(nodes[i], n)
@@ -685,17 +470,8 @@ func (_q *TodoQuery) querySpec() *sqlgraph.QuerySpec {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
 		}
-		if _q.withChannel != nil {
-			_spec.Node.AddColumnOnce(todo.FieldChannelID)
-		}
 		if _q.withSourceCandidate != nil {
 			_spec.Node.AddColumnOnce(todo.FieldSourceCandidateID)
-		}
-		if _q.withSourceMessage != nil {
-			_spec.Node.AddColumnOnce(todo.FieldSourceMessageID)
-		}
-		if _q.withLastMessage != nil {
-			_spec.Node.AddColumnOnce(todo.FieldLastMessageID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

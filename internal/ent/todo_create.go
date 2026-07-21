@@ -3,8 +3,6 @@
 package ent
 
 import (
-	"assistant-api/internal/ent/channel"
-	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
 	"context"
@@ -52,27 +50,9 @@ func (_c *TodoCreate) SetNillableUpdatedAt(v *time.Time) *TodoCreate {
 	return _c
 }
 
-// SetChannelID sets the "channel_id" field.
-func (_c *TodoCreate) SetChannelID(v uuid.UUID) *TodoCreate {
-	_c.mutation.SetChannelID(v)
-	return _c
-}
-
 // SetSourceCandidateID sets the "source_candidate_id" field.
 func (_c *TodoCreate) SetSourceCandidateID(v uuid.UUID) *TodoCreate {
 	_c.mutation.SetSourceCandidateID(v)
-	return _c
-}
-
-// SetSourceMessageID sets the "source_message_id" field.
-func (_c *TodoCreate) SetSourceMessageID(v uuid.UUID) *TodoCreate {
-	_c.mutation.SetSourceMessageID(v)
-	return _c
-}
-
-// SetLastMessageID sets the "last_message_id" field.
-func (_c *TodoCreate) SetLastMessageID(v uuid.UUID) *TodoCreate {
-	_c.mutation.SetLastMessageID(v)
 	return _c
 }
 
@@ -86,58 +66,6 @@ func (_c *TodoCreate) SetStatus(v todo.Status) *TodoCreate {
 func (_c *TodoCreate) SetNillableStatus(v *todo.Status) *TodoCreate {
 	if v != nil {
 		_c.SetStatus(*v)
-	}
-	return _c
-}
-
-// SetTitle sets the "title" field.
-func (_c *TodoCreate) SetTitle(v string) *TodoCreate {
-	_c.mutation.SetTitle(v)
-	return _c
-}
-
-// SetAssignees sets the "assignees" field.
-func (_c *TodoCreate) SetAssignees(v []string) *TodoCreate {
-	_c.mutation.SetAssignees(v)
-	return _c
-}
-
-// SetDueAt sets the "due_at" field.
-func (_c *TodoCreate) SetDueAt(v time.Time) *TodoCreate {
-	_c.mutation.SetDueAt(v)
-	return _c
-}
-
-// SetDueTimezone sets the "due_timezone" field.
-func (_c *TodoCreate) SetDueTimezone(v string) *TodoCreate {
-	_c.mutation.SetDueTimezone(v)
-	return _c
-}
-
-// SetDuePrecision sets the "due_precision" field.
-func (_c *TodoCreate) SetDuePrecision(v todo.DuePrecision) *TodoCreate {
-	_c.mutation.SetDuePrecision(v)
-	return _c
-}
-
-// SetNillableDuePrecision sets the "due_precision" field if the given value is not nil.
-func (_c *TodoCreate) SetNillableDuePrecision(v *todo.DuePrecision) *TodoCreate {
-	if v != nil {
-		_c.SetDuePrecision(*v)
-	}
-	return _c
-}
-
-// SetConfidence sets the "confidence" field.
-func (_c *TodoCreate) SetConfidence(v float64) *TodoCreate {
-	_c.mutation.SetConfidence(v)
-	return _c
-}
-
-// SetNillableConfidence sets the "confidence" field if the given value is not nil.
-func (_c *TodoCreate) SetNillableConfidence(v *float64) *TodoCreate {
-	if v != nil {
-		_c.SetConfidence(*v)
 	}
 	return _c
 }
@@ -170,24 +98,9 @@ func (_c *TodoCreate) SetNillableID(v *uuid.UUID) *TodoCreate {
 	return _c
 }
 
-// SetChannel sets the "channel" edge to the Channel entity.
-func (_c *TodoCreate) SetChannel(v *Channel) *TodoCreate {
-	return _c.SetChannelID(v.ID)
-}
-
 // SetSourceCandidate sets the "source_candidate" edge to the TodoCandidate entity.
 func (_c *TodoCreate) SetSourceCandidate(v *TodoCandidate) *TodoCreate {
 	return _c.SetSourceCandidateID(v.ID)
-}
-
-// SetSourceMessage sets the "source_message" edge to the ChannelMessage entity.
-func (_c *TodoCreate) SetSourceMessage(v *ChannelMessage) *TodoCreate {
-	return _c.SetSourceMessageID(v.ID)
-}
-
-// SetLastMessage sets the "last_message" edge to the ChannelMessage entity.
-func (_c *TodoCreate) SetLastMessage(v *ChannelMessage) *TodoCreate {
-	return _c.SetLastMessageID(v.ID)
 }
 
 // Mutation returns the TodoMutation object of the builder.
@@ -237,14 +150,6 @@ func (_c *TodoCreate) defaults() {
 		v := todo.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
-	if _, ok := _c.mutation.DuePrecision(); !ok {
-		v := todo.DefaultDuePrecision
-		_c.mutation.SetDuePrecision(v)
-	}
-	if _, ok := _c.mutation.Confidence(); !ok {
-		v := todo.DefaultConfidence
-		_c.mutation.SetConfidence(v)
-	}
 	if _, ok := _c.mutation.ID(); !ok {
 		v := todo.DefaultID()
 		_c.mutation.SetID(v)
@@ -259,17 +164,8 @@ func (_c *TodoCreate) check() error {
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "Todo.updated_at"`)}
 	}
-	if _, ok := _c.mutation.ChannelID(); !ok {
-		return &ValidationError{Name: "channel_id", err: errors.New(`ent: missing required field "Todo.channel_id"`)}
-	}
 	if _, ok := _c.mutation.SourceCandidateID(); !ok {
 		return &ValidationError{Name: "source_candidate_id", err: errors.New(`ent: missing required field "Todo.source_candidate_id"`)}
-	}
-	if _, ok := _c.mutation.SourceMessageID(); !ok {
-		return &ValidationError{Name: "source_message_id", err: errors.New(`ent: missing required field "Todo.source_message_id"`)}
-	}
-	if _, ok := _c.mutation.LastMessageID(); !ok {
-		return &ValidationError{Name: "last_message_id", err: errors.New(`ent: missing required field "Todo.last_message_id"`)}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "Todo.status"`)}
@@ -279,37 +175,8 @@ func (_c *TodoCreate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Todo.status": %w`, err)}
 		}
 	}
-	if _, ok := _c.mutation.Title(); !ok {
-		return &ValidationError{Name: "title", err: errors.New(`ent: missing required field "Todo.title"`)}
-	}
-	if _, ok := _c.mutation.DueAt(); !ok {
-		return &ValidationError{Name: "due_at", err: errors.New(`ent: missing required field "Todo.due_at"`)}
-	}
-	if _, ok := _c.mutation.DueTimezone(); !ok {
-		return &ValidationError{Name: "due_timezone", err: errors.New(`ent: missing required field "Todo.due_timezone"`)}
-	}
-	if _, ok := _c.mutation.DuePrecision(); !ok {
-		return &ValidationError{Name: "due_precision", err: errors.New(`ent: missing required field "Todo.due_precision"`)}
-	}
-	if v, ok := _c.mutation.DuePrecision(); ok {
-		if err := todo.DuePrecisionValidator(v); err != nil {
-			return &ValidationError{Name: "due_precision", err: fmt.Errorf(`ent: validator failed for field "Todo.due_precision": %w`, err)}
-		}
-	}
-	if _, ok := _c.mutation.Confidence(); !ok {
-		return &ValidationError{Name: "confidence", err: errors.New(`ent: missing required field "Todo.confidence"`)}
-	}
-	if len(_c.mutation.ChannelIDs()) == 0 {
-		return &ValidationError{Name: "channel", err: errors.New(`ent: missing required edge "Todo.channel"`)}
-	}
 	if len(_c.mutation.SourceCandidateIDs()) == 0 {
 		return &ValidationError{Name: "source_candidate", err: errors.New(`ent: missing required edge "Todo.source_candidate"`)}
-	}
-	if len(_c.mutation.SourceMessageIDs()) == 0 {
-		return &ValidationError{Name: "source_message", err: errors.New(`ent: missing required edge "Todo.source_message"`)}
-	}
-	if len(_c.mutation.LastMessageIDs()) == 0 {
-		return &ValidationError{Name: "last_message", err: errors.New(`ent: missing required edge "Todo.last_message"`)}
 	}
 	return nil
 }
@@ -358,50 +225,9 @@ func (_c *TodoCreate) createSpec() (*Todo, *sqlgraph.CreateSpec) {
 		_spec.SetField(todo.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
 	}
-	if value, ok := _c.mutation.Title(); ok {
-		_spec.SetField(todo.FieldTitle, field.TypeString, value)
-		_node.Title = value
-	}
-	if value, ok := _c.mutation.Assignees(); ok {
-		_spec.SetField(todo.FieldAssignees, field.TypeJSON, value)
-		_node.Assignees = value
-	}
-	if value, ok := _c.mutation.DueAt(); ok {
-		_spec.SetField(todo.FieldDueAt, field.TypeTime, value)
-		_node.DueAt = value
-	}
-	if value, ok := _c.mutation.DueTimezone(); ok {
-		_spec.SetField(todo.FieldDueTimezone, field.TypeString, value)
-		_node.DueTimezone = value
-	}
-	if value, ok := _c.mutation.DuePrecision(); ok {
-		_spec.SetField(todo.FieldDuePrecision, field.TypeEnum, value)
-		_node.DuePrecision = value
-	}
-	if value, ok := _c.mutation.Confidence(); ok {
-		_spec.SetField(todo.FieldConfidence, field.TypeFloat64, value)
-		_node.Confidence = value
-	}
 	if value, ok := _c.mutation.PromotionReason(); ok {
 		_spec.SetField(todo.FieldPromotionReason, field.TypeString, value)
 		_node.PromotionReason = value
-	}
-	if nodes := _c.mutation.ChannelIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   todo.ChannelTable,
-			Columns: []string{todo.ChannelColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(channel.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_node.ChannelID = nodes[0]
-		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.SourceCandidateIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -418,40 +244,6 @@ func (_c *TodoCreate) createSpec() (*Todo, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.SourceCandidateID = nodes[0]
-		_spec.Edges = append(_spec.Edges, edge)
-	}
-	if nodes := _c.mutation.SourceMessageIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   todo.SourceMessageTable,
-			Columns: []string{todo.SourceMessageColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_node.SourceMessageID = nodes[0]
-		_spec.Edges = append(_spec.Edges, edge)
-	}
-	if nodes := _c.mutation.LastMessageIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   todo.LastMessageTable,
-			Columns: []string{todo.LastMessageColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_node.LastMessageID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

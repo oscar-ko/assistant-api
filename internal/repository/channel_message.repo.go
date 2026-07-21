@@ -945,17 +945,8 @@ func (r *ChannelMessageRepo) promoteTodoCandidate(ctx context.Context, candidate
 	}
 	if existing == nil {
 		create := r.db.Todo.Create().
-			SetChannelID(candidate.ChannelID).
 			SetSourceCandidateID(candidate.ID).
-			SetSourceMessageID(candidate.SourceMessageID).
-			SetLastMessageID(candidate.LastMessageID).
 			SetStatus(todo.StatusActive).
-			SetTitle(strings.TrimSpace(candidate.Summary)).
-			SetAssignees(normalizeStringSlice(candidate.Assignees)).
-			SetDueAt(*candidate.DueAt).
-			SetDueTimezone(strings.TrimSpace(candidate.DueTimezone)).
-			SetDuePrecision(todo.DuePrecision(candidate.DuePrecision)).
-			SetConfidence(candidate.Confidence).
 			SetPromotionReason("candidate has summary, normalized due_at, and no missing fields")
 		if _, err := create.Save(ctx); err != nil {
 			return fmt.Errorf("create promoted todo failed: %w", err)
@@ -964,14 +955,7 @@ func (r *ChannelMessageRepo) promoteTodoCandidate(ctx context.Context, candidate
 	}
 
 	update := r.db.Todo.UpdateOneID(existing.ID).
-		SetLastMessageID(candidate.LastMessageID).
 		SetStatus(todo.StatusActive).
-		SetTitle(strings.TrimSpace(candidate.Summary)).
-		SetAssignees(normalizeStringSlice(candidate.Assignees)).
-		SetDueAt(*candidate.DueAt).
-		SetDueTimezone(strings.TrimSpace(candidate.DueTimezone)).
-		SetDuePrecision(todo.DuePrecision(candidate.DuePrecision)).
-		SetConfidence(candidate.Confidence).
 		SetPromotionReason("source candidate was updated and remains promotion-ready")
 	if _, err := update.Save(ctx); err != nil {
 		return fmt.Errorf("update promoted todo failed: %w", err)

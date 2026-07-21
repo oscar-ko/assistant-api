@@ -297,10 +297,6 @@ func init() {
 	todo.DefaultUpdatedAt = todoDescUpdatedAt.Default.(func() time.Time)
 	// todo.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	todo.UpdateDefaultUpdatedAt = todoDescUpdatedAt.UpdateDefault.(func() time.Time)
-	// todoDescConfidence is the schema descriptor for confidence field.
-	todoDescConfidence := todoFields[10].Descriptor()
-	// todo.DefaultConfidence holds the default value on creation for the confidence field.
-	todo.DefaultConfidence = todoDescConfidence.Default.(float64)
 	// todoDescID is the schema descriptor for id field.
 	todoDescID := todoMixinFields0[0].Descriptor()
 	// todo.DefaultID holds the default value on creation for the id field.

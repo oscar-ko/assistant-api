@@ -66,44 +66,9 @@ func UpdatedAt(v time.Time) predicate.Todo {
 	return predicate.Todo(sql.FieldEQ(FieldUpdatedAt, v))
 }
 
-// ChannelID applies equality check predicate on the "channel_id" field. It's identical to ChannelIDEQ.
-func ChannelID(v uuid.UUID) predicate.Todo {
-	return predicate.Todo(sql.FieldEQ(FieldChannelID, v))
-}
-
 // SourceCandidateID applies equality check predicate on the "source_candidate_id" field. It's identical to SourceCandidateIDEQ.
 func SourceCandidateID(v uuid.UUID) predicate.Todo {
 	return predicate.Todo(sql.FieldEQ(FieldSourceCandidateID, v))
-}
-
-// SourceMessageID applies equality check predicate on the "source_message_id" field. It's identical to SourceMessageIDEQ.
-func SourceMessageID(v uuid.UUID) predicate.Todo {
-	return predicate.Todo(sql.FieldEQ(FieldSourceMessageID, v))
-}
-
-// LastMessageID applies equality check predicate on the "last_message_id" field. It's identical to LastMessageIDEQ.
-func LastMessageID(v uuid.UUID) predicate.Todo {
-	return predicate.Todo(sql.FieldEQ(FieldLastMessageID, v))
-}
-
-// Title applies equality check predicate on the "title" field. It's identical to TitleEQ.
-func Title(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldEQ(FieldTitle, v))
-}
-
-// DueAt applies equality check predicate on the "due_at" field. It's identical to DueAtEQ.
-func DueAt(v time.Time) predicate.Todo {
-	return predicate.Todo(sql.FieldEQ(FieldDueAt, v))
-}
-
-// DueTimezone applies equality check predicate on the "due_timezone" field. It's identical to DueTimezoneEQ.
-func DueTimezone(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldEQ(FieldDueTimezone, v))
-}
-
-// Confidence applies equality check predicate on the "confidence" field. It's identical to ConfidenceEQ.
-func Confidence(v float64) predicate.Todo {
-	return predicate.Todo(sql.FieldEQ(FieldConfidence, v))
 }
 
 // PromotionReason applies equality check predicate on the "promotion_reason" field. It's identical to PromotionReasonEQ.
@@ -191,26 +156,6 @@ func UpdatedAtLTE(v time.Time) predicate.Todo {
 	return predicate.Todo(sql.FieldLTE(FieldUpdatedAt, v))
 }
 
-// ChannelIDEQ applies the EQ predicate on the "channel_id" field.
-func ChannelIDEQ(v uuid.UUID) predicate.Todo {
-	return predicate.Todo(sql.FieldEQ(FieldChannelID, v))
-}
-
-// ChannelIDNEQ applies the NEQ predicate on the "channel_id" field.
-func ChannelIDNEQ(v uuid.UUID) predicate.Todo {
-	return predicate.Todo(sql.FieldNEQ(FieldChannelID, v))
-}
-
-// ChannelIDIn applies the In predicate on the "channel_id" field.
-func ChannelIDIn(vs ...uuid.UUID) predicate.Todo {
-	return predicate.Todo(sql.FieldIn(FieldChannelID, vs...))
-}
-
-// ChannelIDNotIn applies the NotIn predicate on the "channel_id" field.
-func ChannelIDNotIn(vs ...uuid.UUID) predicate.Todo {
-	return predicate.Todo(sql.FieldNotIn(FieldChannelID, vs...))
-}
-
 // SourceCandidateIDEQ applies the EQ predicate on the "source_candidate_id" field.
 func SourceCandidateIDEQ(v uuid.UUID) predicate.Todo {
 	return predicate.Todo(sql.FieldEQ(FieldSourceCandidateID, v))
@@ -231,46 +176,6 @@ func SourceCandidateIDNotIn(vs ...uuid.UUID) predicate.Todo {
 	return predicate.Todo(sql.FieldNotIn(FieldSourceCandidateID, vs...))
 }
 
-// SourceMessageIDEQ applies the EQ predicate on the "source_message_id" field.
-func SourceMessageIDEQ(v uuid.UUID) predicate.Todo {
-	return predicate.Todo(sql.FieldEQ(FieldSourceMessageID, v))
-}
-
-// SourceMessageIDNEQ applies the NEQ predicate on the "source_message_id" field.
-func SourceMessageIDNEQ(v uuid.UUID) predicate.Todo {
-	return predicate.Todo(sql.FieldNEQ(FieldSourceMessageID, v))
-}
-
-// SourceMessageIDIn applies the In predicate on the "source_message_id" field.
-func SourceMessageIDIn(vs ...uuid.UUID) predicate.Todo {
-	return predicate.Todo(sql.FieldIn(FieldSourceMessageID, vs...))
-}
-
-// SourceMessageIDNotIn applies the NotIn predicate on the "source_message_id" field.
-func SourceMessageIDNotIn(vs ...uuid.UUID) predicate.Todo {
-	return predicate.Todo(sql.FieldNotIn(FieldSourceMessageID, vs...))
-}
-
-// LastMessageIDEQ applies the EQ predicate on the "last_message_id" field.
-func LastMessageIDEQ(v uuid.UUID) predicate.Todo {
-	return predicate.Todo(sql.FieldEQ(FieldLastMessageID, v))
-}
-
-// LastMessageIDNEQ applies the NEQ predicate on the "last_message_id" field.
-func LastMessageIDNEQ(v uuid.UUID) predicate.Todo {
-	return predicate.Todo(sql.FieldNEQ(FieldLastMessageID, v))
-}
-
-// LastMessageIDIn applies the In predicate on the "last_message_id" field.
-func LastMessageIDIn(vs ...uuid.UUID) predicate.Todo {
-	return predicate.Todo(sql.FieldIn(FieldLastMessageID, vs...))
-}
-
-// LastMessageIDNotIn applies the NotIn predicate on the "last_message_id" field.
-func LastMessageIDNotIn(vs ...uuid.UUID) predicate.Todo {
-	return predicate.Todo(sql.FieldNotIn(FieldLastMessageID, vs...))
-}
-
 // StatusEQ applies the EQ predicate on the "status" field.
 func StatusEQ(v Status) predicate.Todo {
 	return predicate.Todo(sql.FieldEQ(FieldStatus, v))
@@ -289,246 +194,6 @@ func StatusIn(vs ...Status) predicate.Todo {
 // StatusNotIn applies the NotIn predicate on the "status" field.
 func StatusNotIn(vs ...Status) predicate.Todo {
 	return predicate.Todo(sql.FieldNotIn(FieldStatus, vs...))
-}
-
-// TitleEQ applies the EQ predicate on the "title" field.
-func TitleEQ(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldEQ(FieldTitle, v))
-}
-
-// TitleNEQ applies the NEQ predicate on the "title" field.
-func TitleNEQ(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldNEQ(FieldTitle, v))
-}
-
-// TitleIn applies the In predicate on the "title" field.
-func TitleIn(vs ...string) predicate.Todo {
-	return predicate.Todo(sql.FieldIn(FieldTitle, vs...))
-}
-
-// TitleNotIn applies the NotIn predicate on the "title" field.
-func TitleNotIn(vs ...string) predicate.Todo {
-	return predicate.Todo(sql.FieldNotIn(FieldTitle, vs...))
-}
-
-// TitleGT applies the GT predicate on the "title" field.
-func TitleGT(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldGT(FieldTitle, v))
-}
-
-// TitleGTE applies the GTE predicate on the "title" field.
-func TitleGTE(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldGTE(FieldTitle, v))
-}
-
-// TitleLT applies the LT predicate on the "title" field.
-func TitleLT(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldLT(FieldTitle, v))
-}
-
-// TitleLTE applies the LTE predicate on the "title" field.
-func TitleLTE(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldLTE(FieldTitle, v))
-}
-
-// TitleContains applies the Contains predicate on the "title" field.
-func TitleContains(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldContains(FieldTitle, v))
-}
-
-// TitleHasPrefix applies the HasPrefix predicate on the "title" field.
-func TitleHasPrefix(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldHasPrefix(FieldTitle, v))
-}
-
-// TitleHasSuffix applies the HasSuffix predicate on the "title" field.
-func TitleHasSuffix(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldHasSuffix(FieldTitle, v))
-}
-
-// TitleEqualFold applies the EqualFold predicate on the "title" field.
-func TitleEqualFold(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldEqualFold(FieldTitle, v))
-}
-
-// TitleContainsFold applies the ContainsFold predicate on the "title" field.
-func TitleContainsFold(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldContainsFold(FieldTitle, v))
-}
-
-// AssigneesIsNil applies the IsNil predicate on the "assignees" field.
-func AssigneesIsNil() predicate.Todo {
-	return predicate.Todo(sql.FieldIsNull(FieldAssignees))
-}
-
-// AssigneesNotNil applies the NotNil predicate on the "assignees" field.
-func AssigneesNotNil() predicate.Todo {
-	return predicate.Todo(sql.FieldNotNull(FieldAssignees))
-}
-
-// DueAtEQ applies the EQ predicate on the "due_at" field.
-func DueAtEQ(v time.Time) predicate.Todo {
-	return predicate.Todo(sql.FieldEQ(FieldDueAt, v))
-}
-
-// DueAtNEQ applies the NEQ predicate on the "due_at" field.
-func DueAtNEQ(v time.Time) predicate.Todo {
-	return predicate.Todo(sql.FieldNEQ(FieldDueAt, v))
-}
-
-// DueAtIn applies the In predicate on the "due_at" field.
-func DueAtIn(vs ...time.Time) predicate.Todo {
-	return predicate.Todo(sql.FieldIn(FieldDueAt, vs...))
-}
-
-// DueAtNotIn applies the NotIn predicate on the "due_at" field.
-func DueAtNotIn(vs ...time.Time) predicate.Todo {
-	return predicate.Todo(sql.FieldNotIn(FieldDueAt, vs...))
-}
-
-// DueAtGT applies the GT predicate on the "due_at" field.
-func DueAtGT(v time.Time) predicate.Todo {
-	return predicate.Todo(sql.FieldGT(FieldDueAt, v))
-}
-
-// DueAtGTE applies the GTE predicate on the "due_at" field.
-func DueAtGTE(v time.Time) predicate.Todo {
-	return predicate.Todo(sql.FieldGTE(FieldDueAt, v))
-}
-
-// DueAtLT applies the LT predicate on the "due_at" field.
-func DueAtLT(v time.Time) predicate.Todo {
-	return predicate.Todo(sql.FieldLT(FieldDueAt, v))
-}
-
-// DueAtLTE applies the LTE predicate on the "due_at" field.
-func DueAtLTE(v time.Time) predicate.Todo {
-	return predicate.Todo(sql.FieldLTE(FieldDueAt, v))
-}
-
-// DueTimezoneEQ applies the EQ predicate on the "due_timezone" field.
-func DueTimezoneEQ(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldEQ(FieldDueTimezone, v))
-}
-
-// DueTimezoneNEQ applies the NEQ predicate on the "due_timezone" field.
-func DueTimezoneNEQ(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldNEQ(FieldDueTimezone, v))
-}
-
-// DueTimezoneIn applies the In predicate on the "due_timezone" field.
-func DueTimezoneIn(vs ...string) predicate.Todo {
-	return predicate.Todo(sql.FieldIn(FieldDueTimezone, vs...))
-}
-
-// DueTimezoneNotIn applies the NotIn predicate on the "due_timezone" field.
-func DueTimezoneNotIn(vs ...string) predicate.Todo {
-	return predicate.Todo(sql.FieldNotIn(FieldDueTimezone, vs...))
-}
-
-// DueTimezoneGT applies the GT predicate on the "due_timezone" field.
-func DueTimezoneGT(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldGT(FieldDueTimezone, v))
-}
-
-// DueTimezoneGTE applies the GTE predicate on the "due_timezone" field.
-func DueTimezoneGTE(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldGTE(FieldDueTimezone, v))
-}
-
-// DueTimezoneLT applies the LT predicate on the "due_timezone" field.
-func DueTimezoneLT(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldLT(FieldDueTimezone, v))
-}
-
-// DueTimezoneLTE applies the LTE predicate on the "due_timezone" field.
-func DueTimezoneLTE(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldLTE(FieldDueTimezone, v))
-}
-
-// DueTimezoneContains applies the Contains predicate on the "due_timezone" field.
-func DueTimezoneContains(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldContains(FieldDueTimezone, v))
-}
-
-// DueTimezoneHasPrefix applies the HasPrefix predicate on the "due_timezone" field.
-func DueTimezoneHasPrefix(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldHasPrefix(FieldDueTimezone, v))
-}
-
-// DueTimezoneHasSuffix applies the HasSuffix predicate on the "due_timezone" field.
-func DueTimezoneHasSuffix(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldHasSuffix(FieldDueTimezone, v))
-}
-
-// DueTimezoneEqualFold applies the EqualFold predicate on the "due_timezone" field.
-func DueTimezoneEqualFold(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldEqualFold(FieldDueTimezone, v))
-}
-
-// DueTimezoneContainsFold applies the ContainsFold predicate on the "due_timezone" field.
-func DueTimezoneContainsFold(v string) predicate.Todo {
-	return predicate.Todo(sql.FieldContainsFold(FieldDueTimezone, v))
-}
-
-// DuePrecisionEQ applies the EQ predicate on the "due_precision" field.
-func DuePrecisionEQ(v DuePrecision) predicate.Todo {
-	return predicate.Todo(sql.FieldEQ(FieldDuePrecision, v))
-}
-
-// DuePrecisionNEQ applies the NEQ predicate on the "due_precision" field.
-func DuePrecisionNEQ(v DuePrecision) predicate.Todo {
-	return predicate.Todo(sql.FieldNEQ(FieldDuePrecision, v))
-}
-
-// DuePrecisionIn applies the In predicate on the "due_precision" field.
-func DuePrecisionIn(vs ...DuePrecision) predicate.Todo {
-	return predicate.Todo(sql.FieldIn(FieldDuePrecision, vs...))
-}
-
-// DuePrecisionNotIn applies the NotIn predicate on the "due_precision" field.
-func DuePrecisionNotIn(vs ...DuePrecision) predicate.Todo {
-	return predicate.Todo(sql.FieldNotIn(FieldDuePrecision, vs...))
-}
-
-// ConfidenceEQ applies the EQ predicate on the "confidence" field.
-func ConfidenceEQ(v float64) predicate.Todo {
-	return predicate.Todo(sql.FieldEQ(FieldConfidence, v))
-}
-
-// ConfidenceNEQ applies the NEQ predicate on the "confidence" field.
-func ConfidenceNEQ(v float64) predicate.Todo {
-	return predicate.Todo(sql.FieldNEQ(FieldConfidence, v))
-}
-
-// ConfidenceIn applies the In predicate on the "confidence" field.
-func ConfidenceIn(vs ...float64) predicate.Todo {
-	return predicate.Todo(sql.FieldIn(FieldConfidence, vs...))
-}
-
-// ConfidenceNotIn applies the NotIn predicate on the "confidence" field.
-func ConfidenceNotIn(vs ...float64) predicate.Todo {
-	return predicate.Todo(sql.FieldNotIn(FieldConfidence, vs...))
-}
-
-// ConfidenceGT applies the GT predicate on the "confidence" field.
-func ConfidenceGT(v float64) predicate.Todo {
-	return predicate.Todo(sql.FieldGT(FieldConfidence, v))
-}
-
-// ConfidenceGTE applies the GTE predicate on the "confidence" field.
-func ConfidenceGTE(v float64) predicate.Todo {
-	return predicate.Todo(sql.FieldGTE(FieldConfidence, v))
-}
-
-// ConfidenceLT applies the LT predicate on the "confidence" field.
-func ConfidenceLT(v float64) predicate.Todo {
-	return predicate.Todo(sql.FieldLT(FieldConfidence, v))
-}
-
-// ConfidenceLTE applies the LTE predicate on the "confidence" field.
-func ConfidenceLTE(v float64) predicate.Todo {
-	return predicate.Todo(sql.FieldLTE(FieldConfidence, v))
 }
 
 // PromotionReasonEQ applies the EQ predicate on the "promotion_reason" field.
@@ -606,29 +271,6 @@ func PromotionReasonContainsFold(v string) predicate.Todo {
 	return predicate.Todo(sql.FieldContainsFold(FieldPromotionReason, v))
 }
 
-// HasChannel applies the HasEdge predicate on the "channel" edge.
-func HasChannel() predicate.Todo {
-	return predicate.Todo(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, ChannelTable, ChannelColumn),
-		)
-		sqlgraph.HasNeighbors(s, step)
-	})
-}
-
-// HasChannelWith applies the HasEdge predicate on the "channel" edge with a given conditions (other predicates).
-func HasChannelWith(preds ...predicate.Channel) predicate.Todo {
-	return predicate.Todo(func(s *sql.Selector) {
-		step := newChannelStep()
-		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
-			for _, p := range preds {
-				p(s)
-			}
-		})
-	})
-}
-
 // HasSourceCandidate applies the HasEdge predicate on the "source_candidate" edge.
 func HasSourceCandidate() predicate.Todo {
 	return predicate.Todo(func(s *sql.Selector) {
@@ -644,52 +286,6 @@ func HasSourceCandidate() predicate.Todo {
 func HasSourceCandidateWith(preds ...predicate.TodoCandidate) predicate.Todo {
 	return predicate.Todo(func(s *sql.Selector) {
 		step := newSourceCandidateStep()
-		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
-			for _, p := range preds {
-				p(s)
-			}
-		})
-	})
-}
-
-// HasSourceMessage applies the HasEdge predicate on the "source_message" edge.
-func HasSourceMessage() predicate.Todo {
-	return predicate.Todo(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, SourceMessageTable, SourceMessageColumn),
-		)
-		sqlgraph.HasNeighbors(s, step)
-	})
-}
-
-// HasSourceMessageWith applies the HasEdge predicate on the "source_message" edge with a given conditions (other predicates).
-func HasSourceMessageWith(preds ...predicate.ChannelMessage) predicate.Todo {
-	return predicate.Todo(func(s *sql.Selector) {
-		step := newSourceMessageStep()
-		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
-			for _, p := range preds {
-				p(s)
-			}
-		})
-	})
-}
-
-// HasLastMessage applies the HasEdge predicate on the "last_message" edge.
-func HasLastMessage() predicate.Todo {
-	return predicate.Todo(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, LastMessageTable, LastMessageColumn),
-		)
-		sqlgraph.HasNeighbors(s, step)
-	})
-}
-
-// HasLastMessageWith applies the HasEdge predicate on the "last_message" edge with a given conditions (other predicates).
-func HasLastMessageWith(preds ...predicate.ChannelMessage) predicate.Todo {
-	return predicate.Todo(func(s *sql.Selector) {
-		step := newLastMessageStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

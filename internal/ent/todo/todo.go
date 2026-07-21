@@ -22,47 +22,16 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
-	// FieldChannelID holds the string denoting the channel_id field in the database.
-	FieldChannelID = "channel_id"
 	// FieldSourceCandidateID holds the string denoting the source_candidate_id field in the database.
 	FieldSourceCandidateID = "source_candidate_id"
-	// FieldSourceMessageID holds the string denoting the source_message_id field in the database.
-	FieldSourceMessageID = "source_message_id"
-	// FieldLastMessageID holds the string denoting the last_message_id field in the database.
-	FieldLastMessageID = "last_message_id"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
-	// FieldTitle holds the string denoting the title field in the database.
-	FieldTitle = "title"
-	// FieldAssignees holds the string denoting the assignees field in the database.
-	FieldAssignees = "assignees"
-	// FieldDueAt holds the string denoting the due_at field in the database.
-	FieldDueAt = "due_at"
-	// FieldDueTimezone holds the string denoting the due_timezone field in the database.
-	FieldDueTimezone = "due_timezone"
-	// FieldDuePrecision holds the string denoting the due_precision field in the database.
-	FieldDuePrecision = "due_precision"
-	// FieldConfidence holds the string denoting the confidence field in the database.
-	FieldConfidence = "confidence"
 	// FieldPromotionReason holds the string denoting the promotion_reason field in the database.
 	FieldPromotionReason = "promotion_reason"
-	// EdgeChannel holds the string denoting the channel edge name in mutations.
-	EdgeChannel = "channel"
 	// EdgeSourceCandidate holds the string denoting the source_candidate edge name in mutations.
 	EdgeSourceCandidate = "source_candidate"
-	// EdgeSourceMessage holds the string denoting the source_message edge name in mutations.
-	EdgeSourceMessage = "source_message"
-	// EdgeLastMessage holds the string denoting the last_message edge name in mutations.
-	EdgeLastMessage = "last_message"
 	// Table holds the table name of the todo in the database.
 	Table = "todos"
-	// ChannelTable is the table that holds the channel relation/edge.
-	ChannelTable = "todos"
-	// ChannelInverseTable is the table name for the Channel entity.
-	// It exists in this package in order to avoid circular dependency with the "channel" package.
-	ChannelInverseTable = "channels"
-	// ChannelColumn is the table column denoting the channel relation/edge.
-	ChannelColumn = "channel_id"
 	// SourceCandidateTable is the table that holds the source_candidate relation/edge.
 	SourceCandidateTable = "todos"
 	// SourceCandidateInverseTable is the table name for the TodoCandidate entity.
@@ -70,20 +39,6 @@ const (
 	SourceCandidateInverseTable = "todo_candidates"
 	// SourceCandidateColumn is the table column denoting the source_candidate relation/edge.
 	SourceCandidateColumn = "source_candidate_id"
-	// SourceMessageTable is the table that holds the source_message relation/edge.
-	SourceMessageTable = "todos"
-	// SourceMessageInverseTable is the table name for the ChannelMessage entity.
-	// It exists in this package in order to avoid circular dependency with the "channelmessage" package.
-	SourceMessageInverseTable = "channel_messages"
-	// SourceMessageColumn is the table column denoting the source_message relation/edge.
-	SourceMessageColumn = "source_message_id"
-	// LastMessageTable is the table that holds the last_message relation/edge.
-	LastMessageTable = "todos"
-	// LastMessageInverseTable is the table name for the ChannelMessage entity.
-	// It exists in this package in order to avoid circular dependency with the "channelmessage" package.
-	LastMessageInverseTable = "channel_messages"
-	// LastMessageColumn is the table column denoting the last_message relation/edge.
-	LastMessageColumn = "last_message_id"
 )
 
 // Columns holds all SQL columns for todo fields.
@@ -91,17 +46,8 @@ var Columns = []string{
 	FieldID,
 	FieldCreatedAt,
 	FieldUpdatedAt,
-	FieldChannelID,
 	FieldSourceCandidateID,
-	FieldSourceMessageID,
-	FieldLastMessageID,
 	FieldStatus,
-	FieldTitle,
-	FieldAssignees,
-	FieldDueAt,
-	FieldDueTimezone,
-	FieldDuePrecision,
-	FieldConfidence,
 	FieldPromotionReason,
 }
 
@@ -122,8 +68,6 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
-	// DefaultConfidence holds the default value on creation for the "confidence" field.
-	DefaultConfidence float64
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
@@ -155,34 +99,6 @@ func StatusValidator(s Status) error {
 	}
 }
 
-// DuePrecision defines the type for the "due_precision" enum field.
-type DuePrecision string
-
-// DuePrecisionUnknown is the default value of the DuePrecision enum.
-const DefaultDuePrecision = DuePrecisionUnknown
-
-// DuePrecision values.
-const (
-	DuePrecisionDatetime       DuePrecision = "datetime"
-	DuePrecisionDate           DuePrecision = "date"
-	DuePrecisionRelativeWindow DuePrecision = "relative_window"
-	DuePrecisionUnknown        DuePrecision = "unknown"
-)
-
-func (dp DuePrecision) String() string {
-	return string(dp)
-}
-
-// DuePrecisionValidator is a validator for the "due_precision" field enum values. It is called by the builders before save.
-func DuePrecisionValidator(dp DuePrecision) error {
-	switch dp {
-	case DuePrecisionDatetime, DuePrecisionDate, DuePrecisionRelativeWindow, DuePrecisionUnknown:
-		return nil
-	default:
-		return fmt.Errorf("todo: invalid enum value for due_precision field: %q", dp)
-	}
-}
-
 // OrderOption defines the ordering options for the Todo queries.
 type OrderOption func(*sql.Selector)
 
@@ -201,24 +117,9 @@ func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
 }
 
-// ByChannelID orders the results by the channel_id field.
-func ByChannelID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldChannelID, opts...).ToFunc()
-}
-
 // BySourceCandidateID orders the results by the source_candidate_id field.
 func BySourceCandidateID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSourceCandidateID, opts...).ToFunc()
-}
-
-// BySourceMessageID orders the results by the source_message_id field.
-func BySourceMessageID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldSourceMessageID, opts...).ToFunc()
-}
-
-// ByLastMessageID orders the results by the last_message_id field.
-func ByLastMessageID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldLastMessageID, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.
@@ -226,41 +127,9 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
 }
 
-// ByTitle orders the results by the title field.
-func ByTitle(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldTitle, opts...).ToFunc()
-}
-
-// ByDueAt orders the results by the due_at field.
-func ByDueAt(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldDueAt, opts...).ToFunc()
-}
-
-// ByDueTimezone orders the results by the due_timezone field.
-func ByDueTimezone(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldDueTimezone, opts...).ToFunc()
-}
-
-// ByDuePrecision orders the results by the due_precision field.
-func ByDuePrecision(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldDuePrecision, opts...).ToFunc()
-}
-
-// ByConfidence orders the results by the confidence field.
-func ByConfidence(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldConfidence, opts...).ToFunc()
-}
-
 // ByPromotionReason orders the results by the promotion_reason field.
 func ByPromotionReason(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPromotionReason, opts...).ToFunc()
-}
-
-// ByChannelField orders the results by channel field.
-func ByChannelField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newChannelStep(), sql.OrderByField(field, opts...))
-	}
 }
 
 // BySourceCandidateField orders the results by source_candidate field.
@@ -269,46 +138,11 @@ func BySourceCandidateField(field string, opts ...sql.OrderTermOption) OrderOpti
 		sqlgraph.OrderByNeighborTerms(s, newSourceCandidateStep(), sql.OrderByField(field, opts...))
 	}
 }
-
-// BySourceMessageField orders the results by source_message field.
-func BySourceMessageField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newSourceMessageStep(), sql.OrderByField(field, opts...))
-	}
-}
-
-// ByLastMessageField orders the results by last_message field.
-func ByLastMessageField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newLastMessageStep(), sql.OrderByField(field, opts...))
-	}
-}
-func newChannelStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(ChannelInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.M2O, false, ChannelTable, ChannelColumn),
-	)
-}
 func newSourceCandidateStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(SourceCandidateInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, false, SourceCandidateTable, SourceCandidateColumn),
-	)
-}
-func newSourceMessageStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(SourceMessageInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.M2O, false, SourceMessageTable, SourceMessageColumn),
-	)
-}
-func newLastMessageStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(LastMessageInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.M2O, false, LastMessageTable, LastMessageColumn),
 	)
 }
 
@@ -326,24 +160,6 @@ func (e *Status) UnmarshalGQL(val interface{}) error {
 	*e = Status(str)
 	if err := StatusValidator(*e); err != nil {
 		return fmt.Errorf("%s is not a valid Status", str)
-	}
-	return nil
-}
-
-// MarshalGQL implements graphql.Marshaler interface.
-func (e DuePrecision) MarshalGQL(w io.Writer) {
-	io.WriteString(w, strconv.Quote(e.String()))
-}
-
-// UnmarshalGQL implements graphql.Unmarshaler interface.
-func (e *DuePrecision) UnmarshalGQL(val interface{}) error {
-	str, ok := val.(string)
-	if !ok {
-		return fmt.Errorf("enum %T must be a string", val)
-	}
-	*e = DuePrecision(str)
-	if err := DuePrecisionValidator(*e); err != nil {
-		return fmt.Errorf("%s is not a valid DuePrecision", str)
 	}
 	return nil
 }

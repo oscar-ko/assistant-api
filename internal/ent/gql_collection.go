@@ -1434,21 +1434,6 @@ func (_q *TodoQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 	for _, field := range graphql.CollectFields(opCtx, collected.Selections, satisfies) {
 		switch field.Name {
 
-		case "channel":
-			var (
-				alias = field.Alias
-				path  = append(path, alias)
-				query = (&ChannelClient{config: _q.config}).Query()
-			)
-			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, channelImplementors)...); err != nil {
-				return err
-			}
-			_q.withChannel = query
-			if _, ok := fieldSeen[todo.FieldChannelID]; !ok {
-				selectedFields = append(selectedFields, todo.FieldChannelID)
-				fieldSeen[todo.FieldChannelID] = struct{}{}
-			}
-
 		case "sourceCandidate":
 			var (
 				alias = field.Alias
@@ -1463,36 +1448,6 @@ func (_q *TodoQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 				selectedFields = append(selectedFields, todo.FieldSourceCandidateID)
 				fieldSeen[todo.FieldSourceCandidateID] = struct{}{}
 			}
-
-		case "sourceMessage":
-			var (
-				alias = field.Alias
-				path  = append(path, alias)
-				query = (&ChannelMessageClient{config: _q.config}).Query()
-			)
-			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, channelmessageImplementors)...); err != nil {
-				return err
-			}
-			_q.withSourceMessage = query
-			if _, ok := fieldSeen[todo.FieldSourceMessageID]; !ok {
-				selectedFields = append(selectedFields, todo.FieldSourceMessageID)
-				fieldSeen[todo.FieldSourceMessageID] = struct{}{}
-			}
-
-		case "lastMessage":
-			var (
-				alias = field.Alias
-				path  = append(path, alias)
-				query = (&ChannelMessageClient{config: _q.config}).Query()
-			)
-			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, channelmessageImplementors)...); err != nil {
-				return err
-			}
-			_q.withLastMessage = query
-			if _, ok := fieldSeen[todo.FieldLastMessageID]; !ok {
-				selectedFields = append(selectedFields, todo.FieldLastMessageID)
-				fieldSeen[todo.FieldLastMessageID] = struct{}{}
-			}
 		case "createdAt":
 			if _, ok := fieldSeen[todo.FieldCreatedAt]; !ok {
 				selectedFields = append(selectedFields, todo.FieldCreatedAt)
@@ -1503,60 +1458,15 @@ func (_q *TodoQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 				selectedFields = append(selectedFields, todo.FieldUpdatedAt)
 				fieldSeen[todo.FieldUpdatedAt] = struct{}{}
 			}
-		case "channelID":
-			if _, ok := fieldSeen[todo.FieldChannelID]; !ok {
-				selectedFields = append(selectedFields, todo.FieldChannelID)
-				fieldSeen[todo.FieldChannelID] = struct{}{}
-			}
 		case "sourceCandidateID":
 			if _, ok := fieldSeen[todo.FieldSourceCandidateID]; !ok {
 				selectedFields = append(selectedFields, todo.FieldSourceCandidateID)
 				fieldSeen[todo.FieldSourceCandidateID] = struct{}{}
 			}
-		case "sourceMessageID":
-			if _, ok := fieldSeen[todo.FieldSourceMessageID]; !ok {
-				selectedFields = append(selectedFields, todo.FieldSourceMessageID)
-				fieldSeen[todo.FieldSourceMessageID] = struct{}{}
-			}
-		case "lastMessageID":
-			if _, ok := fieldSeen[todo.FieldLastMessageID]; !ok {
-				selectedFields = append(selectedFields, todo.FieldLastMessageID)
-				fieldSeen[todo.FieldLastMessageID] = struct{}{}
-			}
 		case "status":
 			if _, ok := fieldSeen[todo.FieldStatus]; !ok {
 				selectedFields = append(selectedFields, todo.FieldStatus)
 				fieldSeen[todo.FieldStatus] = struct{}{}
-			}
-		case "title":
-			if _, ok := fieldSeen[todo.FieldTitle]; !ok {
-				selectedFields = append(selectedFields, todo.FieldTitle)
-				fieldSeen[todo.FieldTitle] = struct{}{}
-			}
-		case "assignees":
-			if _, ok := fieldSeen[todo.FieldAssignees]; !ok {
-				selectedFields = append(selectedFields, todo.FieldAssignees)
-				fieldSeen[todo.FieldAssignees] = struct{}{}
-			}
-		case "dueAt":
-			if _, ok := fieldSeen[todo.FieldDueAt]; !ok {
-				selectedFields = append(selectedFields, todo.FieldDueAt)
-				fieldSeen[todo.FieldDueAt] = struct{}{}
-			}
-		case "dueTimezone":
-			if _, ok := fieldSeen[todo.FieldDueTimezone]; !ok {
-				selectedFields = append(selectedFields, todo.FieldDueTimezone)
-				fieldSeen[todo.FieldDueTimezone] = struct{}{}
-			}
-		case "duePrecision":
-			if _, ok := fieldSeen[todo.FieldDuePrecision]; !ok {
-				selectedFields = append(selectedFields, todo.FieldDuePrecision)
-				fieldSeen[todo.FieldDuePrecision] = struct{}{}
-			}
-		case "confidence":
-			if _, ok := fieldSeen[todo.FieldConfidence]; !ok {
-				selectedFields = append(selectedFields, todo.FieldConfidence)
-				fieldSeen[todo.FieldConfidence] = struct{}{}
 			}
 		case "promotionReason":
 			if _, ok := fieldSeen[todo.FieldPromotionReason]; !ok {

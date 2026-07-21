@@ -1740,13 +1740,6 @@ input TodoWhereInput {
   updatedAtLT: Time
   updatedAtLTE: Time
   """
-  channel_id field predicates
-  """
-  channelID: ID
-  channelIDNEQ: ID
-  channelIDIn: [ID!]
-  channelIDNotIn: [ID!]
-  """
   source_candidate_id field predicates
   """
   sourceCandidateID: ID
@@ -1754,87 +1747,12 @@ input TodoWhereInput {
   sourceCandidateIDIn: [ID!]
   sourceCandidateIDNotIn: [ID!]
   """
-  source_message_id field predicates
-  """
-  sourceMessageID: ID
-  sourceMessageIDNEQ: ID
-  sourceMessageIDIn: [ID!]
-  sourceMessageIDNotIn: [ID!]
-  """
-  last_message_id field predicates
-  """
-  lastMessageID: ID
-  lastMessageIDNEQ: ID
-  lastMessageIDIn: [ID!]
-  lastMessageIDNotIn: [ID!]
-  """
   status field predicates
   """
   status: TodoStatus
   statusNEQ: TodoStatus
   statusIn: [TodoStatus!]
   statusNotIn: [TodoStatus!]
-  """
-  title field predicates
-  """
-  title: String
-  titleNEQ: String
-  titleIn: [String!]
-  titleNotIn: [String!]
-  titleGT: String
-  titleGTE: String
-  titleLT: String
-  titleLTE: String
-  titleContains: String
-  titleHasPrefix: String
-  titleHasSuffix: String
-  titleEqualFold: String
-  titleContainsFold: String
-  """
-  due_at field predicates
-  """
-  dueAt: Time
-  dueAtNEQ: Time
-  dueAtIn: [Time!]
-  dueAtNotIn: [Time!]
-  dueAtGT: Time
-  dueAtGTE: Time
-  dueAtLT: Time
-  dueAtLTE: Time
-  """
-  due_timezone field predicates
-  """
-  dueTimezone: String
-  dueTimezoneNEQ: String
-  dueTimezoneIn: [String!]
-  dueTimezoneNotIn: [String!]
-  dueTimezoneGT: String
-  dueTimezoneGTE: String
-  dueTimezoneLT: String
-  dueTimezoneLTE: String
-  dueTimezoneContains: String
-  dueTimezoneHasPrefix: String
-  dueTimezoneHasSuffix: String
-  dueTimezoneEqualFold: String
-  dueTimezoneContainsFold: String
-  """
-  due_precision field predicates
-  """
-  duePrecision: TodoDuePrecision
-  duePrecisionNEQ: TodoDuePrecision
-  duePrecisionIn: [TodoDuePrecision!]
-  duePrecisionNotIn: [TodoDuePrecision!]
-  """
-  confidence field predicates
-  """
-  confidence: Float
-  confidenceNEQ: Float
-  confidenceIn: [Float!]
-  confidenceNotIn: [Float!]
-  confidenceGT: Float
-  confidenceGTE: Float
-  confidenceLT: Float
-  confidenceLTE: Float
   """
   promotion_reason field predicates
   """
@@ -1854,25 +1772,10 @@ input TodoWhereInput {
   promotionReasonEqualFold: String
   promotionReasonContainsFold: String
   """
-  channel edge predicates
-  """
-  hasChannel: Boolean
-  hasChannelWith: [ChannelWhereInput!]
-  """
   source_candidate edge predicates
   """
   hasSourceCandidate: Boolean
   hasSourceCandidateWith: [TodoCandidateWhereInput!]
-  """
-  source_message edge predicates
-  """
-  hasSourceMessage: Boolean
-  hasSourceMessageWith: [ChannelMessageWhereInput!]
-  """
-  last_message edge predicates
-  """
-  hasLastMessage: Boolean
-  hasLastMessageWith: [ChannelMessageWhereInput!]
 }
 """
 TranslationLocaleWhereInput is used for filtering TranslationLocale objects.
