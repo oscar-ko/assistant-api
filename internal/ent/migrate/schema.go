@@ -617,6 +617,68 @@ var (
 			},
 		},
 	}
+	// TodoEventsColumns holds the columns for the "todo_events" table.
+	TodoEventsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "event_type", Type: field.TypeEnum, Enums: []string{"created", "updated", "cancelled"}},
+		{Name: "old_values", Type: field.TypeJSON, Nullable: true},
+		{Name: "new_values", Type: field.TypeJSON, Nullable: true},
+		{Name: "confidence", Type: field.TypeFloat64, Default: 0},
+		{Name: "reason", Type: field.TypeString, Nullable: true},
+		{Name: "todo_id", Type: field.TypeUUID},
+		{Name: "source_candidate_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "source_message_id", Type: field.TypeUUID, Nullable: true},
+	}
+	// TodoEventsTable holds the schema information for the "todo_events" table.
+	TodoEventsTable = &schema.Table{
+		Name:       "todo_events",
+		Columns:    TodoEventsColumns,
+		PrimaryKey: []*schema.Column{TodoEventsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "todo_events_todos_events",
+				Columns:    []*schema.Column{TodoEventsColumns[8]},
+				RefColumns: []*schema.Column{TodosColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "todo_events_todo_candidates_source_candidate",
+				Columns:    []*schema.Column{TodoEventsColumns[9]},
+				RefColumns: []*schema.Column{TodoCandidatesColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "todo_events_channel_messages_source_message",
+				Columns:    []*schema.Column{TodoEventsColumns[10]},
+				RefColumns: []*schema.Column{ChannelMessagesColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "todoevent_todo_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{TodoEventsColumns[8], TodoEventsColumns[1]},
+			},
+			{
+				Name:    "todoevent_source_candidate_id",
+				Unique:  false,
+				Columns: []*schema.Column{TodoEventsColumns[9]},
+			},
+			{
+				Name:    "todoevent_source_message_id",
+				Unique:  false,
+				Columns: []*schema.Column{TodoEventsColumns[10]},
+			},
+			{
+				Name:    "todoevent_event_type",
+				Unique:  false,
+				Columns: []*schema.Column{TodoEventsColumns[3]},
+			},
+		},
+	}
 	// TranslationLocalesColumns holds the columns for the "translation_locales" table.
 	TranslationLocalesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -708,6 +770,7 @@ var (
 		TodosTable,
 		TodoCandidatesTable,
 		TodoCandidateAssigneesTable,
+		TodoEventsTable,
 		TranslationLocalesTable,
 		UsersTable,
 	}
@@ -737,6 +800,9 @@ func init() {
 	TodoCandidateAssigneesTable.ForeignKeys[0].RefTable = TodoCandidatesTable
 	TodoCandidateAssigneesTable.ForeignKeys[1].RefTable = ChannelMessageMentionsTable
 	TodoCandidateAssigneesTable.ForeignKeys[2].RefTable = UsersTable
+	TodoEventsTable.ForeignKeys[0].RefTable = TodosTable
+	TodoEventsTable.ForeignKeys[1].RefTable = TodoCandidatesTable
+	TodoEventsTable.ForeignKeys[2].RefTable = ChannelMessagesTable
 	TranslationLocalesTable.ForeignKeys[0].RefTable = ChannelsTable
 	TranslationLocalesTable.ForeignKeys[1].RefTable = SkillsTable
 	TranslationLocalesTable.ForeignKeys[2].RefTable = UsersTable

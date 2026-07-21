@@ -18,6 +18,7 @@ import (
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
+	"assistant-api/internal/ent/todoevent"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -55,6 +56,7 @@ const (
 	TypeTodo                  = "Todo"
 	TypeTodoCandidate         = "TodoCandidate"
 	TypeTodoCandidateAssignee = "TodoCandidateAssignee"
+	TypeTodoEvent             = "TodoEvent"
 	TypeTranslationLocale     = "TranslationLocale"
 	TypeUser                  = "User"
 )
@@ -9460,6 +9462,9 @@ type TodoMutation struct {
 	clearedowner            bool
 	source_candidate        *uuid.UUID
 	clearedsource_candidate bool
+	events                  map[uuid.UUID]struct{}
+	removedevents           map[uuid.UUID]struct{}
+	clearedevents           bool
 	done                    bool
 	oldValue                func(context.Context) (*Todo, error)
 	predicates              []predicate.Todo
@@ -10160,6 +10165,60 @@ func (m *TodoMutation) ResetSourceCandidate() {
 	m.clearedsource_candidate = false
 }
 
+// AddEventIDs adds the "events" edge to the TodoEvent entity by ids.
+func (m *TodoMutation) AddEventIDs(ids ...uuid.UUID) {
+	if m.events == nil {
+		m.events = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.events[ids[i]] = struct{}{}
+	}
+}
+
+// ClearEvents clears the "events" edge to the TodoEvent entity.
+func (m *TodoMutation) ClearEvents() {
+	m.clearedevents = true
+}
+
+// EventsCleared reports if the "events" edge to the TodoEvent entity was cleared.
+func (m *TodoMutation) EventsCleared() bool {
+	return m.clearedevents
+}
+
+// RemoveEventIDs removes the "events" edge to the TodoEvent entity by IDs.
+func (m *TodoMutation) RemoveEventIDs(ids ...uuid.UUID) {
+	if m.removedevents == nil {
+		m.removedevents = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.events, ids[i])
+		m.removedevents[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedEvents returns the removed IDs of the "events" edge to the TodoEvent entity.
+func (m *TodoMutation) RemovedEventsIDs() (ids []uuid.UUID) {
+	for id := range m.removedevents {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// EventsIDs returns the "events" edge IDs in the mutation.
+func (m *TodoMutation) EventsIDs() (ids []uuid.UUID) {
+	for id := range m.events {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetEvents resets all changes to the "events" edge.
+func (m *TodoMutation) ResetEvents() {
+	m.events = nil
+	m.clearedevents = false
+	m.removedevents = nil
+}
+
 // Where appends a list predicates to the TodoMutation builder.
 func (m *TodoMutation) Where(ps ...predicate.Todo) {
 	m.predicates = append(m.predicates, ps...)
@@ -10513,7 +10572,7 @@ func (m *TodoMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *TodoMutation) AddedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.channel != nil {
 		edges = append(edges, todo.EdgeChannel)
 	}
@@ -10522,6 +10581,9 @@ func (m *TodoMutation) AddedEdges() []string {
 	}
 	if m.source_candidate != nil {
 		edges = append(edges, todo.EdgeSourceCandidate)
+	}
+	if m.events != nil {
+		edges = append(edges, todo.EdgeEvents)
 	}
 	return edges
 }
@@ -10542,25 +10604,42 @@ func (m *TodoMutation) AddedIDs(name string) []ent.Value {
 		if id := m.source_candidate; id != nil {
 			return []ent.Value{*id}
 		}
+	case todo.EdgeEvents:
+		ids := make([]ent.Value, 0, len(m.events))
+		for id := range m.events {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *TodoMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
+	if m.removedevents != nil {
+		edges = append(edges, todo.EdgeEvents)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *TodoMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case todo.EdgeEvents:
+		ids := make([]ent.Value, 0, len(m.removedevents))
+		for id := range m.removedevents {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *TodoMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.clearedchannel {
 		edges = append(edges, todo.EdgeChannel)
 	}
@@ -10569,6 +10648,9 @@ func (m *TodoMutation) ClearedEdges() []string {
 	}
 	if m.clearedsource_candidate {
 		edges = append(edges, todo.EdgeSourceCandidate)
+	}
+	if m.clearedevents {
+		edges = append(edges, todo.EdgeEvents)
 	}
 	return edges
 }
@@ -10583,6 +10665,8 @@ func (m *TodoMutation) EdgeCleared(name string) bool {
 		return m.clearedowner
 	case todo.EdgeSourceCandidate:
 		return m.clearedsource_candidate
+	case todo.EdgeEvents:
+		return m.clearedevents
 	}
 	return false
 }
@@ -10616,6 +10700,9 @@ func (m *TodoMutation) ResetEdge(name string) error {
 		return nil
 	case todo.EdgeSourceCandidate:
 		m.ResetSourceCandidate()
+		return nil
+	case todo.EdgeEvents:
+		m.ResetEvents()
 		return nil
 	}
 	return fmt.Errorf("unknown Todo edge %s", name)
@@ -13558,6 +13645,1104 @@ func (m *TodoCandidateAssigneeMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown TodoCandidateAssignee edge %s", name)
+}
+
+// TodoEventMutation represents an operation that mutates the TodoEvent nodes in the graph.
+type TodoEventMutation struct {
+	config
+	op                      Op
+	typ                     string
+	id                      *uuid.UUID
+	created_at              *time.Time
+	updated_at              *time.Time
+	event_type              *todoevent.EventType
+	old_values              *map[string]interface{}
+	new_values              *map[string]interface{}
+	confidence              *float64
+	addconfidence           *float64
+	reason                  *string
+	clearedFields           map[string]struct{}
+	todo                    *uuid.UUID
+	clearedtodo             bool
+	source_candidate        *uuid.UUID
+	clearedsource_candidate bool
+	source_message          *uuid.UUID
+	clearedsource_message   bool
+	done                    bool
+	oldValue                func(context.Context) (*TodoEvent, error)
+	predicates              []predicate.TodoEvent
+}
+
+var _ ent.Mutation = (*TodoEventMutation)(nil)
+
+// todoeventOption allows management of the mutation configuration using functional options.
+type todoeventOption func(*TodoEventMutation)
+
+// newTodoEventMutation creates new mutation for the TodoEvent entity.
+func newTodoEventMutation(c config, op Op, opts ...todoeventOption) *TodoEventMutation {
+	m := &TodoEventMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeTodoEvent,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withTodoEventID sets the ID field of the mutation.
+func withTodoEventID(id uuid.UUID) todoeventOption {
+	return func(m *TodoEventMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *TodoEvent
+		)
+		m.oldValue = func(ctx context.Context) (*TodoEvent, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().TodoEvent.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withTodoEvent sets the old TodoEvent of the mutation.
+func withTodoEvent(node *TodoEvent) todoeventOption {
+	return func(m *TodoEventMutation) {
+		m.oldValue = func(context.Context) (*TodoEvent, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m TodoEventMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m TodoEventMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of TodoEvent entities.
+func (m *TodoEventMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *TodoEventMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *TodoEventMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().TodoEvent.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *TodoEventMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *TodoEventMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the TodoEvent entity.
+// If the TodoEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoEventMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *TodoEventMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *TodoEventMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *TodoEventMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the TodoEvent entity.
+// If the TodoEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoEventMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *TodoEventMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetTodoID sets the "todo_id" field.
+func (m *TodoEventMutation) SetTodoID(u uuid.UUID) {
+	m.todo = &u
+}
+
+// TodoID returns the value of the "todo_id" field in the mutation.
+func (m *TodoEventMutation) TodoID() (r uuid.UUID, exists bool) {
+	v := m.todo
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTodoID returns the old "todo_id" field's value of the TodoEvent entity.
+// If the TodoEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoEventMutation) OldTodoID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTodoID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTodoID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTodoID: %w", err)
+	}
+	return oldValue.TodoID, nil
+}
+
+// ResetTodoID resets all changes to the "todo_id" field.
+func (m *TodoEventMutation) ResetTodoID() {
+	m.todo = nil
+}
+
+// SetSourceCandidateID sets the "source_candidate_id" field.
+func (m *TodoEventMutation) SetSourceCandidateID(u uuid.UUID) {
+	m.source_candidate = &u
+}
+
+// SourceCandidateID returns the value of the "source_candidate_id" field in the mutation.
+func (m *TodoEventMutation) SourceCandidateID() (r uuid.UUID, exists bool) {
+	v := m.source_candidate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceCandidateID returns the old "source_candidate_id" field's value of the TodoEvent entity.
+// If the TodoEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoEventMutation) OldSourceCandidateID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceCandidateID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceCandidateID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceCandidateID: %w", err)
+	}
+	return oldValue.SourceCandidateID, nil
+}
+
+// ClearSourceCandidateID clears the value of the "source_candidate_id" field.
+func (m *TodoEventMutation) ClearSourceCandidateID() {
+	m.source_candidate = nil
+	m.clearedFields[todoevent.FieldSourceCandidateID] = struct{}{}
+}
+
+// SourceCandidateIDCleared returns if the "source_candidate_id" field was cleared in this mutation.
+func (m *TodoEventMutation) SourceCandidateIDCleared() bool {
+	_, ok := m.clearedFields[todoevent.FieldSourceCandidateID]
+	return ok
+}
+
+// ResetSourceCandidateID resets all changes to the "source_candidate_id" field.
+func (m *TodoEventMutation) ResetSourceCandidateID() {
+	m.source_candidate = nil
+	delete(m.clearedFields, todoevent.FieldSourceCandidateID)
+}
+
+// SetSourceMessageID sets the "source_message_id" field.
+func (m *TodoEventMutation) SetSourceMessageID(u uuid.UUID) {
+	m.source_message = &u
+}
+
+// SourceMessageID returns the value of the "source_message_id" field in the mutation.
+func (m *TodoEventMutation) SourceMessageID() (r uuid.UUID, exists bool) {
+	v := m.source_message
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceMessageID returns the old "source_message_id" field's value of the TodoEvent entity.
+// If the TodoEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoEventMutation) OldSourceMessageID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceMessageID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceMessageID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceMessageID: %w", err)
+	}
+	return oldValue.SourceMessageID, nil
+}
+
+// ClearSourceMessageID clears the value of the "source_message_id" field.
+func (m *TodoEventMutation) ClearSourceMessageID() {
+	m.source_message = nil
+	m.clearedFields[todoevent.FieldSourceMessageID] = struct{}{}
+}
+
+// SourceMessageIDCleared returns if the "source_message_id" field was cleared in this mutation.
+func (m *TodoEventMutation) SourceMessageIDCleared() bool {
+	_, ok := m.clearedFields[todoevent.FieldSourceMessageID]
+	return ok
+}
+
+// ResetSourceMessageID resets all changes to the "source_message_id" field.
+func (m *TodoEventMutation) ResetSourceMessageID() {
+	m.source_message = nil
+	delete(m.clearedFields, todoevent.FieldSourceMessageID)
+}
+
+// SetEventType sets the "event_type" field.
+func (m *TodoEventMutation) SetEventType(tt todoevent.EventType) {
+	m.event_type = &tt
+}
+
+// EventType returns the value of the "event_type" field in the mutation.
+func (m *TodoEventMutation) EventType() (r todoevent.EventType, exists bool) {
+	v := m.event_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEventType returns the old "event_type" field's value of the TodoEvent entity.
+// If the TodoEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoEventMutation) OldEventType(ctx context.Context) (v todoevent.EventType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEventType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEventType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEventType: %w", err)
+	}
+	return oldValue.EventType, nil
+}
+
+// ResetEventType resets all changes to the "event_type" field.
+func (m *TodoEventMutation) ResetEventType() {
+	m.event_type = nil
+}
+
+// SetOldValues sets the "old_values" field.
+func (m *TodoEventMutation) SetOldValues(value map[string]interface{}) {
+	m.old_values = &value
+}
+
+// OldValues returns the value of the "old_values" field in the mutation.
+func (m *TodoEventMutation) OldValues() (r map[string]interface{}, exists bool) {
+	v := m.old_values
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOldValues returns the old "old_values" field's value of the TodoEvent entity.
+// If the TodoEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoEventMutation) OldOldValues(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOldValues is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOldValues requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOldValues: %w", err)
+	}
+	return oldValue.OldValues, nil
+}
+
+// ClearOldValues clears the value of the "old_values" field.
+func (m *TodoEventMutation) ClearOldValues() {
+	m.old_values = nil
+	m.clearedFields[todoevent.FieldOldValues] = struct{}{}
+}
+
+// OldValuesCleared returns if the "old_values" field was cleared in this mutation.
+func (m *TodoEventMutation) OldValuesCleared() bool {
+	_, ok := m.clearedFields[todoevent.FieldOldValues]
+	return ok
+}
+
+// ResetOldValues resets all changes to the "old_values" field.
+func (m *TodoEventMutation) ResetOldValues() {
+	m.old_values = nil
+	delete(m.clearedFields, todoevent.FieldOldValues)
+}
+
+// SetNewValues sets the "new_values" field.
+func (m *TodoEventMutation) SetNewValues(value map[string]interface{}) {
+	m.new_values = &value
+}
+
+// NewValues returns the value of the "new_values" field in the mutation.
+func (m *TodoEventMutation) NewValues() (r map[string]interface{}, exists bool) {
+	v := m.new_values
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNewValues returns the old "new_values" field's value of the TodoEvent entity.
+// If the TodoEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoEventMutation) OldNewValues(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNewValues is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNewValues requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNewValues: %w", err)
+	}
+	return oldValue.NewValues, nil
+}
+
+// ClearNewValues clears the value of the "new_values" field.
+func (m *TodoEventMutation) ClearNewValues() {
+	m.new_values = nil
+	m.clearedFields[todoevent.FieldNewValues] = struct{}{}
+}
+
+// NewValuesCleared returns if the "new_values" field was cleared in this mutation.
+func (m *TodoEventMutation) NewValuesCleared() bool {
+	_, ok := m.clearedFields[todoevent.FieldNewValues]
+	return ok
+}
+
+// ResetNewValues resets all changes to the "new_values" field.
+func (m *TodoEventMutation) ResetNewValues() {
+	m.new_values = nil
+	delete(m.clearedFields, todoevent.FieldNewValues)
+}
+
+// SetConfidence sets the "confidence" field.
+func (m *TodoEventMutation) SetConfidence(f float64) {
+	m.confidence = &f
+	m.addconfidence = nil
+}
+
+// Confidence returns the value of the "confidence" field in the mutation.
+func (m *TodoEventMutation) Confidence() (r float64, exists bool) {
+	v := m.confidence
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConfidence returns the old "confidence" field's value of the TodoEvent entity.
+// If the TodoEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoEventMutation) OldConfidence(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConfidence is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConfidence requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConfidence: %w", err)
+	}
+	return oldValue.Confidence, nil
+}
+
+// AddConfidence adds f to the "confidence" field.
+func (m *TodoEventMutation) AddConfidence(f float64) {
+	if m.addconfidence != nil {
+		*m.addconfidence += f
+	} else {
+		m.addconfidence = &f
+	}
+}
+
+// AddedConfidence returns the value that was added to the "confidence" field in this mutation.
+func (m *TodoEventMutation) AddedConfidence() (r float64, exists bool) {
+	v := m.addconfidence
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetConfidence resets all changes to the "confidence" field.
+func (m *TodoEventMutation) ResetConfidence() {
+	m.confidence = nil
+	m.addconfidence = nil
+}
+
+// SetReason sets the "reason" field.
+func (m *TodoEventMutation) SetReason(s string) {
+	m.reason = &s
+}
+
+// Reason returns the value of the "reason" field in the mutation.
+func (m *TodoEventMutation) Reason() (r string, exists bool) {
+	v := m.reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReason returns the old "reason" field's value of the TodoEvent entity.
+// If the TodoEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TodoEventMutation) OldReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReason: %w", err)
+	}
+	return oldValue.Reason, nil
+}
+
+// ClearReason clears the value of the "reason" field.
+func (m *TodoEventMutation) ClearReason() {
+	m.reason = nil
+	m.clearedFields[todoevent.FieldReason] = struct{}{}
+}
+
+// ReasonCleared returns if the "reason" field was cleared in this mutation.
+func (m *TodoEventMutation) ReasonCleared() bool {
+	_, ok := m.clearedFields[todoevent.FieldReason]
+	return ok
+}
+
+// ResetReason resets all changes to the "reason" field.
+func (m *TodoEventMutation) ResetReason() {
+	m.reason = nil
+	delete(m.clearedFields, todoevent.FieldReason)
+}
+
+// ClearTodo clears the "todo" edge to the Todo entity.
+func (m *TodoEventMutation) ClearTodo() {
+	m.clearedtodo = true
+	m.clearedFields[todoevent.FieldTodoID] = struct{}{}
+}
+
+// TodoCleared reports if the "todo" edge to the Todo entity was cleared.
+func (m *TodoEventMutation) TodoCleared() bool {
+	return m.clearedtodo
+}
+
+// TodoIDs returns the "todo" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// TodoID instead. It exists only for internal usage by the builders.
+func (m *TodoEventMutation) TodoIDs() (ids []uuid.UUID) {
+	if id := m.todo; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetTodo resets all changes to the "todo" edge.
+func (m *TodoEventMutation) ResetTodo() {
+	m.todo = nil
+	m.clearedtodo = false
+}
+
+// ClearSourceCandidate clears the "source_candidate" edge to the TodoCandidate entity.
+func (m *TodoEventMutation) ClearSourceCandidate() {
+	m.clearedsource_candidate = true
+	m.clearedFields[todoevent.FieldSourceCandidateID] = struct{}{}
+}
+
+// SourceCandidateCleared reports if the "source_candidate" edge to the TodoCandidate entity was cleared.
+func (m *TodoEventMutation) SourceCandidateCleared() bool {
+	return m.SourceCandidateIDCleared() || m.clearedsource_candidate
+}
+
+// SourceCandidateIDs returns the "source_candidate" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SourceCandidateID instead. It exists only for internal usage by the builders.
+func (m *TodoEventMutation) SourceCandidateIDs() (ids []uuid.UUID) {
+	if id := m.source_candidate; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSourceCandidate resets all changes to the "source_candidate" edge.
+func (m *TodoEventMutation) ResetSourceCandidate() {
+	m.source_candidate = nil
+	m.clearedsource_candidate = false
+}
+
+// ClearSourceMessage clears the "source_message" edge to the ChannelMessage entity.
+func (m *TodoEventMutation) ClearSourceMessage() {
+	m.clearedsource_message = true
+	m.clearedFields[todoevent.FieldSourceMessageID] = struct{}{}
+}
+
+// SourceMessageCleared reports if the "source_message" edge to the ChannelMessage entity was cleared.
+func (m *TodoEventMutation) SourceMessageCleared() bool {
+	return m.SourceMessageIDCleared() || m.clearedsource_message
+}
+
+// SourceMessageIDs returns the "source_message" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SourceMessageID instead. It exists only for internal usage by the builders.
+func (m *TodoEventMutation) SourceMessageIDs() (ids []uuid.UUID) {
+	if id := m.source_message; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSourceMessage resets all changes to the "source_message" edge.
+func (m *TodoEventMutation) ResetSourceMessage() {
+	m.source_message = nil
+	m.clearedsource_message = false
+}
+
+// Where appends a list predicates to the TodoEventMutation builder.
+func (m *TodoEventMutation) Where(ps ...predicate.TodoEvent) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the TodoEventMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *TodoEventMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.TodoEvent, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *TodoEventMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *TodoEventMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (TodoEvent).
+func (m *TodoEventMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *TodoEventMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.created_at != nil {
+		fields = append(fields, todoevent.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, todoevent.FieldUpdatedAt)
+	}
+	if m.todo != nil {
+		fields = append(fields, todoevent.FieldTodoID)
+	}
+	if m.source_candidate != nil {
+		fields = append(fields, todoevent.FieldSourceCandidateID)
+	}
+	if m.source_message != nil {
+		fields = append(fields, todoevent.FieldSourceMessageID)
+	}
+	if m.event_type != nil {
+		fields = append(fields, todoevent.FieldEventType)
+	}
+	if m.old_values != nil {
+		fields = append(fields, todoevent.FieldOldValues)
+	}
+	if m.new_values != nil {
+		fields = append(fields, todoevent.FieldNewValues)
+	}
+	if m.confidence != nil {
+		fields = append(fields, todoevent.FieldConfidence)
+	}
+	if m.reason != nil {
+		fields = append(fields, todoevent.FieldReason)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *TodoEventMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case todoevent.FieldCreatedAt:
+		return m.CreatedAt()
+	case todoevent.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case todoevent.FieldTodoID:
+		return m.TodoID()
+	case todoevent.FieldSourceCandidateID:
+		return m.SourceCandidateID()
+	case todoevent.FieldSourceMessageID:
+		return m.SourceMessageID()
+	case todoevent.FieldEventType:
+		return m.EventType()
+	case todoevent.FieldOldValues:
+		return m.OldValues()
+	case todoevent.FieldNewValues:
+		return m.NewValues()
+	case todoevent.FieldConfidence:
+		return m.Confidence()
+	case todoevent.FieldReason:
+		return m.Reason()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *TodoEventMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case todoevent.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case todoevent.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case todoevent.FieldTodoID:
+		return m.OldTodoID(ctx)
+	case todoevent.FieldSourceCandidateID:
+		return m.OldSourceCandidateID(ctx)
+	case todoevent.FieldSourceMessageID:
+		return m.OldSourceMessageID(ctx)
+	case todoevent.FieldEventType:
+		return m.OldEventType(ctx)
+	case todoevent.FieldOldValues:
+		return m.OldOldValues(ctx)
+	case todoevent.FieldNewValues:
+		return m.OldNewValues(ctx)
+	case todoevent.FieldConfidence:
+		return m.OldConfidence(ctx)
+	case todoevent.FieldReason:
+		return m.OldReason(ctx)
+	}
+	return nil, fmt.Errorf("unknown TodoEvent field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *TodoEventMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case todoevent.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case todoevent.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case todoevent.FieldTodoID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTodoID(v)
+		return nil
+	case todoevent.FieldSourceCandidateID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceCandidateID(v)
+		return nil
+	case todoevent.FieldSourceMessageID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceMessageID(v)
+		return nil
+	case todoevent.FieldEventType:
+		v, ok := value.(todoevent.EventType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEventType(v)
+		return nil
+	case todoevent.FieldOldValues:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOldValues(v)
+		return nil
+	case todoevent.FieldNewValues:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNewValues(v)
+		return nil
+	case todoevent.FieldConfidence:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConfidence(v)
+		return nil
+	case todoevent.FieldReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReason(v)
+		return nil
+	}
+	return fmt.Errorf("unknown TodoEvent field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *TodoEventMutation) AddedFields() []string {
+	var fields []string
+	if m.addconfidence != nil {
+		fields = append(fields, todoevent.FieldConfidence)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *TodoEventMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case todoevent.FieldConfidence:
+		return m.AddedConfidence()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *TodoEventMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case todoevent.FieldConfidence:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddConfidence(v)
+		return nil
+	}
+	return fmt.Errorf("unknown TodoEvent numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *TodoEventMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(todoevent.FieldSourceCandidateID) {
+		fields = append(fields, todoevent.FieldSourceCandidateID)
+	}
+	if m.FieldCleared(todoevent.FieldSourceMessageID) {
+		fields = append(fields, todoevent.FieldSourceMessageID)
+	}
+	if m.FieldCleared(todoevent.FieldOldValues) {
+		fields = append(fields, todoevent.FieldOldValues)
+	}
+	if m.FieldCleared(todoevent.FieldNewValues) {
+		fields = append(fields, todoevent.FieldNewValues)
+	}
+	if m.FieldCleared(todoevent.FieldReason) {
+		fields = append(fields, todoevent.FieldReason)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *TodoEventMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *TodoEventMutation) ClearField(name string) error {
+	switch name {
+	case todoevent.FieldSourceCandidateID:
+		m.ClearSourceCandidateID()
+		return nil
+	case todoevent.FieldSourceMessageID:
+		m.ClearSourceMessageID()
+		return nil
+	case todoevent.FieldOldValues:
+		m.ClearOldValues()
+		return nil
+	case todoevent.FieldNewValues:
+		m.ClearNewValues()
+		return nil
+	case todoevent.FieldReason:
+		m.ClearReason()
+		return nil
+	}
+	return fmt.Errorf("unknown TodoEvent nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *TodoEventMutation) ResetField(name string) error {
+	switch name {
+	case todoevent.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case todoevent.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case todoevent.FieldTodoID:
+		m.ResetTodoID()
+		return nil
+	case todoevent.FieldSourceCandidateID:
+		m.ResetSourceCandidateID()
+		return nil
+	case todoevent.FieldSourceMessageID:
+		m.ResetSourceMessageID()
+		return nil
+	case todoevent.FieldEventType:
+		m.ResetEventType()
+		return nil
+	case todoevent.FieldOldValues:
+		m.ResetOldValues()
+		return nil
+	case todoevent.FieldNewValues:
+		m.ResetNewValues()
+		return nil
+	case todoevent.FieldConfidence:
+		m.ResetConfidence()
+		return nil
+	case todoevent.FieldReason:
+		m.ResetReason()
+		return nil
+	}
+	return fmt.Errorf("unknown TodoEvent field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *TodoEventMutation) AddedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.todo != nil {
+		edges = append(edges, todoevent.EdgeTodo)
+	}
+	if m.source_candidate != nil {
+		edges = append(edges, todoevent.EdgeSourceCandidate)
+	}
+	if m.source_message != nil {
+		edges = append(edges, todoevent.EdgeSourceMessage)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *TodoEventMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case todoevent.EdgeTodo:
+		if id := m.todo; id != nil {
+			return []ent.Value{*id}
+		}
+	case todoevent.EdgeSourceCandidate:
+		if id := m.source_candidate; id != nil {
+			return []ent.Value{*id}
+		}
+	case todoevent.EdgeSourceMessage:
+		if id := m.source_message; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *TodoEventMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 3)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *TodoEventMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *TodoEventMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 3)
+	if m.clearedtodo {
+		edges = append(edges, todoevent.EdgeTodo)
+	}
+	if m.clearedsource_candidate {
+		edges = append(edges, todoevent.EdgeSourceCandidate)
+	}
+	if m.clearedsource_message {
+		edges = append(edges, todoevent.EdgeSourceMessage)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *TodoEventMutation) EdgeCleared(name string) bool {
+	switch name {
+	case todoevent.EdgeTodo:
+		return m.clearedtodo
+	case todoevent.EdgeSourceCandidate:
+		return m.clearedsource_candidate
+	case todoevent.EdgeSourceMessage:
+		return m.clearedsource_message
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *TodoEventMutation) ClearEdge(name string) error {
+	switch name {
+	case todoevent.EdgeTodo:
+		m.ClearTodo()
+		return nil
+	case todoevent.EdgeSourceCandidate:
+		m.ClearSourceCandidate()
+		return nil
+	case todoevent.EdgeSourceMessage:
+		m.ClearSourceMessage()
+		return nil
+	}
+	return fmt.Errorf("unknown TodoEvent unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *TodoEventMutation) ResetEdge(name string) error {
+	switch name {
+	case todoevent.EdgeTodo:
+		m.ResetTodo()
+		return nil
+	case todoevent.EdgeSourceCandidate:
+		m.ResetSourceCandidate()
+		return nil
+	case todoevent.EdgeSourceMessage:
+		m.ResetSourceMessage()
+		return nil
+	}
+	return fmt.Errorf("unknown TodoEvent edge %s", name)
 }
 
 // TranslationLocaleMutation represents an operation that mutates the TranslationLocale nodes in the graph.

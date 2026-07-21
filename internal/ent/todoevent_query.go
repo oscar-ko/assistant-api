@@ -3,14 +3,12 @@
 package ent
 
 import (
-	"assistant-api/internal/ent/channel"
+	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todoevent"
-	"assistant-api/internal/ent/user"
 	"context"
-	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -21,59 +19,57 @@ import (
 	"github.com/google/uuid"
 )
 
-// TodoQuery is the builder for querying Todo entities.
-type TodoQuery struct {
+// TodoEventQuery is the builder for querying TodoEvent entities.
+type TodoEventQuery struct {
 	config
 	ctx                 *QueryContext
-	order               []todo.OrderOption
+	order               []todoevent.OrderOption
 	inters              []Interceptor
-	predicates          []predicate.Todo
-	withChannel         *ChannelQuery
-	withOwner           *UserQuery
+	predicates          []predicate.TodoEvent
+	withTodo            *TodoQuery
 	withSourceCandidate *TodoCandidateQuery
-	withEvents          *TodoEventQuery
+	withSourceMessage   *ChannelMessageQuery
 	modifiers           []func(*sql.Selector)
-	loadTotal           []func(context.Context, []*Todo) error
-	withNamedEvents     map[string]*TodoEventQuery
+	loadTotal           []func(context.Context, []*TodoEvent) error
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
-// Where adds a new predicate for the TodoQuery builder.
-func (_q *TodoQuery) Where(ps ...predicate.Todo) *TodoQuery {
+// Where adds a new predicate for the TodoEventQuery builder.
+func (_q *TodoEventQuery) Where(ps ...predicate.TodoEvent) *TodoEventQuery {
 	_q.predicates = append(_q.predicates, ps...)
 	return _q
 }
 
 // Limit the number of records to be returned by this query.
-func (_q *TodoQuery) Limit(limit int) *TodoQuery {
+func (_q *TodoEventQuery) Limit(limit int) *TodoEventQuery {
 	_q.ctx.Limit = &limit
 	return _q
 }
 
 // Offset to start from.
-func (_q *TodoQuery) Offset(offset int) *TodoQuery {
+func (_q *TodoEventQuery) Offset(offset int) *TodoEventQuery {
 	_q.ctx.Offset = &offset
 	return _q
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
-func (_q *TodoQuery) Unique(unique bool) *TodoQuery {
+func (_q *TodoEventQuery) Unique(unique bool) *TodoEventQuery {
 	_q.ctx.Unique = &unique
 	return _q
 }
 
 // Order specifies how the records should be ordered.
-func (_q *TodoQuery) Order(o ...todo.OrderOption) *TodoQuery {
+func (_q *TodoEventQuery) Order(o ...todoevent.OrderOption) *TodoEventQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
 
-// QueryChannel chains the current query on the "channel" edge.
-func (_q *TodoQuery) QueryChannel() *ChannelQuery {
-	query := (&ChannelClient{config: _q.config}).Query()
+// QueryTodo chains the current query on the "todo" edge.
+func (_q *TodoEventQuery) QueryTodo() *TodoQuery {
+	query := (&TodoClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -83,31 +79,9 @@ func (_q *TodoQuery) QueryChannel() *ChannelQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(todo.Table, todo.FieldID, selector),
-			sqlgraph.To(channel.Table, channel.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, todo.ChannelTable, todo.ChannelColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
-// QueryOwner chains the current query on the "owner" edge.
-func (_q *TodoQuery) QueryOwner() *UserQuery {
-	query := (&UserClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(todo.Table, todo.FieldID, selector),
-			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, todo.OwnerTable, todo.OwnerColumn),
+			sqlgraph.From(todoevent.Table, todoevent.FieldID, selector),
+			sqlgraph.To(todo.Table, todo.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, todoevent.TodoTable, todoevent.TodoColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -116,7 +90,7 @@ func (_q *TodoQuery) QueryOwner() *UserQuery {
 }
 
 // QuerySourceCandidate chains the current query on the "source_candidate" edge.
-func (_q *TodoQuery) QuerySourceCandidate() *TodoCandidateQuery {
+func (_q *TodoEventQuery) QuerySourceCandidate() *TodoCandidateQuery {
 	query := (&TodoCandidateClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
@@ -127,9 +101,9 @@ func (_q *TodoQuery) QuerySourceCandidate() *TodoCandidateQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(todo.Table, todo.FieldID, selector),
+			sqlgraph.From(todoevent.Table, todoevent.FieldID, selector),
 			sqlgraph.To(todocandidate.Table, todocandidate.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, todo.SourceCandidateTable, todo.SourceCandidateColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, todoevent.SourceCandidateTable, todoevent.SourceCandidateColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -137,9 +111,9 @@ func (_q *TodoQuery) QuerySourceCandidate() *TodoCandidateQuery {
 	return query
 }
 
-// QueryEvents chains the current query on the "events" edge.
-func (_q *TodoQuery) QueryEvents() *TodoEventQuery {
-	query := (&TodoEventClient{config: _q.config}).Query()
+// QuerySourceMessage chains the current query on the "source_message" edge.
+func (_q *TodoEventQuery) QuerySourceMessage() *ChannelMessageQuery {
+	query := (&ChannelMessageClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -149,9 +123,9 @@ func (_q *TodoQuery) QueryEvents() *TodoEventQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(todo.Table, todo.FieldID, selector),
-			sqlgraph.To(todoevent.Table, todoevent.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, todo.EventsTable, todo.EventsColumn),
+			sqlgraph.From(todoevent.Table, todoevent.FieldID, selector),
+			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, todoevent.SourceMessageTable, todoevent.SourceMessageColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -159,21 +133,21 @@ func (_q *TodoQuery) QueryEvents() *TodoEventQuery {
 	return query
 }
 
-// First returns the first Todo entity from the query.
-// Returns a *NotFoundError when no Todo was found.
-func (_q *TodoQuery) First(ctx context.Context) (*Todo, error) {
+// First returns the first TodoEvent entity from the query.
+// Returns a *NotFoundError when no TodoEvent was found.
+func (_q *TodoEventQuery) First(ctx context.Context) (*TodoEvent, error) {
 	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{todo.Label}
+		return nil, &NotFoundError{todoevent.Label}
 	}
 	return nodes[0], nil
 }
 
 // FirstX is like First, but panics if an error occurs.
-func (_q *TodoQuery) FirstX(ctx context.Context) *Todo {
+func (_q *TodoEventQuery) FirstX(ctx context.Context) *TodoEvent {
 	node, err := _q.First(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -181,22 +155,22 @@ func (_q *TodoQuery) FirstX(ctx context.Context) *Todo {
 	return node
 }
 
-// FirstID returns the first Todo ID from the query.
-// Returns a *NotFoundError when no Todo ID was found.
-func (_q *TodoQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
+// FirstID returns the first TodoEvent ID from the query.
+// Returns a *NotFoundError when no TodoEvent ID was found.
+func (_q *TodoEventQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
 	var ids []uuid.UUID
 	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{todo.Label}
+		err = &NotFoundError{todoevent.Label}
 		return
 	}
 	return ids[0], nil
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *TodoQuery) FirstIDX(ctx context.Context) uuid.UUID {
+func (_q *TodoEventQuery) FirstIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -204,10 +178,10 @@ func (_q *TodoQuery) FirstIDX(ctx context.Context) uuid.UUID {
 	return id
 }
 
-// Only returns a single Todo entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when more than one Todo entity is found.
-// Returns a *NotFoundError when no Todo entities are found.
-func (_q *TodoQuery) Only(ctx context.Context) (*Todo, error) {
+// Only returns a single TodoEvent entity found by the query, ensuring it only returns one.
+// Returns a *NotSingularError when more than one TodoEvent entity is found.
+// Returns a *NotFoundError when no TodoEvent entities are found.
+func (_q *TodoEventQuery) Only(ctx context.Context) (*TodoEvent, error) {
 	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
@@ -216,14 +190,14 @@ func (_q *TodoQuery) Only(ctx context.Context) (*Todo, error) {
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{todo.Label}
+		return nil, &NotFoundError{todoevent.Label}
 	default:
-		return nil, &NotSingularError{todo.Label}
+		return nil, &NotSingularError{todoevent.Label}
 	}
 }
 
 // OnlyX is like Only, but panics if an error occurs.
-func (_q *TodoQuery) OnlyX(ctx context.Context) *Todo {
+func (_q *TodoEventQuery) OnlyX(ctx context.Context) *TodoEvent {
 	node, err := _q.Only(ctx)
 	if err != nil {
 		panic(err)
@@ -231,10 +205,10 @@ func (_q *TodoQuery) OnlyX(ctx context.Context) *Todo {
 	return node
 }
 
-// OnlyID is like Only, but returns the only Todo ID in the query.
-// Returns a *NotSingularError when more than one Todo ID is found.
+// OnlyID is like Only, but returns the only TodoEvent ID in the query.
+// Returns a *NotSingularError when more than one TodoEvent ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *TodoQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
+func (_q *TodoEventQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
 	var ids []uuid.UUID
 	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
@@ -243,15 +217,15 @@ func (_q *TodoQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{todo.Label}
+		err = &NotFoundError{todoevent.Label}
 	default:
-		err = &NotSingularError{todo.Label}
+		err = &NotSingularError{todoevent.Label}
 	}
 	return
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *TodoQuery) OnlyIDX(ctx context.Context) uuid.UUID {
+func (_q *TodoEventQuery) OnlyIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -259,18 +233,18 @@ func (_q *TodoQuery) OnlyIDX(ctx context.Context) uuid.UUID {
 	return id
 }
 
-// All executes the query and returns a list of Todos.
-func (_q *TodoQuery) All(ctx context.Context) ([]*Todo, error) {
+// All executes the query and returns a list of TodoEvents.
+func (_q *TodoEventQuery) All(ctx context.Context) ([]*TodoEvent, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*Todo, *TodoQuery]()
-	return withInterceptors[[]*Todo](ctx, _q, qr, _q.inters)
+	qr := querierAll[[]*TodoEvent, *TodoEventQuery]()
+	return withInterceptors[[]*TodoEvent](ctx, _q, qr, _q.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
-func (_q *TodoQuery) AllX(ctx context.Context) []*Todo {
+func (_q *TodoEventQuery) AllX(ctx context.Context) []*TodoEvent {
 	nodes, err := _q.All(ctx)
 	if err != nil {
 		panic(err)
@@ -278,20 +252,20 @@ func (_q *TodoQuery) AllX(ctx context.Context) []*Todo {
 	return nodes
 }
 
-// IDs executes the query and returns a list of Todo IDs.
-func (_q *TodoQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
+// IDs executes the query and returns a list of TodoEvent IDs.
+func (_q *TodoEventQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(todo.FieldID).Scan(ctx, &ids); err != nil {
+	if err = _q.Select(todoevent.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *TodoQuery) IDsX(ctx context.Context) []uuid.UUID {
+func (_q *TodoEventQuery) IDsX(ctx context.Context) []uuid.UUID {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -300,16 +274,16 @@ func (_q *TodoQuery) IDsX(ctx context.Context) []uuid.UUID {
 }
 
 // Count returns the count of the given query.
-func (_q *TodoQuery) Count(ctx context.Context) (int, error) {
+func (_q *TodoEventQuery) Count(ctx context.Context) (int, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*TodoQuery](), _q.inters)
+	return withInterceptors[int](ctx, _q, querierCount[*TodoEventQuery](), _q.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
-func (_q *TodoQuery) CountX(ctx context.Context) int {
+func (_q *TodoEventQuery) CountX(ctx context.Context) int {
 	count, err := _q.Count(ctx)
 	if err != nil {
 		panic(err)
@@ -318,7 +292,7 @@ func (_q *TodoQuery) CountX(ctx context.Context) int {
 }
 
 // Exist returns true if the query has elements in the graph.
-func (_q *TodoQuery) Exist(ctx context.Context) (bool, error) {
+func (_q *TodoEventQuery) Exist(ctx context.Context) (bool, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
@@ -331,7 +305,7 @@ func (_q *TodoQuery) Exist(ctx context.Context) (bool, error) {
 }
 
 // ExistX is like Exist, but panics if an error occurs.
-func (_q *TodoQuery) ExistX(ctx context.Context) bool {
+func (_q *TodoEventQuery) ExistX(ctx context.Context) bool {
 	exist, err := _q.Exist(ctx)
 	if err != nil {
 		panic(err)
@@ -339,53 +313,41 @@ func (_q *TodoQuery) ExistX(ctx context.Context) bool {
 	return exist
 }
 
-// Clone returns a duplicate of the TodoQuery builder, including all associated steps. It can be
+// Clone returns a duplicate of the TodoEventQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
-func (_q *TodoQuery) Clone() *TodoQuery {
+func (_q *TodoEventQuery) Clone() *TodoEventQuery {
 	if _q == nil {
 		return nil
 	}
-	return &TodoQuery{
+	return &TodoEventQuery{
 		config:              _q.config,
 		ctx:                 _q.ctx.Clone(),
-		order:               append([]todo.OrderOption{}, _q.order...),
+		order:               append([]todoevent.OrderOption{}, _q.order...),
 		inters:              append([]Interceptor{}, _q.inters...),
-		predicates:          append([]predicate.Todo{}, _q.predicates...),
-		withChannel:         _q.withChannel.Clone(),
-		withOwner:           _q.withOwner.Clone(),
+		predicates:          append([]predicate.TodoEvent{}, _q.predicates...),
+		withTodo:            _q.withTodo.Clone(),
 		withSourceCandidate: _q.withSourceCandidate.Clone(),
-		withEvents:          _q.withEvents.Clone(),
+		withSourceMessage:   _q.withSourceMessage.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
 }
 
-// WithChannel tells the query-builder to eager-load the nodes that are connected to
-// the "channel" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *TodoQuery) WithChannel(opts ...func(*ChannelQuery)) *TodoQuery {
-	query := (&ChannelClient{config: _q.config}).Query()
+// WithTodo tells the query-builder to eager-load the nodes that are connected to
+// the "todo" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TodoEventQuery) WithTodo(opts ...func(*TodoQuery)) *TodoEventQuery {
+	query := (&TodoClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withChannel = query
-	return _q
-}
-
-// WithOwner tells the query-builder to eager-load the nodes that are connected to
-// the "owner" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *TodoQuery) WithOwner(opts ...func(*UserQuery)) *TodoQuery {
-	query := (&UserClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withOwner = query
+	_q.withTodo = query
 	return _q
 }
 
 // WithSourceCandidate tells the query-builder to eager-load the nodes that are connected to
 // the "source_candidate" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *TodoQuery) WithSourceCandidate(opts ...func(*TodoCandidateQuery)) *TodoQuery {
+func (_q *TodoEventQuery) WithSourceCandidate(opts ...func(*TodoCandidateQuery)) *TodoEventQuery {
 	query := (&TodoCandidateClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
@@ -394,14 +356,14 @@ func (_q *TodoQuery) WithSourceCandidate(opts ...func(*TodoCandidateQuery)) *Tod
 	return _q
 }
 
-// WithEvents tells the query-builder to eager-load the nodes that are connected to
-// the "events" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *TodoQuery) WithEvents(opts ...func(*TodoEventQuery)) *TodoQuery {
-	query := (&TodoEventClient{config: _q.config}).Query()
+// WithSourceMessage tells the query-builder to eager-load the nodes that are connected to
+// the "source_message" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TodoEventQuery) WithSourceMessage(opts ...func(*ChannelMessageQuery)) *TodoEventQuery {
+	query := (&ChannelMessageClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withEvents = query
+	_q.withSourceMessage = query
 	return _q
 }
 
@@ -415,15 +377,15 @@ func (_q *TodoQuery) WithEvents(opts ...func(*TodoEventQuery)) *TodoQuery {
 //		Count int `json:"count,omitempty"`
 //	}
 //
-//	client.Todo.Query().
-//		GroupBy(todo.FieldCreatedAt).
+//	client.TodoEvent.Query().
+//		GroupBy(todoevent.FieldCreatedAt).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *TodoQuery) GroupBy(field string, fields ...string) *TodoGroupBy {
+func (_q *TodoEventQuery) GroupBy(field string, fields ...string) *TodoEventGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &TodoGroupBy{build: _q}
+	grbuild := &TodoEventGroupBy{build: _q}
 	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = todo.Label
+	grbuild.label = todoevent.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
 }
@@ -437,23 +399,23 @@ func (_q *TodoQuery) GroupBy(field string, fields ...string) *TodoGroupBy {
 //		CreatedAt time.Time `json:"created_at,omitempty"`
 //	}
 //
-//	client.Todo.Query().
-//		Select(todo.FieldCreatedAt).
+//	client.TodoEvent.Query().
+//		Select(todoevent.FieldCreatedAt).
 //		Scan(ctx, &v)
-func (_q *TodoQuery) Select(fields ...string) *TodoSelect {
+func (_q *TodoEventQuery) Select(fields ...string) *TodoEventSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &TodoSelect{TodoQuery: _q}
-	sbuild.label = todo.Label
+	sbuild := &TodoEventSelect{TodoEventQuery: _q}
+	sbuild.label = todoevent.Label
 	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
 
-// Aggregate returns a TodoSelect configured with the given aggregations.
-func (_q *TodoQuery) Aggregate(fns ...AggregateFunc) *TodoSelect {
+// Aggregate returns a TodoEventSelect configured with the given aggregations.
+func (_q *TodoEventQuery) Aggregate(fns ...AggregateFunc) *TodoEventSelect {
 	return _q.Select().Aggregate(fns...)
 }
 
-func (_q *TodoQuery) prepareQuery(ctx context.Context) error {
+func (_q *TodoEventQuery) prepareQuery(ctx context.Context) error {
 	for _, inter := range _q.inters {
 		if inter == nil {
 			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
@@ -465,7 +427,7 @@ func (_q *TodoQuery) prepareQuery(ctx context.Context) error {
 		}
 	}
 	for _, f := range _q.ctx.Fields {
-		if !todo.ValidColumn(f) {
+		if !todoevent.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
@@ -479,22 +441,21 @@ func (_q *TodoQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (_q *TodoQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Todo, error) {
+func (_q *TodoEventQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*TodoEvent, error) {
 	var (
-		nodes       = []*Todo{}
+		nodes       = []*TodoEvent{}
 		_spec       = _q.querySpec()
-		loadedTypes = [4]bool{
-			_q.withChannel != nil,
-			_q.withOwner != nil,
+		loadedTypes = [3]bool{
+			_q.withTodo != nil,
 			_q.withSourceCandidate != nil,
-			_q.withEvents != nil,
+			_q.withSourceMessage != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
-		return (*Todo).scanValues(nil, columns)
+		return (*TodoEvent).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
-		node := &Todo{config: _q.config}
+		node := &TodoEvent{config: _q.config}
 		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
@@ -511,35 +472,21 @@ func (_q *TodoQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Todo, e
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-	if query := _q.withChannel; query != nil {
-		if err := _q.loadChannel(ctx, query, nodes, nil,
-			func(n *Todo, e *Channel) { n.Edges.Channel = e }); err != nil {
-			return nil, err
-		}
-	}
-	if query := _q.withOwner; query != nil {
-		if err := _q.loadOwner(ctx, query, nodes, nil,
-			func(n *Todo, e *User) { n.Edges.Owner = e }); err != nil {
+	if query := _q.withTodo; query != nil {
+		if err := _q.loadTodo(ctx, query, nodes, nil,
+			func(n *TodoEvent, e *Todo) { n.Edges.Todo = e }); err != nil {
 			return nil, err
 		}
 	}
 	if query := _q.withSourceCandidate; query != nil {
 		if err := _q.loadSourceCandidate(ctx, query, nodes, nil,
-			func(n *Todo, e *TodoCandidate) { n.Edges.SourceCandidate = e }); err != nil {
+			func(n *TodoEvent, e *TodoCandidate) { n.Edges.SourceCandidate = e }); err != nil {
 			return nil, err
 		}
 	}
-	if query := _q.withEvents; query != nil {
-		if err := _q.loadEvents(ctx, query, nodes,
-			func(n *Todo) { n.Edges.Events = []*TodoEvent{} },
-			func(n *Todo, e *TodoEvent) { n.Edges.Events = append(n.Edges.Events, e) }); err != nil {
-			return nil, err
-		}
-	}
-	for name, query := range _q.withNamedEvents {
-		if err := _q.loadEvents(ctx, query, nodes,
-			func(n *Todo) { n.appendNamedEvents(name) },
-			func(n *Todo, e *TodoEvent) { n.appendNamedEvents(name, e) }); err != nil {
+	if query := _q.withSourceMessage; query != nil {
+		if err := _q.loadSourceMessage(ctx, query, nodes, nil,
+			func(n *TodoEvent, e *ChannelMessage) { n.Edges.SourceMessage = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -551,11 +498,11 @@ func (_q *TodoQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Todo, e
 	return nodes, nil
 }
 
-func (_q *TodoQuery) loadChannel(ctx context.Context, query *ChannelQuery, nodes []*Todo, init func(*Todo), assign func(*Todo, *Channel)) error {
+func (_q *TodoEventQuery) loadTodo(ctx context.Context, query *TodoQuery, nodes []*TodoEvent, init func(*TodoEvent), assign func(*TodoEvent, *Todo)) error {
 	ids := make([]uuid.UUID, 0, len(nodes))
-	nodeids := make(map[uuid.UUID][]*Todo)
+	nodeids := make(map[uuid.UUID][]*TodoEvent)
 	for i := range nodes {
-		fk := nodes[i].ChannelID
+		fk := nodes[i].TodoID
 		if _, ok := nodeids[fk]; !ok {
 			ids = append(ids, fk)
 		}
@@ -564,7 +511,7 @@ func (_q *TodoQuery) loadChannel(ctx context.Context, query *ChannelQuery, nodes
 	if len(ids) == 0 {
 		return nil
 	}
-	query.Where(channel.IDIn(ids...))
+	query.Where(todo.IDIn(ids...))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
@@ -572,7 +519,7 @@ func (_q *TodoQuery) loadChannel(ctx context.Context, query *ChannelQuery, nodes
 	for _, n := range neighbors {
 		nodes, ok := nodeids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "channel_id" returned %v`, n.ID)
+			return fmt.Errorf(`unexpected foreign-key "todo_id" returned %v`, n.ID)
 		}
 		for i := range nodes {
 			assign(nodes[i], n)
@@ -580,38 +527,9 @@ func (_q *TodoQuery) loadChannel(ctx context.Context, query *ChannelQuery, nodes
 	}
 	return nil
 }
-func (_q *TodoQuery) loadOwner(ctx context.Context, query *UserQuery, nodes []*Todo, init func(*Todo), assign func(*Todo, *User)) error {
+func (_q *TodoEventQuery) loadSourceCandidate(ctx context.Context, query *TodoCandidateQuery, nodes []*TodoEvent, init func(*TodoEvent), assign func(*TodoEvent, *TodoCandidate)) error {
 	ids := make([]uuid.UUID, 0, len(nodes))
-	nodeids := make(map[uuid.UUID][]*Todo)
-	for i := range nodes {
-		fk := nodes[i].OwnerUserID
-		if _, ok := nodeids[fk]; !ok {
-			ids = append(ids, fk)
-		}
-		nodeids[fk] = append(nodeids[fk], nodes[i])
-	}
-	if len(ids) == 0 {
-		return nil
-	}
-	query.Where(user.IDIn(ids...))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		nodes, ok := nodeids[n.ID]
-		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "owner_user_id" returned %v`, n.ID)
-		}
-		for i := range nodes {
-			assign(nodes[i], n)
-		}
-	}
-	return nil
-}
-func (_q *TodoQuery) loadSourceCandidate(ctx context.Context, query *TodoCandidateQuery, nodes []*Todo, init func(*Todo), assign func(*Todo, *TodoCandidate)) error {
-	ids := make([]uuid.UUID, 0, len(nodes))
-	nodeids := make(map[uuid.UUID][]*Todo)
+	nodeids := make(map[uuid.UUID][]*TodoEvent)
 	for i := range nodes {
 		if nodes[i].SourceCandidateID == nil {
 			continue
@@ -641,38 +559,40 @@ func (_q *TodoQuery) loadSourceCandidate(ctx context.Context, query *TodoCandida
 	}
 	return nil
 }
-func (_q *TodoQuery) loadEvents(ctx context.Context, query *TodoEventQuery, nodes []*Todo, init func(*Todo), assign func(*Todo, *TodoEvent)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[uuid.UUID]*Todo)
+func (_q *TodoEventQuery) loadSourceMessage(ctx context.Context, query *ChannelMessageQuery, nodes []*TodoEvent, init func(*TodoEvent), assign func(*TodoEvent, *ChannelMessage)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*TodoEvent)
 	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
+		if nodes[i].SourceMessageID == nil {
+			continue
 		}
+		fk := *nodes[i].SourceMessageID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
 	}
-	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(todoevent.FieldTodoID)
+	if len(ids) == 0 {
+		return nil
 	}
-	query.Where(predicate.TodoEvent(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(todo.EventsColumn), fks...))
-	}))
+	query.Where(channelmessage.IDIn(ids...))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.TodoID
-		node, ok := nodeids[fk]
+		nodes, ok := nodeids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "todo_id" returned %v for node %v`, fk, n.ID)
+			return fmt.Errorf(`unexpected foreign-key "source_message_id" returned %v`, n.ID)
 		}
-		assign(node, n)
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
 	}
 	return nil
 }
 
-func (_q *TodoQuery) sqlCount(ctx context.Context) (int, error) {
+func (_q *TodoEventQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
 	if len(_q.modifiers) > 0 {
 		_spec.Modifiers = _q.modifiers
@@ -684,8 +604,8 @@ func (_q *TodoQuery) sqlCount(ctx context.Context) (int, error) {
 	return sqlgraph.CountNodes(ctx, _q.driver, _spec)
 }
 
-func (_q *TodoQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(todo.Table, todo.Columns, sqlgraph.NewFieldSpec(todo.FieldID, field.TypeUUID))
+func (_q *TodoEventQuery) querySpec() *sqlgraph.QuerySpec {
+	_spec := sqlgraph.NewQuerySpec(todoevent.Table, todoevent.Columns, sqlgraph.NewFieldSpec(todoevent.FieldID, field.TypeUUID))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -694,20 +614,20 @@ func (_q *TodoQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, todo.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, todoevent.FieldID)
 		for i := range fields {
-			if fields[i] != todo.FieldID {
+			if fields[i] != todoevent.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
 		}
-		if _q.withChannel != nil {
-			_spec.Node.AddColumnOnce(todo.FieldChannelID)
-		}
-		if _q.withOwner != nil {
-			_spec.Node.AddColumnOnce(todo.FieldOwnerUserID)
+		if _q.withTodo != nil {
+			_spec.Node.AddColumnOnce(todoevent.FieldTodoID)
 		}
 		if _q.withSourceCandidate != nil {
-			_spec.Node.AddColumnOnce(todo.FieldSourceCandidateID)
+			_spec.Node.AddColumnOnce(todoevent.FieldSourceCandidateID)
+		}
+		if _q.withSourceMessage != nil {
+			_spec.Node.AddColumnOnce(todoevent.FieldSourceMessageID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {
@@ -733,12 +653,12 @@ func (_q *TodoQuery) querySpec() *sqlgraph.QuerySpec {
 	return _spec
 }
 
-func (_q *TodoQuery) sqlQuery(ctx context.Context) *sql.Selector {
+func (_q *TodoEventQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(_q.driver.Dialect())
-	t1 := builder.Table(todo.Table)
+	t1 := builder.Table(todoevent.Table)
 	columns := _q.ctx.Fields
 	if len(columns) == 0 {
-		columns = todo.Columns
+		columns = todoevent.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if _q.sql != nil {
@@ -765,42 +685,28 @@ func (_q *TodoQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	return selector
 }
 
-// WithNamedEvents tells the query-builder to eager-load the nodes that are connected to the "events"
-// edge with the given name. The optional arguments are used to configure the query builder of the edge.
-func (_q *TodoQuery) WithNamedEvents(name string, opts ...func(*TodoEventQuery)) *TodoQuery {
-	query := (&TodoEventClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	if _q.withNamedEvents == nil {
-		_q.withNamedEvents = make(map[string]*TodoEventQuery)
-	}
-	_q.withNamedEvents[name] = query
-	return _q
-}
-
-// TodoGroupBy is the group-by builder for Todo entities.
-type TodoGroupBy struct {
+// TodoEventGroupBy is the group-by builder for TodoEvent entities.
+type TodoEventGroupBy struct {
 	selector
-	build *TodoQuery
+	build *TodoEventQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
-func (_g *TodoGroupBy) Aggregate(fns ...AggregateFunc) *TodoGroupBy {
+func (_g *TodoEventGroupBy) Aggregate(fns ...AggregateFunc) *TodoEventGroupBy {
 	_g.fns = append(_g.fns, fns...)
 	return _g
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_g *TodoGroupBy) Scan(ctx context.Context, v any) error {
+func (_g *TodoEventGroupBy) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
 	if err := _g.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*TodoQuery, *TodoGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return scanWithInterceptors[*TodoEventQuery, *TodoEventGroupBy](ctx, _g.build, _g, _g.build.inters, v)
 }
 
-func (_g *TodoGroupBy) sqlScan(ctx context.Context, root *TodoQuery, v any) error {
+func (_g *TodoEventGroupBy) sqlScan(ctx context.Context, root *TodoEventQuery, v any) error {
 	selector := root.sqlQuery(ctx).Select()
 	aggregation := make([]string, 0, len(_g.fns))
 	for _, fn := range _g.fns {
@@ -827,28 +733,28 @@ func (_g *TodoGroupBy) sqlScan(ctx context.Context, root *TodoQuery, v any) erro
 	return sql.ScanSlice(rows, v)
 }
 
-// TodoSelect is the builder for selecting fields of Todo entities.
-type TodoSelect struct {
-	*TodoQuery
+// TodoEventSelect is the builder for selecting fields of TodoEvent entities.
+type TodoEventSelect struct {
+	*TodoEventQuery
 	selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
-func (_s *TodoSelect) Aggregate(fns ...AggregateFunc) *TodoSelect {
+func (_s *TodoEventSelect) Aggregate(fns ...AggregateFunc) *TodoEventSelect {
 	_s.fns = append(_s.fns, fns...)
 	return _s
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_s *TodoSelect) Scan(ctx context.Context, v any) error {
+func (_s *TodoEventSelect) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
 	if err := _s.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*TodoQuery, *TodoSelect](ctx, _s.TodoQuery, _s, _s.inters, v)
+	return scanWithInterceptors[*TodoEventQuery, *TodoEventSelect](ctx, _s.TodoEventQuery, _s, _s.inters, v)
 }
 
-func (_s *TodoSelect) sqlScan(ctx context.Context, root *TodoQuery, v any) error {
+func (_s *TodoEventSelect) sqlScan(ctx context.Context, root *TodoEventQuery, v any) error {
 	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(_s.fns))
 	for _, fn := range _s.fns {

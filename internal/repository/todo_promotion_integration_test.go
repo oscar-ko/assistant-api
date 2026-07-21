@@ -9,12 +9,17 @@ import (
 
 	"assistant-api/internal/ent/enttest"
 	"assistant-api/internal/ent/todo"
+	"assistant-api/internal/ent/todoevent"
 
 	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 func TestSaveTodoCandidateFromAnalysisPromotesReadyCandidateToTodo(t *testing.T) {
+	// 這個測試鎖住 Candidate -> Todo promotion 的完整資料邊界：
+	// 1. 完整 candidate 會建立正式 Todo。
+	// 2. promotion 會同步寫入 TodoEvent created audit trail。
+	// 3. event 的 source 與 new_values 可回溯到原 candidate/message 與正式 Todo 欄位。
 	ctx := context.Background()
 	client := enttest.Open(t, "sqlite3", "file:todo_promotion?mode=memory&cache=shared&_fk=1")
 	t.Cleanup(func() { client.Close() })
@@ -74,5 +79,18 @@ func TestSaveTodoCandidateFromAnalysisPromotesReadyCandidateToTodo(t *testing.T)
 	}
 	if promoted.DueAt == nil || !promoted.DueAt.Equal(dueAt) || promoted.DueTimezone != "Asia/Taipei" || promoted.DuePrecision != todo.DuePrecisionDatetime {
 		t.Fatalf("unexpected promoted todo due fields: %+v", promoted)
+	}
+	event := client.TodoEvent.Query().OnlyX(ctx)
+	if event.TodoID != promoted.ID || event.SourceCandidateID == nil || *event.SourceCandidateID != candidate.ID || event.SourceMessageID == nil || *event.SourceMessageID != message.ID {
+		t.Fatalf("unexpected todo event identity: %+v", event)
+	}
+	if event.EventType != todoevent.EventTypeCreated || event.Confidence != 0.91 || event.Reason != "message describes a complete todo" {
+		t.Fatalf("unexpected todo event metadata: %+v", event)
+	}
+	if len(event.OldValues) != 0 {
+		t.Fatalf("expected created event old_values to be empty, got %+v", event.OldValues)
+	}
+	if event.NewValues["title"] != "交報價單" || event.NewValues["due_at"] != dueAt.Format(time.RFC3339) || event.NewValues["due_precision"] != "datetime" {
+		t.Fatalf("unexpected todo event new_values: %+v", event.NewValues)
 	}
 }

@@ -17,6 +17,7 @@ import (
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
+	"assistant-api/internal/ent/todoevent"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -3595,6 +3596,255 @@ func (_m *TodoCandidateAssignee) ToEdge(order *TodoCandidateAssigneeOrder) *Todo
 		order = DefaultTodoCandidateAssigneeOrder
 	}
 	return &TodoCandidateAssigneeEdge{
+		Node:   _m,
+		Cursor: order.Field.toCursor(_m),
+	}
+}
+
+// TodoEventEdge is the edge representation of TodoEvent.
+type TodoEventEdge struct {
+	Node   *TodoEvent `json:"node"`
+	Cursor Cursor     `json:"cursor"`
+}
+
+// TodoEventConnection is the connection containing edges to TodoEvent.
+type TodoEventConnection struct {
+	Edges      []*TodoEventEdge `json:"edges"`
+	PageInfo   PageInfo         `json:"pageInfo"`
+	TotalCount int              `json:"totalCount"`
+}
+
+func (c *TodoEventConnection) build(nodes []*TodoEvent, pager *todoeventPager, after *Cursor, first *int, before *Cursor, last *int) {
+	c.PageInfo.HasNextPage = before != nil
+	c.PageInfo.HasPreviousPage = after != nil
+	if first != nil && *first+1 == len(nodes) {
+		c.PageInfo.HasNextPage = true
+		nodes = nodes[:len(nodes)-1]
+	} else if last != nil && *last+1 == len(nodes) {
+		c.PageInfo.HasPreviousPage = true
+		nodes = nodes[:len(nodes)-1]
+	}
+	var nodeAt func(int) *TodoEvent
+	if last != nil {
+		n := len(nodes) - 1
+		nodeAt = func(i int) *TodoEvent {
+			return nodes[n-i]
+		}
+	} else {
+		nodeAt = func(i int) *TodoEvent {
+			return nodes[i]
+		}
+	}
+	c.Edges = make([]*TodoEventEdge, len(nodes))
+	for i := range nodes {
+		node := nodeAt(i)
+		c.Edges[i] = &TodoEventEdge{
+			Node:   node,
+			Cursor: pager.toCursor(node),
+		}
+	}
+	if l := len(c.Edges); l > 0 {
+		c.PageInfo.StartCursor = &c.Edges[0].Cursor
+		c.PageInfo.EndCursor = &c.Edges[l-1].Cursor
+	}
+	if c.TotalCount == 0 {
+		c.TotalCount = len(nodes)
+	}
+}
+
+// TodoEventPaginateOption enables pagination customization.
+type TodoEventPaginateOption func(*todoeventPager) error
+
+// WithTodoEventOrder configures pagination ordering.
+func WithTodoEventOrder(order *TodoEventOrder) TodoEventPaginateOption {
+	if order == nil {
+		order = DefaultTodoEventOrder
+	}
+	o := *order
+	return func(pager *todoeventPager) error {
+		if err := o.Direction.Validate(); err != nil {
+			return err
+		}
+		if o.Field == nil {
+			o.Field = DefaultTodoEventOrder.Field
+		}
+		pager.order = &o
+		return nil
+	}
+}
+
+// WithTodoEventFilter configures pagination filter.
+func WithTodoEventFilter(filter func(*TodoEventQuery) (*TodoEventQuery, error)) TodoEventPaginateOption {
+	return func(pager *todoeventPager) error {
+		if filter == nil {
+			return errors.New("TodoEventQuery filter cannot be nil")
+		}
+		pager.filter = filter
+		return nil
+	}
+}
+
+type todoeventPager struct {
+	reverse bool
+	order   *TodoEventOrder
+	filter  func(*TodoEventQuery) (*TodoEventQuery, error)
+}
+
+func newTodoEventPager(opts []TodoEventPaginateOption, reverse bool) (*todoeventPager, error) {
+	pager := &todoeventPager{reverse: reverse}
+	for _, opt := range opts {
+		if err := opt(pager); err != nil {
+			return nil, err
+		}
+	}
+	if pager.order == nil {
+		pager.order = DefaultTodoEventOrder
+	}
+	return pager, nil
+}
+
+func (p *todoeventPager) applyFilter(query *TodoEventQuery) (*TodoEventQuery, error) {
+	if p.filter != nil {
+		return p.filter(query)
+	}
+	return query, nil
+}
+
+func (p *todoeventPager) toCursor(_m *TodoEvent) Cursor {
+	return p.order.Field.toCursor(_m)
+}
+
+func (p *todoeventPager) applyCursors(query *TodoEventQuery, after, before *Cursor) (*TodoEventQuery, error) {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	for _, predicate := range entgql.CursorsPredicate(after, before, DefaultTodoEventOrder.Field.column, p.order.Field.column, direction) {
+		query = query.Where(predicate)
+	}
+	return query, nil
+}
+
+func (p *todoeventPager) applyOrder(query *TodoEventQuery) *TodoEventQuery {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	query = query.Order(p.order.Field.toTerm(direction.OrderTermOption()))
+	if p.order.Field != DefaultTodoEventOrder.Field {
+		query = query.Order(DefaultTodoEventOrder.Field.toTerm(direction.OrderTermOption()))
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return query
+}
+
+func (p *todoeventPager) orderExpr(query *TodoEventQuery) sql.Querier {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return sql.ExprFunc(func(b *sql.Builder) {
+		b.Ident(p.order.Field.column).Pad().WriteString(string(direction))
+		if p.order.Field != DefaultTodoEventOrder.Field {
+			b.Comma().Ident(DefaultTodoEventOrder.Field.column).Pad().WriteString(string(direction))
+		}
+	})
+}
+
+// Paginate executes the query and returns a relay based cursor connection to TodoEvent.
+func (_m *TodoEventQuery) Paginate(
+	ctx context.Context, after *Cursor, first *int,
+	before *Cursor, last *int, opts ...TodoEventPaginateOption,
+) (*TodoEventConnection, error) {
+	if err := validateFirstLast(first, last); err != nil {
+		return nil, err
+	}
+	pager, err := newTodoEventPager(opts, last != nil)
+	if err != nil {
+		return nil, err
+	}
+	if _m, err = pager.applyFilter(_m); err != nil {
+		return nil, err
+	}
+	conn := &TodoEventConnection{Edges: []*TodoEventEdge{}}
+	ignoredEdges := !hasCollectedField(ctx, edgesField)
+	if hasCollectedField(ctx, totalCountField) || hasCollectedField(ctx, pageInfoField) {
+		hasPagination := after != nil || first != nil || before != nil || last != nil
+		if hasPagination || ignoredEdges {
+			c := _m.Clone()
+			c.ctx.Fields = nil
+			if conn.TotalCount, err = c.Count(ctx); err != nil {
+				return nil, err
+			}
+			conn.PageInfo.HasNextPage = first != nil && conn.TotalCount > 0
+			conn.PageInfo.HasPreviousPage = last != nil && conn.TotalCount > 0
+		}
+	}
+	if ignoredEdges || (first != nil && *first == 0) || (last != nil && *last == 0) {
+		return conn, nil
+	}
+	if _m, err = pager.applyCursors(_m, after, before); err != nil {
+		return nil, err
+	}
+	limit := paginateLimit(first, last)
+	if limit != 0 {
+		_m.Limit(limit)
+	}
+	if field := collectedField(ctx, edgesField, nodeField); field != nil {
+		if err := _m.collectField(ctx, limit == 1, graphql.GetOperationContext(ctx), *field, []string{edgesField, nodeField}); err != nil {
+			return nil, err
+		}
+	}
+	_m = pager.applyOrder(_m)
+	nodes, err := _m.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	conn.build(nodes, pager, after, first, before, last)
+	return conn, nil
+}
+
+// TodoEventOrderField defines the ordering field of TodoEvent.
+type TodoEventOrderField struct {
+	// Value extracts the ordering value from the given TodoEvent.
+	Value    func(*TodoEvent) (ent.Value, error)
+	column   string // field or computed.
+	toTerm   func(...sql.OrderTermOption) todoevent.OrderOption
+	toCursor func(*TodoEvent) Cursor
+}
+
+// TodoEventOrder defines the ordering of TodoEvent.
+type TodoEventOrder struct {
+	Direction OrderDirection       `json:"direction"`
+	Field     *TodoEventOrderField `json:"field"`
+}
+
+// DefaultTodoEventOrder is the default ordering of TodoEvent.
+var DefaultTodoEventOrder = &TodoEventOrder{
+	Direction: entgql.OrderDirectionAsc,
+	Field: &TodoEventOrderField{
+		Value: func(_m *TodoEvent) (ent.Value, error) {
+			return _m.ID, nil
+		},
+		column: todoevent.FieldID,
+		toTerm: todoevent.ByID,
+		toCursor: func(_m *TodoEvent) Cursor {
+			return Cursor{ID: _m.ID}
+		},
+	},
+}
+
+// ToEdge converts TodoEvent into TodoEventEdge.
+func (_m *TodoEvent) ToEdge(order *TodoEventOrder) *TodoEventEdge {
+	if order == nil {
+		order = DefaultTodoEventOrder
+	}
+	return &TodoEventEdge{
 		Node:   _m,
 		Cursor: order.Field.toCursor(_m),
 	}

@@ -60,11 +60,15 @@ type TodoEdges struct {
 	Owner *User `json:"owner,omitempty"`
 	// AI promotion 來源；只保存分析/evidence 關聯，不作為 Todo 五要素的主要讀取來源
 	SourceCandidate *TodoCandidate `json:"source_candidate,omitempty"`
+	// 此 Todo 的狀態變更事件；保存 AI promotion 與後續更新歷史
+	Events []*TodoEvent `json:"events,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [4]bool
 	// totalCount holds the count of the edges above.
-	totalCount [3]map[string]int
+	totalCount [4]map[string]int
+
+	namedEvents map[string][]*TodoEvent
 }
 
 // ChannelOrErr returns the Channel value or an error if the edge
@@ -98,6 +102,15 @@ func (e TodoEdges) SourceCandidateOrErr() (*TodoCandidate, error) {
 		return nil, &NotFoundError{label: todocandidate.Label}
 	}
 	return nil, &NotLoadedError{edge: "source_candidate"}
+}
+
+// EventsOrErr returns the Events value or an error if the edge
+// was not loaded in eager-loading.
+func (e TodoEdges) EventsOrErr() ([]*TodoEvent, error) {
+	if e.loadedTypes[3] {
+		return e.Events, nil
+	}
+	return nil, &NotLoadedError{edge: "events"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -236,6 +249,11 @@ func (_m *Todo) QuerySourceCandidate() *TodoCandidateQuery {
 	return NewTodoClient(_m.config).QuerySourceCandidate(_m)
 }
 
+// QueryEvents queries the "events" edge of the Todo entity.
+func (_m *Todo) QueryEvents() *TodoEventQuery {
+	return NewTodoClient(_m.config).QueryEvents(_m)
+}
+
 // Update returns a builder for updating this Todo.
 // Note that you need to call Todo.Unwrap() before calling this method if this Todo
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -300,6 +318,30 @@ func (_m *Todo) String() string {
 	builder.WriteString(_m.ObjectText)
 	builder.WriteByte(')')
 	return builder.String()
+}
+
+// NamedEvents returns the Events named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *Todo) NamedEvents(name string) ([]*TodoEvent, error) {
+	if _m.Edges.namedEvents == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedEvents[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *Todo) appendNamedEvents(name string, edges ...*TodoEvent) {
+	if _m.Edges.namedEvents == nil {
+		_m.Edges.namedEvents = make(map[string][]*TodoEvent)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedEvents[name] = []*TodoEvent{}
+	} else {
+		_m.Edges.namedEvents[name] = append(_m.Edges.namedEvents[name], edges...)
+	}
 }
 
 // Todos is a parsable slice of Todo.

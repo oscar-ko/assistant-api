@@ -48,6 +48,8 @@ const (
 	EdgeOwner = "owner"
 	// EdgeSourceCandidate holds the string denoting the source_candidate edge name in mutations.
 	EdgeSourceCandidate = "source_candidate"
+	// EdgeEvents holds the string denoting the events edge name in mutations.
+	EdgeEvents = "events"
 	// Table holds the table name of the todo in the database.
 	Table = "todos"
 	// ChannelTable is the table that holds the channel relation/edge.
@@ -71,6 +73,13 @@ const (
 	SourceCandidateInverseTable = "todo_candidates"
 	// SourceCandidateColumn is the table column denoting the source_candidate relation/edge.
 	SourceCandidateColumn = "source_candidate_id"
+	// EventsTable is the table that holds the events relation/edge.
+	EventsTable = "todo_events"
+	// EventsInverseTable is the table name for the TodoEvent entity.
+	// It exists in this package in order to avoid circular dependency with the "todoevent" package.
+	EventsInverseTable = "todo_events"
+	// EventsColumn is the table column denoting the events relation/edge.
+	EventsColumn = "todo_id"
 )
 
 // Columns holds all SQL columns for todo fields.
@@ -254,6 +263,20 @@ func BySourceCandidateField(field string, opts ...sql.OrderTermOption) OrderOpti
 		sqlgraph.OrderByNeighborTerms(s, newSourceCandidateStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByEventsCount orders the results by events count.
+func ByEventsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newEventsStep(), opts...)
+	}
+}
+
+// ByEvents orders the results by events terms.
+func ByEvents(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newEventsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newChannelStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -273,6 +296,13 @@ func newSourceCandidateStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(SourceCandidateInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, false, SourceCandidateTable, SourceCandidateColumn),
+	)
+}
+func newEventsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(EventsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, EventsTable, EventsColumn),
 	)
 }
 

@@ -40,6 +40,8 @@ type Tx struct {
 	TodoCandidate *TodoCandidateClient
 	// TodoCandidateAssignee is the client for interacting with the TodoCandidateAssignee builders.
 	TodoCandidateAssignee *TodoCandidateAssigneeClient
+	// TodoEvent is the client for interacting with the TodoEvent builders.
+	TodoEvent *TodoEventClient
 	// TranslationLocale is the client for interacting with the TranslationLocale builders.
 	TranslationLocale *TranslationLocaleClient
 	// User is the client for interacting with the User builders.
@@ -189,6 +191,7 @@ func (tx *Tx) init() {
 	tx.Todo = NewTodoClient(tx.config)
 	tx.TodoCandidate = NewTodoCandidateClient(tx.config)
 	tx.TodoCandidateAssignee = NewTodoCandidateAssigneeClient(tx.config)
+	tx.TodoEvent = NewTodoEventClient(tx.config)
 	tx.TranslationLocale = NewTranslationLocaleClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 }

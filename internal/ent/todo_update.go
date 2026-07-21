@@ -5,6 +5,7 @@ package ent
 import (
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/todo"
+	"assistant-api/internal/ent/todoevent"
 	"context"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 )
 
 // TodoUpdate is the builder for updating Todo entities.
@@ -156,9 +158,45 @@ func (_u *TodoUpdate) ClearObjectText() *TodoUpdate {
 	return _u
 }
 
+// AddEventIDs adds the "events" edge to the TodoEvent entity by IDs.
+func (_u *TodoUpdate) AddEventIDs(ids ...uuid.UUID) *TodoUpdate {
+	_u.mutation.AddEventIDs(ids...)
+	return _u
+}
+
+// AddEvents adds the "events" edges to the TodoEvent entity.
+func (_u *TodoUpdate) AddEvents(v ...*TodoEvent) *TodoUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddEventIDs(ids...)
+}
+
 // Mutation returns the TodoMutation object of the builder.
 func (_u *TodoUpdate) Mutation() *TodoMutation {
 	return _u.mutation
+}
+
+// ClearEvents clears all "events" edges to the TodoEvent entity.
+func (_u *TodoUpdate) ClearEvents() *TodoUpdate {
+	_u.mutation.ClearEvents()
+	return _u
+}
+
+// RemoveEventIDs removes the "events" edge to TodoEvent entities by IDs.
+func (_u *TodoUpdate) RemoveEventIDs(ids ...uuid.UUID) *TodoUpdate {
+	_u.mutation.RemoveEventIDs(ids...)
+	return _u
+}
+
+// RemoveEvents removes "events" edges to TodoEvent entities.
+func (_u *TodoUpdate) RemoveEvents(v ...*TodoEvent) *TodoUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveEventIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -265,6 +303,51 @@ func (_u *TodoUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.ObjectTextCleared() {
 		_spec.ClearField(todo.FieldObjectText, field.TypeString)
+	}
+	if _u.mutation.EventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todo.EventsTable,
+			Columns: []string{todo.EventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todoevent.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedEventsIDs(); len(nodes) > 0 && !_u.mutation.EventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todo.EventsTable,
+			Columns: []string{todo.EventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todoevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.EventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todo.EventsTable,
+			Columns: []string{todo.EventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todoevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -414,9 +497,45 @@ func (_u *TodoUpdateOne) ClearObjectText() *TodoUpdateOne {
 	return _u
 }
 
+// AddEventIDs adds the "events" edge to the TodoEvent entity by IDs.
+func (_u *TodoUpdateOne) AddEventIDs(ids ...uuid.UUID) *TodoUpdateOne {
+	_u.mutation.AddEventIDs(ids...)
+	return _u
+}
+
+// AddEvents adds the "events" edges to the TodoEvent entity.
+func (_u *TodoUpdateOne) AddEvents(v ...*TodoEvent) *TodoUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddEventIDs(ids...)
+}
+
 // Mutation returns the TodoMutation object of the builder.
 func (_u *TodoUpdateOne) Mutation() *TodoMutation {
 	return _u.mutation
+}
+
+// ClearEvents clears all "events" edges to the TodoEvent entity.
+func (_u *TodoUpdateOne) ClearEvents() *TodoUpdateOne {
+	_u.mutation.ClearEvents()
+	return _u
+}
+
+// RemoveEventIDs removes the "events" edge to TodoEvent entities by IDs.
+func (_u *TodoUpdateOne) RemoveEventIDs(ids ...uuid.UUID) *TodoUpdateOne {
+	_u.mutation.RemoveEventIDs(ids...)
+	return _u
+}
+
+// RemoveEvents removes "events" edges to TodoEvent entities.
+func (_u *TodoUpdateOne) RemoveEvents(v ...*TodoEvent) *TodoUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveEventIDs(ids...)
 }
 
 // Where appends a list predicates to the TodoUpdate builder.
@@ -553,6 +672,51 @@ func (_u *TodoUpdateOne) sqlSave(ctx context.Context) (_node *Todo, err error) {
 	}
 	if _u.mutation.ObjectTextCleared() {
 		_spec.ClearField(todo.FieldObjectText, field.TypeString)
+	}
+	if _u.mutation.EventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todo.EventsTable,
+			Columns: []string{todo.EventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todoevent.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedEventsIDs(); len(nodes) > 0 && !_u.mutation.EventsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todo.EventsTable,
+			Columns: []string{todo.EventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todoevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.EventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todo.EventsTable,
+			Columns: []string{todo.EventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todoevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Todo{config: _u.config}
 	_spec.Assign = _node.assignValues

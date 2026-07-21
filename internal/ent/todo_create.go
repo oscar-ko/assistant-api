@@ -6,6 +6,7 @@ import (
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
+	"assistant-api/internal/ent/todoevent"
 	"assistant-api/internal/ent/user"
 	"context"
 	"errors"
@@ -201,6 +202,21 @@ func (_c *TodoCreate) SetOwner(v *User) *TodoCreate {
 // SetSourceCandidate sets the "source_candidate" edge to the TodoCandidate entity.
 func (_c *TodoCreate) SetSourceCandidate(v *TodoCandidate) *TodoCreate {
 	return _c.SetSourceCandidateID(v.ID)
+}
+
+// AddEventIDs adds the "events" edge to the TodoEvent entity by IDs.
+func (_c *TodoCreate) AddEventIDs(ids ...uuid.UUID) *TodoCreate {
+	_c.mutation.AddEventIDs(ids...)
+	return _c
+}
+
+// AddEvents adds the "events" edges to the TodoEvent entity.
+func (_c *TodoCreate) AddEvents(v ...*TodoEvent) *TodoCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddEventIDs(ids...)
 }
 
 // Mutation returns the TodoMutation object of the builder.
@@ -419,6 +435,22 @@ func (_c *TodoCreate) createSpec() (*Todo, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.SourceCandidateID = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.EventsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todo.EventsTable,
+			Columns: []string{todo.EventsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todoevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

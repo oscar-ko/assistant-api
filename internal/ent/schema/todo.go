@@ -54,6 +54,9 @@ func (Todo) Edges() []ent.Edge {
 		edge.To("channel", Channel.Type).Field("channel_id").Required().Unique().Immutable().Comment("正式待辦所屬 channel"),
 		edge.To("owner", User.Type).Field("owner_user_id").Required().Unique().Immutable().Comment("此待辦所屬使用者；同一個 candidate 若指派多人，會 promotion 成多筆不同 owner 的 Todo"),
 		edge.To("source_candidate", TodoCandidate.Type).Field("source_candidate_id").Unique().Immutable().Comment("AI promotion 來源；只保存分析/evidence 關聯，不作為 Todo 五要素的主要讀取來源"),
+		// events 是正式 Todo 的變更時間線；讀取目前狀態仍以 Todo 欄位為準，
+		// 只有需要解釋「為什麼時間被改掉」或追查 AI 套用來源時才查這條 edge。
+		edge.To("events", TodoEvent.Type).Comment("此 Todo 的狀態變更事件；保存 AI promotion 與後續更新歷史"),
 	}
 }
 

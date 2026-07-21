@@ -19,6 +19,7 @@ import (
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/todo"
+	"assistant-api/internal/ent/todoevent"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
 	"assistant-api/internal/ent/translationlocale"
@@ -957,6 +958,8 @@ func (r *ChannelMessageRepo) promoteTodoCandidate(ctx context.Context, candidate
 			return fmt.Errorf("query promoted todo failed: %w", err)
 		}
 		if existing == nil {
+			// 第一次 promotion：正式 Todo 與 created event 必須一起產生。
+			// created event 的 old_values 會是空物件，new_values 則保存目前可提醒的產品欄位快照。
 			create := r.db.Todo.Create().
 				SetChannelID(candidate.ChannelID).
 				SetOwnerUserID(ownerUserID).
@@ -966,11 +969,18 @@ func (r *ChannelMessageRepo) promoteTodoCandidate(ctx context.Context, candidate
 				SetDueAt(*candidate.DueAt).
 				SetDueTimezone(strings.TrimSpace(candidate.DueTimezone)).
 				SetDuePrecision(todo.DuePrecision(candidate.DuePrecision))
-			if _, err := create.Save(ctx); err != nil {
+			created, err := create.Save(ctx)
+			if err != nil {
 				return fmt.Errorf("create promoted todo failed: %w", err)
+			}
+			if err := r.createTodoEvent(ctx, created, nil, candidate, todoevent.EventTypeCreated); err != nil {
+				return err
 			}
 			continue
 		}
+		// 既有 Todo 再次被同一 candidate+owner 命中時，代表 analyzer/normalizer 取得了更新後的欄位。
+		// 更新前先保存 old snapshot，之後寫 updated event，避免 due_at/title 等欄位被無痕覆蓋。
+		oldSnapshot := todoEventSnapshot(existing)
 
 		update := r.db.Todo.UpdateOneID(existing.ID).
 			SetStatus(todo.StatusActive).
@@ -978,11 +988,70 @@ func (r *ChannelMessageRepo) promoteTodoCandidate(ctx context.Context, candidate
 			SetDueAt(*candidate.DueAt).
 			SetDueTimezone(strings.TrimSpace(candidate.DueTimezone)).
 			SetDuePrecision(todo.DuePrecision(candidate.DuePrecision))
-		if _, err := update.Save(ctx); err != nil {
+		updated, err := update.Save(ctx)
+		if err != nil {
 			return fmt.Errorf("update promoted todo failed: %w", err)
+		}
+		if err := r.createTodoEvent(ctx, updated, oldSnapshot, candidate, todoevent.EventTypeUpdated); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+func (r *ChannelMessageRepo) createTodoEvent(ctx context.Context, item *ent.Todo, oldValues map[string]any, candidate *ent.TodoCandidate, eventType todoevent.EventType) error {
+	if r == nil || r.db == nil || item == nil {
+		return nil
+	}
+	// TodoEvent 是 promotion/apply 的 audit trail：Todo 欄位保存最新產品狀態，
+	// event 保存這次套用前後的差異與 AI candidate 來源，讓後續使用者追問「時間怎麼變了」時有資料可查。
+	create := r.db.TodoEvent.Create().
+		SetTodoID(item.ID).
+		SetEventType(eventType).
+		SetOldValues(normalizeTodoEventValues(oldValues)).
+		SetNewValues(todoEventSnapshot(item))
+	if candidate != nil {
+		create.SetSourceCandidateID(candidate.ID)
+		// create/update promotion 會帶完整 candidate，因此可寫入 last_message_id。
+		// cancelTodoFromCandidate 目前只收到 candidateID，沒有額外查 candidate；此時 source_message_id 會保持空值，避免猜測來源訊息。
+		if candidate.LastMessageID != uuid.Nil {
+			create.SetSourceMessageID(candidate.LastMessageID)
+		}
+		create.SetConfidence(candidate.Confidence)
+		create.SetReason(strings.TrimSpace(candidate.Reason))
+	}
+	if _, err := create.Save(ctx); err != nil {
+		return fmt.Errorf("create todo event failed: %w", err)
+	}
+	return nil
+}
+
+func normalizeTodoEventValues(values map[string]any) map[string]any {
+	// Ent JSON 欄位用空 object 表示「沒有前一版值」，比 nil 更利於 GraphQL/JSON client 穩定處理。
+	if len(values) == 0 {
+		return map[string]any{}
+	}
+	return values
+}
+
+func todoEventSnapshot(item *ent.Todo) map[string]any {
+	if item == nil {
+		return map[string]any{}
+	}
+	// snapshot 只保存 Todo 的產品狀態欄位，不複製 AI debug 欄位；
+	// AI 的 confidence/reason/source_candidate 會放在 TodoEvent 自己的欄位，避免 new_values 混入兩種語意。
+	values := map[string]any{
+		"status":        string(item.Status),
+		"title":         strings.TrimSpace(item.Title),
+		"due_timezone":  strings.TrimSpace(item.DueTimezone),
+		"due_precision": string(item.DuePrecision),
+	}
+	if item.DueAt != nil {
+		values["due_at"] = item.DueAt.Format(time.RFC3339)
+	} else {
+		values["due_at"] = ""
+	}
+	return values
 }
 
 func (r *ChannelMessageRepo) resolveTodoPromotionOwnerUserIDs(ctx context.Context, candidateID uuid.UUID) ([]uuid.UUID, error) {
@@ -1056,10 +1125,20 @@ func (r *ChannelMessageRepo) cancelTodoFromCandidate(ctx context.Context, candid
 		if item == nil {
 			continue
 		}
-		if _, err := r.db.Todo.UpdateOneID(item.ID).
+		// cancel 不是刪除正式 Todo，而是把產品狀態轉成 cancelled，再寫一筆 cancelled event。
+		// 這樣使用者列表能保留歷史，後續也能知道取消是由哪個 candidate 觸發。
+		oldSnapshot := todoEventSnapshot(item)
+		updated, err := r.db.Todo.UpdateOneID(item.ID).
 			SetStatus(todo.StatusCancelled).
-			Save(ctx); err != nil {
+			Save(ctx)
+		if err != nil {
 			return fmt.Errorf("cancel promoted todo failed: %w", err)
+		}
+		// 這裡只用 candidateID 建立最小來源物件，避免取消流程為了補 log 欄位再查一次 candidate。
+		// 若之後需要取消事件也帶 reason/last_message，可把 cancelTodoFromCandidate 改成接完整 candidate。
+		candidate := &ent.TodoCandidate{ID: candidateID}
+		if err := r.createTodoEvent(ctx, updated, oldSnapshot, candidate, todoevent.EventTypeCancelled); err != nil {
+			return err
 		}
 	}
 	return nil

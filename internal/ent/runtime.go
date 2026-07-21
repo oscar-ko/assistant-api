@@ -18,6 +18,7 @@ import (
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
+	"assistant-api/internal/ent/todoevent"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"time"
@@ -351,6 +352,31 @@ func init() {
 	todocandidateassigneeDescID := todocandidateassigneeMixinFields0[0].Descriptor()
 	// todocandidateassignee.DefaultID holds the default value on creation for the id field.
 	todocandidateassignee.DefaultID = todocandidateassigneeDescID.Default.(func() uuid.UUID)
+	todoeventMixin := schema.TodoEvent{}.Mixin()
+	todoeventMixinFields0 := todoeventMixin[0].Fields()
+	_ = todoeventMixinFields0
+	todoeventMixinFields1 := todoeventMixin[1].Fields()
+	_ = todoeventMixinFields1
+	todoeventFields := schema.TodoEvent{}.Fields()
+	_ = todoeventFields
+	// todoeventDescCreatedAt is the schema descriptor for created_at field.
+	todoeventDescCreatedAt := todoeventMixinFields1[0].Descriptor()
+	// todoevent.DefaultCreatedAt holds the default value on creation for the created_at field.
+	todoevent.DefaultCreatedAt = todoeventDescCreatedAt.Default.(func() time.Time)
+	// todoeventDescUpdatedAt is the schema descriptor for updated_at field.
+	todoeventDescUpdatedAt := todoeventMixinFields1[1].Descriptor()
+	// todoevent.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	todoevent.DefaultUpdatedAt = todoeventDescUpdatedAt.Default.(func() time.Time)
+	// todoevent.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	todoevent.UpdateDefaultUpdatedAt = todoeventDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// todoeventDescConfidence is the schema descriptor for confidence field.
+	todoeventDescConfidence := todoeventFields[6].Descriptor()
+	// todoevent.DefaultConfidence holds the default value on creation for the confidence field.
+	todoevent.DefaultConfidence = todoeventDescConfidence.Default.(float64)
+	// todoeventDescID is the schema descriptor for id field.
+	todoeventDescID := todoeventMixinFields0[0].Descriptor()
+	// todoevent.DefaultID holds the default value on creation for the id field.
+	todoevent.DefaultID = todoeventDescID.Default.(func() uuid.UUID)
 	translationlocaleMixin := schema.TranslationLocale{}.Mixin()
 	translationlocaleMixinFields0 := translationlocaleMixin[0].Fields()
 	_ = translationlocaleMixinFields0

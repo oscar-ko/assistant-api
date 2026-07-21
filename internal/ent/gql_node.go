@@ -17,6 +17,7 @@ import (
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
+	"assistant-api/internal/ent/todoevent"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -102,6 +103,11 @@ var todocandidateassigneeImplementors = []string{"TodoCandidateAssignee", "Node"
 
 // IsNode implements the Node interface check for GQLGen.
 func (*TodoCandidateAssignee) IsNode() {}
+
+var todoeventImplementors = []string{"TodoEvent", "Node"}
+
+// IsNode implements the Node interface check for GQLGen.
+func (*TodoEvent) IsNode() {}
 
 var translationlocaleImplementors = []string{"TranslationLocale", "Node"}
 
@@ -293,6 +299,15 @@ func (c *Client) noder(ctx context.Context, table string, id uuid.UUID) (Noder, 
 			Where(todocandidateassignee.ID(id))
 		if fc := graphql.GetFieldContext(ctx); fc != nil {
 			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, todocandidateassigneeImplementors...); err != nil {
+				return nil, err
+			}
+		}
+		return query.Only(ctx)
+	case todoevent.Table:
+		query := c.TodoEvent.Query().
+			Where(todoevent.ID(id))
+		if fc := graphql.GetFieldContext(ctx); fc != nil {
+			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, todoeventImplementors...); err != nil {
 				return nil, err
 			}
 		}
@@ -600,6 +615,22 @@ func (c *Client) noders(ctx context.Context, table string, ids []uuid.UUID) ([]N
 		query := c.TodoCandidateAssignee.Query().
 			Where(todocandidateassignee.IDIn(ids...))
 		query, err := query.CollectFields(ctx, todocandidateassigneeImplementors...)
+		if err != nil {
+			return nil, err
+		}
+		nodes, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, node := range nodes {
+			for _, noder := range idmap[node.ID] {
+				*noder = node
+			}
+		}
+	case todoevent.Table:
+		query := c.TodoEvent.Query().
+			Where(todoevent.IDIn(ids...))
+		query, err := query.CollectFields(ctx, todoeventImplementors...)
 		if err != nil {
 			return nil, err
 		}
