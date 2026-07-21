@@ -514,6 +514,9 @@ func buildJSONDecodeRetryPromptForPath(path string, composedPrompt string) strin
 	if strings.TrimSpace(path) == defaultTodoAnalyzePath {
 		return buildTodoAnalysisJSONDecodeRetryPrompt(composedPrompt)
 	}
+	if strings.TrimSpace(path) == defaultTodoDueTimePath {
+		return buildTodoDueTimeJSONDecodeRetryPrompt(composedPrompt)
+	}
 	return buildJSONDecodeRetryPrompt(composedPrompt)
 }
 
@@ -533,6 +536,23 @@ Todo JSON formatting rules:
 - Do not include markdown, code fences, explanations, or extra keys.`)
 }
 
+func buildTodoDueTimeJSONDecodeRetryPrompt(composedPrompt string) string {
+	return strings.TrimSpace(composedPrompt + `
+
+Your previous output was not valid JSON for todo_due_time. Return exactly one complete JSON object and nothing else.
+Output exactly these fields and no others:
+schema_version, decision, due_at, timezone, precision, confidence, missing_fields, reason
+
+Todo due-time JSON formatting rules:
+- Use double quotes around every key and string value.
+- Use commas between fields.
+- decision must be one of normalized, needs_more_info, no_due_time.
+- precision must be one of datetime, date, relative_window, unknown.
+- missing_fields must be a JSON string array; use [] when empty.
+- reason is required and must be a non-empty string.
+- Do not include markdown, code fences, explanations, or extra keys.`)
+}
+
 func buildValidationRetryPrompt(composedPrompt string) string {
 	// venv 會把 {validation_error} 替換成實際驗證錯誤。
 	// placeholder 由 API 端固定提供，確保每個本地 LLM endpoint 的 retry 行為一致。
@@ -548,6 +568,9 @@ func buildValidationRetryPromptForPath(path string, composedPrompt string) strin
 	// 用 path 分流 retry prompt，讓第二次修正仍明確回到 todo_analysis contract，而不是只靠通用「照原 schema」描述。
 	if strings.TrimSpace(path) == defaultTodoAnalyzePath {
 		return buildTodoAnalysisValidationRetryPrompt(composedPrompt)
+	}
+	if strings.TrimSpace(path) == defaultTodoDueTimePath {
+		return buildTodoDueTimeValidationRetryPrompt(composedPrompt)
 	}
 	return buildValidationRetryPrompt(composedPrompt)
 }
@@ -569,6 +592,26 @@ Todo-specific validation rules:
 - needs_more_info requires missing_fields to name the missing fields.
 - no_action requires linked_message_id, summary, assignees, due_text, and missing_fields to be empty.
 - update_candidate, acknowledge, and cancel_candidate require linked_message_id.
+Validation failure: {validation_error}`)
+}
+
+func buildTodoDueTimeValidationRetryPrompt(composedPrompt string) string {
+	return strings.TrimSpace(composedPrompt + `
+
+Your previous JSON output did not satisfy todo_due_time validation. Return strict JSON only.
+Output exactly these fields and no others:
+schema_version, decision, due_at, timezone, precision, confidence, missing_fields, reason
+
+Todo due-time validation rules:
+- decision must be one of normalized, needs_more_info, no_due_time.
+- normalized requires due_at, timezone, and precision; due_at must be RFC3339.
+- timezone must use the input timezone.
+- precision must be one of datetime, date, relative_window, unknown.
+- confidence is required and must be a JSON number between 0 and 1.
+- missing_fields is always a JSON string array; use [] when empty.
+- reason is required and must be a non-empty string explaining how the due time was resolved or why it could not be resolved.
+- needs_more_info requires missing_fields to name the missing fields.
+- no_due_time and needs_more_info must use an empty due_at string.
 Validation failure: {validation_error}`)
 }
 

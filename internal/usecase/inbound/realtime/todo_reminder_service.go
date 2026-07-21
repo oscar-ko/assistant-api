@@ -772,6 +772,7 @@ func buildImplicitReplyTodoPrompt(explicitReplyTarget *ent.ChannelMessage, recen
 	builder.WriteString("提醒、請記得、到時提醒我、不要忘記、幫我記一下等日常提醒語氣，只要包含可追蹤事項、承諾、交付、時間或對象，就屬於 Todo candidate；不可只因為語氣日常就判 no_action。\n")
 	builder.WriteString("summary 是整理後的待辦內容；due_text 保留使用者原本的時間字面，不要自行正規化日期；assignees 保留訊息中可見的人名或稱呼。\n")
 	builder.WriteString("欄位型別必須固定：schema_version/decision/linked_message_id/summary/due_text/reason 是 string，confidence 是 number，assignees 與 missing_fields 永遠是 string array；沒有人名或缺漏欄位時輸出 []，不可輸出字串、物件或 null。\n")
+	builder.WriteString("JSON key 必須只使用 schema_version、decision、linked_message_id、summary、assignees、due_text、confidence、missing_fields、reason 這 9 個欄位名稱；不可把 JSON 片段、跳脫字元或 key/value 片段放進欄位名稱，例如不可輸出 due_text\\\":\\\"\\\" 這類壞 key。\n")
 	builder.WriteString("needs_more_info 時 missing_fields 必須指出缺 summary、assignees 或 due_text 等欄位；no_action 時 linked_message_id、summary、assignees、due_text、missing_fields 都必須為空。\n")
 	builder.WriteString("JSON shape 範例：{\"schema_version\":\"v1\",\"decision\":\"no_action\",\"linked_message_id\":\"\",\"summary\":\"\",\"assignees\":[],\"due_text\":\"\",\"confidence\":0.0,\"missing_fields\":[],\"reason\":\"...\"}\n")
 	builder.WriteString("不可輸出額外欄位，不可用自然語言包住 JSON。\n\n")
@@ -807,9 +808,11 @@ func buildTodoDueTimePrompt(messageCtx MessageContext, analysis *llminteraction.
 規則：
 - decision 只能是 normalized、needs_more_info、no_due_time。
 - normalized 時 due_at 必須是 RFC3339，例如 2026-07-20T09:00:00+08:00，timezone 必須使用輸入 timezone。
+- 相對日期必須以 reference_time 在輸入 timezone 的本地日曆日換算；例如 due_text=明天 代表 reference_time 日期加一天，不可使用模型執行當下日期或伺服器現在時間。
 - 若 due_text 只有日期沒有時間，precision 使用 date，due_at 可用該日期 09:00:00 作為候選提醒時間，但 reason 必須說明時間是預設候選。
 - 若 due_text 太模糊而無法安全排程，decision 使用 needs_more_info，due_at 使用空字串，timezone 使用輸入 timezone，precision 使用 unknown，confidence 使用 0 到 0.5，並填 missing_fields。
 - no_due_time 時 due_at 使用空字串，timezone 使用輸入 timezone，precision 使用 unknown，confidence 使用 0 到 0.5。
+- reason 是必填非空字串；normalized 時說明如何依 reference_time/timezone 換算，needs_more_info/no_due_time 時說明無法正規化的原因。
 - 不可輸出 null；沒有值時使用空字串、空陣列或 precision=unknown。
 - 不可輸出額外欄位，不可用自然語言包住 JSON。
 

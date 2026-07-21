@@ -58,10 +58,13 @@ func (s *stubRecentMessageStore) FindRecentMessagesBefore(ctx context.Context, m
 }
 
 type stubContextAnalyzer struct {
-	calls      int
-	prompt     string
-	text       string
-	todoResult *llminteraction.TodoAnalysis
+	calls         int
+	prompt        string
+	text          string
+	dueTimePrompt string
+	dueTimeText   string
+	todoResult    *llminteraction.TodoAnalysis
+	dueTimeResult *llminteraction.TodoDueTimeAnalysis
 }
 
 type stubImplicitReplyRanker struct {
@@ -111,8 +114,11 @@ func (s *stubContextAnalyzer) AnalyzeTodo(ctx context.Context, prompt string, te
 
 func (s *stubContextAnalyzer) AnalyzeTodoDueTime(ctx context.Context, prompt string, text string) (*llminteraction.TodoDueTimeAnalysis, error) {
 	_ = ctx
-	_ = prompt
-	_ = text
+	s.dueTimePrompt = prompt
+	s.dueTimeText = text
+	if s.dueTimeResult != nil {
+		return s.dueTimeResult, nil
+	}
 	return &llminteraction.TodoDueTimeAnalysis{SchemaVersion: "v1", Decision: "no_due_time", Precision: "unknown", Confidence: 0.5, Reason: "test stub"}, nil
 }
 
@@ -167,6 +173,22 @@ func TestBuildImplicitReplyTodoPromptRequiresArrayFields(t *testing.T) {
 	}
 }
 
+func TestBuildImplicitReplyTodoPromptRejectsFragmentKeys(t *testing.T) {
+	// qwen 2b 類小模型偶爾會把 JSON 片段拼進欄位名稱，例如 due_text\":\"\"；
+	// 首輪 prompt 必須先禁止這種輸出，避免都等到 Python json retry 才修正。
+	prompt := buildImplicitReplyTodoPrompt(nil, nil, ClassificationResult{Tag: "todo", Signal: ClassificationSignalCandidate, Confidence: 0.9})
+
+	for _, expected := range []string{
+		"JSON key 必須只使用",
+		"不可把 JSON 片段、跳脫字元或 key/value 片段放進欄位名稱",
+		`due_text\":\"\"`,
+	} {
+		if !strings.Contains(prompt, expected) {
+			t.Fatalf("expected prompt to reject malformed fragment key %q, got %q", expected, prompt)
+		}
+	}
+}
+
 func TestBuildImplicitReplyTodoPromptTreatsReminderLanguageAsCandidate(t *testing.T) {
 	// 使用者常用「提醒我」「記得」這類日常語氣建立待辦；prompt 必須明確要求 analyzer
 	// 依可追蹤事項判斷，而不是因為語氣不像正式指令就回 no_action。
@@ -189,12 +211,37 @@ func TestBuildTodoDueTimePromptRejectsNullAndRequiresUnknownPrecision(t *testing
 
 	for _, expected := range []string{
 		"不可輸出 null",
+		"reason 是必填非空字串",
 		"precision 使用 unknown",
 		`"precision":"unknown"`,
 		`"missing_fields":["time"]`,
 	} {
 		if !strings.Contains(prompt, expected) {
 			t.Fatalf("expected due-time prompt to contain %q, got %q", expected, prompt)
+		}
+	}
+}
+
+func TestBuildTodoDueTimePromptRequiresRelativeDatesFromReferenceTime(t *testing.T) {
+	// 「明天」這類相對日期必須以訊息建立時間換算，不能用測試/伺服器執行當下日期，
+	// 否則 replay 舊訊息或跨時區部署時會把待辦排到錯誤日期。
+	referenceTime := time.Date(2026, 7, 21, 17, 55, 0, 0, time.FixedZone("Asia/Taipei", 8*60*60))
+	prompt := buildTodoDueTimePrompt(
+		MessageContext{Message: &unifiedmessage.Message{Text: "那你明天把原因統整好之後告訴我"}},
+		&llminteraction.TodoAnalysis{Summary: "統整伺服器 CPU 滿載原因並回報", DueText: "明天"},
+		referenceTime,
+		"Asia/Taipei",
+	)
+
+	for _, expected := range []string{
+		"相對日期必須以 reference_time",
+		"明天 代表 reference_time 日期加一天",
+		"不可使用模型執行當下日期或伺服器現在時間",
+		"reference_time=2026-07-21T17:55:00+08:00",
+		`due_text="明天"`,
+	} {
+		if !strings.Contains(prompt, expected) {
+			t.Fatalf("expected relative-date prompt to contain %q, got %q", expected, prompt)
 		}
 	}
 }
@@ -248,6 +295,71 @@ func TestTodoReminderServicePersistsTodoCandidateAnalysis(t *testing.T) {
 	}
 	if len(persisted.Assignees) != 1 || persisted.Assignees[0] != "我" {
 		t.Fatalf("unexpected assignees: %+v", persisted.Assignees)
+	}
+}
+
+func TestTodoReminderServicePersistsTomorrowDueAtFromMessageDate(t *testing.T) {
+	// 使用者在 2026-07-21 17:55 說「明天」時，due normalizer 必須拿該訊息時間作 reference_time，
+	// 並把 normalized due_at 傳進 candidate persistence，而不是只保存 due_text 字面。
+	channelID := uuid.New()
+	currentMessageID := uuid.New()
+	recentMessageID := uuid.New()
+	location := time.FixedZone("Asia/Taipei", 8*60*60)
+	messageTime := time.Date(2026, 7, 21, 17, 55, 0, 0, location)
+	expectedDueAt := time.Date(2026, 7, 22, 9, 0, 0, 0, location)
+	repo := &stubRecentMessageStore{items: []*ent.ChannelMessage{
+		{ID: recentMessageID, ChannelID: channelID, SenderName: "葛育平(Oscar)", Content: "半夜 3 點左右，整個伺服器 CPU 運作 100%", CreatedAt: messageTime.Add(-time.Minute)},
+	}}
+	analyzer := &stubContextAnalyzer{
+		todoResult: &llminteraction.TodoAnalysis{
+			SchemaVersion: "v1",
+			Decision:      "create_candidate",
+			Summary:       "統整伺服器 CPU 滿載原因並回報",
+			Assignees:     []string{"葛育平(Oscar)"},
+			DueText:       "明天",
+			Confidence:    0.92,
+			Reason:        "user assigns a follow-up investigation",
+		},
+		dueTimeResult: &llminteraction.TodoDueTimeAnalysis{
+			SchemaVersion: "v1",
+			Decision:      "normalized",
+			DueAt:         "2026-07-22T09:00:00+08:00",
+			Timezone:      "Asia/Taipei",
+			Precision:     "date",
+			Confidence:    0.86,
+			Reason:        "明天以 reference_time 日期加一天換算，未指定時間所以使用日期候選提醒時間",
+		},
+	}
+	var persisted TodoCandidateInput
+	service := NewTodoReminderService(TodoReminderServiceOptions{
+		Repo:          repo,
+		LLM:           analyzer,
+		PlatformLabel: "test",
+		RecentLimit:   4,
+		Timezone:      "Asia/Taipei",
+		PersistTodoCandidate: func(ctx context.Context, input TodoCandidateInput) (*ent.TodoCandidate, error) {
+			_ = ctx
+			persisted = input
+			return &ent.TodoCandidate{ID: uuid.New()}, nil
+		},
+	})
+
+	service.HandleClassification(context.Background(), MessageContext{
+		Message:      &unifiedmessage.Message{ChannelID: "channel-1", PlatformMessageID: "m-6", MessageType: "text", Text: "那你明天把原因統整好之後告訴我"},
+		SavedMessage: &ent.ChannelMessage{ID: currentMessageID, ChannelID: channelID, Content: "那你明天把原因統整好之後告訴我", CreatedAt: messageTime},
+	}, ClassificationResult{Tag: "todo", Signal: ClassificationSignalCandidate, Confidence: 0.9})
+
+	if analyzer.dueTimeText != "明天" {
+		t.Fatalf("expected due-time normalizer text to use due_text, got %q", analyzer.dueTimeText)
+	}
+	if !strings.Contains(analyzer.dueTimePrompt, "reference_time=2026-07-21T17:55:00+08:00") {
+		t.Fatalf("expected due-time prompt to use message created_at as reference_time, got %q", analyzer.dueTimePrompt)
+	}
+	if persisted.DueAt == nil || !persisted.DueAt.Equal(expectedDueAt) {
+		t.Fatalf("expected persisted due_at %s, got %+v", expectedDueAt.Format(time.RFC3339), persisted.DueAt)
+	}
+	if persisted.DueTimezone != "Asia/Taipei" || persisted.DuePrecision != "date" || persisted.DueDecision != "normalized" {
+		t.Fatalf("unexpected persisted due-time fields: %+v", persisted)
 	}
 }
 

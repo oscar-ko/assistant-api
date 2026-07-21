@@ -24,7 +24,7 @@ func TestInteractionClientSendsConfiguredModelName(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewInteractionClientWithModel(server.URL, 5, "qwen3.5:2b", "/predict/action_decision", "/predict/question_answer", "/predict/context_analyze", "/predict/todo_analyze", "/predict/todo_due_time_normalize")
+	client := NewInteractionClientWithModel(server.URL, 5, "qwen3.5:4b", "/predict/action_decision", "/predict/question_answer", "/predict/context_analyze", "/predict/todo_analyze", "/predict/todo_due_time_normalize")
 	if client == nil {
 		t.Fatal("expected client")
 	}
@@ -32,8 +32,8 @@ func TestInteractionClientSendsConfiguredModelName(t *testing.T) {
 		t.Fatalf("answer question failed: %v", err)
 	}
 
-	if captured["model_name"] != "qwen3.5:2b" {
-		t.Fatalf("expected model_name qwen3.5:2b, got %#v", captured["model_name"])
+	if captured["model_name"] != "qwen3.5:4b" {
+		t.Fatalf("expected model_name qwen3.5:4b, got %#v", captured["model_name"])
 	}
 	if captured["prompt"] == "" {
 		t.Fatalf("expected composed prompt")
@@ -56,7 +56,7 @@ func TestInteractionClientAnalyzeContextUsesContextPath(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewInteractionClientWithModel(server.URL, 5, "qwen3.5:2b", "/predict/action_decision", "/predict/question_answer", "/predict/context_analyze", "/predict/todo_analyze", "/predict/todo_due_time_normalize")
+	client := NewInteractionClientWithModel(server.URL, 5, "qwen3.5:4b", "/predict/action_decision", "/predict/question_answer", "/predict/context_analyze", "/predict/todo_analyze", "/predict/todo_due_time_normalize")
 	result, err := client.AnalyzeContext(context.Background(), "Analyze as JSON", "明天")
 	if err != nil {
 		t.Fatalf("analyze context failed: %v", err)
@@ -65,8 +65,8 @@ func TestInteractionClientAnalyzeContextUsesContextPath(t *testing.T) {
 	if capturedPath != "/predict/context_analyze" {
 		t.Fatalf("expected context path, got %s", capturedPath)
 	}
-	if captured["model_name"] != "qwen3.5:2b" {
-		t.Fatalf("expected model_name qwen3.5:2b, got %#v", captured["model_name"])
+	if captured["model_name"] != "qwen3.5:4b" {
+		t.Fatalf("expected model_name qwen3.5:4b, got %#v", captured["model_name"])
 	}
 	if result.Decision != "relevant" || result.TargetService != "todo.reminder" {
 		t.Fatalf("unexpected context result: %#v", result)
@@ -88,7 +88,7 @@ func TestInteractionClientAnalyzeTodoUsesTodoPath(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewInteractionClientWithModel(server.URL, 5, "qwen3.5:2b", "/predict/action_decision", "/predict/question_answer", "/predict/context_analyze", "/predict/todo_analyze", "/predict/todo_due_time_normalize")
+	client := NewInteractionClientWithModel(server.URL, 5, "qwen3.5:4b", "/predict/action_decision", "/predict/question_answer", "/predict/context_analyze", "/predict/todo_analyze", "/predict/todo_due_time_normalize")
 	result, err := client.AnalyzeTodo(context.Background(), "Analyze todo as JSON", "我晚點補")
 	if err != nil {
 		t.Fatalf("analyze todo failed: %v", err)
@@ -97,8 +97,8 @@ func TestInteractionClientAnalyzeTodoUsesTodoPath(t *testing.T) {
 	if capturedPath != "/predict/todo_analyze" {
 		t.Fatalf("expected todo path, got %s", capturedPath)
 	}
-	if captured["model_name"] != "qwen3.5:2b" {
-		t.Fatalf("expected model_name qwen3.5:2b, got %#v", captured["model_name"])
+	if captured["model_name"] != "qwen3.5:4b" {
+		t.Fatalf("expected model_name qwen3.5:4b, got %#v", captured["model_name"])
 	}
 	jsonRetryPrompt, ok := captured["json_decode_retry_prompt"].(string)
 	if !ok {
@@ -138,7 +138,7 @@ func TestInteractionClientAnalyzeTodoDueTimeUsesTodoDueTimePath(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewInteractionClientWithModel(server.URL, 5, "qwen3.5:2b", "/predict/action_decision", "/predict/question_answer", "/predict/context_analyze", "/predict/todo_analyze", "/predict/todo_due_time_normalize")
+	client := NewInteractionClientWithModel(server.URL, 5, "qwen3.5:4b", "/predict/action_decision", "/predict/question_answer", "/predict/context_analyze", "/predict/todo_analyze", "/predict/todo_due_time_normalize")
 	result, err := client.AnalyzeTodoDueTime(context.Background(), "Normalize due time as JSON", "下週一九點")
 	if err != nil {
 		t.Fatalf("analyze todo due time failed: %v", err)
@@ -147,8 +147,26 @@ func TestInteractionClientAnalyzeTodoDueTimeUsesTodoDueTimePath(t *testing.T) {
 	if capturedPath != "/predict/todo_due_time_normalize" {
 		t.Fatalf("expected todo due time path, got %s", capturedPath)
 	}
-	if captured["model_name"] != "qwen3.5:2b" {
-		t.Fatalf("expected model_name qwen3.5:2b, got %#v", captured["model_name"])
+	if captured["model_name"] != "qwen3.5:4b" {
+		t.Fatalf("expected model_name qwen3.5:4b, got %#v", captured["model_name"])
+	}
+	jsonRetryPrompt, ok := captured["json_decode_retry_prompt"].(string)
+	if !ok {
+		t.Fatalf("json_decode_retry_prompt missing or invalid: %#v", captured["json_decode_retry_prompt"])
+	}
+	for _, fragment := range []string{"todo_due_time", "reason is required", "missing_fields must be a JSON string array"} {
+		if !strings.Contains(jsonRetryPrompt, fragment) {
+			t.Fatalf("expected todo due-time json retry prompt to contain %q, got %s", fragment, jsonRetryPrompt)
+		}
+	}
+	validationRetryPrompt, ok := captured["validation_retry_prompt"].(string)
+	if !ok {
+		t.Fatalf("validation_retry_prompt missing or invalid: %#v", captured["validation_retry_prompt"])
+	}
+	for _, fragment := range []string{"todo_due_time", "reason is required and must be a non-empty string", "Validation failure: {validation_error}"} {
+		if !strings.Contains(validationRetryPrompt, fragment) {
+			t.Fatalf("expected todo due-time validation retry prompt to contain %q, got %s", fragment, validationRetryPrompt)
+		}
 	}
 	if result.Decision != "normalized" || result.DueAt == "" || result.Timezone != "Asia/Taipei" {
 		t.Fatalf("unexpected todo due time result: %#v", result)

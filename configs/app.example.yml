@@ -78,7 +78,7 @@ ai:
             temperature: 0.2
         context_analyzer:
             profile: "aistant.context_analyzer"
-            timeout: 60
+            timeout: 120
             max_token: 512
             temperature: 0.1
         chatgpt:
@@ -117,16 +117,16 @@ llm_providers:
                 path: "/rerank"
             llm:
                 url: "http://127.0.0.1:9003"
-                # 本機 action decision 預設使用 2b，避免 9b 在一般開發機上啟動 Ollama 時 OOM。
-                model_name: "qwen3.5:2b"
+                # 本機 action decision 預設使用 4b，避免 9b 在一般開發機上啟動 Ollama 時 OOM。
+                model_name: "qwen3.5:4b"
                 timeout_seconds: 120
                 action_decision_path: "/predict/action_decision"
                 question_answer_path: "/predict/question_answer"
                 translate_path: "/translate"
             context_analyzer:
                 url: "http://127.0.0.1:9003"
-                model_name: "qwen3.5:2b"
-                timeout_seconds: 60
+                model_name: "qwen3.5:4b"
+                timeout_seconds: 120
                 action_decision_path: "/predict/action_decision"
                 question_answer_path: "/predict/question_answer"
                 # context_analyzer 使用獨立 route，避免內部上下文判斷誤走一般生活問答端點。

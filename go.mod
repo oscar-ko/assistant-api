@@ -11,6 +11,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/lib/pq v1.12.3
 	github.com/line/line-bot-sdk-go/v8 v8.19.0
+	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/pgvector/pgvector-go v0.4.0
 	github.com/spf13/viper v1.21.0

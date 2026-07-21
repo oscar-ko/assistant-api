@@ -1,0 +1,78 @@
+//go:build cgo
+
+package repository
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"assistant-api/internal/ent/enttest"
+	"assistant-api/internal/ent/todo"
+
+	"github.com/google/uuid"
+	_ "github.com/mattn/go-sqlite3"
+)
+
+func TestSaveTodoCandidateFromAnalysisPromotesReadyCandidateToTodo(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", "file:todo_promotion?mode=memory&cache=shared&_fk=1")
+	t.Cleanup(func() { client.Close() })
+
+	repo := NewChannelMessageRepo(client)
+	channel := client.Channel.Create().
+		SetName("todo-test").
+		SetPlatform("line").
+		SetGroupID("group-1").
+		SetType("group").
+		SaveX(ctx)
+	owner := client.User.Create().
+		SetName("阿明").
+		SetEmail("aming@example.com").
+		SaveX(ctx)
+	message := client.ChannelMessage.Create().
+		SetChannelID(channel.ID).
+		SetContent("阿明明天上午十點交報價單").
+		SetSenderID("line-user-1").
+		SetSenderName("阿明").
+		SetSenderUserID(owner.ID).
+		SetMessageType("text").
+		SaveX(ctx)
+	dueAt := time.Date(2026, 7, 22, 10, 0, 0, 0, time.FixedZone("Asia/Taipei", 8*60*60))
+
+	candidate, err := repo.SaveTodoCandidateFromAnalysis(ctx, SaveTodoCandidateInput{
+		ChannelID:     channel.ID,
+		MessageID:     message.ID,
+		Decision:      "create_candidate",
+		Summary:       "交報價單",
+		Assignees:     []string{"阿明"},
+		DueText:       "明天上午十點",
+		DueAt:         &dueAt,
+		DueTimezone:   "Asia/Taipei",
+		DuePrecision:  "datetime",
+		DueDecision:   "normalized",
+		DueConfidence: 0.93,
+		Confidence:    0.91,
+		Reason:        "message describes a complete todo",
+	})
+	if err != nil {
+		t.Fatalf("expected ready candidate to persist and promote: %v", err)
+	}
+	if candidate == nil || candidate.ID == uuid.Nil {
+		t.Fatalf("expected persisted candidate, got %+v", candidate)
+	}
+
+	promoted := client.Todo.Query().OnlyX(ctx)
+	if promoted.SourceCandidateID == nil || *promoted.SourceCandidateID != candidate.ID {
+		t.Fatalf("expected todo source candidate %s, got %+v", candidate.ID, promoted.SourceCandidateID)
+	}
+	if promoted.OwnerUserID != owner.ID || promoted.ChannelID != channel.ID {
+		t.Fatalf("unexpected promoted todo identity: %+v", promoted)
+	}
+	if promoted.Status != todo.StatusActive || promoted.Title != "交報價單" {
+		t.Fatalf("unexpected promoted todo content: %+v", promoted)
+	}
+	if promoted.DueAt == nil || !promoted.DueAt.Equal(dueAt) || promoted.DueTimezone != "Asia/Taipei" || promoted.DuePrecision != todo.DuePrecisionDatetime {
+		t.Fatalf("unexpected promoted todo due fields: %+v", promoted)
+	}
+}
