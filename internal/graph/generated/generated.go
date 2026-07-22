@@ -74,11 +74,11 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		ClearDevRealtimeTodoData     func(childComplexity int) int
-		CreateUser                   func(childComplexity int, input ent.CreateUserInput) int
-		SendLineText                 func(childComplexity int, input model.SendLineTextInput) int
-		SimulateLineTodoConversation func(childComplexity int, input model.SimulateLineTodoConversationInput) int
-		UpdateUser                   func(childComplexity int, id uuid.UUID, input ent.UpdateUserInput) int
+		ClearDevRealtimeTodoData func(childComplexity int) int
+		CreateUser               func(childComplexity int, input ent.CreateUserInput) int
+		SendLineText             func(childComplexity int, input model.SendLineTextInput) int
+		SimulateTodoConversation func(childComplexity int, input model.SimulateTodoConversationInput) int
+		UpdateUser               func(childComplexity int, id uuid.UUID, input ent.UpdateUserInput) int
 	}
 
 	Query struct {
@@ -91,23 +91,24 @@ type ComplexityRoot struct {
 		To     func(childComplexity int) int
 	}
 
-	SimulateLineTodoConversationPayload struct {
+	SimulateTodoConversationPayload struct {
 		AnalysisWaitMilliseconds func(childComplexity int) int
 		ChannelID                func(childComplexity int) int
-		LineChannelID            func(childComplexity int) int
 		Messages                 func(childComplexity int) int
 		Participants             func(childComplexity int) int
+		Platform                 func(childComplexity int) int
+		PlatformChannelID        func(childComplexity int) int
+		PlatformTenantID         func(childComplexity int) int
 		Status                   func(childComplexity int) int
 		TodoCandidateCount       func(childComplexity int) int
 	}
 
-	SimulatedLineTodoMessage struct {
+	SimulatedTodoMessage struct {
 		DisplayName           func(childComplexity int) int
-		LineText              func(childComplexity int) int
-		LineUserID            func(childComplexity int) int
 		PlatformMessageID     func(childComplexity int) int
+		PlatformText          func(childComplexity int) int
+		PlatformUserID        func(childComplexity int) int
 		SavedMessageID        func(childComplexity int) int
-		SentLineMessageID     func(childComplexity int) int
 		SpeakerUserID         func(childComplexity int) int
 		Text                  func(childComplexity int) int
 		TodoCandidateDecision func(childComplexity int) int
@@ -117,10 +118,10 @@ type ComplexityRoot struct {
 		TodoCandidateSummary  func(childComplexity int) int
 	}
 
-	SimulatedLineTodoParticipant struct {
-		DisplayName func(childComplexity int) int
-		LineUserID  func(childComplexity int) int
-		UserID      func(childComplexity int) int
+	SimulatedTodoParticipant struct {
+		DisplayName    func(childComplexity int) int
+		PlatformUserID func(childComplexity int) int
+		UserID         func(childComplexity int) int
 	}
 
 	User struct {
@@ -134,7 +135,7 @@ type MutationResolver interface {
 	CreateUser(ctx context.Context, input ent.CreateUserInput) (*ent.User, error)
 	UpdateUser(ctx context.Context, id uuid.UUID, input ent.UpdateUserInput) (*ent.User, error)
 	SendLineText(ctx context.Context, input model.SendLineTextInput) (*model.SendLineTextPayload, error)
-	SimulateLineTodoConversation(ctx context.Context, input model.SimulateLineTodoConversationInput) (*model.SimulateLineTodoConversationPayload, error)
+	SimulateTodoConversation(ctx context.Context, input model.SimulateTodoConversationInput) (*model.SimulateTodoConversationPayload, error)
 	ClearDevRealtimeTodoData(ctx context.Context) (*model.ClearDevRealtimeTodoDataPayload, error)
 }
 type QueryResolver interface {
@@ -369,17 +370,17 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.SendLineText(childComplexity, args["input"].(model.SendLineTextInput)), true
 
-	case "Mutation.simulateLineTodoConversation":
-		if e.complexity.Mutation.SimulateLineTodoConversation == nil {
+	case "Mutation.simulateTodoConversation":
+		if e.complexity.Mutation.SimulateTodoConversation == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_simulateLineTodoConversation_args(context.TODO(), rawArgs)
+		args, err := ec.field_Mutation_simulateTodoConversation_args(context.TODO(), rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.SimulateLineTodoConversation(childComplexity, args["input"].(model.SimulateLineTodoConversationInput)), true
+		return e.complexity.Mutation.SimulateTodoConversation(childComplexity, args["input"].(model.SimulateTodoConversationInput)), true
 
 	case "Mutation.updateUser":
 		if e.complexity.Mutation.UpdateUser == nil {
@@ -431,166 +432,173 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.SendLineTextPayload.To(childComplexity), true
 
-	case "SimulateLineTodoConversationPayload.analysisWaitMilliseconds":
-		if e.complexity.SimulateLineTodoConversationPayload.AnalysisWaitMilliseconds == nil {
+	case "SimulateTodoConversationPayload.analysisWaitMilliseconds":
+		if e.complexity.SimulateTodoConversationPayload.AnalysisWaitMilliseconds == nil {
 			break
 		}
 
-		return e.complexity.SimulateLineTodoConversationPayload.AnalysisWaitMilliseconds(childComplexity), true
+		return e.complexity.SimulateTodoConversationPayload.AnalysisWaitMilliseconds(childComplexity), true
 
-	case "SimulateLineTodoConversationPayload.channelID":
-		if e.complexity.SimulateLineTodoConversationPayload.ChannelID == nil {
+	case "SimulateTodoConversationPayload.channelID":
+		if e.complexity.SimulateTodoConversationPayload.ChannelID == nil {
 			break
 		}
 
-		return e.complexity.SimulateLineTodoConversationPayload.ChannelID(childComplexity), true
+		return e.complexity.SimulateTodoConversationPayload.ChannelID(childComplexity), true
 
-	case "SimulateLineTodoConversationPayload.lineChannelID":
-		if e.complexity.SimulateLineTodoConversationPayload.LineChannelID == nil {
+	case "SimulateTodoConversationPayload.messages":
+		if e.complexity.SimulateTodoConversationPayload.Messages == nil {
 			break
 		}
 
-		return e.complexity.SimulateLineTodoConversationPayload.LineChannelID(childComplexity), true
+		return e.complexity.SimulateTodoConversationPayload.Messages(childComplexity), true
 
-	case "SimulateLineTodoConversationPayload.messages":
-		if e.complexity.SimulateLineTodoConversationPayload.Messages == nil {
+	case "SimulateTodoConversationPayload.participants":
+		if e.complexity.SimulateTodoConversationPayload.Participants == nil {
 			break
 		}
 
-		return e.complexity.SimulateLineTodoConversationPayload.Messages(childComplexity), true
+		return e.complexity.SimulateTodoConversationPayload.Participants(childComplexity), true
 
-	case "SimulateLineTodoConversationPayload.participants":
-		if e.complexity.SimulateLineTodoConversationPayload.Participants == nil {
+	case "SimulateTodoConversationPayload.platform":
+		if e.complexity.SimulateTodoConversationPayload.Platform == nil {
 			break
 		}
 
-		return e.complexity.SimulateLineTodoConversationPayload.Participants(childComplexity), true
+		return e.complexity.SimulateTodoConversationPayload.Platform(childComplexity), true
 
-	case "SimulateLineTodoConversationPayload.status":
-		if e.complexity.SimulateLineTodoConversationPayload.Status == nil {
+	case "SimulateTodoConversationPayload.platformChannelID":
+		if e.complexity.SimulateTodoConversationPayload.PlatformChannelID == nil {
 			break
 		}
 
-		return e.complexity.SimulateLineTodoConversationPayload.Status(childComplexity), true
+		return e.complexity.SimulateTodoConversationPayload.PlatformChannelID(childComplexity), true
 
-	case "SimulateLineTodoConversationPayload.todoCandidateCount":
-		if e.complexity.SimulateLineTodoConversationPayload.TodoCandidateCount == nil {
+	case "SimulateTodoConversationPayload.platformTenantID":
+		if e.complexity.SimulateTodoConversationPayload.PlatformTenantID == nil {
 			break
 		}
 
-		return e.complexity.SimulateLineTodoConversationPayload.TodoCandidateCount(childComplexity), true
+		return e.complexity.SimulateTodoConversationPayload.PlatformTenantID(childComplexity), true
 
-	case "SimulatedLineTodoMessage.displayName":
-		if e.complexity.SimulatedLineTodoMessage.DisplayName == nil {
+	case "SimulateTodoConversationPayload.status":
+		if e.complexity.SimulateTodoConversationPayload.Status == nil {
 			break
 		}
 
-		return e.complexity.SimulatedLineTodoMessage.DisplayName(childComplexity), true
+		return e.complexity.SimulateTodoConversationPayload.Status(childComplexity), true
 
-	case "SimulatedLineTodoMessage.lineText":
-		if e.complexity.SimulatedLineTodoMessage.LineText == nil {
+	case "SimulateTodoConversationPayload.todoCandidateCount":
+		if e.complexity.SimulateTodoConversationPayload.TodoCandidateCount == nil {
 			break
 		}
 
-		return e.complexity.SimulatedLineTodoMessage.LineText(childComplexity), true
+		return e.complexity.SimulateTodoConversationPayload.TodoCandidateCount(childComplexity), true
 
-	case "SimulatedLineTodoMessage.lineUserID":
-		if e.complexity.SimulatedLineTodoMessage.LineUserID == nil {
+	case "SimulatedTodoMessage.displayName":
+		if e.complexity.SimulatedTodoMessage.DisplayName == nil {
 			break
 		}
 
-		return e.complexity.SimulatedLineTodoMessage.LineUserID(childComplexity), true
+		return e.complexity.SimulatedTodoMessage.DisplayName(childComplexity), true
 
-	case "SimulatedLineTodoMessage.platformMessageID":
-		if e.complexity.SimulatedLineTodoMessage.PlatformMessageID == nil {
+	case "SimulatedTodoMessage.platformMessageID":
+		if e.complexity.SimulatedTodoMessage.PlatformMessageID == nil {
 			break
 		}
 
-		return e.complexity.SimulatedLineTodoMessage.PlatformMessageID(childComplexity), true
+		return e.complexity.SimulatedTodoMessage.PlatformMessageID(childComplexity), true
 
-	case "SimulatedLineTodoMessage.savedMessageID":
-		if e.complexity.SimulatedLineTodoMessage.SavedMessageID == nil {
+	case "SimulatedTodoMessage.platformText":
+		if e.complexity.SimulatedTodoMessage.PlatformText == nil {
 			break
 		}
 
-		return e.complexity.SimulatedLineTodoMessage.SavedMessageID(childComplexity), true
+		return e.complexity.SimulatedTodoMessage.PlatformText(childComplexity), true
 
-	case "SimulatedLineTodoMessage.sentLineMessageID":
-		if e.complexity.SimulatedLineTodoMessage.SentLineMessageID == nil {
+	case "SimulatedTodoMessage.platformUserID":
+		if e.complexity.SimulatedTodoMessage.PlatformUserID == nil {
 			break
 		}
 
-		return e.complexity.SimulatedLineTodoMessage.SentLineMessageID(childComplexity), true
+		return e.complexity.SimulatedTodoMessage.PlatformUserID(childComplexity), true
 
-	case "SimulatedLineTodoMessage.speakerUserID":
-		if e.complexity.SimulatedLineTodoMessage.SpeakerUserID == nil {
+	case "SimulatedTodoMessage.savedMessageID":
+		if e.complexity.SimulatedTodoMessage.SavedMessageID == nil {
 			break
 		}
 
-		return e.complexity.SimulatedLineTodoMessage.SpeakerUserID(childComplexity), true
+		return e.complexity.SimulatedTodoMessage.SavedMessageID(childComplexity), true
 
-	case "SimulatedLineTodoMessage.text":
-		if e.complexity.SimulatedLineTodoMessage.Text == nil {
+	case "SimulatedTodoMessage.speakerUserID":
+		if e.complexity.SimulatedTodoMessage.SpeakerUserID == nil {
 			break
 		}
 
-		return e.complexity.SimulatedLineTodoMessage.Text(childComplexity), true
+		return e.complexity.SimulatedTodoMessage.SpeakerUserID(childComplexity), true
 
-	case "SimulatedLineTodoMessage.todoCandidateDecision":
-		if e.complexity.SimulatedLineTodoMessage.TodoCandidateDecision == nil {
+	case "SimulatedTodoMessage.text":
+		if e.complexity.SimulatedTodoMessage.Text == nil {
 			break
 		}
 
-		return e.complexity.SimulatedLineTodoMessage.TodoCandidateDecision(childComplexity), true
+		return e.complexity.SimulatedTodoMessage.Text(childComplexity), true
 
-	case "SimulatedLineTodoMessage.todoCandidateID":
-		if e.complexity.SimulatedLineTodoMessage.TodoCandidateID == nil {
+	case "SimulatedTodoMessage.todoCandidateDecision":
+		if e.complexity.SimulatedTodoMessage.TodoCandidateDecision == nil {
 			break
 		}
 
-		return e.complexity.SimulatedLineTodoMessage.TodoCandidateID(childComplexity), true
+		return e.complexity.SimulatedTodoMessage.TodoCandidateDecision(childComplexity), true
 
-	case "SimulatedLineTodoMessage.todoCandidateReason":
-		if e.complexity.SimulatedLineTodoMessage.TodoCandidateReason == nil {
+	case "SimulatedTodoMessage.todoCandidateID":
+		if e.complexity.SimulatedTodoMessage.TodoCandidateID == nil {
 			break
 		}
 
-		return e.complexity.SimulatedLineTodoMessage.TodoCandidateReason(childComplexity), true
+		return e.complexity.SimulatedTodoMessage.TodoCandidateID(childComplexity), true
 
-	case "SimulatedLineTodoMessage.todoCandidateStatus":
-		if e.complexity.SimulatedLineTodoMessage.TodoCandidateStatus == nil {
+	case "SimulatedTodoMessage.todoCandidateReason":
+		if e.complexity.SimulatedTodoMessage.TodoCandidateReason == nil {
 			break
 		}
 
-		return e.complexity.SimulatedLineTodoMessage.TodoCandidateStatus(childComplexity), true
+		return e.complexity.SimulatedTodoMessage.TodoCandidateReason(childComplexity), true
 
-	case "SimulatedLineTodoMessage.todoCandidateSummary":
-		if e.complexity.SimulatedLineTodoMessage.TodoCandidateSummary == nil {
+	case "SimulatedTodoMessage.todoCandidateStatus":
+		if e.complexity.SimulatedTodoMessage.TodoCandidateStatus == nil {
 			break
 		}
 
-		return e.complexity.SimulatedLineTodoMessage.TodoCandidateSummary(childComplexity), true
+		return e.complexity.SimulatedTodoMessage.TodoCandidateStatus(childComplexity), true
 
-	case "SimulatedLineTodoParticipant.displayName":
-		if e.complexity.SimulatedLineTodoParticipant.DisplayName == nil {
+	case "SimulatedTodoMessage.todoCandidateSummary":
+		if e.complexity.SimulatedTodoMessage.TodoCandidateSummary == nil {
 			break
 		}
 
-		return e.complexity.SimulatedLineTodoParticipant.DisplayName(childComplexity), true
+		return e.complexity.SimulatedTodoMessage.TodoCandidateSummary(childComplexity), true
 
-	case "SimulatedLineTodoParticipant.lineUserID":
-		if e.complexity.SimulatedLineTodoParticipant.LineUserID == nil {
+	case "SimulatedTodoParticipant.displayName":
+		if e.complexity.SimulatedTodoParticipant.DisplayName == nil {
 			break
 		}
 
-		return e.complexity.SimulatedLineTodoParticipant.LineUserID(childComplexity), true
+		return e.complexity.SimulatedTodoParticipant.DisplayName(childComplexity), true
 
-	case "SimulatedLineTodoParticipant.userID":
-		if e.complexity.SimulatedLineTodoParticipant.UserID == nil {
+	case "SimulatedTodoParticipant.platformUserID":
+		if e.complexity.SimulatedTodoParticipant.PlatformUserID == nil {
 			break
 		}
 
-		return e.complexity.SimulatedLineTodoParticipant.UserID(childComplexity), true
+		return e.complexity.SimulatedTodoParticipant.PlatformUserID(childComplexity), true
+
+	case "SimulatedTodoParticipant.userID":
+		if e.complexity.SimulatedTodoParticipant.UserID == nil {
+			break
+		}
+
+		return e.complexity.SimulatedTodoParticipant.UserID(childComplexity), true
 
 	case "User.email":
 		if e.complexity.User.Email == nil {
@@ -631,7 +639,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateUserInput,
 		ec.unmarshalInputLineWhereInput,
 		ec.unmarshalInputSendLineTextInput,
-		ec.unmarshalInputSimulateLineTodoConversationInput,
+		ec.unmarshalInputSimulateTodoConversationInput,
 		ec.unmarshalInputSkillWhereInput,
 		ec.unmarshalInputSlackWhereInput,
 		ec.unmarshalInputSlackWorkspaceWhereInput,
@@ -3211,15 +3219,15 @@ input UserWhereInput {
 # 避免測試工具的便利欄位影響外部 API 設計。
 extend type Mutation {
     """
-    產生一段模擬 LINE Todo 對話，並依序寫入 channel message / mention / todo candidate 相關資料。
+    產生一段模擬聊天平台 Todo 對話，並依序寫入 channel message / mention / todo candidate 相關資料。
 
-    用途是讓開發者不用真的從 LINE 發訊息，也能快速驗證 realtime Todo pipeline、
+    用途是讓開發者不用真的從 LINE/Slack 發訊息，也能快速驗證 realtime Todo pipeline、
     todo candidate 建立與後續 promotion 行為。回傳 payload 會列出每一則模擬訊息與其落庫結果，
     方便直接在 GraphQL client 中確認是哪一則訊息觸發 candidate。
     """
-    simulateLineTodoConversation(
-        input: SimulateLineTodoConversationInput!
-    ): SimulateLineTodoConversationPayload!
+    simulateTodoConversation(
+        input: SimulateTodoConversationInput!
+    ): SimulateTodoConversationPayload!
 
     """
     清除開發測試用的 realtime Todo 資料。
@@ -3231,15 +3239,27 @@ extend type Mutation {
 }
 
 """
-模擬 LINE Todo 對話的輸入參數。
+模擬聊天平台 Todo 對話的輸入參數。
 
-channelID 預設指向本機 seed/dev channel；participantCount 控制模擬群組中的人數；
+platform 指定要模擬的平台；channelID 預設指向本機 seed/dev channel；participantCount 控制模擬群組中的人數；
 messageCount 控制要產生幾則對話；analysisWaitMilliseconds 則用來在寫入訊息後等待非同步分析流程，
 讓呼叫端可以選擇立即回傳或等待 candidate/promotion 完成後再檢查結果。
 """
-input SimulateLineTodoConversationInput {
+input SimulateTodoConversationInput {
     """
-    要寫入模擬訊息的 channel ID；預設值為本機開發環境的 LINE channel。
+    要模擬的訊息平台；目前支援 line 與 slack。
+    """
+    platform: String! = "line"
+    """
+    Slack workspace/team ID；platform 為 slack 時必填。
+    """
+    platformTenantID: String
+    """
+    Slack app ID；platform 為 slack 時必填，用來選擇對應 bot 設定與 workspace install。
+    """
+    platformAppID: String
+    """
+    要寫入模擬訊息的 channel ID；預設值為本機開發環境的 channel。
     """
     channelID: ID! = "da1d5fc5-1da3-4c82-aacf-b16f79ab3867"
     """
@@ -3259,29 +3279,29 @@ input SimulateLineTodoConversationInput {
 """
 模擬對話中的參與者。
 
-userID 是系統內部 User ID；lineUserID 是平台側身分；displayName 是對話中顯示與 assignee resolver 使用的名稱。
+userID 是系統內部 User ID；platformUserID 是平台側身分；displayName 是對話中顯示與 assignee resolver 使用的名稱。
 """
-type SimulatedLineTodoParticipant {
+type SimulatedTodoParticipant {
     userID: ID!
-    lineUserID: String!
+    platformUserID: String!
     displayName: String!
 }
 
 """
-單則模擬 LINE 訊息與其 Todo pipeline 結果。
+單則模擬平台訊息與其 Todo pipeline 結果。
 
-前半部欄位描述這則訊息如何被送出；savedMessageID / sentLineMessageID 描述平台與資料庫落點；
+前半部欄位描述這則訊息如何被送進平台 webhook pipeline；savedMessageID 描述資料庫落點；
 todoCandidate* 欄位則是此訊息若觸發 Todo analyzer 時，對應 candidate 的最新狀態摘要。
 """
-type SimulatedLineTodoMessage {
+type SimulatedTodoMessage {
     """
     此訊息的系統內部發話者 User ID。
     """
     speakerUserID: ID!
     """
-    此訊息的 LINE 發話者 userId。
+    此訊息的平台發話者 ID。
     """
-    lineUserID: String!
+    platformUserID: String!
     """
     此訊息在對話中顯示的發話者名稱。
     """
@@ -3291,9 +3311,9 @@ type SimulatedLineTodoMessage {
     """
     text: String!
     """
-    模擬 LINE 平台實際收到或送出的文字內容，可包含平台格式差異。
+    模擬平台 webhook 實際收到的文字內容，可包含平台格式差異。
     """
-    lineText: String!
+    platformText: String!
     """
     模擬平台訊息 ID，用來測試 reply/linking 與 message lookup。
     """
@@ -3302,10 +3322,6 @@ type SimulatedLineTodoMessage {
     訊息成功保存後的 ChannelMessage ID；若保存失敗則為空。
     """
     savedMessageID: ID
-    """
-    若測試流程有模擬送出 LINE 訊息，這裡保存回傳的平台訊息 ID。
-    """
-    sentLineMessageID: String
     """
     此訊息觸發或更新的 TodoCandidate ID；未觸發 Todo pipeline 時為空。
     """
@@ -3329,12 +3345,12 @@ type SimulatedLineTodoMessage {
 }
 
 """
-模擬 LINE Todo 對話的執行結果。
+模擬聊天平台 Todo 對話的執行結果。
 
 payload 同時回傳 channel、參與者、每則訊息與 candidate 數量，讓開發者可以在一次 GraphQL 呼叫後，
 直接判斷資料是否成功穿過 message persistence、mention extraction、todo analyzer 與 candidate persistence。
 """
-type SimulateLineTodoConversationPayload {
+type SimulateTodoConversationPayload {
     """
     本次模擬操作狀態；通常用於快速判斷 helper 是否執行完成。
     """
@@ -3344,9 +3360,17 @@ type SimulateLineTodoConversationPayload {
     """
     channelID: ID!
     """
-    本次模擬對應的 LINE channel ID。
+    本次模擬使用的平台。
     """
-    lineChannelID: String!
+    platform: String!
+    """
+    本次模擬對應的平台 channel/group ID。
+    """
+    platformChannelID: String!
+    """
+    本次模擬對應的平台 tenant/workspace ID；LINE 可為空字串。
+    """
+    platformTenantID: String!
     """
     實際套用的 analyzer 等待毫秒數。
     """
@@ -3358,11 +3382,11 @@ type SimulateLineTodoConversationPayload {
     """
     本次模擬建立或使用的參與者清單。
     """
-    participants: [SimulatedLineTodoParticipant!]!
+    participants: [SimulatedTodoParticipant!]!
     """
     本次模擬產生的訊息與各自 Todo pipeline 結果。
     """
-    messages: [SimulatedLineTodoMessage!]!
+    messages: [SimulatedTodoMessage!]!
 }
 
 """
@@ -3662,31 +3686,31 @@ func (ec *executionContext) field_Mutation_sendLineText_argsInput(
 	return zeroVal, nil
 }
 
-func (ec *executionContext) field_Mutation_simulateLineTodoConversation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_simulateTodoConversation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Mutation_simulateLineTodoConversation_argsInput(ctx, rawArgs)
+	arg0, err := ec.field_Mutation_simulateTodoConversation_argsInput(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
 	args["input"] = arg0
 	return args, nil
 }
-func (ec *executionContext) field_Mutation_simulateLineTodoConversation_argsInput(
+func (ec *executionContext) field_Mutation_simulateTodoConversation_argsInput(
 	ctx context.Context,
 	rawArgs map[string]any,
-) (model.SimulateLineTodoConversationInput, error) {
+) (model.SimulateTodoConversationInput, error) {
 	if _, ok := rawArgs["input"]; !ok {
-		var zeroVal model.SimulateLineTodoConversationInput
+		var zeroVal model.SimulateTodoConversationInput
 		return zeroVal, nil
 	}
 
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
 	if tmp, ok := rawArgs["input"]; ok {
-		return ec.unmarshalNSimulateLineTodoConversationInput2assistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulateLineTodoConversationInput(ctx, tmp)
+		return ec.unmarshalNSimulateTodoConversationInput2assistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulateTodoConversationInput(ctx, tmp)
 	}
 
-	var zeroVal model.SimulateLineTodoConversationInput
+	var zeroVal model.SimulateTodoConversationInput
 	return zeroVal, nil
 }
 
@@ -4572,8 +4596,8 @@ func (ec *executionContext) fieldContext_Mutation_sendLineText(ctx context.Conte
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_simulateLineTodoConversation(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Mutation_simulateLineTodoConversation(ctx, field)
+func (ec *executionContext) _Mutation_simulateTodoConversation(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_simulateTodoConversation(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -4586,7 +4610,7 @@ func (ec *executionContext) _Mutation_simulateLineTodoConversation(ctx context.C
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().SimulateLineTodoConversation(rctx, fc.Args["input"].(model.SimulateLineTodoConversationInput))
+		return ec.resolvers.Mutation().SimulateTodoConversation(rctx, fc.Args["input"].(model.SimulateTodoConversationInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4598,12 +4622,12 @@ func (ec *executionContext) _Mutation_simulateLineTodoConversation(ctx context.C
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.SimulateLineTodoConversationPayload)
+	res := resTmp.(*model.SimulateTodoConversationPayload)
 	fc.Result = res
-	return ec.marshalNSimulateLineTodoConversationPayload2ᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulateLineTodoConversationPayload(ctx, field.Selections, res)
+	return ec.marshalNSimulateTodoConversationPayload2ᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulateTodoConversationPayload(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Mutation_simulateLineTodoConversation(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_simulateTodoConversation(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -4612,21 +4636,25 @@ func (ec *executionContext) fieldContext_Mutation_simulateLineTodoConversation(c
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "status":
-				return ec.fieldContext_SimulateLineTodoConversationPayload_status(ctx, field)
+				return ec.fieldContext_SimulateTodoConversationPayload_status(ctx, field)
 			case "channelID":
-				return ec.fieldContext_SimulateLineTodoConversationPayload_channelID(ctx, field)
-			case "lineChannelID":
-				return ec.fieldContext_SimulateLineTodoConversationPayload_lineChannelID(ctx, field)
+				return ec.fieldContext_SimulateTodoConversationPayload_channelID(ctx, field)
+			case "platform":
+				return ec.fieldContext_SimulateTodoConversationPayload_platform(ctx, field)
+			case "platformChannelID":
+				return ec.fieldContext_SimulateTodoConversationPayload_platformChannelID(ctx, field)
+			case "platformTenantID":
+				return ec.fieldContext_SimulateTodoConversationPayload_platformTenantID(ctx, field)
 			case "analysisWaitMilliseconds":
-				return ec.fieldContext_SimulateLineTodoConversationPayload_analysisWaitMilliseconds(ctx, field)
+				return ec.fieldContext_SimulateTodoConversationPayload_analysisWaitMilliseconds(ctx, field)
 			case "todoCandidateCount":
-				return ec.fieldContext_SimulateLineTodoConversationPayload_todoCandidateCount(ctx, field)
+				return ec.fieldContext_SimulateTodoConversationPayload_todoCandidateCount(ctx, field)
 			case "participants":
-				return ec.fieldContext_SimulateLineTodoConversationPayload_participants(ctx, field)
+				return ec.fieldContext_SimulateTodoConversationPayload_participants(ctx, field)
 			case "messages":
-				return ec.fieldContext_SimulateLineTodoConversationPayload_messages(ctx, field)
+				return ec.fieldContext_SimulateTodoConversationPayload_messages(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type SimulateLineTodoConversationPayload", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type SimulateTodoConversationPayload", field.Name)
 		},
 	}
 	defer func() {
@@ -4636,7 +4664,7 @@ func (ec *executionContext) fieldContext_Mutation_simulateLineTodoConversation(c
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_simulateLineTodoConversation_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_simulateTodoConversation_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -5043,8 +5071,8 @@ func (ec *executionContext) fieldContext_SendLineTextPayload_to(_ context.Contex
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulateLineTodoConversationPayload_status(ctx context.Context, field graphql.CollectedField, obj *model.SimulateLineTodoConversationPayload) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulateLineTodoConversationPayload_status(ctx, field)
+func (ec *executionContext) _SimulateTodoConversationPayload_status(ctx context.Context, field graphql.CollectedField, obj *model.SimulateTodoConversationPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulateTodoConversationPayload_status(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5074,9 +5102,9 @@ func (ec *executionContext) _SimulateLineTodoConversationPayload_status(ctx cont
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulateLineTodoConversationPayload_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulateTodoConversationPayload_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulateLineTodoConversationPayload",
+		Object:     "SimulateTodoConversationPayload",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5087,8 +5115,8 @@ func (ec *executionContext) fieldContext_SimulateLineTodoConversationPayload_sta
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulateLineTodoConversationPayload_channelID(ctx context.Context, field graphql.CollectedField, obj *model.SimulateLineTodoConversationPayload) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulateLineTodoConversationPayload_channelID(ctx, field)
+func (ec *executionContext) _SimulateTodoConversationPayload_channelID(ctx context.Context, field graphql.CollectedField, obj *model.SimulateTodoConversationPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulateTodoConversationPayload_channelID(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5118,9 +5146,9 @@ func (ec *executionContext) _SimulateLineTodoConversationPayload_channelID(ctx c
 	return ec.marshalNID2githubᚗcomᚋgoogleᚋuuidᚐUUID(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulateLineTodoConversationPayload_channelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulateTodoConversationPayload_channelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulateLineTodoConversationPayload",
+		Object:     "SimulateTodoConversationPayload",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5131,8 +5159,8 @@ func (ec *executionContext) fieldContext_SimulateLineTodoConversationPayload_cha
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulateLineTodoConversationPayload_lineChannelID(ctx context.Context, field graphql.CollectedField, obj *model.SimulateLineTodoConversationPayload) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulateLineTodoConversationPayload_lineChannelID(ctx, field)
+func (ec *executionContext) _SimulateTodoConversationPayload_platform(ctx context.Context, field graphql.CollectedField, obj *model.SimulateTodoConversationPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulateTodoConversationPayload_platform(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5145,7 +5173,7 @@ func (ec *executionContext) _SimulateLineTodoConversationPayload_lineChannelID(c
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.LineChannelID, nil
+		return obj.Platform, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -5162,9 +5190,9 @@ func (ec *executionContext) _SimulateLineTodoConversationPayload_lineChannelID(c
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulateLineTodoConversationPayload_lineChannelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulateTodoConversationPayload_platform(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulateLineTodoConversationPayload",
+		Object:     "SimulateTodoConversationPayload",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5175,8 +5203,96 @@ func (ec *executionContext) fieldContext_SimulateLineTodoConversationPayload_lin
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulateLineTodoConversationPayload_analysisWaitMilliseconds(ctx context.Context, field graphql.CollectedField, obj *model.SimulateLineTodoConversationPayload) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulateLineTodoConversationPayload_analysisWaitMilliseconds(ctx, field)
+func (ec *executionContext) _SimulateTodoConversationPayload_platformChannelID(ctx context.Context, field graphql.CollectedField, obj *model.SimulateTodoConversationPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulateTodoConversationPayload_platformChannelID(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PlatformChannelID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SimulateTodoConversationPayload_platformChannelID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SimulateTodoConversationPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SimulateTodoConversationPayload_platformTenantID(ctx context.Context, field graphql.CollectedField, obj *model.SimulateTodoConversationPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulateTodoConversationPayload_platformTenantID(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PlatformTenantID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SimulateTodoConversationPayload_platformTenantID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SimulateTodoConversationPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SimulateTodoConversationPayload_analysisWaitMilliseconds(ctx context.Context, field graphql.CollectedField, obj *model.SimulateTodoConversationPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulateTodoConversationPayload_analysisWaitMilliseconds(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5206,9 +5322,9 @@ func (ec *executionContext) _SimulateLineTodoConversationPayload_analysisWaitMil
 	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulateLineTodoConversationPayload_analysisWaitMilliseconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulateTodoConversationPayload_analysisWaitMilliseconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulateLineTodoConversationPayload",
+		Object:     "SimulateTodoConversationPayload",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5219,8 +5335,8 @@ func (ec *executionContext) fieldContext_SimulateLineTodoConversationPayload_ana
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulateLineTodoConversationPayload_todoCandidateCount(ctx context.Context, field graphql.CollectedField, obj *model.SimulateLineTodoConversationPayload) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulateLineTodoConversationPayload_todoCandidateCount(ctx, field)
+func (ec *executionContext) _SimulateTodoConversationPayload_todoCandidateCount(ctx context.Context, field graphql.CollectedField, obj *model.SimulateTodoConversationPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulateTodoConversationPayload_todoCandidateCount(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5250,9 +5366,9 @@ func (ec *executionContext) _SimulateLineTodoConversationPayload_todoCandidateCo
 	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulateLineTodoConversationPayload_todoCandidateCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulateTodoConversationPayload_todoCandidateCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulateLineTodoConversationPayload",
+		Object:     "SimulateTodoConversationPayload",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5263,8 +5379,8 @@ func (ec *executionContext) fieldContext_SimulateLineTodoConversationPayload_tod
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulateLineTodoConversationPayload_participants(ctx context.Context, field graphql.CollectedField, obj *model.SimulateLineTodoConversationPayload) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulateLineTodoConversationPayload_participants(ctx, field)
+func (ec *executionContext) _SimulateTodoConversationPayload_participants(ctx context.Context, field graphql.CollectedField, obj *model.SimulateTodoConversationPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulateTodoConversationPayload_participants(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5289,34 +5405,34 @@ func (ec *executionContext) _SimulateLineTodoConversationPayload_participants(ct
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.SimulatedLineTodoParticipant)
+	res := resTmp.([]*model.SimulatedTodoParticipant)
 	fc.Result = res
-	return ec.marshalNSimulatedLineTodoParticipant2ᚕᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulatedLineTodoParticipantᚄ(ctx, field.Selections, res)
+	return ec.marshalNSimulatedTodoParticipant2ᚕᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulatedTodoParticipantᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulateLineTodoConversationPayload_participants(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulateTodoConversationPayload_participants(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulateLineTodoConversationPayload",
+		Object:     "SimulateTodoConversationPayload",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "userID":
-				return ec.fieldContext_SimulatedLineTodoParticipant_userID(ctx, field)
-			case "lineUserID":
-				return ec.fieldContext_SimulatedLineTodoParticipant_lineUserID(ctx, field)
+				return ec.fieldContext_SimulatedTodoParticipant_userID(ctx, field)
+			case "platformUserID":
+				return ec.fieldContext_SimulatedTodoParticipant_platformUserID(ctx, field)
 			case "displayName":
-				return ec.fieldContext_SimulatedLineTodoParticipant_displayName(ctx, field)
+				return ec.fieldContext_SimulatedTodoParticipant_displayName(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type SimulatedLineTodoParticipant", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type SimulatedTodoParticipant", field.Name)
 		},
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulateLineTodoConversationPayload_messages(ctx context.Context, field graphql.CollectedField, obj *model.SimulateLineTodoConversationPayload) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulateLineTodoConversationPayload_messages(ctx, field)
+func (ec *executionContext) _SimulateTodoConversationPayload_messages(ctx context.Context, field graphql.CollectedField, obj *model.SimulateTodoConversationPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulateTodoConversationPayload_messages(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5341,54 +5457,52 @@ func (ec *executionContext) _SimulateLineTodoConversationPayload_messages(ctx co
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.SimulatedLineTodoMessage)
+	res := resTmp.([]*model.SimulatedTodoMessage)
 	fc.Result = res
-	return ec.marshalNSimulatedLineTodoMessage2ᚕᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulatedLineTodoMessageᚄ(ctx, field.Selections, res)
+	return ec.marshalNSimulatedTodoMessage2ᚕᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulatedTodoMessageᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulateLineTodoConversationPayload_messages(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulateTodoConversationPayload_messages(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulateLineTodoConversationPayload",
+		Object:     "SimulateTodoConversationPayload",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "speakerUserID":
-				return ec.fieldContext_SimulatedLineTodoMessage_speakerUserID(ctx, field)
-			case "lineUserID":
-				return ec.fieldContext_SimulatedLineTodoMessage_lineUserID(ctx, field)
+				return ec.fieldContext_SimulatedTodoMessage_speakerUserID(ctx, field)
+			case "platformUserID":
+				return ec.fieldContext_SimulatedTodoMessage_platformUserID(ctx, field)
 			case "displayName":
-				return ec.fieldContext_SimulatedLineTodoMessage_displayName(ctx, field)
+				return ec.fieldContext_SimulatedTodoMessage_displayName(ctx, field)
 			case "text":
-				return ec.fieldContext_SimulatedLineTodoMessage_text(ctx, field)
-			case "lineText":
-				return ec.fieldContext_SimulatedLineTodoMessage_lineText(ctx, field)
+				return ec.fieldContext_SimulatedTodoMessage_text(ctx, field)
+			case "platformText":
+				return ec.fieldContext_SimulatedTodoMessage_platformText(ctx, field)
 			case "platformMessageID":
-				return ec.fieldContext_SimulatedLineTodoMessage_platformMessageID(ctx, field)
+				return ec.fieldContext_SimulatedTodoMessage_platformMessageID(ctx, field)
 			case "savedMessageID":
-				return ec.fieldContext_SimulatedLineTodoMessage_savedMessageID(ctx, field)
-			case "sentLineMessageID":
-				return ec.fieldContext_SimulatedLineTodoMessage_sentLineMessageID(ctx, field)
+				return ec.fieldContext_SimulatedTodoMessage_savedMessageID(ctx, field)
 			case "todoCandidateID":
-				return ec.fieldContext_SimulatedLineTodoMessage_todoCandidateID(ctx, field)
+				return ec.fieldContext_SimulatedTodoMessage_todoCandidateID(ctx, field)
 			case "todoCandidateStatus":
-				return ec.fieldContext_SimulatedLineTodoMessage_todoCandidateStatus(ctx, field)
+				return ec.fieldContext_SimulatedTodoMessage_todoCandidateStatus(ctx, field)
 			case "todoCandidateDecision":
-				return ec.fieldContext_SimulatedLineTodoMessage_todoCandidateDecision(ctx, field)
+				return ec.fieldContext_SimulatedTodoMessage_todoCandidateDecision(ctx, field)
 			case "todoCandidateSummary":
-				return ec.fieldContext_SimulatedLineTodoMessage_todoCandidateSummary(ctx, field)
+				return ec.fieldContext_SimulatedTodoMessage_todoCandidateSummary(ctx, field)
 			case "todoCandidateReason":
-				return ec.fieldContext_SimulatedLineTodoMessage_todoCandidateReason(ctx, field)
+				return ec.fieldContext_SimulatedTodoMessage_todoCandidateReason(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type SimulatedLineTodoMessage", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type SimulatedTodoMessage", field.Name)
 		},
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulatedLineTodoMessage_speakerUserID(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedLineTodoMessage) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulatedLineTodoMessage_speakerUserID(ctx, field)
+func (ec *executionContext) _SimulatedTodoMessage_speakerUserID(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedTodoMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulatedTodoMessage_speakerUserID(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5418,9 +5532,9 @@ func (ec *executionContext) _SimulatedLineTodoMessage_speakerUserID(ctx context.
 	return ec.marshalNID2githubᚗcomᚋgoogleᚋuuidᚐUUID(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_speakerUserID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulatedTodoMessage_speakerUserID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulatedLineTodoMessage",
+		Object:     "SimulatedTodoMessage",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5431,8 +5545,8 @@ func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_speakerUserID(
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulatedLineTodoMessage_lineUserID(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedLineTodoMessage) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulatedLineTodoMessage_lineUserID(ctx, field)
+func (ec *executionContext) _SimulatedTodoMessage_platformUserID(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedTodoMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulatedTodoMessage_platformUserID(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5445,7 +5559,7 @@ func (ec *executionContext) _SimulatedLineTodoMessage_lineUserID(ctx context.Con
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.LineUserID, nil
+		return obj.PlatformUserID, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -5462,9 +5576,9 @@ func (ec *executionContext) _SimulatedLineTodoMessage_lineUserID(ctx context.Con
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_lineUserID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulatedTodoMessage_platformUserID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulatedLineTodoMessage",
+		Object:     "SimulatedTodoMessage",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5475,8 +5589,8 @@ func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_lineUserID(_ c
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulatedLineTodoMessage_displayName(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedLineTodoMessage) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulatedLineTodoMessage_displayName(ctx, field)
+func (ec *executionContext) _SimulatedTodoMessage_displayName(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedTodoMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulatedTodoMessage_displayName(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5506,9 +5620,9 @@ func (ec *executionContext) _SimulatedLineTodoMessage_displayName(ctx context.Co
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_displayName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulatedTodoMessage_displayName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulatedLineTodoMessage",
+		Object:     "SimulatedTodoMessage",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5519,8 +5633,8 @@ func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_displayName(_ 
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulatedLineTodoMessage_text(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedLineTodoMessage) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulatedLineTodoMessage_text(ctx, field)
+func (ec *executionContext) _SimulatedTodoMessage_text(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedTodoMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulatedTodoMessage_text(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5550,9 +5664,9 @@ func (ec *executionContext) _SimulatedLineTodoMessage_text(ctx context.Context, 
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_text(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulatedTodoMessage_text(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulatedLineTodoMessage",
+		Object:     "SimulatedTodoMessage",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5563,8 +5677,8 @@ func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_text(_ context
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulatedLineTodoMessage_lineText(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedLineTodoMessage) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulatedLineTodoMessage_lineText(ctx, field)
+func (ec *executionContext) _SimulatedTodoMessage_platformText(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedTodoMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulatedTodoMessage_platformText(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5577,7 +5691,7 @@ func (ec *executionContext) _SimulatedLineTodoMessage_lineText(ctx context.Conte
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.LineText, nil
+		return obj.PlatformText, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -5594,9 +5708,9 @@ func (ec *executionContext) _SimulatedLineTodoMessage_lineText(ctx context.Conte
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_lineText(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulatedTodoMessage_platformText(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulatedLineTodoMessage",
+		Object:     "SimulatedTodoMessage",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5607,8 +5721,8 @@ func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_lineText(_ con
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulatedLineTodoMessage_platformMessageID(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedLineTodoMessage) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulatedLineTodoMessage_platformMessageID(ctx, field)
+func (ec *executionContext) _SimulatedTodoMessage_platformMessageID(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedTodoMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulatedTodoMessage_platformMessageID(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5638,9 +5752,9 @@ func (ec *executionContext) _SimulatedLineTodoMessage_platformMessageID(ctx cont
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_platformMessageID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulatedTodoMessage_platformMessageID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulatedLineTodoMessage",
+		Object:     "SimulatedTodoMessage",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5651,8 +5765,8 @@ func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_platformMessag
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulatedLineTodoMessage_savedMessageID(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedLineTodoMessage) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulatedLineTodoMessage_savedMessageID(ctx, field)
+func (ec *executionContext) _SimulatedTodoMessage_savedMessageID(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedTodoMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulatedTodoMessage_savedMessageID(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5679,9 +5793,9 @@ func (ec *executionContext) _SimulatedLineTodoMessage_savedMessageID(ctx context
 	return ec.marshalOID2ᚖgithubᚗcomᚋgoogleᚋuuidᚐUUID(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_savedMessageID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulatedTodoMessage_savedMessageID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulatedLineTodoMessage",
+		Object:     "SimulatedTodoMessage",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5692,49 +5806,8 @@ func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_savedMessageID
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulatedLineTodoMessage_sentLineMessageID(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedLineTodoMessage) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulatedLineTodoMessage_sentLineMessageID(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.SentLineMessageID, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*string)
-	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_sentLineMessageID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SimulatedLineTodoMessage",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SimulatedLineTodoMessage_todoCandidateID(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedLineTodoMessage) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulatedLineTodoMessage_todoCandidateID(ctx, field)
+func (ec *executionContext) _SimulatedTodoMessage_todoCandidateID(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedTodoMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulatedTodoMessage_todoCandidateID(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5761,9 +5834,9 @@ func (ec *executionContext) _SimulatedLineTodoMessage_todoCandidateID(ctx contex
 	return ec.marshalOID2ᚖgithubᚗcomᚋgoogleᚋuuidᚐUUID(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_todoCandidateID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulatedTodoMessage_todoCandidateID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulatedLineTodoMessage",
+		Object:     "SimulatedTodoMessage",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5774,8 +5847,8 @@ func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_todoCandidateI
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulatedLineTodoMessage_todoCandidateStatus(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedLineTodoMessage) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulatedLineTodoMessage_todoCandidateStatus(ctx, field)
+func (ec *executionContext) _SimulatedTodoMessage_todoCandidateStatus(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedTodoMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulatedTodoMessage_todoCandidateStatus(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5802,9 +5875,9 @@ func (ec *executionContext) _SimulatedLineTodoMessage_todoCandidateStatus(ctx co
 	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_todoCandidateStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulatedTodoMessage_todoCandidateStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulatedLineTodoMessage",
+		Object:     "SimulatedTodoMessage",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5815,8 +5888,8 @@ func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_todoCandidateS
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulatedLineTodoMessage_todoCandidateDecision(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedLineTodoMessage) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulatedLineTodoMessage_todoCandidateDecision(ctx, field)
+func (ec *executionContext) _SimulatedTodoMessage_todoCandidateDecision(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedTodoMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulatedTodoMessage_todoCandidateDecision(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5843,9 +5916,9 @@ func (ec *executionContext) _SimulatedLineTodoMessage_todoCandidateDecision(ctx 
 	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_todoCandidateDecision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulatedTodoMessage_todoCandidateDecision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulatedLineTodoMessage",
+		Object:     "SimulatedTodoMessage",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5856,8 +5929,8 @@ func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_todoCandidateD
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulatedLineTodoMessage_todoCandidateSummary(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedLineTodoMessage) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulatedLineTodoMessage_todoCandidateSummary(ctx, field)
+func (ec *executionContext) _SimulatedTodoMessage_todoCandidateSummary(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedTodoMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulatedTodoMessage_todoCandidateSummary(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5884,9 +5957,9 @@ func (ec *executionContext) _SimulatedLineTodoMessage_todoCandidateSummary(ctx c
 	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_todoCandidateSummary(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulatedTodoMessage_todoCandidateSummary(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulatedLineTodoMessage",
+		Object:     "SimulatedTodoMessage",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5897,8 +5970,8 @@ func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_todoCandidateS
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulatedLineTodoMessage_todoCandidateReason(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedLineTodoMessage) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulatedLineTodoMessage_todoCandidateReason(ctx, field)
+func (ec *executionContext) _SimulatedTodoMessage_todoCandidateReason(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedTodoMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulatedTodoMessage_todoCandidateReason(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5925,9 +5998,9 @@ func (ec *executionContext) _SimulatedLineTodoMessage_todoCandidateReason(ctx co
 	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_todoCandidateReason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulatedTodoMessage_todoCandidateReason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulatedLineTodoMessage",
+		Object:     "SimulatedTodoMessage",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5938,8 +6011,8 @@ func (ec *executionContext) fieldContext_SimulatedLineTodoMessage_todoCandidateR
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulatedLineTodoParticipant_userID(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedLineTodoParticipant) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulatedLineTodoParticipant_userID(ctx, field)
+func (ec *executionContext) _SimulatedTodoParticipant_userID(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedTodoParticipant) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulatedTodoParticipant_userID(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5969,9 +6042,9 @@ func (ec *executionContext) _SimulatedLineTodoParticipant_userID(ctx context.Con
 	return ec.marshalNID2githubᚗcomᚋgoogleᚋuuidᚐUUID(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulatedLineTodoParticipant_userID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulatedTodoParticipant_userID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulatedLineTodoParticipant",
+		Object:     "SimulatedTodoParticipant",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5982,8 +6055,8 @@ func (ec *executionContext) fieldContext_SimulatedLineTodoParticipant_userID(_ c
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulatedLineTodoParticipant_lineUserID(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedLineTodoParticipant) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulatedLineTodoParticipant_lineUserID(ctx, field)
+func (ec *executionContext) _SimulatedTodoParticipant_platformUserID(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedTodoParticipant) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulatedTodoParticipant_platformUserID(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5996,7 +6069,7 @@ func (ec *executionContext) _SimulatedLineTodoParticipant_lineUserID(ctx context
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.LineUserID, nil
+		return obj.PlatformUserID, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -6013,9 +6086,9 @@ func (ec *executionContext) _SimulatedLineTodoParticipant_lineUserID(ctx context
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulatedLineTodoParticipant_lineUserID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulatedTodoParticipant_platformUserID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulatedLineTodoParticipant",
+		Object:     "SimulatedTodoParticipant",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -6026,8 +6099,8 @@ func (ec *executionContext) fieldContext_SimulatedLineTodoParticipant_lineUserID
 	return fc, nil
 }
 
-func (ec *executionContext) _SimulatedLineTodoParticipant_displayName(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedLineTodoParticipant) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_SimulatedLineTodoParticipant_displayName(ctx, field)
+func (ec *executionContext) _SimulatedTodoParticipant_displayName(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedTodoParticipant) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulatedTodoParticipant_displayName(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -6057,9 +6130,9 @@ func (ec *executionContext) _SimulatedLineTodoParticipant_displayName(ctx contex
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_SimulatedLineTodoParticipant_displayName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SimulatedTodoParticipant_displayName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "SimulatedLineTodoParticipant",
+		Object:     "SimulatedTodoParticipant",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -13232,13 +13305,16 @@ func (ec *executionContext) unmarshalInputSendLineTextInput(ctx context.Context,
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputSimulateLineTodoConversationInput(ctx context.Context, obj any) (model.SimulateLineTodoConversationInput, error) {
-	var it model.SimulateLineTodoConversationInput
+func (ec *executionContext) unmarshalInputSimulateTodoConversationInput(ctx context.Context, obj any) (model.SimulateTodoConversationInput, error) {
+	var it model.SimulateTodoConversationInput
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
+	if _, present := asMap["platform"]; !present {
+		asMap["platform"] = "line"
+	}
 	if _, present := asMap["channelID"]; !present {
 		asMap["channelID"] = "da1d5fc5-1da3-4c82-aacf-b16f79ab3867"
 	}
@@ -13246,13 +13322,34 @@ func (ec *executionContext) unmarshalInputSimulateLineTodoConversationInput(ctx 
 		asMap["analysisWaitMilliseconds"] = 0
 	}
 
-	fieldsInOrder := [...]string{"channelID", "participantCount", "messageCount", "analysisWaitMilliseconds"}
+	fieldsInOrder := [...]string{"platform", "platformTenantID", "platformAppID", "channelID", "participantCount", "messageCount", "analysisWaitMilliseconds"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "platform":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("platform"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Platform = data
+		case "platformTenantID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("platformTenantID"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PlatformTenantID = data
+		case "platformAppID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("platformAppID"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PlatformAppID = data
 		case "channelID":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelID"))
 			data, err := ec.unmarshalNID2githubᚗcomᚋgoogleᚋuuidᚐUUID(ctx, v)
@@ -20553,9 +20650,9 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "simulateLineTodoConversation":
+		case "simulateTodoConversation":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_simulateLineTodoConversation(ctx, field)
+				return ec._Mutation_simulateTodoConversation(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -20725,49 +20822,59 @@ func (ec *executionContext) _SendLineTextPayload(ctx context.Context, sel ast.Se
 	return out
 }
 
-var simulateLineTodoConversationPayloadImplementors = []string{"SimulateLineTodoConversationPayload"}
+var simulateTodoConversationPayloadImplementors = []string{"SimulateTodoConversationPayload"}
 
-func (ec *executionContext) _SimulateLineTodoConversationPayload(ctx context.Context, sel ast.SelectionSet, obj *model.SimulateLineTodoConversationPayload) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, simulateLineTodoConversationPayloadImplementors)
+func (ec *executionContext) _SimulateTodoConversationPayload(ctx context.Context, sel ast.SelectionSet, obj *model.SimulateTodoConversationPayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, simulateTodoConversationPayloadImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("SimulateLineTodoConversationPayload")
+			out.Values[i] = graphql.MarshalString("SimulateTodoConversationPayload")
 		case "status":
-			out.Values[i] = ec._SimulateLineTodoConversationPayload_status(ctx, field, obj)
+			out.Values[i] = ec._SimulateTodoConversationPayload_status(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "channelID":
-			out.Values[i] = ec._SimulateLineTodoConversationPayload_channelID(ctx, field, obj)
+			out.Values[i] = ec._SimulateTodoConversationPayload_channelID(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "lineChannelID":
-			out.Values[i] = ec._SimulateLineTodoConversationPayload_lineChannelID(ctx, field, obj)
+		case "platform":
+			out.Values[i] = ec._SimulateTodoConversationPayload_platform(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "platformChannelID":
+			out.Values[i] = ec._SimulateTodoConversationPayload_platformChannelID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "platformTenantID":
+			out.Values[i] = ec._SimulateTodoConversationPayload_platformTenantID(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "analysisWaitMilliseconds":
-			out.Values[i] = ec._SimulateLineTodoConversationPayload_analysisWaitMilliseconds(ctx, field, obj)
+			out.Values[i] = ec._SimulateTodoConversationPayload_analysisWaitMilliseconds(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "todoCandidateCount":
-			out.Values[i] = ec._SimulateLineTodoConversationPayload_todoCandidateCount(ctx, field, obj)
+			out.Values[i] = ec._SimulateTodoConversationPayload_todoCandidateCount(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "participants":
-			out.Values[i] = ec._SimulateLineTodoConversationPayload_participants(ctx, field, obj)
+			out.Values[i] = ec._SimulateTodoConversationPayload_participants(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "messages":
-			out.Values[i] = ec._SimulateLineTodoConversationPayload_messages(ctx, field, obj)
+			out.Values[i] = ec._SimulateTodoConversationPayload_messages(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -20794,61 +20901,59 @@ func (ec *executionContext) _SimulateLineTodoConversationPayload(ctx context.Con
 	return out
 }
 
-var simulatedLineTodoMessageImplementors = []string{"SimulatedLineTodoMessage"}
+var simulatedTodoMessageImplementors = []string{"SimulatedTodoMessage"}
 
-func (ec *executionContext) _SimulatedLineTodoMessage(ctx context.Context, sel ast.SelectionSet, obj *model.SimulatedLineTodoMessage) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, simulatedLineTodoMessageImplementors)
+func (ec *executionContext) _SimulatedTodoMessage(ctx context.Context, sel ast.SelectionSet, obj *model.SimulatedTodoMessage) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, simulatedTodoMessageImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("SimulatedLineTodoMessage")
+			out.Values[i] = graphql.MarshalString("SimulatedTodoMessage")
 		case "speakerUserID":
-			out.Values[i] = ec._SimulatedLineTodoMessage_speakerUserID(ctx, field, obj)
+			out.Values[i] = ec._SimulatedTodoMessage_speakerUserID(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "lineUserID":
-			out.Values[i] = ec._SimulatedLineTodoMessage_lineUserID(ctx, field, obj)
+		case "platformUserID":
+			out.Values[i] = ec._SimulatedTodoMessage_platformUserID(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "displayName":
-			out.Values[i] = ec._SimulatedLineTodoMessage_displayName(ctx, field, obj)
+			out.Values[i] = ec._SimulatedTodoMessage_displayName(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "text":
-			out.Values[i] = ec._SimulatedLineTodoMessage_text(ctx, field, obj)
+			out.Values[i] = ec._SimulatedTodoMessage_text(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "lineText":
-			out.Values[i] = ec._SimulatedLineTodoMessage_lineText(ctx, field, obj)
+		case "platformText":
+			out.Values[i] = ec._SimulatedTodoMessage_platformText(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "platformMessageID":
-			out.Values[i] = ec._SimulatedLineTodoMessage_platformMessageID(ctx, field, obj)
+			out.Values[i] = ec._SimulatedTodoMessage_platformMessageID(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "savedMessageID":
-			out.Values[i] = ec._SimulatedLineTodoMessage_savedMessageID(ctx, field, obj)
-		case "sentLineMessageID":
-			out.Values[i] = ec._SimulatedLineTodoMessage_sentLineMessageID(ctx, field, obj)
+			out.Values[i] = ec._SimulatedTodoMessage_savedMessageID(ctx, field, obj)
 		case "todoCandidateID":
-			out.Values[i] = ec._SimulatedLineTodoMessage_todoCandidateID(ctx, field, obj)
+			out.Values[i] = ec._SimulatedTodoMessage_todoCandidateID(ctx, field, obj)
 		case "todoCandidateStatus":
-			out.Values[i] = ec._SimulatedLineTodoMessage_todoCandidateStatus(ctx, field, obj)
+			out.Values[i] = ec._SimulatedTodoMessage_todoCandidateStatus(ctx, field, obj)
 		case "todoCandidateDecision":
-			out.Values[i] = ec._SimulatedLineTodoMessage_todoCandidateDecision(ctx, field, obj)
+			out.Values[i] = ec._SimulatedTodoMessage_todoCandidateDecision(ctx, field, obj)
 		case "todoCandidateSummary":
-			out.Values[i] = ec._SimulatedLineTodoMessage_todoCandidateSummary(ctx, field, obj)
+			out.Values[i] = ec._SimulatedTodoMessage_todoCandidateSummary(ctx, field, obj)
 		case "todoCandidateReason":
-			out.Values[i] = ec._SimulatedLineTodoMessage_todoCandidateReason(ctx, field, obj)
+			out.Values[i] = ec._SimulatedTodoMessage_todoCandidateReason(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -20872,29 +20977,29 @@ func (ec *executionContext) _SimulatedLineTodoMessage(ctx context.Context, sel a
 	return out
 }
 
-var simulatedLineTodoParticipantImplementors = []string{"SimulatedLineTodoParticipant"}
+var simulatedTodoParticipantImplementors = []string{"SimulatedTodoParticipant"}
 
-func (ec *executionContext) _SimulatedLineTodoParticipant(ctx context.Context, sel ast.SelectionSet, obj *model.SimulatedLineTodoParticipant) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, simulatedLineTodoParticipantImplementors)
+func (ec *executionContext) _SimulatedTodoParticipant(ctx context.Context, sel ast.SelectionSet, obj *model.SimulatedTodoParticipant) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, simulatedTodoParticipantImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("SimulatedLineTodoParticipant")
+			out.Values[i] = graphql.MarshalString("SimulatedTodoParticipant")
 		case "userID":
-			out.Values[i] = ec._SimulatedLineTodoParticipant_userID(ctx, field, obj)
+			out.Values[i] = ec._SimulatedTodoParticipant_userID(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "lineUserID":
-			out.Values[i] = ec._SimulatedLineTodoParticipant_lineUserID(ctx, field, obj)
+		case "platformUserID":
+			out.Values[i] = ec._SimulatedTodoParticipant_platformUserID(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "displayName":
-			out.Values[i] = ec._SimulatedLineTodoParticipant_displayName(ctx, field, obj)
+			out.Values[i] = ec._SimulatedTodoParticipant_displayName(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -21522,26 +21627,26 @@ func (ec *executionContext) marshalNSendLineTextPayload2ᚖassistantᚑapiᚋint
 	return ec._SendLineTextPayload(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNSimulateLineTodoConversationInput2assistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulateLineTodoConversationInput(ctx context.Context, v any) (model.SimulateLineTodoConversationInput, error) {
-	res, err := ec.unmarshalInputSimulateLineTodoConversationInput(ctx, v)
+func (ec *executionContext) unmarshalNSimulateTodoConversationInput2assistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulateTodoConversationInput(ctx context.Context, v any) (model.SimulateTodoConversationInput, error) {
+	res, err := ec.unmarshalInputSimulateTodoConversationInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNSimulateLineTodoConversationPayload2assistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulateLineTodoConversationPayload(ctx context.Context, sel ast.SelectionSet, v model.SimulateLineTodoConversationPayload) graphql.Marshaler {
-	return ec._SimulateLineTodoConversationPayload(ctx, sel, &v)
+func (ec *executionContext) marshalNSimulateTodoConversationPayload2assistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulateTodoConversationPayload(ctx context.Context, sel ast.SelectionSet, v model.SimulateTodoConversationPayload) graphql.Marshaler {
+	return ec._SimulateTodoConversationPayload(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNSimulateLineTodoConversationPayload2ᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulateLineTodoConversationPayload(ctx context.Context, sel ast.SelectionSet, v *model.SimulateLineTodoConversationPayload) graphql.Marshaler {
+func (ec *executionContext) marshalNSimulateTodoConversationPayload2ᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulateTodoConversationPayload(ctx context.Context, sel ast.SelectionSet, v *model.SimulateTodoConversationPayload) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
 		}
 		return graphql.Null
 	}
-	return ec._SimulateLineTodoConversationPayload(ctx, sel, v)
+	return ec._SimulateTodoConversationPayload(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNSimulatedLineTodoMessage2ᚕᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulatedLineTodoMessageᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SimulatedLineTodoMessage) graphql.Marshaler {
+func (ec *executionContext) marshalNSimulatedTodoMessage2ᚕᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulatedTodoMessageᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SimulatedTodoMessage) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -21565,7 +21670,7 @@ func (ec *executionContext) marshalNSimulatedLineTodoMessage2ᚕᚖassistantᚑa
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNSimulatedLineTodoMessage2ᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulatedLineTodoMessage(ctx, sel, v[i])
+			ret[i] = ec.marshalNSimulatedTodoMessage2ᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulatedTodoMessage(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -21585,17 +21690,17 @@ func (ec *executionContext) marshalNSimulatedLineTodoMessage2ᚕᚖassistantᚑa
 	return ret
 }
 
-func (ec *executionContext) marshalNSimulatedLineTodoMessage2ᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulatedLineTodoMessage(ctx context.Context, sel ast.SelectionSet, v *model.SimulatedLineTodoMessage) graphql.Marshaler {
+func (ec *executionContext) marshalNSimulatedTodoMessage2ᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulatedTodoMessage(ctx context.Context, sel ast.SelectionSet, v *model.SimulatedTodoMessage) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
 		}
 		return graphql.Null
 	}
-	return ec._SimulatedLineTodoMessage(ctx, sel, v)
+	return ec._SimulatedTodoMessage(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNSimulatedLineTodoParticipant2ᚕᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulatedLineTodoParticipantᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SimulatedLineTodoParticipant) graphql.Marshaler {
+func (ec *executionContext) marshalNSimulatedTodoParticipant2ᚕᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulatedTodoParticipantᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SimulatedTodoParticipant) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -21619,7 +21724,7 @@ func (ec *executionContext) marshalNSimulatedLineTodoParticipant2ᚕᚖassistant
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNSimulatedLineTodoParticipant2ᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulatedLineTodoParticipant(ctx, sel, v[i])
+			ret[i] = ec.marshalNSimulatedTodoParticipant2ᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulatedTodoParticipant(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -21639,14 +21744,14 @@ func (ec *executionContext) marshalNSimulatedLineTodoParticipant2ᚕᚖassistant
 	return ret
 }
 
-func (ec *executionContext) marshalNSimulatedLineTodoParticipant2ᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulatedLineTodoParticipant(ctx context.Context, sel ast.SelectionSet, v *model.SimulatedLineTodoParticipant) graphql.Marshaler {
+func (ec *executionContext) marshalNSimulatedTodoParticipant2ᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulatedTodoParticipant(ctx context.Context, sel ast.SelectionSet, v *model.SimulatedTodoParticipant) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
 		}
 		return graphql.Null
 	}
-	return ec._SimulatedLineTodoParticipant(ctx, sel, v)
+	return ec._SimulatedTodoParticipant(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNSkillWhereInput2ᚖassistantᚑapiᚋinternalᚋentᚐSkillWhereInput(ctx context.Context, v any) (*ent.SkillWhereInput, error) {

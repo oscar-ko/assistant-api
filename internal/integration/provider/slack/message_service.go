@@ -15,27 +15,41 @@ import (
 )
 
 type slackBotTokenStore interface {
-	ResolveWorkspaceBotToken(ctx context.Context, teamID string) (string, error)
-	ResolveWorkspaceBotUserID(ctx context.Context, teamID string) (string, error)
+	ResolveWorkspaceBotToken(ctx context.Context, appID string, teamID string) (string, error)
+	ResolveWorkspaceBotUserID(ctx context.Context, appID string, teamID string) (string, error)
 }
 
 func WithWorkspaceTeamID(ctx context.Context, teamID string) context.Context {
 	return runtimecontext.WithWorkspaceTeamID(ctx, strings.TrimSpace(teamID))
 }
 
+func WithWorkspaceAppID(ctx context.Context, appID string) context.Context {
+	return runtimecontext.WithWorkspaceAppID(ctx, strings.TrimSpace(appID))
+}
+
 func workspaceTeamIDFromContext(ctx context.Context) string {
 	return strings.TrimSpace(runtimecontext.WorkspaceTeamIDFromContext(ctx))
 }
 
-func slackBotTokenByTeamStrict(ctx context.Context, tokenStore slackBotTokenStore, teamID string) (string, error) {
+func workspaceAppIDFromContext(ctx context.Context) string {
+	return strings.TrimSpace(runtimecontext.WorkspaceAppIDFromContext(ctx))
+}
+
+func slackBotTokenByTeamStrict(ctx context.Context, tokenStore slackBotTokenStore, appID string, teamID string) (string, error) {
 	if tokenStore == nil {
 		return "", fmt.Errorf("slack bot token store is not initialized")
 	}
+	appID = strings.TrimSpace(appID)
 	teamID = strings.TrimSpace(teamID)
+	if appID == "" {
+		return "", fmt.Errorf("slack app_id is empty")
+	}
 	if teamID == "" {
 		return "", fmt.Errorf("slack team id is empty")
 	}
-	token, err := tokenStore.ResolveWorkspaceBotToken(ctx, teamID)
+	// Slack install token 不能只用 team_id 查詢：同一個 workspace 可能安裝多個 Slack App。
+	// 使用 app_id + team_id 可以確保 Jarvis / Thor 這類不同 bot 不會拿到彼此的 xoxb token。
+	token, err := tokenStore.ResolveWorkspaceBotToken(ctx, appID, teamID)
 	if err != nil {
 		return "", err
 	}
@@ -54,7 +68,6 @@ type pushMessageService struct {
 	tokenStore slackBotTokenStore
 	httpClient *http.Client
 }
-
 
 // NewPushMessageService 依 workspace token store 建立 Slack chat.postMessage client。
 func NewPushMessageService(tokenStore slackBotTokenStore) (PushMessageService, error) {
@@ -96,7 +109,7 @@ func (s *pushMessageService) SendTextToChat(ctx context.Context, chatID string, 
 	if text == "" {
 		return "", nil
 	}
-	token, err := slackBotTokenByTeamStrict(ctx, s.tokenStore, workspaceTeamIDFromContext(ctx))
+	token, err := slackBotTokenByTeamStrict(ctx, s.tokenStore, workspaceAppIDFromContext(ctx), workspaceTeamIDFromContext(ctx))
 	if err != nil {
 		return "", err
 	}
@@ -175,8 +188,8 @@ type slackOpenDMResponse struct {
 // OpenDMChannelID opens a Slack DM with the target user and returns DM channel id.
 //
 // 嚴格模式：缺 token、缺 user id、或 Slack API 回錯都直接回傳錯誤。
-func OpenDMChannelID(ctx context.Context, tokenStore slackBotTokenStore, teamID string, userID string) (string, error) {
-	token, err := slackBotTokenByTeamStrict(ctx, tokenStore, teamID)
+func OpenDMChannelID(ctx context.Context, tokenStore slackBotTokenStore, appID string, teamID string, userID string) (string, error) {
+	token, err := slackBotTokenByTeamStrict(ctx, tokenStore, appID, teamID)
 	if err != nil {
 		return "", err
 	}
@@ -247,8 +260,8 @@ type slackUsersInfoResponse struct {
 }
 
 // GetUserDisplayNameByID resolves Slack user's display name by user ID.
-func GetUserDisplayNameByID(ctx context.Context, tokenStore slackBotTokenStore, teamID string, userID string) (string, error) {
-	token, err := slackBotTokenByTeamStrict(ctx, tokenStore, teamID)
+func GetUserDisplayNameByID(ctx context.Context, tokenStore slackBotTokenStore, appID string, teamID string, userID string) (string, error) {
+	token, err := slackBotTokenByTeamStrict(ctx, tokenStore, appID, teamID)
 	if err != nil {
 		return "", err
 	}
@@ -313,8 +326,8 @@ type slackConversationInfoResponse struct {
 }
 
 // GetChannelNameByID resolves Slack conversation name by channel ID.
-func GetChannelNameByID(ctx context.Context, tokenStore slackBotTokenStore, teamID string, channelID string) (string, error) {
-	token, err := slackBotTokenByTeamStrict(ctx, tokenStore, teamID)
+func GetChannelNameByID(ctx context.Context, tokenStore slackBotTokenStore, appID string, teamID string, channelID string) (string, error) {
+	token, err := slackBotTokenByTeamStrict(ctx, tokenStore, appID, teamID)
 	if err != nil {
 		return "", err
 	}

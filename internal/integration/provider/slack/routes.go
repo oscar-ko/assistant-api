@@ -14,6 +14,7 @@ import (
 	aillminteraction "assistant-api/internal/integration/ai/llm_interaction"
 	aitopkfilter "assistant-api/internal/integration/ai/topkfilter"
 	"assistant-api/internal/integration/auth"
+	"assistant-api/internal/integration/provider/oauthredirect"
 	"assistant-api/internal/repository"
 
 	"github.com/gin-gonic/gin"
@@ -52,9 +53,13 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 	followUpSender, _ := NewPushMessageService(slackRepo)
 
 	r.GET("/slack/oauth/start", oauthStart)
+	r.GET("/slack/oauth/start/:app_id", oauthStart)
 	r.GET("/slack/oauth/callback", oauthCallback(slackRepo))
+	r.GET("/slack/oauth/callback/:app_id", oauthCallback(slackRepo))
 	r.GET("/slack/login/start", loginStart)
+	r.GET("/slack/login/start/:app_id", loginStart)
 	r.GET("/slack/login/callback", loginCallback(slackRepo, channelMessageRepo))
+	r.GET("/slack/login/callback/:app_id", loginCallback(slackRepo, channelMessageRepo))
 	r.POST("/slack/events", webhookHandler(NewWebhookServiceWithOptions(channelMessageRepo, slackRepo, WebhookServiceOptions{
 		LLMInteraction: llmInteractionService,
 		TopKFilter:     filterService,
@@ -67,7 +72,12 @@ func RegisterRoutes(r gin.IRouter, client *ent.Client) {
 // 嚴格模式：必要設定缺值直接報錯，不做 fallback。
 // 這裡只做導轉，不寫 DB；資料落地集中在 callback 成功後處理。
 func oauthStart(c *gin.Context) {
-	if strings.TrimSpace(config.Slack.ClientID) == "" || strings.TrimSpace(config.Slack.ClientSecret) == "" {
+	bot, err := slackBotFromParam(c)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	if strings.TrimSpace(bot.ClientID) == "" || strings.TrimSpace(bot.ClientSecret) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "slack oauth config is incomplete"})
 		return
 	}
@@ -76,7 +86,7 @@ func oauthStart(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "slack redirect_uri is empty"})
 		return
 	}
-	if redirectToConfiguredOAuthHost(c, redirectURI) {
+	if redirectToConfiguredOAuthHost(c, redirectURI, slackOAuthCallbackPath(bot)) {
 		return
 	}
 	scopes := strings.TrimSpace(config.Slack.Scopes)
@@ -93,12 +103,12 @@ func oauthStart(c *gin.Context) {
 	auth.SetStateCookie(c, stateCookieName, state, 600)
 
 	values := url.Values{}
-	values.Set("client_id", strings.TrimSpace(config.Slack.ClientID))
+	values.Set("client_id", strings.TrimSpace(bot.ClientID))
 	values.Set("scope", scopes)
 	if strings.TrimSpace(config.Slack.UserScopes) != "" {
 		values.Set("user_scope", strings.TrimSpace(config.Slack.UserScopes))
 	}
-	values.Set("redirect_uri", redirectURI)
+	values.Set("redirect_uri", oauthredirect.Resolve(c.Request, redirectURI, slackOAuthCallbackPath(bot)))
 	values.Set("state", state)
 
 	authorizeURL := "https://slack.com/oauth/v2/authorize?" + values.Encode()
@@ -111,7 +121,12 @@ func oauthStart(c *gin.Context) {
 // - login 用 login_redirect_uri / login_scopes
 // - callback 會進入使用者綁定與 private channel 初始化
 func loginStart(c *gin.Context) {
-	if strings.TrimSpace(config.Slack.ClientID) == "" || strings.TrimSpace(config.Slack.ClientSecret) == "" {
+	bot, err := slackBotFromParam(c)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	if strings.TrimSpace(bot.ClientID) == "" || strings.TrimSpace(bot.ClientSecret) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "slack oauth config is incomplete"})
 		return
 	}
@@ -120,7 +135,7 @@ func loginStart(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "slack login_redirect_uri is empty"})
 		return
 	}
-	if redirectToConfiguredOAuthHost(c, loginRedirectURI) {
+	if redirectToConfiguredOAuthHost(c, loginRedirectURI, slackLoginCallbackPath(bot)) {
 		return
 	}
 	loginScopes := strings.TrimSpace(config.Slack.LoginScopes)
@@ -138,9 +153,9 @@ func loginStart(c *gin.Context) {
 
 	values := url.Values{}
 	values.Set("response_type", "code")
-	values.Set("client_id", strings.TrimSpace(config.Slack.ClientID))
+	values.Set("client_id", strings.TrimSpace(bot.ClientID))
 	values.Set("scope", loginScopes)
-	values.Set("redirect_uri", loginRedirectURI)
+	values.Set("redirect_uri", oauthredirect.Resolve(c.Request, loginRedirectURI, slackLoginCallbackPath(bot)))
 	values.Set("state", state)
 
 	authorizeURL := "https://slack.com/openid/connect/authorize?" + values.Encode()
@@ -164,7 +179,7 @@ type slackOAuthAccessResponse struct {
 	} `json:"authed_user"`
 }
 
-func redirectToConfiguredOAuthHost(c *gin.Context, configuredURI string) bool {
+func redirectToConfiguredOAuthHost(c *gin.Context, configuredURI string, callbackPath string) bool {
 	if c == nil {
 		return false
 	}
@@ -189,7 +204,7 @@ func redirectToConfiguredOAuthHost(c *gin.Context, configuredURI string) bool {
 	publicURL := url.URL{
 		Scheme:   targetScheme,
 		Host:     targetHost,
-		Path:     c.Request.URL.Path,
+		Path:     callbackPath,
 		RawQuery: values.Encode(),
 	}
 	c.Redirect(http.StatusFound, publicURL.String())
@@ -197,15 +212,23 @@ func redirectToConfiguredOAuthHost(c *gin.Context, configuredURI string) bool {
 }
 
 func slackOAuthStartURL() string {
+	bot, err := config.Slack.DefaultBot()
+	if err != nil {
+		return "/slack/oauth/start"
+	}
+	return slackOAuthStartURLForBot(bot)
+}
+
+func slackOAuthStartURLForBot(bot config.SlackBotConfig) string {
 	redirectURI := strings.TrimSpace(config.Slack.RedirectURI)
 	parsed, err := url.Parse(redirectURI)
 	if err != nil || strings.TrimSpace(parsed.Scheme) == "" || strings.TrimSpace(parsed.Host) == "" {
-		return "/slack/oauth/start"
+		return slackOAuthStartPath(bot)
 	}
 	return (&url.URL{
 		Scheme:   parsed.Scheme,
 		Host:     parsed.Host,
-		Path:     "/slack/oauth/start",
+		Path:     slackOAuthStartPath(bot),
 		RawQuery: "public=1",
 	}).String()
 }
@@ -214,17 +237,68 @@ func slackOAuthStartURL() string {
 //
 // 這個 helper 與 slackOAuthStartURL 對稱，讓 install 完成後可以直接接續進入 OpenID 綁定流程。
 func slackLoginStartURL() string {
+	bot, err := config.Slack.DefaultBot()
+	if err != nil {
+		return "/slack/login/start"
+	}
+	return slackLoginStartURLForBot(bot)
+}
+
+func slackLoginStartURLForBot(bot config.SlackBotConfig) string {
 	loginRedirectURI := strings.TrimSpace(config.Slack.LoginRedirectURI)
 	parsed, err := url.Parse(loginRedirectURI)
 	if err != nil || strings.TrimSpace(parsed.Scheme) == "" || strings.TrimSpace(parsed.Host) == "" {
-		return "/slack/login/start"
+		return slackLoginStartPath(bot)
 	}
 	return (&url.URL{
 		Scheme:   parsed.Scheme,
 		Host:     parsed.Host,
-		Path:     "/slack/login/start",
+		Path:     slackLoginStartPath(bot),
 		RawQuery: "public=1",
 	}).String()
+}
+
+func slackBotFromParam(c *gin.Context) (config.SlackBotConfig, error) {
+	if c == nil {
+		return config.SlackBotConfig{}, fmt.Errorf("gin context is nil")
+	}
+	return config.Slack.BotByAppID(c.Param("app_id"))
+}
+
+func slackOAuthStartPath(bot config.SlackBotConfig) string {
+	appID := strings.TrimSpace(bot.AppID)
+	defaultBot, err := config.Slack.DefaultBot()
+	if err != nil || strings.EqualFold(appID, strings.TrimSpace(defaultBot.AppID)) {
+		return "/slack/oauth/start"
+	}
+	return "/slack/oauth/start/" + url.PathEscape(appID)
+}
+
+func slackOAuthCallbackPath(bot config.SlackBotConfig) string {
+	appID := strings.TrimSpace(bot.AppID)
+	defaultBot, err := config.Slack.DefaultBot()
+	if err != nil || strings.EqualFold(appID, strings.TrimSpace(defaultBot.AppID)) {
+		return "/slack/oauth/callback"
+	}
+	return "/slack/oauth/callback/" + url.PathEscape(appID)
+}
+
+func slackLoginStartPath(bot config.SlackBotConfig) string {
+	appID := strings.TrimSpace(bot.AppID)
+	defaultBot, err := config.Slack.DefaultBot()
+	if err != nil || strings.EqualFold(appID, strings.TrimSpace(defaultBot.AppID)) {
+		return "/slack/login/start"
+	}
+	return "/slack/login/start/" + url.PathEscape(appID)
+}
+
+func slackLoginCallbackPath(bot config.SlackBotConfig) string {
+	appID := strings.TrimSpace(bot.AppID)
+	defaultBot, err := config.Slack.DefaultBot()
+	if err != nil || strings.EqualFold(appID, strings.TrimSpace(defaultBot.AppID)) {
+		return "/slack/login/callback"
+	}
+	return "/slack/login/callback/" + url.PathEscape(appID)
 }
 
 // oauthCallback 處理 Slack App 安裝 OAuth callback。
@@ -235,6 +309,11 @@ func slackLoginStartURL() string {
 // 3) login 的 state / callback 與 install 完全分開，避免混用
 func oauthCallback(repo *repository.SlackRepo) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		bot, err := slackBotFromParam(c)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 		state := c.Query("state")
 		expectedState := auth.GetStateCookie(c, stateCookieName)
 		if !auth.ValidateState(state, expectedState) {
@@ -255,10 +334,10 @@ func oauthCallback(repo *repository.SlackRepo) gin.HandlerFunc {
 		}
 
 		form := url.Values{}
-		form.Set("client_id", strings.TrimSpace(config.Slack.ClientID))
-		form.Set("client_secret", strings.TrimSpace(config.Slack.ClientSecret))
+		form.Set("client_id", strings.TrimSpace(bot.ClientID))
+		form.Set("client_secret", strings.TrimSpace(bot.ClientSecret))
 		form.Set("code", code)
-		form.Set("redirect_uri", redirectURI)
+		form.Set("redirect_uri", oauthredirect.Resolve(c.Request, redirectURI, slackOAuthCallbackPath(bot)))
 
 		req, err := http.NewRequestWithContext(c.Request.Context(), http.MethodPost, "https://slack.com/api/oauth.v2.access", strings.NewReader(form.Encode()))
 		if err != nil {
@@ -302,14 +381,14 @@ func oauthCallback(repo *repository.SlackRepo) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "slack repository not initialized"})
 			return
 		}
-		if err := repo.UpsertWorkspaceInstall(c.Request.Context(), teamID, strings.TrimSpace(payload.Team.Name), botToken, strings.TrimSpace(payload.BotUserID)); err != nil {
+		if err := repo.UpsertWorkspaceInstall(c.Request.Context(), strings.TrimSpace(bot.AppID), teamID, strings.TrimSpace(payload.Team.Name), botToken, strings.TrimSpace(payload.BotUserID)); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to persist slack workspace install"})
 			return
 		}
 
 		// 安裝成功後直接進入 login/start，讓使用者接續完成綁定流程。
 		// 這裡只做導向，不把 install 與 login 的語意混在同一個 callback 回應中。
-		c.Redirect(http.StatusFound, slackLoginStartURL())
+		c.Redirect(http.StatusFound, slackLoginStartURLForBot(bot))
 	}
 }
 
@@ -324,6 +403,11 @@ func oauthCallback(repo *repository.SlackRepo) gin.HandlerFunc {
 // 任何一步失敗都直接回錯，不做隱式降級。
 func loginCallback(repo slackBindRepository, channelRepo *repository.ChannelMessageRepo) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		bot, err := slackBotFromParam(c)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 		state := c.Query("state")
 		expectedState := auth.GetStateCookie(c, loginStateCookieName)
 		if !auth.ValidateState(state, expectedState) {
@@ -343,7 +427,7 @@ func loginCallback(repo slackBindRepository, channelRepo *repository.ChannelMess
 			return
 		}
 
-		profile, err := getProfileByAuthCode(code, loginRedirectURI)
+		profile, err := getProfileByAuthCode(code, oauthredirect.Resolve(c.Request, loginRedirectURI, slackLoginCallbackPath(bot)), bot)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -365,13 +449,13 @@ func loginCallback(repo slackBindRepository, channelRepo *repository.ChannelMess
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "channel repository not initialized"})
 			return
 		}
-		dmChannelID, err := OpenDMChannelID(c.Request.Context(), repo, strings.TrimSpace(profile.TeamID), strings.TrimSpace(profile.UserID))
+		dmChannelID, err := OpenDMChannelID(c.Request.Context(), repo, strings.TrimSpace(bot.AppID), strings.TrimSpace(profile.TeamID), strings.TrimSpace(profile.UserID))
 		if err != nil {
 			if errors.Is(err, repository.ErrSlackWorkspaceInstallNotFound) {
 				c.JSON(http.StatusConflict, gin.H{
 					"error":       "slack workspace install required",
 					"team_id":     strings.TrimSpace(profile.TeamID),
-					"install_url": slackOAuthStartURL(),
+					"install_url": slackOAuthStartURLForBot(bot),
 					"next_action": "install_slack_app",
 					"detail":      err.Error(),
 				})

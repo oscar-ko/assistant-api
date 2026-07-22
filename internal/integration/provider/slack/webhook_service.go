@@ -41,6 +41,7 @@ type WebhookProcessor interface {
 type WebhookService struct {
 	repo                  *repository.ChannelMessageRepo
 	tokenStore            slackBotTokenStore
+	bot                   config.SlackBotConfig
 	decisionService       commanddecision.Service
 	llmInteractionService aillminteraction.InteractionService
 	persistenceService    messagepersist.Service
@@ -232,10 +233,6 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 }
 
 func (s *WebhookService) ValidateSignature(timestamp string, signature string, body []byte) error {
-	signingSecret := strings.TrimSpace(config.Slack.SigningSecret)
-	if signingSecret == "" {
-		return fmt.Errorf("slack signing secret is empty")
-	}
 	timestamp = strings.TrimSpace(timestamp)
 	signature = strings.TrimSpace(signature)
 	if timestamp == "" || signature == "" {
@@ -251,15 +248,17 @@ func (s *WebhookService) ValidateSignature(timestamp string, signature string, b
 		return fmt.Errorf("stale slack request timestamp")
 	}
 
-	mac := hmac.New(sha256.New, []byte(signingSecret))
 	base := "v0:" + timestamp + ":" + string(body)
-	if _, err := mac.Write([]byte(base)); err != nil {
-		return err
-	}
-	expected := "v0=" + hex.EncodeToString(mac.Sum(nil))
-	if !hmac.Equal([]byte(expected), []byte(signature)) {
+	bot, err := config.Slack.BotBySigningSecret(func(signingSecret string) bool {
+		mac := hmac.New(sha256.New, []byte(strings.TrimSpace(signingSecret)))
+		_, _ = mac.Write([]byte(base))
+		expected := "v0=" + hex.EncodeToString(mac.Sum(nil))
+		return hmac.Equal([]byte(expected), []byte(signature))
+	})
+	if err != nil {
 		return fmt.Errorf("invalid slack request signature")
 	}
+	s.bot = bot
 	return nil
 }
 
@@ -270,7 +269,7 @@ func (s *WebhookService) ProcessIncoming(body []byte) (string, error) {
 	}
 
 	if strings.EqualFold(strings.TrimSpace(req.Type), "url_verification") {
-		configuredToken := strings.TrimSpace(config.Slack.VerificationToken)
+		configuredToken := strings.TrimSpace(s.bot.VerificationToken)
 		requestToken := strings.TrimSpace(req.Token)
 		if configuredToken != "" && requestToken != "" && configuredToken != requestToken {
 			return "", fmt.Errorf("invalid slack verification token")
@@ -323,7 +322,7 @@ func (s *WebhookService) ProcessIncoming(body []byte) (string, error) {
 	if botUserIDErr != nil {
 		return "", botUserIDErr
 	}
-	if resolvedName, nameErr := resolveSlackChannelDisplayName(context.Background(), s.tokenStore, message); nameErr == nil {
+	if resolvedName, nameErr := resolveSlackChannelDisplayName(context.Background(), s.tokenStore, strings.TrimSpace(s.bot.AppID), message); nameErr == nil {
 		message.ChannelName = resolvedName
 	}
 
@@ -331,7 +330,7 @@ func (s *WebhookService) ProcessIncoming(body []byte) (string, error) {
 		return "", nil
 	}
 	s.messagePipeline.Process(messagepipeline.Input{
-		Context:        runtimecontext.WithBotSenderID(WithWorkspaceTeamID(context.Background(), strings.TrimSpace(message.PlatformTenantID)), botUserID),
+		Context:        runtimecontext.WithBotSenderID(WithWorkspaceAppID(WithWorkspaceTeamID(context.Background(), strings.TrimSpace(message.PlatformTenantID)), strings.TrimSpace(s.bot.AppID)), botUserID),
 		Message:        message,
 		BotUserID:      botUserID,
 		PlatformUserID: strings.TrimSpace(req.Event.User),
@@ -528,18 +527,18 @@ func (s *WebhookService) resolveSlackLifecycleChannelName(ctx context.Context, t
 	if name := strings.TrimSpace(event.Channel.Name); name != "" {
 		return name, nil
 	}
-	return GetChannelNameByID(ctx, s.tokenStore, teamID, event.Channel.String())
+	return GetChannelNameByID(ctx, s.tokenStore, strings.TrimSpace(s.bot.AppID), teamID, event.Channel.String())
 }
 
-func resolveSlackChannelDisplayName(ctx context.Context, tokenStore slackBotTokenStore, message *unifiedmessage.Message) (string, error) {
+func resolveSlackChannelDisplayName(ctx context.Context, tokenStore slackBotTokenStore, appID string, message *unifiedmessage.Message) (string, error) {
 	if message == nil {
 		return "", fmt.Errorf("message is nil")
 	}
 	teamID := strings.TrimSpace(message.PlatformTenantID)
 	if strings.EqualFold(strings.TrimSpace(message.ChannelType), "private") {
-		return GetUserDisplayNameByID(ctx, tokenStore, teamID, strings.TrimSpace(message.SenderID))
+		return GetUserDisplayNameByID(ctx, tokenStore, strings.TrimSpace(appID), teamID, strings.TrimSpace(message.SenderID))
 	}
-	return GetChannelNameByID(ctx, tokenStore, teamID, strings.TrimSpace(message.ChannelID))
+	return GetChannelNameByID(ctx, tokenStore, strings.TrimSpace(appID), teamID, strings.TrimSpace(message.ChannelID))
 }
 
 type slackOutboundMessenger struct {
@@ -557,7 +556,7 @@ func (s *WebhookService) resolveWorkspaceBotUserID(ctx context.Context, teamID s
 	if s == nil || s.tokenStore == nil {
 		return "", fmt.Errorf("slack bot token store is not initialized")
 	}
-	return s.tokenStore.ResolveWorkspaceBotUserID(ctx, strings.TrimSpace(teamID))
+	return s.tokenStore.ResolveWorkspaceBotUserID(ctx, strings.TrimSpace(s.bot.AppID), strings.TrimSpace(teamID))
 }
 
 // slackRealtimeSender 將 Slack 的送訊息能力包成共用 realtime sender 介面。

@@ -18,8 +18,8 @@ type slackBindRepository interface {
 	GetUserByEmail(ctx context.Context, email string) (*ent.User, error)
 	CreateSlackBinding(ctx context.Context, u *ent.User, teamID string, slackUserID string, displayName string, email *string, picture *string) error
 	CreateUser(ctx context.Context, name, email string) (*ent.User, error)
-	ResolveWorkspaceBotToken(ctx context.Context, teamID string) (string, error)
-	ResolveWorkspaceBotUserID(ctx context.Context, teamID string) (string, error)
+	ResolveWorkspaceBotToken(ctx context.Context, appID string, teamID string) (string, error)
+	ResolveWorkspaceBotUserID(ctx context.Context, appID string, teamID string) (string, error)
 }
 
 // bindUser 將 Slack 帳號綁定到現有使用者，或建立新使用者與綁定資料。

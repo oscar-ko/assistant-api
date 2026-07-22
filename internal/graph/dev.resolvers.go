@@ -9,9 +9,9 @@ import (
 	"assistant-api/internal/ent"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/graph/model"
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -19,23 +19,27 @@ import (
 	"github.com/google/uuid"
 )
 
-// SimulateLineTodoConversation is the resolver for the simulateLineTodoConversation field.
-func (r *mutationResolver) SimulateLineTodoConversation(ctx context.Context, input model.SimulateLineTodoConversationInput) (*model.SimulateLineTodoConversationPayload, error) {
+// SimulateTodoConversation is the resolver for the simulateTodoConversation field.
+//
+// 這個 mutation 雖然支援多平台，但仍是 Todo Reminder 專用的 dev helper：
+// - 產生的對話內容刻意包含負責人、期限、補資訊與確認語意，用來刺激 Todo analyzer。
+// - 回傳 payload 會彙整 TodoCandidate 狀態，方便在 GraphQL client 一次看出哪則訊息觸發候選待辦。
+// - 入站處理仍走正式 provider webhook processor，不直接寫 ChannelMessage，避免 dev helper 與正式 pipeline 行為分岔。
+func (r *mutationResolver) SimulateTodoConversation(ctx context.Context, input model.SimulateTodoConversationInput) (*model.SimulateTodoConversationPayload, error) {
 	if !strings.EqualFold(strings.TrimSpace(config.RunMode), "dev") {
-		return nil, fmt.Errorf("simulateLineTodoConversation is only available in dev run mode")
+		return nil, fmt.Errorf("simulateTodoConversation is only available in dev run mode")
 	}
 	if r == nil || r.Client == nil {
 		return nil, fmt.Errorf("ent client is not initialized")
 	}
-	if r.LinePushInitErr != nil || r.LinePushService == nil {
-		return nil, fmt.Errorf("line messaging is not configured")
-	}
-	if r.LineWebhookProcessor == nil {
-		return nil, fmt.Errorf("line webhook processor is not initialized")
-	}
-
 	if input.ChannelID == uuid.Nil {
 		return nil, fmt.Errorf("channelID is required")
+	}
+	platform := strings.ToLower(strings.TrimSpace(input.Platform))
+	switch platform {
+	case "line", "slack":
+	default:
+		return nil, fmt.Errorf("unsupported simulation platform: %s", input.Platform)
 	}
 	if input.ParticipantCount < 2 {
 		return nil, fmt.Errorf("participantCount must be at least 2")
@@ -51,91 +55,150 @@ func (r *mutationResolver) SimulateLineTodoConversation(ctx context.Context, inp
 		}
 		return nil, fmt.Errorf("query channel failed: %w", err)
 	}
-	if ch.Platform != channel.PlatformLine {
-		return nil, fmt.Errorf("channel must be a line channel")
+	if string(ch.Platform) != platform {
+		return nil, fmt.Errorf("channel platform mismatch: expected %s, got %s", platform, ch.Platform)
 	}
 	if ch.Type != channel.TypeGroup {
-		return nil, fmt.Errorf("line channel must be a group channel")
+		return nil, fmt.Errorf("simulated todo channel must be a group channel")
 	}
-	lineChannelID := strings.TrimSpace(ch.GroupID)
-	if lineChannelID == "" {
-		return nil, fmt.Errorf("line channel group id is empty")
+	platformChannelID := strings.TrimSpace(ch.GroupID)
+	if platformChannelID == "" {
+		return nil, fmt.Errorf("channel group id is empty")
 	}
 
-	participants, err := r.pickRandomLineParticipants(ctx, input.ParticipantCount)
+	// Slack 的 token 與 bot user id 都是 workspace-scoped；多 bot 情境下還必須知道 app_id。
+	// 因此 Slack 模擬要求呼叫端明確帶 platformTenantID / platformAppID，不在 dev helper 裡猜預設 bot。
+	platformTenantID := trimOptionalString(input.PlatformTenantID)
+	platformAppID := trimOptionalString(input.PlatformAppID)
+	participants, err := r.pickRandomSimulationParticipants(ctx, platform, platformTenantID, input.ParticipantCount)
 	if err != nil {
 		return nil, err
 	}
+	var slackBotSigningSecret string
+	if platform == "line" {
+		if r.LineWebhookProcessor == nil {
+			return nil, fmt.Errorf("line webhook processor is not initialized")
+		}
+	} else {
+		if r.SlackWebhookProcessor == nil {
+			return nil, fmt.Errorf("slack webhook processor is not initialized")
+		}
+		if platformTenantID == "" {
+			return nil, fmt.Errorf("platformTenantID is required for slack simulation")
+		}
+		if platformAppID == "" {
+			return nil, fmt.Errorf("platformAppID is required for slack simulation")
+		}
+		bot, err := config.Slack.BotByAppID(platformAppID)
+		if err != nil {
+			return nil, err
+		}
+		slackBotSigningSecret = strings.TrimSpace(bot.SigningSecret)
+	}
 
-	messages := make([]*model.SimulatedLineTodoMessage, 0, input.MessageCount)
+	messages := make([]*model.SimulatedTodoMessage, 0, input.MessageCount)
 	for index := 0; index < input.MessageCount; index++ {
 		participant := participants[index%len(participants)]
 		text := buildCasualTodoSimulationText(index, participants)
-		platformMessageID := "dev-line-todo-" + uuid.NewString()
 		timestamp := time.Now().UnixMilli()
-
-		body, err := json.Marshal(simulatedLineWebhookBody{Events: []simulatedLineWebhookEvent{{
-			Type: "message",
-			Source: simulatedLineWebhookSource{
-				Type:    "group",
-				UserID:  participant.LineUserID,
-				GroupID: lineChannelID,
-			},
-			Message: simulatedLineWebhookMessage{
-				ID:   platformMessageID,
-				Type: "text",
-				Text: text,
-			},
-			Timestamp: timestamp,
-		}}})
+		platformMessageID, body, err := r.buildSimulatedWebhookBody(platform, platformTenantID, platformChannelID, participant, text, timestamp)
 		if err != nil {
-			return nil, fmt.Errorf("marshal simulated line webhook failed: %w", err)
+			return nil, err
 		}
 
-		r.LineWebhookProcessor.ProcessIncoming(body, "dev-simulation")
-
-		lineText := participant.Name + "：" + text
-		sentLineMessageID, err := r.LinePushService.SendTextToChat(ctx, lineChannelID, "", lineText, "", "")
-		if err != nil {
-			return nil, fmt.Errorf("send simulated message to line failed: %w", err)
+		platformText := buildPlatformSimulationText(platform, participant.Name, text)
+		// 每則訊息都組成平台原生 webhook payload，再交給對應 provider processor。
+		// 這能同時測到 provider adapter、message persistence、command/realtime dispatcher 與 Todo analyzer。
+		if platform == "line" {
+			r.LineWebhookProcessor.ProcessIncoming(body, "dev-simulation")
+		} else {
+			// Slack webhook service 會先以簽章判斷本次事件屬於哪個 app_id。
+			// dev 模擬也產生合法簽章，才能測到多 bot signing secret selection 與後續 workspace token lookup。
+			signatureTimestamp := fmt.Sprintf("%d", time.Now().Unix())
+			signature := signSimulatedSlackWebhook(slackBotSigningSecret, signatureTimestamp, body)
+			if err := r.SlackWebhookProcessor.ValidateSignature(signatureTimestamp, signature, body); err != nil {
+				return nil, fmt.Errorf("validate simulated slack webhook failed: %w", err)
+			}
+			if _, err := r.SlackWebhookProcessor.ProcessIncoming(body); err != nil {
+				return nil, fmt.Errorf("process simulated slack webhook failed: %w", err)
+			}
+		}
+		if input.AnalysisWaitMilliseconds > 0 {
+			time.Sleep(time.Duration(input.AnalysisWaitMilliseconds) * time.Millisecond)
 		}
 
 		var savedMessageID *uuid.UUID
+		var todoCandidateID *uuid.UUID
+		var todoCandidateStatus *string
+		var todoCandidateDecision *string
+		var todoCandidateSummary *string
+		var todoCandidateReason *string
 		if saved, err := r.Client.ChannelMessage.Query().Where(channelmessage.ChannelIDEQ(ch.ID), channelmessage.PlatformMessageIDEQ(platformMessageID)).Only(ctx); err != nil {
 			if !ent.IsNotFound(err) {
 				return nil, fmt.Errorf("query saved simulated message failed: %w", err)
 			}
 		} else {
 			savedMessageID = &saved.ID
+			if candidate, err := r.Client.TodoCandidate.Query().Where(todocandidate.ChannelIDEQ(ch.ID), todocandidate.LastMessageIDEQ(saved.ID)).First(ctx); err != nil {
+				if !ent.IsNotFound(err) {
+					return nil, fmt.Errorf("query simulated todo candidate failed: %w", err)
+				}
+			} else {
+				todoCandidateID = &candidate.ID
+				status := string(candidate.Status)
+				decision := string(candidate.LastDecision)
+				todoCandidateStatus = &status
+				todoCandidateDecision = &decision
+				if strings.TrimSpace(candidate.Summary) != "" {
+					summary := strings.TrimSpace(candidate.Summary)
+					todoCandidateSummary = &summary
+				}
+				if strings.TrimSpace(candidate.Reason) != "" {
+					reason := strings.TrimSpace(candidate.Reason)
+					todoCandidateReason = &reason
+				}
+			}
 		}
 
-		messages = append(messages, &model.SimulatedLineTodoMessage{
-			SpeakerUserID:     participant.UserID,
-			LineUserID:        participant.LineUserID,
-			DisplayName:       participant.Name,
-			Text:              text,
-			LineText:          lineText,
-			PlatformMessageID: platformMessageID,
-			SavedMessageID:    savedMessageID,
-			SentLineMessageID: &sentLineMessageID,
+		messages = append(messages, &model.SimulatedTodoMessage{
+			SpeakerUserID:         participant.UserID,
+			PlatformUserID:        participant.PlatformUserID,
+			DisplayName:           participant.Name,
+			Text:                  text,
+			PlatformText:          platformText,
+			PlatformMessageID:     platformMessageID,
+			SavedMessageID:        savedMessageID,
+			TodoCandidateID:       todoCandidateID,
+			TodoCandidateStatus:   todoCandidateStatus,
+			TodoCandidateDecision: todoCandidateDecision,
+			TodoCandidateSummary:  todoCandidateSummary,
+			TodoCandidateReason:   todoCandidateReason,
 		})
 	}
 
-	payloadParticipants := make([]*model.SimulatedLineTodoParticipant, 0, len(participants))
+	payloadParticipants := make([]*model.SimulatedTodoParticipant, 0, len(participants))
 	for _, participant := range participants {
-		payloadParticipants = append(payloadParticipants, &model.SimulatedLineTodoParticipant{
-			UserID:      participant.UserID,
-			LineUserID:  participant.LineUserID,
-			DisplayName: participant.Name,
+		payloadParticipants = append(payloadParticipants, &model.SimulatedTodoParticipant{
+			UserID:         participant.UserID,
+			PlatformUserID: participant.PlatformUserID,
+			DisplayName:    participant.Name,
 		})
 	}
+	todoCandidateCount, err := r.Client.TodoCandidate.Query().Where(todocandidate.ChannelIDEQ(ch.ID)).Count(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("count simulated todo candidates failed: %w", err)
+	}
 
-	return &model.SimulateLineTodoConversationPayload{
-		Status:        "sent",
-		ChannelID:     ch.ID,
-		LineChannelID: lineChannelID,
-		Participants:  payloadParticipants,
-		Messages:      messages,
+	return &model.SimulateTodoConversationPayload{
+		Status:                   "sent",
+		ChannelID:                ch.ID,
+		Platform:                 platform,
+		PlatformChannelID:        platformChannelID,
+		PlatformTenantID:         platformTenantID,
+		AnalysisWaitMilliseconds: input.AnalysisWaitMilliseconds,
+		TodoCandidateCount:       todoCandidateCount,
+		Participants:             payloadParticipants,
+		Messages:                 messages,
 	}, nil
 }
 

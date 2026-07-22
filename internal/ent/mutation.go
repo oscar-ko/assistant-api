@@ -8809,6 +8809,7 @@ type SlackWorkspaceMutation struct {
 	id               *uuid.UUID
 	created_at       *time.Time
 	updated_at       *time.Time
+	app_id           *string
 	platform_team_id *string
 	team_name        *string
 	bot_token        *string
@@ -8993,6 +8994,40 @@ func (m *SlackWorkspaceMutation) OldUpdatedAt(ctx context.Context) (v time.Time,
 // ResetUpdatedAt resets all changes to the "updated_at" field.
 func (m *SlackWorkspaceMutation) ResetUpdatedAt() {
 	m.updated_at = nil
+}
+
+// SetAppID sets the "app_id" field.
+func (m *SlackWorkspaceMutation) SetAppID(s string) {
+	m.app_id = &s
+}
+
+// AppID returns the value of the "app_id" field in the mutation.
+func (m *SlackWorkspaceMutation) AppID() (r string, exists bool) {
+	v := m.app_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAppID returns the old "app_id" field's value of the SlackWorkspace entity.
+func (m *SlackWorkspaceMutation) OldAppID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAppID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAppID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAppID: %w", err)
+	}
+	return oldValue.AppID, nil
+}
+
+// ResetAppID resets all changes to the "app_id" field.
+func (m *SlackWorkspaceMutation) ResetAppID() {
+	m.app_id = nil
 }
 
 // SetPlatformTeamID sets the "platform_team_id" field.
@@ -9199,12 +9234,15 @@ func (m *SlackWorkspaceMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SlackWorkspaceMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 7)
 	if m.created_at != nil {
 		fields = append(fields, slackworkspace.FieldCreatedAt)
 	}
 	if m.updated_at != nil {
 		fields = append(fields, slackworkspace.FieldUpdatedAt)
+	}
+	if m.app_id != nil {
+		fields = append(fields, slackworkspace.FieldAppID)
 	}
 	if m.platform_team_id != nil {
 		fields = append(fields, slackworkspace.FieldPlatformTeamID)
@@ -9230,6 +9268,8 @@ func (m *SlackWorkspaceMutation) Field(name string) (ent.Value, bool) {
 		return m.CreatedAt()
 	case slackworkspace.FieldUpdatedAt:
 		return m.UpdatedAt()
+	case slackworkspace.FieldAppID:
+		return m.AppID()
 	case slackworkspace.FieldPlatformTeamID:
 		return m.PlatformTeamID()
 	case slackworkspace.FieldTeamName:
@@ -9251,6 +9291,8 @@ func (m *SlackWorkspaceMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldCreatedAt(ctx)
 	case slackworkspace.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
+	case slackworkspace.FieldAppID:
+		return m.OldAppID(ctx)
 	case slackworkspace.FieldPlatformTeamID:
 		return m.OldPlatformTeamID(ctx)
 	case slackworkspace.FieldTeamName:
@@ -9281,6 +9323,13 @@ func (m *SlackWorkspaceMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUpdatedAt(v)
+		return nil
+	case slackworkspace.FieldAppID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAppID(v)
 		return nil
 	case slackworkspace.FieldPlatformTeamID:
 		v, ok := value.(string)

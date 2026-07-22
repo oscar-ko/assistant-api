@@ -48,7 +48,7 @@ type profile struct {
 // 這裡採嚴格模式：
 // - redirectURI 必須明確配置（不在此處補值）
 // - token/userinfo 任一步驟異常都直接回錯，不做靜默降級
-func getProfileByAuthCode(code string, redirectURI string) (*profile, error) {
+func getProfileByAuthCode(code string, redirectURI string, bot config.SlackBotConfig) (*profile, error) {
 	redirectURI = strings.TrimSpace(redirectURI)
 	if redirectURI == "" {
 		return nil, fmt.Errorf("slack login redirect uri is empty")
@@ -58,8 +58,8 @@ func getProfileByAuthCode(code string, redirectURI string) (*profile, error) {
 		"grant_type":    {"authorization_code"},
 		"code":          {strings.TrimSpace(code)},
 		"redirect_uri":  {redirectURI},
-		"client_id":     {strings.TrimSpace(config.Slack.ClientID)},
-		"client_secret": {strings.TrimSpace(config.Slack.ClientSecret)},
+		"client_id":     {strings.TrimSpace(bot.ClientID)},
+		"client_secret": {strings.TrimSpace(bot.ClientSecret)},
 	})
 	if err != nil {
 		return nil, err

@@ -18,6 +18,8 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// FieldAppID holds the string denoting the app_id field in the database.
+	FieldAppID = "app_id"
 	// FieldPlatformTeamID holds the string denoting the platform_team_id field in the database.
 	FieldPlatformTeamID = "platform_team_id"
 	// FieldTeamName holds the string denoting the team_name field in the database.
@@ -35,6 +37,7 @@ var Columns = []string{
 	FieldID,
 	FieldCreatedAt,
 	FieldUpdatedAt,
+	FieldAppID,
 	FieldPlatformTeamID,
 	FieldTeamName,
 	FieldBotToken,
@@ -58,6 +61,8 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
+	// AppIDValidator is a validator for the "app_id" field. It is called by the builders before save.
+	AppIDValidator func(string) error
 	// PlatformTeamIDValidator is a validator for the "platform_team_id" field. It is called by the builders before save.
 	PlatformTeamIDValidator func(string) error
 	// BotTokenValidator is a validator for the "bot_token" field. It is called by the builders before save.
@@ -82,6 +87,11 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByAppID orders the results by the app_id field.
+func ByAppID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAppID, opts...).ToFunc()
 }
 
 // ByPlatformTeamID orders the results by the platform_team_id field.

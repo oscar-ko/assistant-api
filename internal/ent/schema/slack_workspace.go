@@ -23,6 +23,7 @@ func (SlackWorkspace) Mixin() []ent.Mixin {
 // Fields of the SlackWorkspace.
 func (SlackWorkspace) Fields() []ent.Field {
 	return []ent.Field{
+		field.String("app_id").NotEmpty().Comment("Slack app ID"),
 		field.String("platform_team_id").NotEmpty().Comment("Slack workspace/team ID"),
 		field.String("team_name").Optional().Nillable().Comment("Slack workspace/team display name"),
 		field.String("bot_token").NotEmpty().Sensitive().Comment("Slack bot access token for this workspace"),
@@ -33,7 +34,7 @@ func (SlackWorkspace) Fields() []ent.Field {
 // Indexes of the SlackWorkspace.
 func (SlackWorkspace) Indexes() []ent.Index {
 	return []ent.Index{
-		index.Fields("platform_team_id").Unique(),
+		index.Fields("app_id", "platform_team_id").Unique(),
 	}
 }
 

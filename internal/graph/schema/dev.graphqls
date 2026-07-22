@@ -5,15 +5,15 @@
 # 避免測試工具的便利欄位影響外部 API 設計。
 extend type Mutation {
     """
-    產生一段模擬 LINE Todo 對話，並依序寫入 channel message / mention / todo candidate 相關資料。
+    產生一段模擬聊天平台 Todo 對話，並依序寫入 channel message / mention / todo candidate 相關資料。
 
-    用途是讓開發者不用真的從 LINE 發訊息，也能快速驗證 realtime Todo pipeline、
+    用途是讓開發者不用真的從 LINE/Slack 發訊息，也能快速驗證 realtime Todo pipeline、
     todo candidate 建立與後續 promotion 行為。回傳 payload 會列出每一則模擬訊息與其落庫結果，
     方便直接在 GraphQL client 中確認是哪一則訊息觸發 candidate。
     """
-    simulateLineTodoConversation(
-        input: SimulateLineTodoConversationInput!
-    ): SimulateLineTodoConversationPayload!
+    simulateTodoConversation(
+        input: SimulateTodoConversationInput!
+    ): SimulateTodoConversationPayload!
 
     """
     清除開發測試用的 realtime Todo 資料。
@@ -25,15 +25,27 @@ extend type Mutation {
 }
 
 """
-模擬 LINE Todo 對話的輸入參數。
+模擬聊天平台 Todo 對話的輸入參數。
 
-channelID 預設指向本機 seed/dev channel；participantCount 控制模擬群組中的人數；
+platform 指定要模擬的平台；channelID 預設指向本機 seed/dev channel；participantCount 控制模擬群組中的人數；
 messageCount 控制要產生幾則對話；analysisWaitMilliseconds 則用來在寫入訊息後等待非同步分析流程，
 讓呼叫端可以選擇立即回傳或等待 candidate/promotion 完成後再檢查結果。
 """
-input SimulateLineTodoConversationInput {
+input SimulateTodoConversationInput {
     """
-    要寫入模擬訊息的 channel ID；預設值為本機開發環境的 LINE channel。
+    要模擬的訊息平台；目前支援 line 與 slack。
+    """
+    platform: String! = "line"
+    """
+    Slack workspace/team ID；platform 為 slack 時必填。
+    """
+    platformTenantID: String
+    """
+    Slack app ID；platform 為 slack 時必填，用來選擇對應 bot 設定與 workspace install。
+    """
+    platformAppID: String
+    """
+    要寫入模擬訊息的 channel ID；預設值為本機開發環境的 channel。
     """
     channelID: ID! = "da1d5fc5-1da3-4c82-aacf-b16f79ab3867"
     """
@@ -53,29 +65,29 @@ input SimulateLineTodoConversationInput {
 """
 模擬對話中的參與者。
 
-userID 是系統內部 User ID；lineUserID 是平台側身分；displayName 是對話中顯示與 assignee resolver 使用的名稱。
+userID 是系統內部 User ID；platformUserID 是平台側身分；displayName 是對話中顯示與 assignee resolver 使用的名稱。
 """
-type SimulatedLineTodoParticipant {
+type SimulatedTodoParticipant {
     userID: ID!
-    lineUserID: String!
+    platformUserID: String!
     displayName: String!
 }
 
 """
-單則模擬 LINE 訊息與其 Todo pipeline 結果。
+單則模擬平台訊息與其 Todo pipeline 結果。
 
-前半部欄位描述這則訊息如何被送出；savedMessageID / sentLineMessageID 描述平台與資料庫落點；
+前半部欄位描述這則訊息如何被送進平台 webhook pipeline；savedMessageID 描述資料庫落點；
 todoCandidate* 欄位則是此訊息若觸發 Todo analyzer 時，對應 candidate 的最新狀態摘要。
 """
-type SimulatedLineTodoMessage {
+type SimulatedTodoMessage {
     """
     此訊息的系統內部發話者 User ID。
     """
     speakerUserID: ID!
     """
-    此訊息的 LINE 發話者 userId。
+    此訊息的平台發話者 ID。
     """
-    lineUserID: String!
+    platformUserID: String!
     """
     此訊息在對話中顯示的發話者名稱。
     """
@@ -85,9 +97,9 @@ type SimulatedLineTodoMessage {
     """
     text: String!
     """
-    模擬 LINE 平台實際收到或送出的文字內容，可包含平台格式差異。
+    模擬平台 webhook 實際收到的文字內容，可包含平台格式差異。
     """
-    lineText: String!
+    platformText: String!
     """
     模擬平台訊息 ID，用來測試 reply/linking 與 message lookup。
     """
@@ -96,10 +108,6 @@ type SimulatedLineTodoMessage {
     訊息成功保存後的 ChannelMessage ID；若保存失敗則為空。
     """
     savedMessageID: ID
-    """
-    若測試流程有模擬送出 LINE 訊息，這裡保存回傳的平台訊息 ID。
-    """
-    sentLineMessageID: String
     """
     此訊息觸發或更新的 TodoCandidate ID；未觸發 Todo pipeline 時為空。
     """
@@ -123,12 +131,12 @@ type SimulatedLineTodoMessage {
 }
 
 """
-模擬 LINE Todo 對話的執行結果。
+模擬聊天平台 Todo 對話的執行結果。
 
 payload 同時回傳 channel、參與者、每則訊息與 candidate 數量，讓開發者可以在一次 GraphQL 呼叫後，
 直接判斷資料是否成功穿過 message persistence、mention extraction、todo analyzer 與 candidate persistence。
 """
-type SimulateLineTodoConversationPayload {
+type SimulateTodoConversationPayload {
     """
     本次模擬操作狀態；通常用於快速判斷 helper 是否執行完成。
     """
@@ -138,9 +146,17 @@ type SimulateLineTodoConversationPayload {
     """
     channelID: ID!
     """
-    本次模擬對應的 LINE channel ID。
+    本次模擬使用的平台。
     """
-    lineChannelID: String!
+    platform: String!
+    """
+    本次模擬對應的平台 channel/group ID。
+    """
+    platformChannelID: String!
+    """
+    本次模擬對應的平台 tenant/workspace ID；LINE 可為空字串。
+    """
+    platformTenantID: String!
     """
     實際套用的 analyzer 等待毫秒數。
     """
@@ -152,11 +168,11 @@ type SimulateLineTodoConversationPayload {
     """
     本次模擬建立或使用的參與者清單。
     """
-    participants: [SimulatedLineTodoParticipant!]!
+    participants: [SimulatedTodoParticipant!]!
     """
     本次模擬產生的訊息與各自 Todo pipeline 結果。
     """
-    messages: [SimulatedLineTodoMessage!]!
+    messages: [SimulatedTodoMessage!]!
 }
 
 """

@@ -1,0 +1,45 @@
+display_information:
+    name: Aistant
+    description: AI assistant for Slack conversations
+    background_color: "#1f6f5f"
+
+features:
+    bot_user:
+        display_name: Aistant
+        always_online: false
+    app_home:
+        home_tab_enabled: false
+        messages_tab_enabled: true
+        messages_tab_read_only_enabled: false
+
+oauth_config:
+    redirect_urls:
+        - https://uninebriated-nonexplorative-kasey.ngrok-free.dev/slack/oauth/callback/A0BJXJE37CN
+        - https://uninebriated-nonexplorative-kasey.ngrok-free.dev/slack/login/callback/A0BJXJE37CN
+    scopes:
+        bot:
+            - app_mentions:read
+            - channels:history
+            - channels:read
+            - chat:write
+            - groups:history
+            - groups:read
+            - im:history
+            - mpim:history
+
+settings:
+    event_subscriptions:
+        request_url: https://uninebriated-nonexplorative-kasey.ngrok-free.dev/slack/events
+        bot_events:
+            - app_mention
+            - message.channels
+            - message.groups
+            - message.im
+            - message.mpim
+            - member_joined_channel
+            - member_left_channel
+    interactivity:
+        is_enabled: false
+    org_deploy_enabled: false
+    socket_mode_enabled: false
+    token_rotation_enabled: false

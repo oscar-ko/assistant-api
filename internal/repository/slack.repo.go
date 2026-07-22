@@ -74,14 +74,18 @@ func (r *SlackRepo) CreateUser(ctx context.Context, name, email string) (*ent.Us
 }
 
 // UpsertWorkspaceInstall stores the bot installation credentials for a Slack workspace.
-func (r *SlackRepo) UpsertWorkspaceInstall(ctx context.Context, teamID string, teamName string, botToken string, botUserID string) error {
+func (r *SlackRepo) UpsertWorkspaceInstall(ctx context.Context, appID string, teamID string, teamName string, botToken string, botUserID string) error {
 	if r == nil || r.db == nil {
 		return fmt.Errorf("slack repository not initialized")
 	}
+	appID = strings.TrimSpace(appID)
 	teamID = strings.TrimSpace(teamID)
 	teamName = strings.TrimSpace(teamName)
 	botToken = strings.TrimSpace(botToken)
 	botUserID = strings.TrimSpace(botUserID)
+	if appID == "" {
+		return fmt.Errorf("slack app_id is required")
+	}
 	if teamID == "" {
 		return fmt.Errorf("slack team id is required")
 	}
@@ -89,8 +93,10 @@ func (r *SlackRepo) UpsertWorkspaceInstall(ctx context.Context, teamID string, t
 		return fmt.Errorf("slack bot token is required")
 	}
 
+	// workspace install 的唯一語意是「某個 Slack App 安裝到某個 workspace」。
+	// 同一個 team 可以同時安裝多個 App，因此用 app_id + platform_team_id 作為查詢邊界，避免 token 覆蓋。
 	existing, err := r.db.SlackWorkspace.Query().
-		Where(slackworkspace.PlatformTeamIDEQ(teamID)).
+		Where(slackworkspace.AppIDEQ(appID), slackworkspace.PlatformTeamIDEQ(teamID)).
 		Only(ctx)
 	if err == nil {
 		update := r.db.SlackWorkspace.UpdateOneID(existing.ID).
@@ -113,6 +119,7 @@ func (r *SlackRepo) UpsertWorkspaceInstall(ctx context.Context, teamID string, t
 	}
 
 	create := r.db.SlackWorkspace.Create().
+		SetAppID(appID).
 		SetPlatformTeamID(teamID).
 		SetBotToken(botToken)
 	if teamName != "" {
@@ -126,70 +133,84 @@ func (r *SlackRepo) UpsertWorkspaceInstall(ctx context.Context, teamID string, t
 }
 
 // ResolveWorkspaceBotToken returns the installed bot token for the Slack workspace.
-func (r *SlackRepo) ResolveWorkspaceBotToken(ctx context.Context, teamID string) (string, error) {
+func (r *SlackRepo) ResolveWorkspaceBotToken(ctx context.Context, appID string, teamID string) (string, error) {
 	if r == nil || r.db == nil {
 		return "", fmt.Errorf("slack repository not initialized")
 	}
+	appID = strings.TrimSpace(appID)
 	teamID = strings.TrimSpace(teamID)
+	if appID == "" {
+		return "", fmt.Errorf("slack app_id is empty")
+	}
 	if teamID == "" {
 		return "", fmt.Errorf("slack team id is empty")
 	}
 
+	// 出站訊息必須用 webhook/request context 帶下來的 app_id 與 team_id 查 token。
+	// 這裡不回退到 default bot，否則多 bot 安裝時會把訊息送成錯誤的 Slack App。
 	item, err := r.db.SlackWorkspace.Query().
-		Where(slackworkspace.PlatformTeamIDEQ(teamID)).
+		Where(slackworkspace.AppIDEQ(appID), slackworkspace.PlatformTeamIDEQ(teamID)).
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
-			return "", fmt.Errorf("%w for team %s", ErrSlackWorkspaceInstallNotFound, teamID)
+			return "", fmt.Errorf("%w for app %s team %s", ErrSlackWorkspaceInstallNotFound, appID, teamID)
 		}
 		return "", err
 	}
 	token := strings.TrimSpace(item.BotToken)
 	if token == "" {
-		return "", fmt.Errorf("slack workspace bot token is empty for team %s", teamID)
+		return "", fmt.Errorf("slack workspace bot token is empty for app %s team %s", appID, teamID)
 	}
 	return token, nil
 }
 
 // ResolveWorkspaceBotUserID returns the installed bot user id for the Slack workspace.
-func (r *SlackRepo) ResolveWorkspaceBotUserID(ctx context.Context, teamID string) (string, error) {
+func (r *SlackRepo) ResolveWorkspaceBotUserID(ctx context.Context, appID string, teamID string) (string, error) {
 	if r == nil || r.db == nil {
 		return "", fmt.Errorf("slack repository not initialized")
 	}
+	appID = strings.TrimSpace(appID)
 	teamID = strings.TrimSpace(teamID)
+	if appID == "" {
+		return "", fmt.Errorf("slack app_id is empty")
+	}
 	if teamID == "" {
 		return "", fmt.Errorf("slack team id is empty")
 	}
 
 	item, err := r.db.SlackWorkspace.Query().
-		Where(slackworkspace.PlatformTeamIDEQ(teamID)).
+		Where(slackworkspace.AppIDEQ(appID), slackworkspace.PlatformTeamIDEQ(teamID)).
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
-			return "", fmt.Errorf("%w for team %s", ErrSlackWorkspaceInstallNotFound, teamID)
+			return "", fmt.Errorf("%w for app %s team %s", ErrSlackWorkspaceInstallNotFound, appID, teamID)
 		}
 		return "", err
 	}
 	if item.BotUserID == nil {
-		return "", fmt.Errorf("slack workspace bot user id is empty for team %s", teamID)
+		return "", fmt.Errorf("slack workspace bot user id is empty for app %s team %s", appID, teamID)
 	}
 	botUserID := strings.TrimSpace(*item.BotUserID)
 	if botUserID == "" {
-		return "", fmt.Errorf("slack workspace bot user id is empty for team %s", teamID)
+		return "", fmt.Errorf("slack workspace bot user id is empty for app %s team %s", appID, teamID)
 	}
 	return botUserID, nil
 }
 
 // HasWorkspaceInstall reports whether a Slack workspace install record already exists.
-func (r *SlackRepo) HasWorkspaceInstall(ctx context.Context, teamID string) (bool, error) {
+func (r *SlackRepo) HasWorkspaceInstall(ctx context.Context, appID string, teamID string) (bool, error) {
 	if r == nil || r.db == nil {
 		return false, fmt.Errorf("slack repository not initialized")
 	}
+	appID = strings.TrimSpace(appID)
 	teamID = strings.TrimSpace(teamID)
+	if appID == "" {
+		return false, fmt.Errorf("slack app_id is empty")
+	}
 	if teamID == "" {
 		return false, fmt.Errorf("slack team id is empty")
 	}
 	return r.db.SlackWorkspace.Query().
-		Where(slackworkspace.PlatformTeamIDEQ(teamID)).
+		Where(slackworkspace.AppIDEQ(appID), slackworkspace.PlatformTeamIDEQ(teamID)).
 		Exist(ctx)
 }

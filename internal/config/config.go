@@ -264,19 +264,92 @@ func normalizeLineBotConfig(bot LineBotConfig) (LineBotConfig, error) {
 	return bot, nil
 }
 
-// SlackConfig 為 Slack OAuth / webhook / bot 發訊所需參數。
+// SlackConfig 為 Slack 平台共用資訊，讓多個 Slack App / Bot 共用同一組導向端點與授權範圍。
 type SlackConfig struct {
+	RedirectURI      string           `mapstructure:"redirect_uri" yaml:"redirect_uri"`
+	LoginRedirectURI string           `mapstructure:"login_redirect_uri" yaml:"login_redirect_uri"`
+	Scopes           string           `mapstructure:"scopes" yaml:"scopes"`
+	LoginScopes      string           `mapstructure:"login_scopes" yaml:"login_scopes"`
+	UserScopes       string           `mapstructure:"user_scopes" yaml:"user_scopes"`
+	Bots             []SlackBotConfig `mapstructure:"bots" yaml:"bots"`
+}
+
+// SlackBotConfig 為單一 Slack App / Bot 的 OAuth 與 Events API 憑證。
+//
+// 設計重點：
+// - AppID 使用 Slack 官方 app_id，而不是自訂 bot key，讓 route、workspace install 與 webhook 驗章都能對齊 Slack 後台。
+// - Name 是系統內部顯示用的人名，例如 Jarvis / Thor；之後 outbound message 或管理介面可用它呈現較好讀的 bot 名稱。
+// - SigningSecret 用於 Events API request signature；多 bot 情境下會逐一比對，找出本次 webhook 屬於哪個 Slack App。
+// - BotUserID 是設定檔層級的預設值；實際 workspace install 後仍會以 slack_workspaces 內 app_id + team_id 的 bot user id 為準。
+type SlackBotConfig struct {
+	Name              string `mapstructure:"name" yaml:"name"`
 	AppID             string `mapstructure:"app_id" yaml:"app_id"`
 	ClientID          string `mapstructure:"client_id" yaml:"client_id"`
 	ClientSecret      string `mapstructure:"client_secret" yaml:"client_secret"`
 	SigningSecret     string `mapstructure:"signing_secret" yaml:"signing_secret"`
 	VerificationToken string `mapstructure:"verification_token" yaml:"verification_token"`
 	BotUserID         string `mapstructure:"bot_user_id" yaml:"bot_user_id"`
-	RedirectURI       string `mapstructure:"redirect_uri" yaml:"redirect_uri"`
-	LoginRedirectURI  string `mapstructure:"login_redirect_uri" yaml:"login_redirect_uri"`
-	Scopes            string `mapstructure:"scopes" yaml:"scopes"`
-	LoginScopes       string `mapstructure:"login_scopes" yaml:"login_scopes"`
-	UserScopes        string `mapstructure:"user_scopes" yaml:"user_scopes"`
+}
+
+// DefaultBot 回傳未指定 app id 時使用的 Slack bot（清單中的第一筆）。
+func (s SlackConfig) DefaultBot() (SlackBotConfig, error) {
+	if len(s.Bots) == 0 {
+		return SlackBotConfig{}, fmt.Errorf("slack bots is empty")
+	}
+	return normalizeSlackBotConfig(s.Bots[0])
+}
+
+// BotByAppID 依 Slack app_id 尋找對應的 Slack bot。
+//
+// app_id 是 Slack App 的官方穩定識別，適合放在 OAuth callback route、manifest redirect URL 與 dev helper input。
+// 這裡刻意不支援其他別名欄位，避免多 bot 設定中出現同一個 App 被多套 key 指到的歧義。
+func (s SlackConfig) BotByAppID(appID string) (SlackBotConfig, error) {
+	appID = strings.TrimSpace(appID)
+	if appID == "" {
+		return s.DefaultBot()
+	}
+	for _, item := range s.Bots {
+		if strings.EqualFold(strings.TrimSpace(item.AppID), appID) {
+			return normalizeSlackBotConfig(item)
+		}
+	}
+	return SlackBotConfig{}, fmt.Errorf("unknown slack app_id: %s", appID)
+}
+
+// BotBySigningSecret 尋找可驗證目前 webhook 簽章的 Slack bot。
+func (s SlackConfig) BotBySigningSecret(match func(string) bool) (SlackBotConfig, error) {
+	if match == nil {
+		return SlackBotConfig{}, fmt.Errorf("slack signing secret matcher is nil")
+	}
+	for _, item := range s.Bots {
+		bot, err := normalizeSlackBotConfig(item)
+		if err != nil {
+			return SlackBotConfig{}, err
+		}
+		if match(bot.SigningSecret) {
+			return bot, nil
+		}
+	}
+	return SlackBotConfig{}, fmt.Errorf("no slack bot matched request signature")
+}
+
+func normalizeSlackBotConfig(bot SlackBotConfig) (SlackBotConfig, error) {
+	if strings.TrimSpace(bot.Name) == "" {
+		return SlackBotConfig{}, fmt.Errorf("slack bot name is empty")
+	}
+	if strings.TrimSpace(bot.AppID) == "" {
+		return SlackBotConfig{}, fmt.Errorf("slack bot app_id is empty")
+	}
+	if strings.TrimSpace(bot.ClientID) == "" {
+		return SlackBotConfig{}, fmt.Errorf("slack bot %q client_id is empty", bot.AppID)
+	}
+	if strings.TrimSpace(bot.ClientSecret) == "" {
+		return SlackBotConfig{}, fmt.Errorf("slack bot %q client_secret is empty", bot.AppID)
+	}
+	if strings.TrimSpace(bot.SigningSecret) == "" {
+		return SlackBotConfig{}, fmt.Errorf("slack bot %q signing_secret is empty", bot.AppID)
+	}
+	return bot, nil
 }
 
 // LLMProviderConfig 描述一個 provider 與其底下 profiles。

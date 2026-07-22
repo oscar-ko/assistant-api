@@ -271,12 +271,16 @@ func init() {
 	slackworkspace.DefaultUpdatedAt = slackworkspaceDescUpdatedAt.Default.(func() time.Time)
 	// slackworkspace.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	slackworkspace.UpdateDefaultUpdatedAt = slackworkspaceDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// slackworkspaceDescAppID is the schema descriptor for app_id field.
+	slackworkspaceDescAppID := slackworkspaceFields[0].Descriptor()
+	// slackworkspace.AppIDValidator is a validator for the "app_id" field. It is called by the builders before save.
+	slackworkspace.AppIDValidator = slackworkspaceDescAppID.Validators[0].(func(string) error)
 	// slackworkspaceDescPlatformTeamID is the schema descriptor for platform_team_id field.
-	slackworkspaceDescPlatformTeamID := slackworkspaceFields[0].Descriptor()
+	slackworkspaceDescPlatformTeamID := slackworkspaceFields[1].Descriptor()
 	// slackworkspace.PlatformTeamIDValidator is a validator for the "platform_team_id" field. It is called by the builders before save.
 	slackworkspace.PlatformTeamIDValidator = slackworkspaceDescPlatformTeamID.Validators[0].(func(string) error)
 	// slackworkspaceDescBotToken is the schema descriptor for bot_token field.
-	slackworkspaceDescBotToken := slackworkspaceFields[2].Descriptor()
+	slackworkspaceDescBotToken := slackworkspaceFields[3].Descriptor()
 	// slackworkspace.BotTokenValidator is a validator for the "bot_token" field. It is called by the builders before save.
 	slackworkspace.BotTokenValidator = slackworkspaceDescBotToken.Validators[0].(func(string) error)
 	// slackworkspaceDescID is the schema descriptor for id field.

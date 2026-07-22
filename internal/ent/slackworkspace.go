@@ -23,6 +23,8 @@ type SlackWorkspace struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// 最後更新時間
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// Slack app ID
+	AppID string `json:"app_id,omitempty"`
 	// Slack workspace/team ID
 	PlatformTeamID string `json:"platform_team_id,omitempty"`
 	// Slack workspace/team display name
@@ -39,7 +41,7 @@ func (*SlackWorkspace) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case slackworkspace.FieldPlatformTeamID, slackworkspace.FieldTeamName, slackworkspace.FieldBotToken, slackworkspace.FieldBotUserID:
+		case slackworkspace.FieldAppID, slackworkspace.FieldPlatformTeamID, slackworkspace.FieldTeamName, slackworkspace.FieldBotToken, slackworkspace.FieldBotUserID:
 			values[i] = new(sql.NullString)
 		case slackworkspace.FieldCreatedAt, slackworkspace.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -77,6 +79,12 @@ func (_m *SlackWorkspace) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
 			} else if value.Valid {
 				_m.UpdatedAt = value.Time
+			}
+		case slackworkspace.FieldAppID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field app_id", values[i])
+			} else if value.Valid {
+				_m.AppID = value.String
 			}
 		case slackworkspace.FieldPlatformTeamID:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -145,6 +153,9 @@ func (_m *SlackWorkspace) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("app_id=")
+	builder.WriteString(_m.AppID)
 	builder.WriteString(", ")
 	builder.WriteString("platform_team_id=")
 	builder.WriteString(_m.PlatformTeamID)

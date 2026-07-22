@@ -23,6 +23,12 @@ const (
 	// 再透過 token store 解析該 workspace 專屬的 xoxb token。
 	workspaceTeamIDKey contextKey = "workspace_team_id"
 
+	// workspaceAppIDKey 保存多 bot 平台的 app/bot 識別。
+	//
+	// Slack 允許多個 App 安裝到同一個 workspace；只用 team id 取 token 會讓不同 app 的安裝資料互相覆蓋。
+	// 因此 Slack webhook 驗章後會把本次命中的 app_id 放進 context，送訊息時再用 app_id + team id 查 token。
+	workspaceAppIDKey contextKey = "workspace_app_id"
+
 	// botSenderIDKey 保存「本次流程應使用的 bot sender id」。
 	//
 	// 不同平台或不同 workspace 可能有不同的 bot 身分：
@@ -71,6 +77,26 @@ func WorkspaceTeamIDFromContext(ctx context.Context) string {
 	}
 	teamID, _ := ctx.Value(workspaceTeamIDKey).(string)
 	return teamID
+}
+
+// WithWorkspaceAppID 將本次流程使用的 Slack app_id 寫入 context。
+func WithWorkspaceAppID(ctx context.Context, appID string) context.Context {
+	if appID == "" {
+		return ctx
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, workspaceAppIDKey, appID)
+}
+
+// WorkspaceAppIDFromContext 從 context 讀出本次流程使用的 Slack app_id。
+func WorkspaceAppIDFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	appID, _ := ctx.Value(workspaceAppIDKey).(string)
+	return appID
 }
 
 // WithBotSenderID 將本次流程使用的 bot sender id 寫入 context，回傳新的 context。

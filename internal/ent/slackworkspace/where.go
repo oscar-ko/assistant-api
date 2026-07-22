@@ -65,6 +65,11 @@ func UpdatedAt(v time.Time) predicate.SlackWorkspace {
 	return predicate.SlackWorkspace(sql.FieldEQ(FieldUpdatedAt, v))
 }
 
+// AppID applies equality check predicate on the "app_id" field. It's identical to AppIDEQ.
+func AppID(v string) predicate.SlackWorkspace {
+	return predicate.SlackWorkspace(sql.FieldEQ(FieldAppID, v))
+}
+
 // PlatformTeamID applies equality check predicate on the "platform_team_id" field. It's identical to PlatformTeamIDEQ.
 func PlatformTeamID(v string) predicate.SlackWorkspace {
 	return predicate.SlackWorkspace(sql.FieldEQ(FieldPlatformTeamID, v))
@@ -128,6 +133,11 @@ func CreatedAtLTE(v time.Time) predicate.SlackWorkspace {
 // UpdatedAtEQ applies the EQ predicate on the "updated_at" field.
 func UpdatedAtEQ(v time.Time) predicate.SlackWorkspace {
 	return predicate.SlackWorkspace(sql.FieldEQ(FieldUpdatedAt, v))
+}
+
+// AppIDEQ applies the EQ predicate on the "app_id" field.
+func AppIDEQ(v string) predicate.SlackWorkspace {
+	return predicate.SlackWorkspace(sql.FieldEQ(FieldAppID, v))
 }
 
 // UpdatedAtNEQ applies the NEQ predicate on the "updated_at" field.

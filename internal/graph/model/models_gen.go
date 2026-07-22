@@ -46,13 +46,19 @@ type SendLineTextPayload struct {
 	To     string `json:"to"`
 }
 
-// 模擬 LINE Todo 對話的輸入參數。
+// 模擬聊天平台 Todo 對話的輸入參數。
 //
-// channelID 預設指向本機 seed/dev channel；participantCount 控制模擬群組中的人數；
+// platform 指定要模擬的平台；channelID 預設指向本機 seed/dev channel；participantCount 控制模擬群組中的人數；
 // messageCount 控制要產生幾則對話；analysisWaitMilliseconds 則用來在寫入訊息後等待非同步分析流程，
 // 讓呼叫端可以選擇立即回傳或等待 candidate/promotion 完成後再檢查結果。
-type SimulateLineTodoConversationInput struct {
-	// 要寫入模擬訊息的 channel ID；預設值為本機開發環境的 LINE channel。
+type SimulateTodoConversationInput struct {
+	// 要模擬的訊息平台；目前支援 line 與 slack。
+	Platform string `json:"platform"`
+	// Slack workspace/team ID；platform 為 slack 時必填。
+	PlatformTenantID *string `json:"platformTenantID,omitempty"`
+	// Slack app ID；platform 為 slack 時必填，用來選擇對應 bot 設定與 workspace install。
+	PlatformAppID *string `json:"platformAppID,omitempty"`
+	// 要寫入模擬訊息的 channel ID；預設值為本機開發環境的 channel。
 	ChannelID uuid.UUID `json:"channelID"`
 	// 模擬對話中的參與者數量；會影響訊息 speaker 與 mention/assignee 的分布。
 	ParticipantCount int `json:"participantCount"`
@@ -62,48 +68,50 @@ type SimulateLineTodoConversationInput struct {
 	AnalysisWaitMilliseconds int `json:"analysisWaitMilliseconds"`
 }
 
-// 模擬 LINE Todo 對話的執行結果。
+// 模擬聊天平台 Todo 對話的執行結果。
 //
 // payload 同時回傳 channel、參與者、每則訊息與 candidate 數量，讓開發者可以在一次 GraphQL 呼叫後，
 // 直接判斷資料是否成功穿過 message persistence、mention extraction、todo analyzer 與 candidate persistence。
-type SimulateLineTodoConversationPayload struct {
+type SimulateTodoConversationPayload struct {
 	// 本次模擬操作狀態；通常用於快速判斷 helper 是否執行完成。
 	Status string `json:"status"`
 	// 本次模擬寫入的系統 channel ID。
 	ChannelID uuid.UUID `json:"channelID"`
-	// 本次模擬對應的 LINE channel ID。
-	LineChannelID string `json:"lineChannelID"`
+	// 本次模擬使用的平台。
+	Platform string `json:"platform"`
+	// 本次模擬對應的平台 channel/group ID。
+	PlatformChannelID string `json:"platformChannelID"`
+	// 本次模擬對應的平台 tenant/workspace ID；LINE 可為空字串。
+	PlatformTenantID string `json:"platformTenantID"`
 	// 實際套用的 analyzer 等待毫秒數。
 	AnalysisWaitMilliseconds int `json:"analysisWaitMilliseconds"`
 	// 本次模擬完成後查到的 TodoCandidate 筆數。
 	TodoCandidateCount int `json:"todoCandidateCount"`
 	// 本次模擬建立或使用的參與者清單。
-	Participants []*SimulatedLineTodoParticipant `json:"participants"`
+	Participants []*SimulatedTodoParticipant `json:"participants"`
 	// 本次模擬產生的訊息與各自 Todo pipeline 結果。
-	Messages []*SimulatedLineTodoMessage `json:"messages"`
+	Messages []*SimulatedTodoMessage `json:"messages"`
 }
 
-// 單則模擬 LINE 訊息與其 Todo pipeline 結果。
+// 單則模擬平台訊息與其 Todo pipeline 結果。
 //
-// 前半部欄位描述這則訊息如何被送出；savedMessageID / sentLineMessageID 描述平台與資料庫落點；
+// 前半部欄位描述這則訊息如何被送進平台 webhook pipeline；savedMessageID 描述資料庫落點；
 // todoCandidate* 欄位則是此訊息若觸發 Todo analyzer 時，對應 candidate 的最新狀態摘要。
-type SimulatedLineTodoMessage struct {
+type SimulatedTodoMessage struct {
 	// 此訊息的系統內部發話者 User ID。
 	SpeakerUserID uuid.UUID `json:"speakerUserID"`
-	// 此訊息的 LINE 發話者 userId。
-	LineUserID string `json:"lineUserID"`
+	// 此訊息的平台發話者 ID。
+	PlatformUserID string `json:"platformUserID"`
 	// 此訊息在對話中顯示的發話者名稱。
 	DisplayName string `json:"displayName"`
 	// 送進內部 message pipeline 的純文字內容。
 	Text string `json:"text"`
-	// 模擬 LINE 平台實際收到或送出的文字內容，可包含平台格式差異。
-	LineText string `json:"lineText"`
+	// 模擬平台 webhook 實際收到的文字內容，可包含平台格式差異。
+	PlatformText string `json:"platformText"`
 	// 模擬平台訊息 ID，用來測試 reply/linking 與 message lookup。
 	PlatformMessageID string `json:"platformMessageID"`
 	// 訊息成功保存後的 ChannelMessage ID；若保存失敗則為空。
 	SavedMessageID *uuid.UUID `json:"savedMessageID,omitempty"`
-	// 若測試流程有模擬送出 LINE 訊息，這裡保存回傳的平台訊息 ID。
-	SentLineMessageID *string `json:"sentLineMessageID,omitempty"`
 	// 此訊息觸發或更新的 TodoCandidate ID；未觸發 Todo pipeline 時為空。
 	TodoCandidateID *uuid.UUID `json:"todoCandidateID,omitempty"`
 	// 該 candidate 的最新狀態，例如 candidate、needs_more_info、acknowledged 或 cancelled。
@@ -118,11 +126,11 @@ type SimulatedLineTodoMessage struct {
 
 // 模擬對話中的參與者。
 //
-// userID 是系統內部 User ID；lineUserID 是平台側身分；displayName 是對話中顯示與 assignee resolver 使用的名稱。
-type SimulatedLineTodoParticipant struct {
-	UserID      uuid.UUID `json:"userID"`
-	LineUserID  string    `json:"lineUserID"`
-	DisplayName string    `json:"displayName"`
+// userID 是系統內部 User ID；platformUserID 是平台側身分；displayName 是對話中顯示與 assignee resolver 使用的名稱。
+type SimulatedTodoParticipant struct {
+	UserID         uuid.UUID `json:"userID"`
+	PlatformUserID string    `json:"platformUserID"`
+	DisplayName    string    `json:"displayName"`
 }
 
 type ActionActionCode string

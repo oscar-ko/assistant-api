@@ -49,6 +49,12 @@ func (_c *SlackWorkspaceCreate) SetNillableUpdatedAt(v *time.Time) *SlackWorkspa
 	return _c
 }
 
+// SetAppID sets the "app_id" field.
+func (_c *SlackWorkspaceCreate) SetAppID(v string) *SlackWorkspaceCreate {
+	_c.mutation.SetAppID(v)
+	return _c
+}
+
 // SetPlatformTeamID sets the "platform_team_id" field.
 func (_c *SlackWorkspaceCreate) SetPlatformTeamID(v string) *SlackWorkspaceCreate {
 	_c.mutation.SetPlatformTeamID(v)
@@ -160,6 +166,14 @@ func (_c *SlackWorkspaceCreate) check() error {
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "SlackWorkspace.updated_at"`)}
 	}
+	if _, ok := _c.mutation.AppID(); !ok {
+		return &ValidationError{Name: "app_id", err: errors.New(`ent: missing required field "SlackWorkspace.app_id"`)}
+	}
+	if v, ok := _c.mutation.AppID(); ok {
+		if err := slackworkspace.AppIDValidator(v); err != nil {
+			return &ValidationError{Name: "app_id", err: fmt.Errorf(`ent: validator failed for field "SlackWorkspace.app_id": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.PlatformTeamID(); !ok {
 		return &ValidationError{Name: "platform_team_id", err: errors.New(`ent: missing required field "SlackWorkspace.platform_team_id"`)}
 	}
@@ -218,6 +232,10 @@ func (_c *SlackWorkspaceCreate) createSpec() (*SlackWorkspace, *sqlgraph.CreateS
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(slackworkspace.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if value, ok := _c.mutation.AppID(); ok {
+		_spec.SetField(slackworkspace.FieldAppID, field.TypeString, value)
+		_node.AppID = value
 	}
 	if value, ok := _c.mutation.PlatformTeamID(); ok {
 		_spec.SetField(slackworkspace.FieldPlatformTeamID, field.TypeString, value)

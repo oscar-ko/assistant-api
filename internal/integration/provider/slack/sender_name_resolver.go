@@ -13,6 +13,6 @@ func NewSenderNameResolver(tokenStore slackBotTokenStore) messagepersist.SenderN
 		if !strings.EqualFold(strings.TrimSpace(platform), "slack") {
 			return "", nil
 		}
-		return GetUserDisplayNameByID(ctx, tokenStore, platformTenantID, senderID)
+		return GetUserDisplayNameByID(ctx, tokenStore, workspaceAppIDFromContext(ctx), platformTenantID, senderID)
 	})
 }

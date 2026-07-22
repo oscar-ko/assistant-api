@@ -396,6 +396,7 @@ var (
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "app_id", Type: field.TypeString},
 		{Name: "platform_team_id", Type: field.TypeString},
 		{Name: "team_name", Type: field.TypeString, Nullable: true},
 		{Name: "bot_token", Type: field.TypeString},
@@ -408,9 +409,9 @@ var (
 		PrimaryKey: []*schema.Column{SlackWorkspacesColumns[0]},
 		Indexes: []*schema.Index{
 			{
-				Name:    "slackworkspace_platform_team_id",
+				Name:    "slackworkspace_app_id_platform_team_id",
 				Unique:  true,
-				Columns: []*schema.Column{SlackWorkspacesColumns[3]},
+				Columns: []*schema.Column{SlackWorkspacesColumns[3], SlackWorkspacesColumns[4]},
 			},
 		},
 	}
