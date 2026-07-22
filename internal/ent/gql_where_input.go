@@ -18,6 +18,7 @@ import (
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
+	"assistant-api/internal/ent/todocandidateevidencemessage"
 	"assistant-api/internal/ent/todoevent"
 	"assistant-api/internal/ent/todoupdatecandidate"
 	"assistant-api/internal/ent/translationlocale"
@@ -5767,14 +5768,6 @@ type TodoCandidateWhereInput struct {
 	LastMessageIDIn    []uuid.UUID `json:"lastMessageIDIn,omitempty"`
 	LastMessageIDNotIn []uuid.UUID `json:"lastMessageIDNotIn,omitempty"`
 
-	// "linked_message_id" field predicates.
-	LinkedMessageID       *uuid.UUID  `json:"linkedMessageID,omitempty"`
-	LinkedMessageIDNEQ    *uuid.UUID  `json:"linkedMessageIDNEQ,omitempty"`
-	LinkedMessageIDIn     []uuid.UUID `json:"linkedMessageIDIn,omitempty"`
-	LinkedMessageIDNotIn  []uuid.UUID `json:"linkedMessageIDNotIn,omitempty"`
-	LinkedMessageIDIsNil  bool        `json:"linkedMessageIDIsNil,omitempty"`
-	LinkedMessageIDNotNil bool        `json:"linkedMessageIDNotNil,omitempty"`
-
 	// "status" field predicates.
 	Status      *todocandidate.Status  `json:"status,omitempty"`
 	StatusNEQ   *todocandidate.Status  `json:"statusNEQ,omitempty"`
@@ -5930,13 +5923,13 @@ type TodoCandidateWhereInput struct {
 	HasLastMessage     *bool                       `json:"hasLastMessage,omitempty"`
 	HasLastMessageWith []*ChannelMessageWhereInput `json:"hasLastMessageWith,omitempty"`
 
-	// "linked_message" edge predicates.
-	HasLinkedMessage     *bool                       `json:"hasLinkedMessage,omitempty"`
-	HasLinkedMessageWith []*ChannelMessageWhereInput `json:"hasLinkedMessageWith,omitempty"`
-
 	// "candidate_assignees" edge predicates.
 	HasCandidateAssignees     *bool                              `json:"hasCandidateAssignees,omitempty"`
 	HasCandidateAssigneesWith []*TodoCandidateAssigneeWhereInput `json:"hasCandidateAssigneesWith,omitempty"`
+
+	// "evidence_messages" edge predicates.
+	HasEvidenceMessages     *bool                                     `json:"hasEvidenceMessages,omitempty"`
+	HasEvidenceMessagesWith []*TodoCandidateEvidenceMessageWhereInput `json:"hasEvidenceMessagesWith,omitempty"`
 }
 
 // AddPredicates adds custom predicates to the where input to be used during the filtering phase.
@@ -6117,24 +6110,6 @@ func (i *TodoCandidateWhereInput) P() (predicate.TodoCandidate, error) {
 	}
 	if len(i.LastMessageIDNotIn) > 0 {
 		predicates = append(predicates, todocandidate.LastMessageIDNotIn(i.LastMessageIDNotIn...))
-	}
-	if i.LinkedMessageID != nil {
-		predicates = append(predicates, todocandidate.LinkedMessageIDEQ(*i.LinkedMessageID))
-	}
-	if i.LinkedMessageIDNEQ != nil {
-		predicates = append(predicates, todocandidate.LinkedMessageIDNEQ(*i.LinkedMessageIDNEQ))
-	}
-	if len(i.LinkedMessageIDIn) > 0 {
-		predicates = append(predicates, todocandidate.LinkedMessageIDIn(i.LinkedMessageIDIn...))
-	}
-	if len(i.LinkedMessageIDNotIn) > 0 {
-		predicates = append(predicates, todocandidate.LinkedMessageIDNotIn(i.LinkedMessageIDNotIn...))
-	}
-	if i.LinkedMessageIDIsNil {
-		predicates = append(predicates, todocandidate.LinkedMessageIDIsNil())
-	}
-	if i.LinkedMessageIDNotNil {
-		predicates = append(predicates, todocandidate.LinkedMessageIDNotNil())
 	}
 	if i.Status != nil {
 		predicates = append(predicates, todocandidate.StatusEQ(*i.Status))
@@ -6548,24 +6523,6 @@ func (i *TodoCandidateWhereInput) P() (predicate.TodoCandidate, error) {
 		}
 		predicates = append(predicates, todocandidate.HasLastMessageWith(with...))
 	}
-	if i.HasLinkedMessage != nil {
-		p := todocandidate.HasLinkedMessage()
-		if !*i.HasLinkedMessage {
-			p = todocandidate.Not(p)
-		}
-		predicates = append(predicates, p)
-	}
-	if len(i.HasLinkedMessageWith) > 0 {
-		with := make([]predicate.ChannelMessage, 0, len(i.HasLinkedMessageWith))
-		for _, w := range i.HasLinkedMessageWith {
-			p, err := w.P()
-			if err != nil {
-				return nil, fmt.Errorf("%w: field 'HasLinkedMessageWith'", err)
-			}
-			with = append(with, p)
-		}
-		predicates = append(predicates, todocandidate.HasLinkedMessageWith(with...))
-	}
 	if i.HasCandidateAssignees != nil {
 		p := todocandidate.HasCandidateAssignees()
 		if !*i.HasCandidateAssignees {
@@ -6583,6 +6540,24 @@ func (i *TodoCandidateWhereInput) P() (predicate.TodoCandidate, error) {
 			with = append(with, p)
 		}
 		predicates = append(predicates, todocandidate.HasCandidateAssigneesWith(with...))
+	}
+	if i.HasEvidenceMessages != nil {
+		p := todocandidate.HasEvidenceMessages()
+		if !*i.HasEvidenceMessages {
+			p = todocandidate.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasEvidenceMessagesWith) > 0 {
+		with := make([]predicate.TodoCandidateEvidenceMessage, 0, len(i.HasEvidenceMessagesWith))
+		for _, w := range i.HasEvidenceMessagesWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasEvidenceMessagesWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, todocandidate.HasEvidenceMessagesWith(with...))
 	}
 	switch len(predicates) {
 	case 0:
@@ -7087,6 +7062,460 @@ func (i *TodoCandidateAssigneeWhereInput) P() (predicate.TodoCandidateAssignee, 
 		return predicates[0], nil
 	default:
 		return todocandidateassignee.And(predicates...), nil
+	}
+}
+
+// TodoCandidateEvidenceMessageWhereInput represents a where input for filtering TodoCandidateEvidenceMessage queries.
+type TodoCandidateEvidenceMessageWhereInput struct {
+	Predicates []predicate.TodoCandidateEvidenceMessage  `json:"-"`
+	Not        *TodoCandidateEvidenceMessageWhereInput   `json:"not,omitempty"`
+	Or         []*TodoCandidateEvidenceMessageWhereInput `json:"or,omitempty"`
+	And        []*TodoCandidateEvidenceMessageWhereInput `json:"and,omitempty"`
+
+	// "id" field predicates.
+	ID      *uuid.UUID  `json:"id,omitempty"`
+	IDNEQ   *uuid.UUID  `json:"idNEQ,omitempty"`
+	IDIn    []uuid.UUID `json:"idIn,omitempty"`
+	IDNotIn []uuid.UUID `json:"idNotIn,omitempty"`
+	IDGT    *uuid.UUID  `json:"idGT,omitempty"`
+	IDGTE   *uuid.UUID  `json:"idGTE,omitempty"`
+	IDLT    *uuid.UUID  `json:"idLT,omitempty"`
+	IDLTE   *uuid.UUID  `json:"idLTE,omitempty"`
+
+	// "created_at" field predicates.
+	CreatedAt      *time.Time  `json:"createdAt,omitempty"`
+	CreatedAtNEQ   *time.Time  `json:"createdAtNEQ,omitempty"`
+	CreatedAtIn    []time.Time `json:"createdAtIn,omitempty"`
+	CreatedAtNotIn []time.Time `json:"createdAtNotIn,omitempty"`
+	CreatedAtGT    *time.Time  `json:"createdAtGT,omitempty"`
+	CreatedAtGTE   *time.Time  `json:"createdAtGTE,omitempty"`
+	CreatedAtLT    *time.Time  `json:"createdAtLT,omitempty"`
+	CreatedAtLTE   *time.Time  `json:"createdAtLTE,omitempty"`
+
+	// "updated_at" field predicates.
+	UpdatedAt      *time.Time  `json:"updatedAt,omitempty"`
+	UpdatedAtNEQ   *time.Time  `json:"updatedAtNEQ,omitempty"`
+	UpdatedAtIn    []time.Time `json:"updatedAtIn,omitempty"`
+	UpdatedAtNotIn []time.Time `json:"updatedAtNotIn,omitempty"`
+	UpdatedAtGT    *time.Time  `json:"updatedAtGT,omitempty"`
+	UpdatedAtGTE   *time.Time  `json:"updatedAtGTE,omitempty"`
+	UpdatedAtLT    *time.Time  `json:"updatedAtLT,omitempty"`
+	UpdatedAtLTE   *time.Time  `json:"updatedAtLTE,omitempty"`
+
+	// "channel_id" field predicates.
+	ChannelID      *uuid.UUID  `json:"channelID,omitempty"`
+	ChannelIDNEQ   *uuid.UUID  `json:"channelIDNEQ,omitempty"`
+	ChannelIDIn    []uuid.UUID `json:"channelIDIn,omitempty"`
+	ChannelIDNotIn []uuid.UUID `json:"channelIDNotIn,omitempty"`
+
+	// "candidate_id" field predicates.
+	CandidateID      *uuid.UUID  `json:"candidateID,omitempty"`
+	CandidateIDNEQ   *uuid.UUID  `json:"candidateIDNEQ,omitempty"`
+	CandidateIDIn    []uuid.UUID `json:"candidateIDIn,omitempty"`
+	CandidateIDNotIn []uuid.UUID `json:"candidateIDNotIn,omitempty"`
+
+	// "message_id" field predicates.
+	MessageID      *uuid.UUID  `json:"messageID,omitempty"`
+	MessageIDNEQ   *uuid.UUID  `json:"messageIDNEQ,omitempty"`
+	MessageIDIn    []uuid.UUID `json:"messageIDIn,omitempty"`
+	MessageIDNotIn []uuid.UUID `json:"messageIDNotIn,omitempty"`
+
+	// "relation_type" field predicates.
+	RelationType      *todocandidateevidencemessage.RelationType  `json:"relationType,omitempty"`
+	RelationTypeNEQ   *todocandidateevidencemessage.RelationType  `json:"relationTypeNEQ,omitempty"`
+	RelationTypeIn    []todocandidateevidencemessage.RelationType `json:"relationTypeIn,omitempty"`
+	RelationTypeNotIn []todocandidateevidencemessage.RelationType `json:"relationTypeNotIn,omitempty"`
+
+	// "source" field predicates.
+	Source      *todocandidateevidencemessage.Source  `json:"source,omitempty"`
+	SourceNEQ   *todocandidateevidencemessage.Source  `json:"sourceNEQ,omitempty"`
+	SourceIn    []todocandidateevidencemessage.Source `json:"sourceIn,omitempty"`
+	SourceNotIn []todocandidateevidencemessage.Source `json:"sourceNotIn,omitempty"`
+
+	// "confidence" field predicates.
+	Confidence      *float64  `json:"confidence,omitempty"`
+	ConfidenceNEQ   *float64  `json:"confidenceNEQ,omitempty"`
+	ConfidenceIn    []float64 `json:"confidenceIn,omitempty"`
+	ConfidenceNotIn []float64 `json:"confidenceNotIn,omitempty"`
+	ConfidenceGT    *float64  `json:"confidenceGT,omitempty"`
+	ConfidenceGTE   *float64  `json:"confidenceGTE,omitempty"`
+	ConfidenceLT    *float64  `json:"confidenceLT,omitempty"`
+	ConfidenceLTE   *float64  `json:"confidenceLTE,omitempty"`
+
+	// "reason" field predicates.
+	Reason             *string  `json:"reason,omitempty"`
+	ReasonNEQ          *string  `json:"reasonNEQ,omitempty"`
+	ReasonIn           []string `json:"reasonIn,omitempty"`
+	ReasonNotIn        []string `json:"reasonNotIn,omitempty"`
+	ReasonGT           *string  `json:"reasonGT,omitempty"`
+	ReasonGTE          *string  `json:"reasonGTE,omitempty"`
+	ReasonLT           *string  `json:"reasonLT,omitempty"`
+	ReasonLTE          *string  `json:"reasonLTE,omitempty"`
+	ReasonContains     *string  `json:"reasonContains,omitempty"`
+	ReasonHasPrefix    *string  `json:"reasonHasPrefix,omitempty"`
+	ReasonHasSuffix    *string  `json:"reasonHasSuffix,omitempty"`
+	ReasonIsNil        bool     `json:"reasonIsNil,omitempty"`
+	ReasonNotNil       bool     `json:"reasonNotNil,omitempty"`
+	ReasonEqualFold    *string  `json:"reasonEqualFold,omitempty"`
+	ReasonContainsFold *string  `json:"reasonContainsFold,omitempty"`
+
+	// "is_active" field predicates.
+	IsActive    *bool `json:"isActive,omitempty"`
+	IsActiveNEQ *bool `json:"isActiveNEQ,omitempty"`
+
+	// "candidate" edge predicates.
+	HasCandidate     *bool                      `json:"hasCandidate,omitempty"`
+	HasCandidateWith []*TodoCandidateWhereInput `json:"hasCandidateWith,omitempty"`
+
+	// "channel" edge predicates.
+	HasChannel     *bool                `json:"hasChannel,omitempty"`
+	HasChannelWith []*ChannelWhereInput `json:"hasChannelWith,omitempty"`
+
+	// "message" edge predicates.
+	HasMessage     *bool                       `json:"hasMessage,omitempty"`
+	HasMessageWith []*ChannelMessageWhereInput `json:"hasMessageWith,omitempty"`
+}
+
+// AddPredicates adds custom predicates to the where input to be used during the filtering phase.
+func (i *TodoCandidateEvidenceMessageWhereInput) AddPredicates(predicates ...predicate.TodoCandidateEvidenceMessage) {
+	i.Predicates = append(i.Predicates, predicates...)
+}
+
+// Filter applies the TodoCandidateEvidenceMessageWhereInput filter on the TodoCandidateEvidenceMessageQuery builder.
+func (i *TodoCandidateEvidenceMessageWhereInput) Filter(q *TodoCandidateEvidenceMessageQuery) (*TodoCandidateEvidenceMessageQuery, error) {
+	if i == nil {
+		return q, nil
+	}
+	p, err := i.P()
+	if err != nil {
+		if err == ErrEmptyTodoCandidateEvidenceMessageWhereInput {
+			return q, nil
+		}
+		return nil, err
+	}
+	return q.Where(p), nil
+}
+
+// ErrEmptyTodoCandidateEvidenceMessageWhereInput is returned in case the TodoCandidateEvidenceMessageWhereInput is empty.
+var ErrEmptyTodoCandidateEvidenceMessageWhereInput = errors.New("ent: empty predicate TodoCandidateEvidenceMessageWhereInput")
+
+// P returns a predicate for filtering todocandidateevidencemessages.
+// An error is returned if the input is empty or invalid.
+func (i *TodoCandidateEvidenceMessageWhereInput) P() (predicate.TodoCandidateEvidenceMessage, error) {
+	var predicates []predicate.TodoCandidateEvidenceMessage
+	if i.Not != nil {
+		p, err := i.Not.P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'not'", err)
+		}
+		predicates = append(predicates, todocandidateevidencemessage.Not(p))
+	}
+	switch n := len(i.Or); {
+	case n == 1:
+		p, err := i.Or[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'or'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		or := make([]predicate.TodoCandidateEvidenceMessage, 0, n)
+		for _, w := range i.Or {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'or'", err)
+			}
+			or = append(or, p)
+		}
+		predicates = append(predicates, todocandidateevidencemessage.Or(or...))
+	}
+	switch n := len(i.And); {
+	case n == 1:
+		p, err := i.And[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'and'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		and := make([]predicate.TodoCandidateEvidenceMessage, 0, n)
+		for _, w := range i.And {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'and'", err)
+			}
+			and = append(and, p)
+		}
+		predicates = append(predicates, todocandidateevidencemessage.And(and...))
+	}
+	predicates = append(predicates, i.Predicates...)
+	if i.ID != nil {
+		predicates = append(predicates, todocandidateevidencemessage.IDEQ(*i.ID))
+	}
+	if i.IDNEQ != nil {
+		predicates = append(predicates, todocandidateevidencemessage.IDNEQ(*i.IDNEQ))
+	}
+	if len(i.IDIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.IDIn(i.IDIn...))
+	}
+	if len(i.IDNotIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.IDNotIn(i.IDNotIn...))
+	}
+	if i.IDGT != nil {
+		predicates = append(predicates, todocandidateevidencemessage.IDGT(*i.IDGT))
+	}
+	if i.IDGTE != nil {
+		predicates = append(predicates, todocandidateevidencemessage.IDGTE(*i.IDGTE))
+	}
+	if i.IDLT != nil {
+		predicates = append(predicates, todocandidateevidencemessage.IDLT(*i.IDLT))
+	}
+	if i.IDLTE != nil {
+		predicates = append(predicates, todocandidateevidencemessage.IDLTE(*i.IDLTE))
+	}
+	if i.CreatedAt != nil {
+		predicates = append(predicates, todocandidateevidencemessage.CreatedAtEQ(*i.CreatedAt))
+	}
+	if i.CreatedAtNEQ != nil {
+		predicates = append(predicates, todocandidateevidencemessage.CreatedAtNEQ(*i.CreatedAtNEQ))
+	}
+	if len(i.CreatedAtIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.CreatedAtIn(i.CreatedAtIn...))
+	}
+	if len(i.CreatedAtNotIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.CreatedAtNotIn(i.CreatedAtNotIn...))
+	}
+	if i.CreatedAtGT != nil {
+		predicates = append(predicates, todocandidateevidencemessage.CreatedAtGT(*i.CreatedAtGT))
+	}
+	if i.CreatedAtGTE != nil {
+		predicates = append(predicates, todocandidateevidencemessage.CreatedAtGTE(*i.CreatedAtGTE))
+	}
+	if i.CreatedAtLT != nil {
+		predicates = append(predicates, todocandidateevidencemessage.CreatedAtLT(*i.CreatedAtLT))
+	}
+	if i.CreatedAtLTE != nil {
+		predicates = append(predicates, todocandidateevidencemessage.CreatedAtLTE(*i.CreatedAtLTE))
+	}
+	if i.UpdatedAt != nil {
+		predicates = append(predicates, todocandidateevidencemessage.UpdatedAtEQ(*i.UpdatedAt))
+	}
+	if i.UpdatedAtNEQ != nil {
+		predicates = append(predicates, todocandidateevidencemessage.UpdatedAtNEQ(*i.UpdatedAtNEQ))
+	}
+	if len(i.UpdatedAtIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.UpdatedAtIn(i.UpdatedAtIn...))
+	}
+	if len(i.UpdatedAtNotIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.UpdatedAtNotIn(i.UpdatedAtNotIn...))
+	}
+	if i.UpdatedAtGT != nil {
+		predicates = append(predicates, todocandidateevidencemessage.UpdatedAtGT(*i.UpdatedAtGT))
+	}
+	if i.UpdatedAtGTE != nil {
+		predicates = append(predicates, todocandidateevidencemessage.UpdatedAtGTE(*i.UpdatedAtGTE))
+	}
+	if i.UpdatedAtLT != nil {
+		predicates = append(predicates, todocandidateevidencemessage.UpdatedAtLT(*i.UpdatedAtLT))
+	}
+	if i.UpdatedAtLTE != nil {
+		predicates = append(predicates, todocandidateevidencemessage.UpdatedAtLTE(*i.UpdatedAtLTE))
+	}
+	if i.ChannelID != nil {
+		predicates = append(predicates, todocandidateevidencemessage.ChannelIDEQ(*i.ChannelID))
+	}
+	if i.ChannelIDNEQ != nil {
+		predicates = append(predicates, todocandidateevidencemessage.ChannelIDNEQ(*i.ChannelIDNEQ))
+	}
+	if len(i.ChannelIDIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.ChannelIDIn(i.ChannelIDIn...))
+	}
+	if len(i.ChannelIDNotIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.ChannelIDNotIn(i.ChannelIDNotIn...))
+	}
+	if i.CandidateID != nil {
+		predicates = append(predicates, todocandidateevidencemessage.CandidateIDEQ(*i.CandidateID))
+	}
+	if i.CandidateIDNEQ != nil {
+		predicates = append(predicates, todocandidateevidencemessage.CandidateIDNEQ(*i.CandidateIDNEQ))
+	}
+	if len(i.CandidateIDIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.CandidateIDIn(i.CandidateIDIn...))
+	}
+	if len(i.CandidateIDNotIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.CandidateIDNotIn(i.CandidateIDNotIn...))
+	}
+	if i.MessageID != nil {
+		predicates = append(predicates, todocandidateevidencemessage.MessageIDEQ(*i.MessageID))
+	}
+	if i.MessageIDNEQ != nil {
+		predicates = append(predicates, todocandidateevidencemessage.MessageIDNEQ(*i.MessageIDNEQ))
+	}
+	if len(i.MessageIDIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.MessageIDIn(i.MessageIDIn...))
+	}
+	if len(i.MessageIDNotIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.MessageIDNotIn(i.MessageIDNotIn...))
+	}
+	if i.RelationType != nil {
+		predicates = append(predicates, todocandidateevidencemessage.RelationTypeEQ(*i.RelationType))
+	}
+	if i.RelationTypeNEQ != nil {
+		predicates = append(predicates, todocandidateevidencemessage.RelationTypeNEQ(*i.RelationTypeNEQ))
+	}
+	if len(i.RelationTypeIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.RelationTypeIn(i.RelationTypeIn...))
+	}
+	if len(i.RelationTypeNotIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.RelationTypeNotIn(i.RelationTypeNotIn...))
+	}
+	if i.Source != nil {
+		predicates = append(predicates, todocandidateevidencemessage.SourceEQ(*i.Source))
+	}
+	if i.SourceNEQ != nil {
+		predicates = append(predicates, todocandidateevidencemessage.SourceNEQ(*i.SourceNEQ))
+	}
+	if len(i.SourceIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.SourceIn(i.SourceIn...))
+	}
+	if len(i.SourceNotIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.SourceNotIn(i.SourceNotIn...))
+	}
+	if i.Confidence != nil {
+		predicates = append(predicates, todocandidateevidencemessage.ConfidenceEQ(*i.Confidence))
+	}
+	if i.ConfidenceNEQ != nil {
+		predicates = append(predicates, todocandidateevidencemessage.ConfidenceNEQ(*i.ConfidenceNEQ))
+	}
+	if len(i.ConfidenceIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.ConfidenceIn(i.ConfidenceIn...))
+	}
+	if len(i.ConfidenceNotIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.ConfidenceNotIn(i.ConfidenceNotIn...))
+	}
+	if i.ConfidenceGT != nil {
+		predicates = append(predicates, todocandidateevidencemessage.ConfidenceGT(*i.ConfidenceGT))
+	}
+	if i.ConfidenceGTE != nil {
+		predicates = append(predicates, todocandidateevidencemessage.ConfidenceGTE(*i.ConfidenceGTE))
+	}
+	if i.ConfidenceLT != nil {
+		predicates = append(predicates, todocandidateevidencemessage.ConfidenceLT(*i.ConfidenceLT))
+	}
+	if i.ConfidenceLTE != nil {
+		predicates = append(predicates, todocandidateevidencemessage.ConfidenceLTE(*i.ConfidenceLTE))
+	}
+	if i.Reason != nil {
+		predicates = append(predicates, todocandidateevidencemessage.ReasonEQ(*i.Reason))
+	}
+	if i.ReasonNEQ != nil {
+		predicates = append(predicates, todocandidateevidencemessage.ReasonNEQ(*i.ReasonNEQ))
+	}
+	if len(i.ReasonIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.ReasonIn(i.ReasonIn...))
+	}
+	if len(i.ReasonNotIn) > 0 {
+		predicates = append(predicates, todocandidateevidencemessage.ReasonNotIn(i.ReasonNotIn...))
+	}
+	if i.ReasonGT != nil {
+		predicates = append(predicates, todocandidateevidencemessage.ReasonGT(*i.ReasonGT))
+	}
+	if i.ReasonGTE != nil {
+		predicates = append(predicates, todocandidateevidencemessage.ReasonGTE(*i.ReasonGTE))
+	}
+	if i.ReasonLT != nil {
+		predicates = append(predicates, todocandidateevidencemessage.ReasonLT(*i.ReasonLT))
+	}
+	if i.ReasonLTE != nil {
+		predicates = append(predicates, todocandidateevidencemessage.ReasonLTE(*i.ReasonLTE))
+	}
+	if i.ReasonContains != nil {
+		predicates = append(predicates, todocandidateevidencemessage.ReasonContains(*i.ReasonContains))
+	}
+	if i.ReasonHasPrefix != nil {
+		predicates = append(predicates, todocandidateevidencemessage.ReasonHasPrefix(*i.ReasonHasPrefix))
+	}
+	if i.ReasonHasSuffix != nil {
+		predicates = append(predicates, todocandidateevidencemessage.ReasonHasSuffix(*i.ReasonHasSuffix))
+	}
+	if i.ReasonIsNil {
+		predicates = append(predicates, todocandidateevidencemessage.ReasonIsNil())
+	}
+	if i.ReasonNotNil {
+		predicates = append(predicates, todocandidateevidencemessage.ReasonNotNil())
+	}
+	if i.ReasonEqualFold != nil {
+		predicates = append(predicates, todocandidateevidencemessage.ReasonEqualFold(*i.ReasonEqualFold))
+	}
+	if i.ReasonContainsFold != nil {
+		predicates = append(predicates, todocandidateevidencemessage.ReasonContainsFold(*i.ReasonContainsFold))
+	}
+	if i.IsActive != nil {
+		predicates = append(predicates, todocandidateevidencemessage.IsActiveEQ(*i.IsActive))
+	}
+	if i.IsActiveNEQ != nil {
+		predicates = append(predicates, todocandidateevidencemessage.IsActiveNEQ(*i.IsActiveNEQ))
+	}
+
+	if i.HasCandidate != nil {
+		p := todocandidateevidencemessage.HasCandidate()
+		if !*i.HasCandidate {
+			p = todocandidateevidencemessage.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasCandidateWith) > 0 {
+		with := make([]predicate.TodoCandidate, 0, len(i.HasCandidateWith))
+		for _, w := range i.HasCandidateWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasCandidateWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, todocandidateevidencemessage.HasCandidateWith(with...))
+	}
+	if i.HasChannel != nil {
+		p := todocandidateevidencemessage.HasChannel()
+		if !*i.HasChannel {
+			p = todocandidateevidencemessage.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasChannelWith) > 0 {
+		with := make([]predicate.Channel, 0, len(i.HasChannelWith))
+		for _, w := range i.HasChannelWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasChannelWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, todocandidateevidencemessage.HasChannelWith(with...))
+	}
+	if i.HasMessage != nil {
+		p := todocandidateevidencemessage.HasMessage()
+		if !*i.HasMessage {
+			p = todocandidateevidencemessage.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasMessageWith) > 0 {
+		with := make([]predicate.ChannelMessage, 0, len(i.HasMessageWith))
+		for _, w := range i.HasMessageWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasMessageWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, todocandidateevidencemessage.HasMessageWith(with...))
+	}
+	switch len(predicates) {
+	case 0:
+		return nil, ErrEmptyTodoCandidateEvidenceMessageWhereInput
+	case 1:
+		return predicates[0], nil
+	default:
+		return todocandidateevidencemessage.And(predicates...), nil
 	}
 }
 

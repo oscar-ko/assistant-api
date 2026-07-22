@@ -192,6 +192,46 @@ func (r *todoCandidateAssigneeWhereInputResolver) ResolutionStatusNotIn(ctx cont
 	panic(fmt.Errorf("not implemented: ResolutionStatusNotIn - resolutionStatusNotIn"))
 }
 
+// RelationType is the resolver for the relationType field.
+func (r *todoCandidateEvidenceMessageWhereInputResolver) RelationType(ctx context.Context, obj *ent.TodoCandidateEvidenceMessageWhereInput, data *model.TodoCandidateEvidenceMessageRelationType) error {
+	panic(fmt.Errorf("not implemented: RelationType - relationType"))
+}
+
+// RelationTypeNeq is the resolver for the relationTypeNEQ field.
+func (r *todoCandidateEvidenceMessageWhereInputResolver) RelationTypeNeq(ctx context.Context, obj *ent.TodoCandidateEvidenceMessageWhereInput, data *model.TodoCandidateEvidenceMessageRelationType) error {
+	panic(fmt.Errorf("not implemented: RelationTypeNeq - relationTypeNEQ"))
+}
+
+// RelationTypeIn is the resolver for the relationTypeIn field.
+func (r *todoCandidateEvidenceMessageWhereInputResolver) RelationTypeIn(ctx context.Context, obj *ent.TodoCandidateEvidenceMessageWhereInput, data []model.TodoCandidateEvidenceMessageRelationType) error {
+	panic(fmt.Errorf("not implemented: RelationTypeIn - relationTypeIn"))
+}
+
+// RelationTypeNotIn is the resolver for the relationTypeNotIn field.
+func (r *todoCandidateEvidenceMessageWhereInputResolver) RelationTypeNotIn(ctx context.Context, obj *ent.TodoCandidateEvidenceMessageWhereInput, data []model.TodoCandidateEvidenceMessageRelationType) error {
+	panic(fmt.Errorf("not implemented: RelationTypeNotIn - relationTypeNotIn"))
+}
+
+// Source is the resolver for the source field.
+func (r *todoCandidateEvidenceMessageWhereInputResolver) Source(ctx context.Context, obj *ent.TodoCandidateEvidenceMessageWhereInput, data *model.TodoCandidateEvidenceMessageSource) error {
+	panic(fmt.Errorf("not implemented: Source - source"))
+}
+
+// SourceNeq is the resolver for the sourceNEQ field.
+func (r *todoCandidateEvidenceMessageWhereInputResolver) SourceNeq(ctx context.Context, obj *ent.TodoCandidateEvidenceMessageWhereInput, data *model.TodoCandidateEvidenceMessageSource) error {
+	panic(fmt.Errorf("not implemented: SourceNeq - sourceNEQ"))
+}
+
+// SourceIn is the resolver for the sourceIn field.
+func (r *todoCandidateEvidenceMessageWhereInputResolver) SourceIn(ctx context.Context, obj *ent.TodoCandidateEvidenceMessageWhereInput, data []model.TodoCandidateEvidenceMessageSource) error {
+	panic(fmt.Errorf("not implemented: SourceIn - sourceIn"))
+}
+
+// SourceNotIn is the resolver for the sourceNotIn field.
+func (r *todoCandidateEvidenceMessageWhereInputResolver) SourceNotIn(ctx context.Context, obj *ent.TodoCandidateEvidenceMessageWhereInput, data []model.TodoCandidateEvidenceMessageSource) error {
+	panic(fmt.Errorf("not implemented: SourceNotIn - sourceNotIn"))
+}
+
 // Status is the resolver for the status field.
 func (r *todoCandidateWhereInputResolver) Status(ctx context.Context, obj *ent.TodoCandidateWhereInput, data *model.TodoCandidateStatus) error {
 	panic(fmt.Errorf("not implemented: Status - status"))
@@ -272,6 +312,66 @@ func (r *todoCandidateWhereInputResolver) DueNormalizeDecisionNotIn(ctx context.
 	panic(fmt.Errorf("not implemented: DueNormalizeDecisionNotIn - dueNormalizeDecisionNotIn"))
 }
 
+// EventType is the resolver for the eventType field.
+func (r *todoEventWhereInputResolver) EventType(ctx context.Context, obj *ent.TodoEventWhereInput, data *model.TodoEventEventType) error {
+	panic(fmt.Errorf("not implemented: EventType - eventType"))
+}
+
+// EventTypeNeq is the resolver for the eventTypeNEQ field.
+func (r *todoEventWhereInputResolver) EventTypeNeq(ctx context.Context, obj *ent.TodoEventWhereInput, data *model.TodoEventEventType) error {
+	panic(fmt.Errorf("not implemented: EventTypeNeq - eventTypeNEQ"))
+}
+
+// EventTypeIn is the resolver for the eventTypeIn field.
+func (r *todoEventWhereInputResolver) EventTypeIn(ctx context.Context, obj *ent.TodoEventWhereInput, data []model.TodoEventEventType) error {
+	panic(fmt.Errorf("not implemented: EventTypeIn - eventTypeIn"))
+}
+
+// EventTypeNotIn is the resolver for the eventTypeNotIn field.
+func (r *todoEventWhereInputResolver) EventTypeNotIn(ctx context.Context, obj *ent.TodoEventWhereInput, data []model.TodoEventEventType) error {
+	panic(fmt.Errorf("not implemented: EventTypeNotIn - eventTypeNotIn"))
+}
+
+// ChangeType is the resolver for the changeType field.
+func (r *todoUpdateCandidateWhereInputResolver) ChangeType(ctx context.Context, obj *ent.TodoUpdateCandidateWhereInput, data *model.TodoUpdateCandidateChangeType) error {
+	panic(fmt.Errorf("not implemented: ChangeType - changeType"))
+}
+
+// ChangeTypeNeq is the resolver for the changeTypeNEQ field.
+func (r *todoUpdateCandidateWhereInputResolver) ChangeTypeNeq(ctx context.Context, obj *ent.TodoUpdateCandidateWhereInput, data *model.TodoUpdateCandidateChangeType) error {
+	panic(fmt.Errorf("not implemented: ChangeTypeNeq - changeTypeNEQ"))
+}
+
+// ChangeTypeIn is the resolver for the changeTypeIn field.
+func (r *todoUpdateCandidateWhereInputResolver) ChangeTypeIn(ctx context.Context, obj *ent.TodoUpdateCandidateWhereInput, data []model.TodoUpdateCandidateChangeType) error {
+	panic(fmt.Errorf("not implemented: ChangeTypeIn - changeTypeIn"))
+}
+
+// ChangeTypeNotIn is the resolver for the changeTypeNotIn field.
+func (r *todoUpdateCandidateWhereInputResolver) ChangeTypeNotIn(ctx context.Context, obj *ent.TodoUpdateCandidateWhereInput, data []model.TodoUpdateCandidateChangeType) error {
+	panic(fmt.Errorf("not implemented: ChangeTypeNotIn - changeTypeNotIn"))
+}
+
+// Status is the resolver for the status field.
+func (r *todoUpdateCandidateWhereInputResolver) Status(ctx context.Context, obj *ent.TodoUpdateCandidateWhereInput, data *model.TodoUpdateCandidateStatus) error {
+	panic(fmt.Errorf("not implemented: Status - status"))
+}
+
+// StatusNeq is the resolver for the statusNEQ field.
+func (r *todoUpdateCandidateWhereInputResolver) StatusNeq(ctx context.Context, obj *ent.TodoUpdateCandidateWhereInput, data *model.TodoUpdateCandidateStatus) error {
+	panic(fmt.Errorf("not implemented: StatusNeq - statusNEQ"))
+}
+
+// StatusIn is the resolver for the statusIn field.
+func (r *todoUpdateCandidateWhereInputResolver) StatusIn(ctx context.Context, obj *ent.TodoUpdateCandidateWhereInput, data []model.TodoUpdateCandidateStatus) error {
+	panic(fmt.Errorf("not implemented: StatusIn - statusIn"))
+}
+
+// StatusNotIn is the resolver for the statusNotIn field.
+func (r *todoUpdateCandidateWhereInputResolver) StatusNotIn(ctx context.Context, obj *ent.TodoUpdateCandidateWhereInput, data []model.TodoUpdateCandidateStatus) error {
+	panic(fmt.Errorf("not implemented: StatusNotIn - statusNotIn"))
+}
+
 // Status is the resolver for the status field.
 func (r *todoWhereInputResolver) Status(ctx context.Context, obj *ent.TodoWhereInput, data *model.TodoStatus) error {
 	panic(fmt.Errorf("not implemented: Status - status"))
@@ -337,9 +437,24 @@ func (r *Resolver) TodoCandidateAssigneeWhereInput() generated.TodoCandidateAssi
 	return &todoCandidateAssigneeWhereInputResolver{r}
 }
 
+// TodoCandidateEvidenceMessageWhereInput returns generated.TodoCandidateEvidenceMessageWhereInputResolver implementation.
+func (r *Resolver) TodoCandidateEvidenceMessageWhereInput() generated.TodoCandidateEvidenceMessageWhereInputResolver {
+	return &todoCandidateEvidenceMessageWhereInputResolver{r}
+}
+
 // TodoCandidateWhereInput returns generated.TodoCandidateWhereInputResolver implementation.
 func (r *Resolver) TodoCandidateWhereInput() generated.TodoCandidateWhereInputResolver {
 	return &todoCandidateWhereInputResolver{r}
+}
+
+// TodoEventWhereInput returns generated.TodoEventWhereInputResolver implementation.
+func (r *Resolver) TodoEventWhereInput() generated.TodoEventWhereInputResolver {
+	return &todoEventWhereInputResolver{r}
+}
+
+// TodoUpdateCandidateWhereInput returns generated.TodoUpdateCandidateWhereInputResolver implementation.
+func (r *Resolver) TodoUpdateCandidateWhereInput() generated.TodoUpdateCandidateWhereInputResolver {
+	return &todoUpdateCandidateWhereInputResolver{r}
 }
 
 // TodoWhereInput returns generated.TodoWhereInputResolver implementation.
@@ -352,12 +467,8 @@ type actionWhereInputResolver struct{ *Resolver }
 type channelMessageMentionWhereInputResolver struct{ *Resolver }
 type channelWhereInputResolver struct{ *Resolver }
 type todoCandidateAssigneeWhereInputResolver struct{ *Resolver }
+type todoCandidateEvidenceMessageWhereInputResolver struct{ *Resolver }
 type todoCandidateWhereInputResolver struct{ *Resolver }
+type todoEventWhereInputResolver struct{ *Resolver }
+type todoUpdateCandidateWhereInputResolver struct{ *Resolver }
 type todoWhereInputResolver struct{ *Resolver }
-
-// 說明：ActionRouteWhereInputResolver（embedding 相關比較）與
-// ChannelMessageWhereInputResolver（senderUserID 相關比較）過去需要手動實作，
-// 是因為 embedding / senderUserID 欄位當時對應到沒有內建 unmarshal/marshal 支援的型別（string）。
-// 新增 Vector 與 UUID 兩個自訂 scalar（見 internal/graph/generated/scalar_helpers.go）後，
-// gqlgen 已能自動處理這兩個型別的序列化，不再需要這些手寫 resolver，
-// 因此 gqlgen 重新產生時會將它們視為過時程式碼移除。

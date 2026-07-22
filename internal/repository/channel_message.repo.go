@@ -21,6 +21,7 @@ import (
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
+	"assistant-api/internal/ent/todocandidateevidencemessage"
 	"assistant-api/internal/ent/todoevent"
 	"assistant-api/internal/ent/todoupdatecandidate"
 	"assistant-api/internal/ent/translationlocale"
@@ -790,16 +791,71 @@ func (r *ChannelMessageRepo) FindTodoCandidatesByMessageIDs(ctx context.Context,
 	items, err := r.db.TodoCandidate.Query().
 		Where(
 			todocandidate.ChannelIDEQ(channelID),
-			todocandidate.Or(
-				todocandidate.SourceMessageIDIn(uniqueMessageIDs...),
-				todocandidate.LastMessageIDIn(uniqueMessageIDs...),
-				todocandidate.LinkedMessageIDIn(uniqueMessageIDs...),
+			todocandidate.HasEvidenceMessagesWith(
+				todocandidateevidencemessage.MessageIDIn(uniqueMessageIDs...),
 			),
 		).
 		Order(ent.Asc(todocandidate.FieldCreatedAt)).
 		All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("query todo candidates by message ids failed: %w", err)
+	}
+	return items, nil
+}
+
+// FindActiveTodoCandidatesWithEvidence 依最近活躍 evidence 找出目前 channel 仍可追蹤的 Todo candidates。
+//
+// 這個查詢是長討論串上下文召回的入口：
+// - 它不掃整個 channel 的所有歷史訊息，只看已被寫成 evidence anchor 的訊息。
+// - acknowledged/cancelled candidate 不再作為 implicit context 候選，避免已結束任務被新訊息誤喚醒。
+// - 排序以 candidate.updated_at 新到舊為主；語意是否承接仍交給 Todo analyzer，不在 repository 判斷。
+func (r *ChannelMessageRepo) FindActiveTodoCandidatesWithEvidence(ctx context.Context, channelID uuid.UUID, limit int) ([]*ent.TodoCandidate, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("channel repository not initialized")
+	}
+	if channelID == uuid.Nil || limit <= 0 {
+		return nil, nil
+	}
+	items, err := r.db.TodoCandidate.Query().
+		Where(
+			todocandidate.ChannelIDEQ(channelID),
+			todocandidate.StatusIn(todocandidate.StatusCandidate, todocandidate.StatusNeedsMoreInfo),
+			todocandidate.HasEvidenceMessagesWith(todocandidateevidencemessage.IsActiveEQ(true)),
+		).
+		Order(ent.Desc(todocandidate.FieldUpdatedAt), ent.Desc(todocandidate.FieldCreatedAt)).
+		Limit(limit).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query active todo candidates with evidence failed: %w", err)
+	}
+	return items, nil
+}
+
+// FindRecentTodoCandidateEvidenceMessages 取得某個 candidate 最近的活躍 evidence anchors。
+//
+// 回傳順序會轉成時間正序，讓上層組 prompt 時能保持對話閱讀順序；limit 只控制 anchor 數量，
+// 每個 anchor 前後要取幾則訊息由 FindMessageWindowAround 與 usecase config 決定。
+func (r *ChannelMessageRepo) FindRecentTodoCandidateEvidenceMessages(ctx context.Context, candidateID uuid.UUID, limit int) ([]*ent.TodoCandidateEvidenceMessage, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("channel repository not initialized")
+	}
+	if candidateID == uuid.Nil || limit <= 0 {
+		return nil, nil
+	}
+	items, err := r.db.TodoCandidateEvidenceMessage.Query().
+		Where(
+			todocandidateevidencemessage.CandidateIDEQ(candidateID),
+			todocandidateevidencemessage.IsActiveEQ(true),
+		).
+		WithMessage().
+		Order(ent.Desc(todocandidateevidencemessage.FieldUpdatedAt), ent.Desc(todocandidateevidencemessage.FieldCreatedAt)).
+		Limit(limit).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query todo candidate evidence messages failed: %w", err)
+	}
+	for left, right := 0, len(items)-1; left < right; left, right = left+1, right-1 {
+		items[left], items[right] = items[right], items[left]
 	}
 	return items, nil
 }
@@ -926,7 +982,7 @@ func (r *ChannelMessageRepo) FindLatestActionResultByMessageID(ctx context.Conte
 //
 // 寫入策略：
 // - create_candidate / needs_more_info：以目前訊息建立新的 candidate。
-// - update_candidate / acknowledge / cancel_candidate：優先用 linked_message_id 在同 channel 找既有 candidate，找到就更新最新狀態。
+// - update_candidate / acknowledge / cancel_candidate：用 linked_message_id 對應的 evidence anchor 在同 channel 找既有 candidate，找到就更新最新狀態。
 // - 找不到 linked candidate 時回錯誤，讓上層 log 出資料連結缺口；不靜默建立錯誤候選。
 func (r *ChannelMessageRepo) SaveTodoCandidateFromAnalysis(ctx context.Context, input SaveTodoCandidateInput) (*ent.TodoCandidate, error) {
 	if r == nil || r.db == nil {
@@ -1338,9 +1394,6 @@ func (r *ChannelMessageRepo) createTodoCandidate(ctx context.Context, input Save
 		SetMissingFields(normalizeStringSlice(input.MissingFields)).
 		SetConfidence(input.Confidence).
 		SetReason(strings.TrimSpace(input.Reason))
-	if input.LinkedMessageID != uuid.Nil {
-		create.SetLinkedMessageID(input.LinkedMessageID)
-	}
 	if input.DueAt != nil {
 		create.SetDueAt(*input.DueAt)
 	}
@@ -1355,6 +1408,9 @@ func (r *ChannelMessageRepo) createTodoCandidate(ctx context.Context, input Save
 		return nil, err
 	}
 	if err := r.syncTodoCandidateAnalyzerAssignees(ctx, item.ID, input.ChannelID, input.Assignees); err != nil {
+		return nil, err
+	}
+	if err := r.upsertTodoCandidateEvidenceMessage(ctx, item.ID, input, todoCandidateEvidenceRelationFromDecision(decision), todocandidateevidencemessage.SourceAnalyzer); err != nil {
 		return nil, err
 	}
 	return item, nil
@@ -1375,11 +1431,6 @@ func (r *ChannelMessageRepo) updateTodoCandidate(ctx context.Context, candidateI
 		SetMissingFields(normalizeStringSlice(input.MissingFields)).
 		SetConfidence(input.Confidence).
 		SetReason(strings.TrimSpace(input.Reason))
-	if input.LinkedMessageID != uuid.Nil {
-		update.SetLinkedMessageID(input.LinkedMessageID)
-	} else {
-		update.ClearLinkedMessageID()
-	}
 	if input.DueAt != nil {
 		update.SetDueAt(*input.DueAt)
 	} else {
@@ -1400,7 +1451,79 @@ func (r *ChannelMessageRepo) updateTodoCandidate(ctx context.Context, candidateI
 	if err := r.syncTodoCandidateAnalyzerAssignees(ctx, item.ID, input.ChannelID, input.Assignees); err != nil {
 		return nil, err
 	}
+	if err := r.upsertTodoCandidateEvidenceMessage(ctx, item.ID, input, todoCandidateEvidenceRelationFromDecision(decision), todocandidateevidencemessage.SourceAnalyzer); err != nil {
+		return nil, err
+	}
 	return item, nil
+}
+
+// upsertTodoCandidateEvidenceMessage 把「本次 analyzer 決策使用到的訊息」寫成 candidate evidence anchor。
+//
+// 這裡刻意用 candidate_id + message_id + relation_type 做唯一語意單位：同一則訊息可能同時是建立來源、
+// 後續更新或確認訊息，但每一種關係都只保留最新 confidence/reason。這樣 candidate 本身只保存目前狀態，
+// 長討論串的訊息軌跡則集中在 evidence table，之後召回 prompt 時可以穩定地從 anchor 展開小訊息窗。
+func (r *ChannelMessageRepo) upsertTodoCandidateEvidenceMessage(ctx context.Context, candidateID uuid.UUID, input SaveTodoCandidateInput, relationType todocandidateevidencemessage.RelationType, source todocandidateevidencemessage.Source) error {
+	if r == nil || r.db == nil {
+		return fmt.Errorf("channel repository not initialized")
+	}
+	if candidateID == uuid.Nil || input.ChannelID == uuid.Nil || input.MessageID == uuid.Nil {
+		return nil
+	}
+	existing, err := r.db.TodoCandidateEvidenceMessage.Query().
+		Where(
+			todocandidateevidencemessage.CandidateIDEQ(candidateID),
+			todocandidateevidencemessage.MessageIDEQ(input.MessageID),
+			todocandidateevidencemessage.RelationTypeEQ(relationType),
+		).
+		Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return fmt.Errorf("query todo candidate evidence message failed: %w", err)
+	}
+	if existing != nil {
+		if _, err := r.db.TodoCandidateEvidenceMessage.UpdateOneID(existing.ID).
+			SetSource(source).
+			SetConfidence(input.Confidence).
+			SetReason(strings.TrimSpace(input.Reason)).
+			SetIsActive(true).
+			Save(ctx); err != nil {
+			return fmt.Errorf("update todo candidate evidence message failed: %w", err)
+		}
+		return nil
+	}
+	if _, err := r.db.TodoCandidateEvidenceMessage.Create().
+		SetChannelID(input.ChannelID).
+		SetCandidateID(candidateID).
+		SetMessageID(input.MessageID).
+		SetRelationType(relationType).
+		SetSource(source).
+		SetConfidence(input.Confidence).
+		SetReason(strings.TrimSpace(input.Reason)).
+		SetIsActive(true).
+		Save(ctx); err != nil {
+		return fmt.Errorf("create todo candidate evidence message failed: %w", err)
+	}
+	return nil
+}
+
+// todoCandidateEvidenceRelationFromDecision 將 Todo analyzer 的狀態機 decision 轉成 evidence 的訊息關係。
+//
+// decision 描述「candidate 接下來變成什麼狀態」，relation_type 描述「這則訊息在 candidate 歷史裡扮演什麼角色」。
+// 兩者分開後，查詢端可以用 relation_type 還原上下文，而不必反推 candidate 的最新狀態欄位。
+func todoCandidateEvidenceRelationFromDecision(decision todocandidate.LastDecision) todocandidateevidencemessage.RelationType {
+	switch decision {
+	case todocandidate.LastDecisionCreateCandidate:
+		return todocandidateevidencemessage.RelationTypeSource
+	case todocandidate.LastDecisionUpdateCandidate:
+		return todocandidateevidencemessage.RelationTypeUpdate
+	case todocandidate.LastDecisionAcknowledge:
+		return todocandidateevidencemessage.RelationTypeAcknowledgement
+	case todocandidate.LastDecisionCancelCandidate:
+		return todocandidateevidencemessage.RelationTypeCancellation
+	case todocandidate.LastDecisionNeedsMoreInfo:
+		return todocandidateevidencemessage.RelationTypeClarification
+	default:
+		return todocandidateevidencemessage.RelationTypeRelatedContext
+	}
 }
 
 func (r *ChannelMessageRepo) syncTodoCandidateMentionAssignees(ctx context.Context, candidateID uuid.UUID, messageID uuid.UUID) error {
@@ -1526,33 +1649,32 @@ func (r *ChannelMessageRepo) resolveAnalyzerAssigneeByChannelSenderName(ctx cont
 	return uuid.Nil, todocandidateassignee.ResolutionStatusAmbiguous, "multiple channel senders matched analyzer assignee display text", nil
 }
 
+// findTodoCandidateByLinkedMessage 透過 evidence anchor 解析 LLM 回傳的 linked_message_id。
+//
+// linked_message_id 是模型在 bounded context 中選出的「被承接訊息 ID」，不是 candidate row id。
+// repository 因此只允許在同 channel、仍活躍的 evidence 裡查找 candidate；找不到就 fail-fast 回到上層，
+// 避免把訊息 ID 誤當資料列 ID 或跨 channel 串錯待辦。
 func (r *ChannelMessageRepo) findTodoCandidateByLinkedMessage(ctx context.Context, channelID uuid.UUID, linkedMessageID uuid.UUID) (*ent.TodoCandidate, error) {
-	item, err := r.db.TodoCandidate.Query().
+	item, err := r.db.TodoCandidateEvidenceMessage.Query().
 		Where(
-			todocandidate.ChannelIDEQ(channelID),
-			todocandidate.SourceMessageIDEQ(linkedMessageID),
+			todocandidateevidencemessage.ChannelIDEQ(channelID),
+			todocandidateevidencemessage.MessageIDEQ(linkedMessageID),
+			todocandidateevidencemessage.IsActiveEQ(true),
 		).
-		Only(ctx)
-	if err == nil {
-		return item, nil
-	}
-	if !ent.IsNotFound(err) {
-		return nil, fmt.Errorf("query todo candidate by source message failed: %w", err)
-	}
-
-	item, err = r.db.TodoCandidate.Query().
-		Where(
-			todocandidate.ChannelIDEQ(channelID),
-			todocandidate.LastMessageIDEQ(linkedMessageID),
-		).
+		Order(ent.Desc(todocandidateevidencemessage.FieldUpdatedAt), ent.Desc(todocandidateevidencemessage.FieldCreatedAt)).
+		WithCandidate().
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("query todo candidate by last message failed: %w", err)
+		return nil, fmt.Errorf("query todo candidate evidence by linked message failed: %w", err)
 	}
-	return item, nil
+	candidate, err := item.Edges.CandidateOrErr()
+	if err != nil {
+		return nil, fmt.Errorf("load todo candidate from evidence failed: %w", err)
+	}
+	return candidate, nil
 }
 
 func todoCandidateStatusFromDecision(decision todocandidate.LastDecision) (todocandidate.Status, error) {

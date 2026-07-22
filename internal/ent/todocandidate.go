@@ -28,12 +28,10 @@ type TodoCandidate struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// 候選待辦所屬 channel ID
 	ChannelID uuid.UUID `json:"channel_id,omitempty"`
-	// 建立此候選待辦的第一則訊息 ID
+	// 建立此候選待辦的第一則訊息 ID；完整訊息追蹤以 evidence_messages 為準，這裡保留為目前狀態快取指標
 	SourceMessageID uuid.UUID `json:"source_message_id,omitempty"`
-	// 最近一次更新此候選待辦的訊息 ID
+	// 最近一次更新此候選待辦的訊息 ID；完整訊息追蹤以 evidence_messages 為準，這裡保留為目前狀態快取指標
 	LastMessageID uuid.UUID `json:"last_message_id,omitempty"`
-	// 模型判斷目前訊息接續的歷史訊息 ID；全新候選可為空
-	LinkedMessageID *uuid.UUID `json:"linked_message_id,omitempty"`
 	// 候選待辦目前狀態；尚未等同正式提醒
 	Status todocandidate.Status `json:"status,omitempty"`
 	// 最近一次 todo analyzer decision；no_action 不落庫
@@ -76,10 +74,10 @@ type TodoCandidateEdges struct {
 	SourceMessage *ChannelMessage `json:"source_message,omitempty"`
 	// 最近一次更新候選待辦的訊息
 	LastMessage *ChannelMessage `json:"last_message,omitempty"`
-	// 最近一次分析時連結到的歷史訊息
-	LinkedMessage *ChannelMessage `json:"linked_message,omitempty"`
 	// 此候選待辦的 assignee 解析快照；可由 mention、sender 或 analyzer 產生
 	CandidateAssignees []*TodoCandidateAssignee `json:"candidate_assignees,omitempty"`
+	// 此候選待辦累積的訊息 evidence anchors，用於長討論串上下文召回
+	EvidenceMessages []*TodoCandidateEvidenceMessage `json:"evidence_messages,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [5]bool
@@ -87,6 +85,7 @@ type TodoCandidateEdges struct {
 	totalCount [5]map[string]int
 
 	namedCandidateAssignees map[string][]*TodoCandidateAssignee
+	namedEvidenceMessages   map[string][]*TodoCandidateEvidenceMessage
 }
 
 // ChannelOrErr returns the Channel value or an error if the edge
@@ -122,24 +121,22 @@ func (e TodoCandidateEdges) LastMessageOrErr() (*ChannelMessage, error) {
 	return nil, &NotLoadedError{edge: "last_message"}
 }
 
-// LinkedMessageOrErr returns the LinkedMessage value or an error if the edge
-// was not loaded in eager-loading, or loaded but was not found.
-func (e TodoCandidateEdges) LinkedMessageOrErr() (*ChannelMessage, error) {
-	if e.LinkedMessage != nil {
-		return e.LinkedMessage, nil
-	} else if e.loadedTypes[3] {
-		return nil, &NotFoundError{label: channelmessage.Label}
-	}
-	return nil, &NotLoadedError{edge: "linked_message"}
-}
-
 // CandidateAssigneesOrErr returns the CandidateAssignees value or an error if the edge
 // was not loaded in eager-loading.
 func (e TodoCandidateEdges) CandidateAssigneesOrErr() ([]*TodoCandidateAssignee, error) {
-	if e.loadedTypes[4] {
+	if e.loadedTypes[3] {
 		return e.CandidateAssignees, nil
 	}
 	return nil, &NotLoadedError{edge: "candidate_assignees"}
+}
+
+// EvidenceMessagesOrErr returns the EvidenceMessages value or an error if the edge
+// was not loaded in eager-loading.
+func (e TodoCandidateEdges) EvidenceMessagesOrErr() ([]*TodoCandidateEvidenceMessage, error) {
+	if e.loadedTypes[4] {
+		return e.EvidenceMessages, nil
+	}
+	return nil, &NotLoadedError{edge: "evidence_messages"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -147,8 +144,6 @@ func (*TodoCandidate) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case todocandidate.FieldLinkedMessageID:
-			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case todocandidate.FieldAssignees, todocandidate.FieldMissingFields:
 			values[i] = new([]byte)
 		case todocandidate.FieldDueConfidence, todocandidate.FieldConfidence:
@@ -209,13 +204,6 @@ func (_m *TodoCandidate) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field last_message_id", values[i])
 			} else if value != nil {
 				_m.LastMessageID = *value
-			}
-		case todocandidate.FieldLinkedMessageID:
-			if value, ok := values[i].(*sql.NullScanner); !ok {
-				return fmt.Errorf("unexpected type %T for field linked_message_id", values[i])
-			} else if value.Valid {
-				_m.LinkedMessageID = new(uuid.UUID)
-				*_m.LinkedMessageID = *value.S.(*uuid.UUID)
 			}
 		case todocandidate.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -335,14 +323,14 @@ func (_m *TodoCandidate) QueryLastMessage() *ChannelMessageQuery {
 	return NewTodoCandidateClient(_m.config).QueryLastMessage(_m)
 }
 
-// QueryLinkedMessage queries the "linked_message" edge of the TodoCandidate entity.
-func (_m *TodoCandidate) QueryLinkedMessage() *ChannelMessageQuery {
-	return NewTodoCandidateClient(_m.config).QueryLinkedMessage(_m)
-}
-
 // QueryCandidateAssignees queries the "candidate_assignees" edge of the TodoCandidate entity.
 func (_m *TodoCandidate) QueryCandidateAssignees() *TodoCandidateAssigneeQuery {
 	return NewTodoCandidateClient(_m.config).QueryCandidateAssignees(_m)
+}
+
+// QueryEvidenceMessages queries the "evidence_messages" edge of the TodoCandidate entity.
+func (_m *TodoCandidate) QueryEvidenceMessages() *TodoCandidateEvidenceMessageQuery {
+	return NewTodoCandidateClient(_m.config).QueryEvidenceMessages(_m)
 }
 
 // Update returns a builder for updating this TodoCandidate.
@@ -382,11 +370,6 @@ func (_m *TodoCandidate) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("last_message_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.LastMessageID))
-	builder.WriteString(", ")
-	if v := _m.LinkedMessageID; v != nil {
-		builder.WriteString("linked_message_id=")
-		builder.WriteString(fmt.Sprintf("%v", *v))
-	}
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))
@@ -458,6 +441,30 @@ func (_m *TodoCandidate) appendNamedCandidateAssignees(name string, edges ...*To
 		_m.Edges.namedCandidateAssignees[name] = []*TodoCandidateAssignee{}
 	} else {
 		_m.Edges.namedCandidateAssignees[name] = append(_m.Edges.namedCandidateAssignees[name], edges...)
+	}
+}
+
+// NamedEvidenceMessages returns the EvidenceMessages named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *TodoCandidate) NamedEvidenceMessages(name string) ([]*TodoCandidateEvidenceMessage, error) {
+	if _m.Edges.namedEvidenceMessages == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedEvidenceMessages[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *TodoCandidate) appendNamedEvidenceMessages(name string, edges ...*TodoCandidateEvidenceMessage) {
+	if _m.Edges.namedEvidenceMessages == nil {
+		_m.Edges.namedEvidenceMessages = make(map[string][]*TodoCandidateEvidenceMessage)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedEvidenceMessages[name] = []*TodoCandidateEvidenceMessage{}
+	} else {
+		_m.Edges.namedEvidenceMessages[name] = append(_m.Edges.namedEvidenceMessages[name], edges...)
 	}
 }
 

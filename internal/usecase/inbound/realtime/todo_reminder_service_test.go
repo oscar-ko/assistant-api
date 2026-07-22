@@ -16,15 +16,17 @@ import (
 )
 
 type stubRecentMessageStore struct {
-	calls             int
-	parentCalls       int
-	windowCalls       int
-	candidateCalls    int
-	parent            *ent.ChannelMessage
-	parentByMessageID map[uuid.UUID]*ent.ChannelMessage
-	windowsByAnchorID map[uuid.UUID][]*ent.ChannelMessage
-	items             []*ent.ChannelMessage
-	candidates        []*ent.TodoCandidate
+	calls              int
+	parentCalls        int
+	windowCalls        int
+	candidateCalls     int
+	parent             *ent.ChannelMessage
+	parentByMessageID  map[uuid.UUID]*ent.ChannelMessage
+	windowsByAnchorID  map[uuid.UUID][]*ent.ChannelMessage
+	items              []*ent.ChannelMessage
+	candidates         []*ent.TodoCandidate
+	evidenceCandidates []*ent.TodoCandidate
+	evidenceMessages   []*ent.TodoCandidateEvidenceMessage
 }
 
 func (s *stubRecentMessageStore) ResolveParentMessage(ctx context.Context, message *ent.ChannelMessage) (*ent.ChannelMessage, error) {
@@ -66,6 +68,24 @@ func (s *stubRecentMessageStore) FindTodoCandidatesByMessageIDs(ctx context.Cont
 	_ = messageIDs
 	s.candidateCalls++
 	return s.candidates, nil
+}
+
+func (s *stubRecentMessageStore) FindActiveTodoCandidatesWithEvidence(ctx context.Context, channelID uuid.UUID, limit int) ([]*ent.TodoCandidate, error) {
+	_ = ctx
+	_ = channelID
+	if limit > 0 && len(s.evidenceCandidates) > limit {
+		return s.evidenceCandidates[:limit], nil
+	}
+	return s.evidenceCandidates, nil
+}
+
+func (s *stubRecentMessageStore) FindRecentTodoCandidateEvidenceMessages(ctx context.Context, candidateID uuid.UUID, limit int) ([]*ent.TodoCandidateEvidenceMessage, error) {
+	_ = ctx
+	_ = candidateID
+	if limit > 0 && len(s.evidenceMessages) > limit {
+		return s.evidenceMessages[:limit], nil
+	}
+	return s.evidenceMessages, nil
 }
 
 type stubContextAnalyzer struct {
@@ -260,6 +280,58 @@ func TestTodoReminderServiceSkipsUnclearNonTodoWithoutCandidateContext(t *testin
 	}
 	if analyzer.calls != 0 {
 		t.Fatalf("expected todo analyzer to be skipped for unclear non-todo without candidate context, got %d calls", analyzer.calls)
+	}
+}
+
+func TestTodoReminderServiceAnalyzesUnclearMessageWithEvidenceCandidateContext(t *testing.T) {
+	// 當討論串拉長時，近期訊息可能只剩弱相關短句；若候選待辦已有 evidence anchor，
+	// Todo Reminder 應把該 anchor 的小訊息窗併入 prompt，避免 candidate 因 recent window 太短而失聯。
+	channelID := uuid.New()
+	recentMessageID := uuid.New()
+	oldAnchorID := uuid.New()
+	candidateID := uuid.New()
+	oldAnchor := &ent.ChannelMessage{ID: oldAnchorID, ChannelID: channelID, SenderName: "Amy", Content: "報價單週五前請補完", CreatedAt: time.Now().Add(-30 * time.Minute)}
+	repo := &stubRecentMessageStore{
+		items: []*ent.ChannelMessage{
+			{ID: recentMessageID, ChannelID: channelID, SenderName: "Oscar", Content: "剛剛那個先這樣", CreatedAt: time.Now().Add(-time.Minute)},
+		},
+		windowsByAnchorID: map[uuid.UUID][]*ent.ChannelMessage{
+			oldAnchorID: {oldAnchor},
+		},
+		evidenceCandidates: []*ent.TodoCandidate{
+			{ID: candidateID, ChannelID: channelID, SourceMessageID: oldAnchorID, LastMessageID: oldAnchorID, Status: "candidate", LastDecision: "create_candidate"},
+		},
+		evidenceMessages: []*ent.TodoCandidateEvidenceMessage{
+			{ID: uuid.New(), ChannelID: channelID, CandidateID: candidateID, MessageID: oldAnchorID, Edges: ent.TodoCandidateEvidenceMessageEdges{Message: oldAnchor}},
+		},
+	}
+	analyzer := &stubContextAnalyzer{}
+	service := NewTodoReminderService(TodoReminderServiceOptions{
+		Repo:                            repo,
+		LLM:                             analyzer,
+		PlatformLabel:                   "test",
+		RecentLimit:                     4,
+		ReplyChainMaxDepth:              4,
+		EvidenceAnchorLimitPerCandidate: 2,
+		EvidenceWindowBeforeLimit:       1,
+		EvidenceWindowAfterLimit:        1,
+		MaxCandidateContexts:            3,
+		MaxContextMessages:              10,
+	})
+
+	service.HandleClassification(context.Background(), MessageContext{
+		Message:      &unifiedmessage.Message{ChannelID: "channel-1", PlatformMessageID: "m-2", MessageType: "text", Text: "好，那我處理"},
+		SavedMessage: &ent.ChannelMessage{ID: uuid.New(), ChannelID: channelID, Content: "好，那我處理", CreatedAt: time.Now()},
+	}, ClassificationResult{Tag: "question", Signal: ClassificationSignalUnclear, Confidence: 0.53, ScoreMargin: 0.07})
+
+	if analyzer.calls != 1 {
+		t.Fatalf("expected todo analyzer to run with evidence candidate context, got %d calls", analyzer.calls)
+	}
+	if !strings.Contains(analyzer.prompt, oldAnchorID.String()) || !strings.Contains(analyzer.prompt, "報價單週五前請補完") {
+		t.Fatalf("expected prompt to include evidence anchor window, got %q", analyzer.prompt)
+	}
+	if !strings.Contains(analyzer.prompt, "source_message_id="+oldAnchorID.String()) {
+		t.Fatalf("expected prompt to include evidence candidate context, got %q", analyzer.prompt)
 	}
 }
 

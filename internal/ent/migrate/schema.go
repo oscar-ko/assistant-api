@@ -500,7 +500,6 @@ var (
 		{Name: "channel_id", Type: field.TypeUUID},
 		{Name: "source_message_id", Type: field.TypeUUID},
 		{Name: "last_message_id", Type: field.TypeUUID},
-		{Name: "linked_message_id", Type: field.TypeUUID, Nullable: true},
 	}
 	// TodoCandidatesTable holds the schema information for the "todo_candidates" table.
 	TodoCandidatesTable = &schema.Table{
@@ -525,12 +524,6 @@ var (
 				Columns:    []*schema.Column{TodoCandidatesColumns[19]},
 				RefColumns: []*schema.Column{ChannelMessagesColumns[0]},
 				OnDelete:   schema.NoAction,
-			},
-			{
-				Symbol:     "todo_candidates_channel_messages_linked_message",
-				Columns:    []*schema.Column{TodoCandidatesColumns[20]},
-				RefColumns: []*schema.Column{ChannelMessagesColumns[0]},
-				OnDelete:   schema.SetNull,
 			},
 		},
 		Indexes: []*schema.Index{
@@ -614,6 +607,68 @@ var (
 				Name:    "todocandidateassignee_resolved_user_id",
 				Unique:  false,
 				Columns: []*schema.Column{TodoCandidateAssigneesColumns[9]},
+			},
+		},
+	}
+	// TodoCandidateEvidenceMessagesColumns holds the columns for the "todo_candidate_evidence_messages" table.
+	TodoCandidateEvidenceMessagesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "relation_type", Type: field.TypeEnum, Enums: []string{"source", "linked", "update", "clarification", "acknowledgement", "cancellation", "related_context", "explicit_reply", "ambiguous"}},
+		{Name: "source", Type: field.TypeEnum, Enums: []string{"analyzer", "explicit_reply", "thread", "system", "user_confirmation"}, Default: "analyzer"},
+		{Name: "confidence", Type: field.TypeFloat64, Default: 0},
+		{Name: "reason", Type: field.TypeString, Nullable: true},
+		{Name: "is_active", Type: field.TypeBool, Default: true},
+		{Name: "candidate_id", Type: field.TypeUUID},
+		{Name: "channel_id", Type: field.TypeUUID},
+		{Name: "message_id", Type: field.TypeUUID},
+	}
+	// TodoCandidateEvidenceMessagesTable holds the schema information for the "todo_candidate_evidence_messages" table.
+	TodoCandidateEvidenceMessagesTable = &schema.Table{
+		Name:       "todo_candidate_evidence_messages",
+		Columns:    TodoCandidateEvidenceMessagesColumns,
+		PrimaryKey: []*schema.Column{TodoCandidateEvidenceMessagesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "todo_candidate_evidence_messages_todo_candidates_evidence_messages",
+				Columns:    []*schema.Column{TodoCandidateEvidenceMessagesColumns[8]},
+				RefColumns: []*schema.Column{TodoCandidatesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "todo_candidate_evidence_messages_channels_channel",
+				Columns:    []*schema.Column{TodoCandidateEvidenceMessagesColumns[9]},
+				RefColumns: []*schema.Column{ChannelsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "todo_candidate_evidence_messages_channel_messages_message",
+				Columns:    []*schema.Column{TodoCandidateEvidenceMessagesColumns[10]},
+				RefColumns: []*schema.Column{ChannelMessagesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "todocandidateevidencemessage_channel_id_is_active",
+				Unique:  false,
+				Columns: []*schema.Column{TodoCandidateEvidenceMessagesColumns[9], TodoCandidateEvidenceMessagesColumns[7]},
+			},
+			{
+				Name:    "todocandidateevidencemessage_candidate_id_is_active",
+				Unique:  false,
+				Columns: []*schema.Column{TodoCandidateEvidenceMessagesColumns[8], TodoCandidateEvidenceMessagesColumns[7]},
+			},
+			{
+				Name:    "todocandidateevidencemessage_message_id",
+				Unique:  false,
+				Columns: []*schema.Column{TodoCandidateEvidenceMessagesColumns[10]},
+			},
+			{
+				Name:    "todocandidateevidencemessage_candidate_id_message_id_relation_type",
+				Unique:  true,
+				Columns: []*schema.Column{TodoCandidateEvidenceMessagesColumns[8], TodoCandidateEvidenceMessagesColumns[10], TodoCandidateEvidenceMessagesColumns[3]},
 			},
 		},
 	}
@@ -833,6 +888,7 @@ var (
 		TodosTable,
 		TodoCandidatesTable,
 		TodoCandidateAssigneesTable,
+		TodoCandidateEvidenceMessagesTable,
 		TodoEventsTable,
 		TodoUpdateCandidatesTable,
 		TranslationLocalesTable,
@@ -860,10 +916,12 @@ func init() {
 	TodoCandidatesTable.ForeignKeys[0].RefTable = ChannelsTable
 	TodoCandidatesTable.ForeignKeys[1].RefTable = ChannelMessagesTable
 	TodoCandidatesTable.ForeignKeys[2].RefTable = ChannelMessagesTable
-	TodoCandidatesTable.ForeignKeys[3].RefTable = ChannelMessagesTable
 	TodoCandidateAssigneesTable.ForeignKeys[0].RefTable = TodoCandidatesTable
 	TodoCandidateAssigneesTable.ForeignKeys[1].RefTable = ChannelMessageMentionsTable
 	TodoCandidateAssigneesTable.ForeignKeys[2].RefTable = UsersTable
+	TodoCandidateEvidenceMessagesTable.ForeignKeys[0].RefTable = TodoCandidatesTable
+	TodoCandidateEvidenceMessagesTable.ForeignKeys[1].RefTable = ChannelsTable
+	TodoCandidateEvidenceMessagesTable.ForeignKeys[2].RefTable = ChannelMessagesTable
 	TodoEventsTable.ForeignKeys[0].RefTable = TodosTable
 	TodoEventsTable.ForeignKeys[1].RefTable = TodoCandidatesTable
 	TodoEventsTable.ForeignKeys[2].RefTable = ChannelMessagesTable

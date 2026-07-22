@@ -32,9 +32,8 @@ func (TodoCandidate) Mixin() []ent.Mixin {
 func (TodoCandidate) Fields() []ent.Field {
 	return []ent.Field{
 		field.UUID("channel_id", uuid.UUID{}).Immutable().Comment("候選待辦所屬 channel ID"),
-		field.UUID("source_message_id", uuid.UUID{}).Immutable().Comment("建立此候選待辦的第一則訊息 ID"),
-		field.UUID("last_message_id", uuid.UUID{}).Comment("最近一次更新此候選待辦的訊息 ID"),
-		field.UUID("linked_message_id", uuid.UUID{}).Optional().Nillable().Comment("模型判斷目前訊息接續的歷史訊息 ID；全新候選可為空"),
+		field.UUID("source_message_id", uuid.UUID{}).Immutable().Comment("建立此候選待辦的第一則訊息 ID；完整訊息追蹤以 evidence_messages 為準，這裡保留為目前狀態快取指標"),
+		field.UUID("last_message_id", uuid.UUID{}).Comment("最近一次更新此候選待辦的訊息 ID；完整訊息追蹤以 evidence_messages 為準，這裡保留為目前狀態快取指標"),
 		field.Enum("status").Values("candidate", "needs_more_info", "acknowledged", "cancelled").Default("candidate").Comment("候選待辦目前狀態；尚未等同正式提醒"),
 		field.Enum("last_decision").Values("create_candidate", "update_candidate", "acknowledge", "cancel_candidate", "needs_more_info").Comment("最近一次 todo analyzer decision；no_action 不落庫"),
 		field.String("summary").Optional().Comment("整理後的待辦摘要；needs_more_info 時可能暫時為空"),
@@ -58,8 +57,8 @@ func (TodoCandidate) Edges() []ent.Edge {
 		edge.To("channel", Channel.Type).Field("channel_id").Required().Unique().Immutable().Comment("候選待辦所屬 channel"),
 		edge.To("source_message", ChannelMessage.Type).Field("source_message_id").Required().Unique().Immutable().Comment("建立候選待辦的第一則訊息"),
 		edge.To("last_message", ChannelMessage.Type).Field("last_message_id").Required().Unique().Comment("最近一次更新候選待辦的訊息"),
-		edge.To("linked_message", ChannelMessage.Type).Field("linked_message_id").Unique().Comment("最近一次分析時連結到的歷史訊息"),
 		edge.To("candidate_assignees", TodoCandidateAssignee.Type).Comment("此候選待辦的 assignee 解析快照；可由 mention、sender 或 analyzer 產生"),
+		edge.To("evidence_messages", TodoCandidateEvidenceMessage.Type).Comment("此候選待辦累積的訊息 evidence anchors，用於長討論串上下文召回"),
 	}
 }
 

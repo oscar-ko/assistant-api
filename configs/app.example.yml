@@ -49,17 +49,24 @@ ai:
         target: "aistant.classifier"
         labels: []
 
-    history_context:
-        # 歷史訊息召回窗口，單位是「往前幾則同 channel 訊息」，不是時間長度。
-        # 給需要近端對話上下文的服務共用，例如隱式回覆、補欄位、跨訊息語意接續判斷。
-        recent_message_limit: 8
-
     todo_reminder:
         # due_text 正規化使用的 IANA timezone；不同部署地區請明確覆寫。
         timezone: "Asia/Taipei"
         # 顯式 reply/quote 往上追溯 parent message 的最大層數。
         # 每層 parent 會建立一個 message window 並依時間合併；此值應小而明確，避免 prompt 過長。
         reply_chain_max_depth: 4
+        # Todo Reminder 的近端歷史召回窗口，單位是「往前幾則同 channel 訊息」，不是時間長度。
+        # 它只控制 recent window 的原始候選量；recent window 與 evidence 小窗合併後，仍會再受 max_context_messages 的總量限制。
+        recent_context_message_limit: 8
+        # 每個 candidate 最多取幾則活躍 evidence anchor 來重建長討論串上下文。
+        evidence_anchor_limit_per_candidate: 5
+        # 每個 evidence anchor 前後各取幾則同 channel 訊息形成小訊息窗。
+        evidence_window_before_limit: 3
+        evidence_window_after_limit: 3
+        # 每次 implicit analysis 最多提供幾個 active candidate context 給 analyzer 比較。
+        max_candidate_contexts: 5
+        # recent window 與 evidence 小窗合併後，最多提供幾則 context messages 給 analyzer。
+        max_context_messages: 40
 
     # LLM 互動服務（第三階段）
     llm_interaction:

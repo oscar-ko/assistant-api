@@ -18,6 +18,7 @@ import (
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
+	"assistant-api/internal/ent/todocandidateevidencemessage"
 	"assistant-api/internal/ent/todoevent"
 	"assistant-api/internal/ent/todoupdatecandidate"
 	"assistant-api/internal/ent/translationlocale"
@@ -321,11 +322,11 @@ func init() {
 	// todocandidate.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	todocandidate.UpdateDefaultUpdatedAt = todocandidateDescUpdatedAt.UpdateDefault.(func() time.Time)
 	// todocandidateDescDueConfidence is the schema descriptor for due_confidence field.
-	todocandidateDescDueConfidence := todocandidateFields[13].Descriptor()
+	todocandidateDescDueConfidence := todocandidateFields[12].Descriptor()
 	// todocandidate.DefaultDueConfidence holds the default value on creation for the due_confidence field.
 	todocandidate.DefaultDueConfidence = todocandidateDescDueConfidence.Default.(float64)
 	// todocandidateDescConfidence is the schema descriptor for confidence field.
-	todocandidateDescConfidence := todocandidateFields[16].Descriptor()
+	todocandidateDescConfidence := todocandidateFields[15].Descriptor()
 	// todocandidate.DefaultConfidence holds the default value on creation for the confidence field.
 	todocandidate.DefaultConfidence = todocandidateDescConfidence.Default.(float64)
 	// todocandidateDescID is the schema descriptor for id field.
@@ -353,6 +354,35 @@ func init() {
 	todocandidateassigneeDescID := todocandidateassigneeMixinFields0[0].Descriptor()
 	// todocandidateassignee.DefaultID holds the default value on creation for the id field.
 	todocandidateassignee.DefaultID = todocandidateassigneeDescID.Default.(func() uuid.UUID)
+	todocandidateevidencemessageMixin := schema.TodoCandidateEvidenceMessage{}.Mixin()
+	todocandidateevidencemessageMixinFields0 := todocandidateevidencemessageMixin[0].Fields()
+	_ = todocandidateevidencemessageMixinFields0
+	todocandidateevidencemessageMixinFields1 := todocandidateevidencemessageMixin[1].Fields()
+	_ = todocandidateevidencemessageMixinFields1
+	todocandidateevidencemessageFields := schema.TodoCandidateEvidenceMessage{}.Fields()
+	_ = todocandidateevidencemessageFields
+	// todocandidateevidencemessageDescCreatedAt is the schema descriptor for created_at field.
+	todocandidateevidencemessageDescCreatedAt := todocandidateevidencemessageMixinFields1[0].Descriptor()
+	// todocandidateevidencemessage.DefaultCreatedAt holds the default value on creation for the created_at field.
+	todocandidateevidencemessage.DefaultCreatedAt = todocandidateevidencemessageDescCreatedAt.Default.(func() time.Time)
+	// todocandidateevidencemessageDescUpdatedAt is the schema descriptor for updated_at field.
+	todocandidateevidencemessageDescUpdatedAt := todocandidateevidencemessageMixinFields1[1].Descriptor()
+	// todocandidateevidencemessage.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	todocandidateevidencemessage.DefaultUpdatedAt = todocandidateevidencemessageDescUpdatedAt.Default.(func() time.Time)
+	// todocandidateevidencemessage.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	todocandidateevidencemessage.UpdateDefaultUpdatedAt = todocandidateevidencemessageDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// todocandidateevidencemessageDescConfidence is the schema descriptor for confidence field.
+	todocandidateevidencemessageDescConfidence := todocandidateevidencemessageFields[5].Descriptor()
+	// todocandidateevidencemessage.DefaultConfidence holds the default value on creation for the confidence field.
+	todocandidateevidencemessage.DefaultConfidence = todocandidateevidencemessageDescConfidence.Default.(float64)
+	// todocandidateevidencemessageDescIsActive is the schema descriptor for is_active field.
+	todocandidateevidencemessageDescIsActive := todocandidateevidencemessageFields[7].Descriptor()
+	// todocandidateevidencemessage.DefaultIsActive holds the default value on creation for the is_active field.
+	todocandidateevidencemessage.DefaultIsActive = todocandidateevidencemessageDescIsActive.Default.(bool)
+	// todocandidateevidencemessageDescID is the schema descriptor for id field.
+	todocandidateevidencemessageDescID := todocandidateevidencemessageMixinFields0[0].Descriptor()
+	// todocandidateevidencemessage.DefaultID holds the default value on creation for the id field.
+	todocandidateevidencemessage.DefaultID = todocandidateevidencemessageDescID.Default.(func() uuid.UUID)
 	todoeventMixin := schema.TodoEvent{}.Mixin()
 	todoeventMixinFields0 := todoeventMixin[0].Fields()
 	_ = todoeventMixinFields0

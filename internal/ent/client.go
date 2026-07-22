@@ -25,6 +25,7 @@ import (
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
+	"assistant-api/internal/ent/todocandidateevidencemessage"
 	"assistant-api/internal/ent/todoevent"
 	"assistant-api/internal/ent/todoupdatecandidate"
 	"assistant-api/internal/ent/translationlocale"
@@ -70,6 +71,8 @@ type Client struct {
 	TodoCandidate *TodoCandidateClient
 	// TodoCandidateAssignee is the client for interacting with the TodoCandidateAssignee builders.
 	TodoCandidateAssignee *TodoCandidateAssigneeClient
+	// TodoCandidateEvidenceMessage is the client for interacting with the TodoCandidateEvidenceMessage builders.
+	TodoCandidateEvidenceMessage *TodoCandidateEvidenceMessageClient
 	// TodoEvent is the client for interacting with the TodoEvent builders.
 	TodoEvent *TodoEventClient
 	// TodoUpdateCandidate is the client for interacting with the TodoUpdateCandidate builders.
@@ -103,6 +106,7 @@ func (c *Client) init() {
 	c.Todo = NewTodoClient(c.config)
 	c.TodoCandidate = NewTodoCandidateClient(c.config)
 	c.TodoCandidateAssignee = NewTodoCandidateAssigneeClient(c.config)
+	c.TodoCandidateEvidenceMessage = NewTodoCandidateEvidenceMessageClient(c.config)
 	c.TodoEvent = NewTodoEventClient(c.config)
 	c.TodoUpdateCandidate = NewTodoUpdateCandidateClient(c.config)
 	c.TranslationLocale = NewTranslationLocaleClient(c.config)
@@ -197,26 +201,27 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:                   ctx,
-		config:                cfg,
-		Action:                NewActionClient(cfg),
-		ActionResult:          NewActionResultClient(cfg),
-		ActionRoute:           NewActionRouteClient(cfg),
-		Channel:               NewChannelClient(cfg),
-		ChannelMessage:        NewChannelMessageClient(cfg),
-		ChannelMessageMention: NewChannelMessageMentionClient(cfg),
-		ChannelServiceMember:  NewChannelServiceMemberClient(cfg),
-		Line:                  NewLineClient(cfg),
-		Skill:                 NewSkillClient(cfg),
-		Slack:                 NewSlackClient(cfg),
-		SlackWorkspace:        NewSlackWorkspaceClient(cfg),
-		Todo:                  NewTodoClient(cfg),
-		TodoCandidate:         NewTodoCandidateClient(cfg),
-		TodoCandidateAssignee: NewTodoCandidateAssigneeClient(cfg),
-		TodoEvent:             NewTodoEventClient(cfg),
-		TodoUpdateCandidate:   NewTodoUpdateCandidateClient(cfg),
-		TranslationLocale:     NewTranslationLocaleClient(cfg),
-		User:                  NewUserClient(cfg),
+		ctx:                          ctx,
+		config:                       cfg,
+		Action:                       NewActionClient(cfg),
+		ActionResult:                 NewActionResultClient(cfg),
+		ActionRoute:                  NewActionRouteClient(cfg),
+		Channel:                      NewChannelClient(cfg),
+		ChannelMessage:               NewChannelMessageClient(cfg),
+		ChannelMessageMention:        NewChannelMessageMentionClient(cfg),
+		ChannelServiceMember:         NewChannelServiceMemberClient(cfg),
+		Line:                         NewLineClient(cfg),
+		Skill:                        NewSkillClient(cfg),
+		Slack:                        NewSlackClient(cfg),
+		SlackWorkspace:               NewSlackWorkspaceClient(cfg),
+		Todo:                         NewTodoClient(cfg),
+		TodoCandidate:                NewTodoCandidateClient(cfg),
+		TodoCandidateAssignee:        NewTodoCandidateAssigneeClient(cfg),
+		TodoCandidateEvidenceMessage: NewTodoCandidateEvidenceMessageClient(cfg),
+		TodoEvent:                    NewTodoEventClient(cfg),
+		TodoUpdateCandidate:          NewTodoUpdateCandidateClient(cfg),
+		TranslationLocale:            NewTranslationLocaleClient(cfg),
+		User:                         NewUserClient(cfg),
 	}, nil
 }
 
@@ -234,26 +239,27 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:                   ctx,
-		config:                cfg,
-		Action:                NewActionClient(cfg),
-		ActionResult:          NewActionResultClient(cfg),
-		ActionRoute:           NewActionRouteClient(cfg),
-		Channel:               NewChannelClient(cfg),
-		ChannelMessage:        NewChannelMessageClient(cfg),
-		ChannelMessageMention: NewChannelMessageMentionClient(cfg),
-		ChannelServiceMember:  NewChannelServiceMemberClient(cfg),
-		Line:                  NewLineClient(cfg),
-		Skill:                 NewSkillClient(cfg),
-		Slack:                 NewSlackClient(cfg),
-		SlackWorkspace:        NewSlackWorkspaceClient(cfg),
-		Todo:                  NewTodoClient(cfg),
-		TodoCandidate:         NewTodoCandidateClient(cfg),
-		TodoCandidateAssignee: NewTodoCandidateAssigneeClient(cfg),
-		TodoEvent:             NewTodoEventClient(cfg),
-		TodoUpdateCandidate:   NewTodoUpdateCandidateClient(cfg),
-		TranslationLocale:     NewTranslationLocaleClient(cfg),
-		User:                  NewUserClient(cfg),
+		ctx:                          ctx,
+		config:                       cfg,
+		Action:                       NewActionClient(cfg),
+		ActionResult:                 NewActionResultClient(cfg),
+		ActionRoute:                  NewActionRouteClient(cfg),
+		Channel:                      NewChannelClient(cfg),
+		ChannelMessage:               NewChannelMessageClient(cfg),
+		ChannelMessageMention:        NewChannelMessageMentionClient(cfg),
+		ChannelServiceMember:         NewChannelServiceMemberClient(cfg),
+		Line:                         NewLineClient(cfg),
+		Skill:                        NewSkillClient(cfg),
+		Slack:                        NewSlackClient(cfg),
+		SlackWorkspace:               NewSlackWorkspaceClient(cfg),
+		Todo:                         NewTodoClient(cfg),
+		TodoCandidate:                NewTodoCandidateClient(cfg),
+		TodoCandidateAssignee:        NewTodoCandidateAssigneeClient(cfg),
+		TodoCandidateEvidenceMessage: NewTodoCandidateEvidenceMessageClient(cfg),
+		TodoEvent:                    NewTodoEventClient(cfg),
+		TodoUpdateCandidate:          NewTodoUpdateCandidateClient(cfg),
+		TranslationLocale:            NewTranslationLocaleClient(cfg),
+		User:                         NewUserClient(cfg),
 	}, nil
 }
 
@@ -286,7 +292,8 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Action, c.ActionResult, c.ActionRoute, c.Channel, c.ChannelMessage,
 		c.ChannelMessageMention, c.ChannelServiceMember, c.Line, c.Skill, c.Slack,
 		c.SlackWorkspace, c.Todo, c.TodoCandidate, c.TodoCandidateAssignee,
-		c.TodoEvent, c.TodoUpdateCandidate, c.TranslationLocale, c.User,
+		c.TodoCandidateEvidenceMessage, c.TodoEvent, c.TodoUpdateCandidate,
+		c.TranslationLocale, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -299,7 +306,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Action, c.ActionResult, c.ActionRoute, c.Channel, c.ChannelMessage,
 		c.ChannelMessageMention, c.ChannelServiceMember, c.Line, c.Skill, c.Slack,
 		c.SlackWorkspace, c.Todo, c.TodoCandidate, c.TodoCandidateAssignee,
-		c.TodoEvent, c.TodoUpdateCandidate, c.TranslationLocale, c.User,
+		c.TodoCandidateEvidenceMessage, c.TodoEvent, c.TodoUpdateCandidate,
+		c.TranslationLocale, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -336,6 +344,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.TodoCandidate.mutate(ctx, m)
 	case *TodoCandidateAssigneeMutation:
 		return c.TodoCandidateAssignee.mutate(ctx, m)
+	case *TodoCandidateEvidenceMessageMutation:
+		return c.TodoCandidateEvidenceMessage.mutate(ctx, m)
 	case *TodoEventMutation:
 		return c.TodoEvent.mutate(ctx, m)
 	case *TodoUpdateCandidateMutation:
@@ -2549,22 +2559,6 @@ func (c *TodoCandidateClient) QueryLastMessage(_m *TodoCandidate) *ChannelMessag
 	return query
 }
 
-// QueryLinkedMessage queries the linked_message edge of a TodoCandidate.
-func (c *TodoCandidateClient) QueryLinkedMessage(_m *TodoCandidate) *ChannelMessageQuery {
-	query := (&ChannelMessageClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(todocandidate.Table, todocandidate.FieldID, id),
-			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, todocandidate.LinkedMessageTable, todocandidate.LinkedMessageColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
 // QueryCandidateAssignees queries the candidate_assignees edge of a TodoCandidate.
 func (c *TodoCandidateClient) QueryCandidateAssignees(_m *TodoCandidate) *TodoCandidateAssigneeQuery {
 	query := (&TodoCandidateAssigneeClient{config: c.config}).Query()
@@ -2574,6 +2568,22 @@ func (c *TodoCandidateClient) QueryCandidateAssignees(_m *TodoCandidate) *TodoCa
 			sqlgraph.From(todocandidate.Table, todocandidate.FieldID, id),
 			sqlgraph.To(todocandidateassignee.Table, todocandidateassignee.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, todocandidate.CandidateAssigneesTable, todocandidate.CandidateAssigneesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryEvidenceMessages queries the evidence_messages edge of a TodoCandidate.
+func (c *TodoCandidateClient) QueryEvidenceMessages(_m *TodoCandidate) *TodoCandidateEvidenceMessageQuery {
+	query := (&TodoCandidateEvidenceMessageClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(todocandidate.Table, todocandidate.FieldID, id),
+			sqlgraph.To(todocandidateevidencemessage.Table, todocandidateevidencemessage.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, todocandidate.EvidenceMessagesTable, todocandidate.EvidenceMessagesColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -2784,6 +2794,187 @@ func (c *TodoCandidateAssigneeClient) mutate(ctx context.Context, m *TodoCandida
 		return (&TodoCandidateAssigneeDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown TodoCandidateAssignee mutation op: %q", m.Op())
+	}
+}
+
+// TodoCandidateEvidenceMessageClient is a client for the TodoCandidateEvidenceMessage schema.
+type TodoCandidateEvidenceMessageClient struct {
+	config
+}
+
+// NewTodoCandidateEvidenceMessageClient returns a client for the TodoCandidateEvidenceMessage from the given config.
+func NewTodoCandidateEvidenceMessageClient(c config) *TodoCandidateEvidenceMessageClient {
+	return &TodoCandidateEvidenceMessageClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `todocandidateevidencemessage.Hooks(f(g(h())))`.
+func (c *TodoCandidateEvidenceMessageClient) Use(hooks ...Hook) {
+	c.hooks.TodoCandidateEvidenceMessage = append(c.hooks.TodoCandidateEvidenceMessage, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `todocandidateevidencemessage.Intercept(f(g(h())))`.
+func (c *TodoCandidateEvidenceMessageClient) Intercept(interceptors ...Interceptor) {
+	c.inters.TodoCandidateEvidenceMessage = append(c.inters.TodoCandidateEvidenceMessage, interceptors...)
+}
+
+// Create returns a builder for creating a TodoCandidateEvidenceMessage entity.
+func (c *TodoCandidateEvidenceMessageClient) Create() *TodoCandidateEvidenceMessageCreate {
+	mutation := newTodoCandidateEvidenceMessageMutation(c.config, OpCreate)
+	return &TodoCandidateEvidenceMessageCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of TodoCandidateEvidenceMessage entities.
+func (c *TodoCandidateEvidenceMessageClient) CreateBulk(builders ...*TodoCandidateEvidenceMessageCreate) *TodoCandidateEvidenceMessageCreateBulk {
+	return &TodoCandidateEvidenceMessageCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *TodoCandidateEvidenceMessageClient) MapCreateBulk(slice any, setFunc func(*TodoCandidateEvidenceMessageCreate, int)) *TodoCandidateEvidenceMessageCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &TodoCandidateEvidenceMessageCreateBulk{err: fmt.Errorf("calling to TodoCandidateEvidenceMessageClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*TodoCandidateEvidenceMessageCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &TodoCandidateEvidenceMessageCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for TodoCandidateEvidenceMessage.
+func (c *TodoCandidateEvidenceMessageClient) Update() *TodoCandidateEvidenceMessageUpdate {
+	mutation := newTodoCandidateEvidenceMessageMutation(c.config, OpUpdate)
+	return &TodoCandidateEvidenceMessageUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *TodoCandidateEvidenceMessageClient) UpdateOne(_m *TodoCandidateEvidenceMessage) *TodoCandidateEvidenceMessageUpdateOne {
+	mutation := newTodoCandidateEvidenceMessageMutation(c.config, OpUpdateOne, withTodoCandidateEvidenceMessage(_m))
+	return &TodoCandidateEvidenceMessageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *TodoCandidateEvidenceMessageClient) UpdateOneID(id uuid.UUID) *TodoCandidateEvidenceMessageUpdateOne {
+	mutation := newTodoCandidateEvidenceMessageMutation(c.config, OpUpdateOne, withTodoCandidateEvidenceMessageID(id))
+	return &TodoCandidateEvidenceMessageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for TodoCandidateEvidenceMessage.
+func (c *TodoCandidateEvidenceMessageClient) Delete() *TodoCandidateEvidenceMessageDelete {
+	mutation := newTodoCandidateEvidenceMessageMutation(c.config, OpDelete)
+	return &TodoCandidateEvidenceMessageDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *TodoCandidateEvidenceMessageClient) DeleteOne(_m *TodoCandidateEvidenceMessage) *TodoCandidateEvidenceMessageDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *TodoCandidateEvidenceMessageClient) DeleteOneID(id uuid.UUID) *TodoCandidateEvidenceMessageDeleteOne {
+	builder := c.Delete().Where(todocandidateevidencemessage.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &TodoCandidateEvidenceMessageDeleteOne{builder}
+}
+
+// Query returns a query builder for TodoCandidateEvidenceMessage.
+func (c *TodoCandidateEvidenceMessageClient) Query() *TodoCandidateEvidenceMessageQuery {
+	return &TodoCandidateEvidenceMessageQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeTodoCandidateEvidenceMessage},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a TodoCandidateEvidenceMessage entity by its id.
+func (c *TodoCandidateEvidenceMessageClient) Get(ctx context.Context, id uuid.UUID) (*TodoCandidateEvidenceMessage, error) {
+	return c.Query().Where(todocandidateevidencemessage.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *TodoCandidateEvidenceMessageClient) GetX(ctx context.Context, id uuid.UUID) *TodoCandidateEvidenceMessage {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryCandidate queries the candidate edge of a TodoCandidateEvidenceMessage.
+func (c *TodoCandidateEvidenceMessageClient) QueryCandidate(_m *TodoCandidateEvidenceMessage) *TodoCandidateQuery {
+	query := (&TodoCandidateClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(todocandidateevidencemessage.Table, todocandidateevidencemessage.FieldID, id),
+			sqlgraph.To(todocandidate.Table, todocandidate.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, todocandidateevidencemessage.CandidateTable, todocandidateevidencemessage.CandidateColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryChannel queries the channel edge of a TodoCandidateEvidenceMessage.
+func (c *TodoCandidateEvidenceMessageClient) QueryChannel(_m *TodoCandidateEvidenceMessage) *ChannelQuery {
+	query := (&ChannelClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(todocandidateevidencemessage.Table, todocandidateevidencemessage.FieldID, id),
+			sqlgraph.To(channel.Table, channel.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, todocandidateevidencemessage.ChannelTable, todocandidateevidencemessage.ChannelColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryMessage queries the message edge of a TodoCandidateEvidenceMessage.
+func (c *TodoCandidateEvidenceMessageClient) QueryMessage(_m *TodoCandidateEvidenceMessage) *ChannelMessageQuery {
+	query := (&ChannelMessageClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(todocandidateevidencemessage.Table, todocandidateevidencemessage.FieldID, id),
+			sqlgraph.To(channelmessage.Table, channelmessage.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, todocandidateevidencemessage.MessageTable, todocandidateevidencemessage.MessageColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *TodoCandidateEvidenceMessageClient) Hooks() []Hook {
+	return c.hooks.TodoCandidateEvidenceMessage
+}
+
+// Interceptors returns the client interceptors.
+func (c *TodoCandidateEvidenceMessageClient) Interceptors() []Interceptor {
+	return c.inters.TodoCandidateEvidenceMessage
+}
+
+func (c *TodoCandidateEvidenceMessageClient) mutate(ctx context.Context, m *TodoCandidateEvidenceMessageMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&TodoCandidateEvidenceMessageCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&TodoCandidateEvidenceMessageUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&TodoCandidateEvidenceMessageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&TodoCandidateEvidenceMessageDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown TodoCandidateEvidenceMessage mutation op: %q", m.Op())
 	}
 }
 
@@ -3580,13 +3771,15 @@ type (
 	hooks struct {
 		Action, ActionResult, ActionRoute, Channel, ChannelMessage,
 		ChannelMessageMention, ChannelServiceMember, Line, Skill, Slack,
-		SlackWorkspace, Todo, TodoCandidate, TodoCandidateAssignee, TodoEvent,
-		TodoUpdateCandidate, TranslationLocale, User []ent.Hook
+		SlackWorkspace, Todo, TodoCandidate, TodoCandidateAssignee,
+		TodoCandidateEvidenceMessage, TodoEvent, TodoUpdateCandidate,
+		TranslationLocale, User []ent.Hook
 	}
 	inters struct {
 		Action, ActionResult, ActionRoute, Channel, ChannelMessage,
 		ChannelMessageMention, ChannelServiceMember, Line, Skill, Slack,
-		SlackWorkspace, Todo, TodoCandidate, TodoCandidateAssignee, TodoEvent,
-		TodoUpdateCandidate, TranslationLocale, User []ent.Interceptor
+		SlackWorkspace, Todo, TodoCandidate, TodoCandidateAssignee,
+		TodoCandidateEvidenceMessage, TodoEvent, TodoUpdateCandidate,
+		TranslationLocale, User []ent.Interceptor
 	}
 )

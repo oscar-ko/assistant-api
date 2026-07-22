@@ -17,6 +17,7 @@ import (
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
+	"assistant-api/internal/ent/todocandidateevidencemessage"
 	"assistant-api/internal/ent/todoevent"
 	"assistant-api/internal/ent/todoupdatecandidate"
 	"assistant-api/internal/ent/translationlocale"
@@ -3597,6 +3598,255 @@ func (_m *TodoCandidateAssignee) ToEdge(order *TodoCandidateAssigneeOrder) *Todo
 		order = DefaultTodoCandidateAssigneeOrder
 	}
 	return &TodoCandidateAssigneeEdge{
+		Node:   _m,
+		Cursor: order.Field.toCursor(_m),
+	}
+}
+
+// TodoCandidateEvidenceMessageEdge is the edge representation of TodoCandidateEvidenceMessage.
+type TodoCandidateEvidenceMessageEdge struct {
+	Node   *TodoCandidateEvidenceMessage `json:"node"`
+	Cursor Cursor                        `json:"cursor"`
+}
+
+// TodoCandidateEvidenceMessageConnection is the connection containing edges to TodoCandidateEvidenceMessage.
+type TodoCandidateEvidenceMessageConnection struct {
+	Edges      []*TodoCandidateEvidenceMessageEdge `json:"edges"`
+	PageInfo   PageInfo                            `json:"pageInfo"`
+	TotalCount int                                 `json:"totalCount"`
+}
+
+func (c *TodoCandidateEvidenceMessageConnection) build(nodes []*TodoCandidateEvidenceMessage, pager *todocandidateevidencemessagePager, after *Cursor, first *int, before *Cursor, last *int) {
+	c.PageInfo.HasNextPage = before != nil
+	c.PageInfo.HasPreviousPage = after != nil
+	if first != nil && *first+1 == len(nodes) {
+		c.PageInfo.HasNextPage = true
+		nodes = nodes[:len(nodes)-1]
+	} else if last != nil && *last+1 == len(nodes) {
+		c.PageInfo.HasPreviousPage = true
+		nodes = nodes[:len(nodes)-1]
+	}
+	var nodeAt func(int) *TodoCandidateEvidenceMessage
+	if last != nil {
+		n := len(nodes) - 1
+		nodeAt = func(i int) *TodoCandidateEvidenceMessage {
+			return nodes[n-i]
+		}
+	} else {
+		nodeAt = func(i int) *TodoCandidateEvidenceMessage {
+			return nodes[i]
+		}
+	}
+	c.Edges = make([]*TodoCandidateEvidenceMessageEdge, len(nodes))
+	for i := range nodes {
+		node := nodeAt(i)
+		c.Edges[i] = &TodoCandidateEvidenceMessageEdge{
+			Node:   node,
+			Cursor: pager.toCursor(node),
+		}
+	}
+	if l := len(c.Edges); l > 0 {
+		c.PageInfo.StartCursor = &c.Edges[0].Cursor
+		c.PageInfo.EndCursor = &c.Edges[l-1].Cursor
+	}
+	if c.TotalCount == 0 {
+		c.TotalCount = len(nodes)
+	}
+}
+
+// TodoCandidateEvidenceMessagePaginateOption enables pagination customization.
+type TodoCandidateEvidenceMessagePaginateOption func(*todocandidateevidencemessagePager) error
+
+// WithTodoCandidateEvidenceMessageOrder configures pagination ordering.
+func WithTodoCandidateEvidenceMessageOrder(order *TodoCandidateEvidenceMessageOrder) TodoCandidateEvidenceMessagePaginateOption {
+	if order == nil {
+		order = DefaultTodoCandidateEvidenceMessageOrder
+	}
+	o := *order
+	return func(pager *todocandidateevidencemessagePager) error {
+		if err := o.Direction.Validate(); err != nil {
+			return err
+		}
+		if o.Field == nil {
+			o.Field = DefaultTodoCandidateEvidenceMessageOrder.Field
+		}
+		pager.order = &o
+		return nil
+	}
+}
+
+// WithTodoCandidateEvidenceMessageFilter configures pagination filter.
+func WithTodoCandidateEvidenceMessageFilter(filter func(*TodoCandidateEvidenceMessageQuery) (*TodoCandidateEvidenceMessageQuery, error)) TodoCandidateEvidenceMessagePaginateOption {
+	return func(pager *todocandidateevidencemessagePager) error {
+		if filter == nil {
+			return errors.New("TodoCandidateEvidenceMessageQuery filter cannot be nil")
+		}
+		pager.filter = filter
+		return nil
+	}
+}
+
+type todocandidateevidencemessagePager struct {
+	reverse bool
+	order   *TodoCandidateEvidenceMessageOrder
+	filter  func(*TodoCandidateEvidenceMessageQuery) (*TodoCandidateEvidenceMessageQuery, error)
+}
+
+func newTodoCandidateEvidenceMessagePager(opts []TodoCandidateEvidenceMessagePaginateOption, reverse bool) (*todocandidateevidencemessagePager, error) {
+	pager := &todocandidateevidencemessagePager{reverse: reverse}
+	for _, opt := range opts {
+		if err := opt(pager); err != nil {
+			return nil, err
+		}
+	}
+	if pager.order == nil {
+		pager.order = DefaultTodoCandidateEvidenceMessageOrder
+	}
+	return pager, nil
+}
+
+func (p *todocandidateevidencemessagePager) applyFilter(query *TodoCandidateEvidenceMessageQuery) (*TodoCandidateEvidenceMessageQuery, error) {
+	if p.filter != nil {
+		return p.filter(query)
+	}
+	return query, nil
+}
+
+func (p *todocandidateevidencemessagePager) toCursor(_m *TodoCandidateEvidenceMessage) Cursor {
+	return p.order.Field.toCursor(_m)
+}
+
+func (p *todocandidateevidencemessagePager) applyCursors(query *TodoCandidateEvidenceMessageQuery, after, before *Cursor) (*TodoCandidateEvidenceMessageQuery, error) {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	for _, predicate := range entgql.CursorsPredicate(after, before, DefaultTodoCandidateEvidenceMessageOrder.Field.column, p.order.Field.column, direction) {
+		query = query.Where(predicate)
+	}
+	return query, nil
+}
+
+func (p *todocandidateevidencemessagePager) applyOrder(query *TodoCandidateEvidenceMessageQuery) *TodoCandidateEvidenceMessageQuery {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	query = query.Order(p.order.Field.toTerm(direction.OrderTermOption()))
+	if p.order.Field != DefaultTodoCandidateEvidenceMessageOrder.Field {
+		query = query.Order(DefaultTodoCandidateEvidenceMessageOrder.Field.toTerm(direction.OrderTermOption()))
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return query
+}
+
+func (p *todocandidateevidencemessagePager) orderExpr(query *TodoCandidateEvidenceMessageQuery) sql.Querier {
+	direction := p.order.Direction
+	if p.reverse {
+		direction = direction.Reverse()
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(p.order.Field.column)
+	}
+	return sql.ExprFunc(func(b *sql.Builder) {
+		b.Ident(p.order.Field.column).Pad().WriteString(string(direction))
+		if p.order.Field != DefaultTodoCandidateEvidenceMessageOrder.Field {
+			b.Comma().Ident(DefaultTodoCandidateEvidenceMessageOrder.Field.column).Pad().WriteString(string(direction))
+		}
+	})
+}
+
+// Paginate executes the query and returns a relay based cursor connection to TodoCandidateEvidenceMessage.
+func (_m *TodoCandidateEvidenceMessageQuery) Paginate(
+	ctx context.Context, after *Cursor, first *int,
+	before *Cursor, last *int, opts ...TodoCandidateEvidenceMessagePaginateOption,
+) (*TodoCandidateEvidenceMessageConnection, error) {
+	if err := validateFirstLast(first, last); err != nil {
+		return nil, err
+	}
+	pager, err := newTodoCandidateEvidenceMessagePager(opts, last != nil)
+	if err != nil {
+		return nil, err
+	}
+	if _m, err = pager.applyFilter(_m); err != nil {
+		return nil, err
+	}
+	conn := &TodoCandidateEvidenceMessageConnection{Edges: []*TodoCandidateEvidenceMessageEdge{}}
+	ignoredEdges := !hasCollectedField(ctx, edgesField)
+	if hasCollectedField(ctx, totalCountField) || hasCollectedField(ctx, pageInfoField) {
+		hasPagination := after != nil || first != nil || before != nil || last != nil
+		if hasPagination || ignoredEdges {
+			c := _m.Clone()
+			c.ctx.Fields = nil
+			if conn.TotalCount, err = c.Count(ctx); err != nil {
+				return nil, err
+			}
+			conn.PageInfo.HasNextPage = first != nil && conn.TotalCount > 0
+			conn.PageInfo.HasPreviousPage = last != nil && conn.TotalCount > 0
+		}
+	}
+	if ignoredEdges || (first != nil && *first == 0) || (last != nil && *last == 0) {
+		return conn, nil
+	}
+	if _m, err = pager.applyCursors(_m, after, before); err != nil {
+		return nil, err
+	}
+	limit := paginateLimit(first, last)
+	if limit != 0 {
+		_m.Limit(limit)
+	}
+	if field := collectedField(ctx, edgesField, nodeField); field != nil {
+		if err := _m.collectField(ctx, limit == 1, graphql.GetOperationContext(ctx), *field, []string{edgesField, nodeField}); err != nil {
+			return nil, err
+		}
+	}
+	_m = pager.applyOrder(_m)
+	nodes, err := _m.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	conn.build(nodes, pager, after, first, before, last)
+	return conn, nil
+}
+
+// TodoCandidateEvidenceMessageOrderField defines the ordering field of TodoCandidateEvidenceMessage.
+type TodoCandidateEvidenceMessageOrderField struct {
+	// Value extracts the ordering value from the given TodoCandidateEvidenceMessage.
+	Value    func(*TodoCandidateEvidenceMessage) (ent.Value, error)
+	column   string // field or computed.
+	toTerm   func(...sql.OrderTermOption) todocandidateevidencemessage.OrderOption
+	toCursor func(*TodoCandidateEvidenceMessage) Cursor
+}
+
+// TodoCandidateEvidenceMessageOrder defines the ordering of TodoCandidateEvidenceMessage.
+type TodoCandidateEvidenceMessageOrder struct {
+	Direction OrderDirection                          `json:"direction"`
+	Field     *TodoCandidateEvidenceMessageOrderField `json:"field"`
+}
+
+// DefaultTodoCandidateEvidenceMessageOrder is the default ordering of TodoCandidateEvidenceMessage.
+var DefaultTodoCandidateEvidenceMessageOrder = &TodoCandidateEvidenceMessageOrder{
+	Direction: entgql.OrderDirectionAsc,
+	Field: &TodoCandidateEvidenceMessageOrderField{
+		Value: func(_m *TodoCandidateEvidenceMessage) (ent.Value, error) {
+			return _m.ID, nil
+		},
+		column: todocandidateevidencemessage.FieldID,
+		toTerm: todocandidateevidencemessage.ByID,
+		toCursor: func(_m *TodoCandidateEvidenceMessage) Cursor {
+			return Cursor{ID: _m.ID}
+		},
+	},
+}
+
+// ToEdge converts TodoCandidateEvidenceMessage into TodoCandidateEvidenceMessageEdge.
+func (_m *TodoCandidateEvidenceMessage) ToEdge(order *TodoCandidateEvidenceMessageOrder) *TodoCandidateEvidenceMessageEdge {
+	if order == nil {
+		order = DefaultTodoCandidateEvidenceMessageOrder
+	}
+	return &TodoCandidateEvidenceMessageEdge{
 		Node:   _m,
 		Cursor: order.Field.toCursor(_m),
 	}

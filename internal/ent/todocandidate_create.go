@@ -7,6 +7,7 @@ import (
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
+	"assistant-api/internal/ent/todocandidateevidencemessage"
 	"context"
 	"errors"
 	"fmt"
@@ -67,20 +68,6 @@ func (_c *TodoCandidateCreate) SetSourceMessageID(v uuid.UUID) *TodoCandidateCre
 // SetLastMessageID sets the "last_message_id" field.
 func (_c *TodoCandidateCreate) SetLastMessageID(v uuid.UUID) *TodoCandidateCreate {
 	_c.mutation.SetLastMessageID(v)
-	return _c
-}
-
-// SetLinkedMessageID sets the "linked_message_id" field.
-func (_c *TodoCandidateCreate) SetLinkedMessageID(v uuid.UUID) *TodoCandidateCreate {
-	_c.mutation.SetLinkedMessageID(v)
-	return _c
-}
-
-// SetNillableLinkedMessageID sets the "linked_message_id" field if the given value is not nil.
-func (_c *TodoCandidateCreate) SetNillableLinkedMessageID(v *uuid.UUID) *TodoCandidateCreate {
-	if v != nil {
-		_c.SetLinkedMessageID(*v)
-	}
 	return _c
 }
 
@@ -285,11 +272,6 @@ func (_c *TodoCandidateCreate) SetLastMessage(v *ChannelMessage) *TodoCandidateC
 	return _c.SetLastMessageID(v.ID)
 }
 
-// SetLinkedMessage sets the "linked_message" edge to the ChannelMessage entity.
-func (_c *TodoCandidateCreate) SetLinkedMessage(v *ChannelMessage) *TodoCandidateCreate {
-	return _c.SetLinkedMessageID(v.ID)
-}
-
 // AddCandidateAssigneeIDs adds the "candidate_assignees" edge to the TodoCandidateAssignee entity by IDs.
 func (_c *TodoCandidateCreate) AddCandidateAssigneeIDs(ids ...uuid.UUID) *TodoCandidateCreate {
 	_c.mutation.AddCandidateAssigneeIDs(ids...)
@@ -303,6 +285,21 @@ func (_c *TodoCandidateCreate) AddCandidateAssignees(v ...*TodoCandidateAssignee
 		ids[i] = v[i].ID
 	}
 	return _c.AddCandidateAssigneeIDs(ids...)
+}
+
+// AddEvidenceMessageIDs adds the "evidence_messages" edge to the TodoCandidateEvidenceMessage entity by IDs.
+func (_c *TodoCandidateCreate) AddEvidenceMessageIDs(ids ...uuid.UUID) *TodoCandidateCreate {
+	_c.mutation.AddEvidenceMessageIDs(ids...)
+	return _c
+}
+
+// AddEvidenceMessages adds the "evidence_messages" edges to the TodoCandidateEvidenceMessage entity.
+func (_c *TodoCandidateCreate) AddEvidenceMessages(v ...*TodoCandidateEvidenceMessage) *TodoCandidateCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddEvidenceMessageIDs(ids...)
 }
 
 // Mutation returns the TodoCandidateMutation object of the builder.
@@ -581,23 +578,6 @@ func (_c *TodoCandidateCreate) createSpec() (*TodoCandidate, *sqlgraph.CreateSpe
 		_node.LastMessageID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.LinkedMessageIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   todocandidate.LinkedMessageTable,
-			Columns: []string{todocandidate.LinkedMessageColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_node.LinkedMessageID = &nodes[0]
-		_spec.Edges = append(_spec.Edges, edge)
-	}
 	if nodes := _c.mutation.CandidateAssigneesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -607,6 +587,22 @@ func (_c *TodoCandidateCreate) createSpec() (*TodoCandidate, *sqlgraph.CreateSpe
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(todocandidateassignee.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.EvidenceMessagesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todocandidate.EvidenceMessagesTable,
+			Columns: []string{todocandidate.EvidenceMessagesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateevidencemessage.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

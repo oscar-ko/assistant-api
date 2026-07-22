@@ -28,8 +28,6 @@ const (
 	FieldSourceMessageID = "source_message_id"
 	// FieldLastMessageID holds the string denoting the last_message_id field in the database.
 	FieldLastMessageID = "last_message_id"
-	// FieldLinkedMessageID holds the string denoting the linked_message_id field in the database.
-	FieldLinkedMessageID = "linked_message_id"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldLastDecision holds the string denoting the last_decision field in the database.
@@ -64,10 +62,10 @@ const (
 	EdgeSourceMessage = "source_message"
 	// EdgeLastMessage holds the string denoting the last_message edge name in mutations.
 	EdgeLastMessage = "last_message"
-	// EdgeLinkedMessage holds the string denoting the linked_message edge name in mutations.
-	EdgeLinkedMessage = "linked_message"
 	// EdgeCandidateAssignees holds the string denoting the candidate_assignees edge name in mutations.
 	EdgeCandidateAssignees = "candidate_assignees"
+	// EdgeEvidenceMessages holds the string denoting the evidence_messages edge name in mutations.
+	EdgeEvidenceMessages = "evidence_messages"
 	// Table holds the table name of the todocandidate in the database.
 	Table = "todo_candidates"
 	// ChannelTable is the table that holds the channel relation/edge.
@@ -91,13 +89,6 @@ const (
 	LastMessageInverseTable = "channel_messages"
 	// LastMessageColumn is the table column denoting the last_message relation/edge.
 	LastMessageColumn = "last_message_id"
-	// LinkedMessageTable is the table that holds the linked_message relation/edge.
-	LinkedMessageTable = "todo_candidates"
-	// LinkedMessageInverseTable is the table name for the ChannelMessage entity.
-	// It exists in this package in order to avoid circular dependency with the "channelmessage" package.
-	LinkedMessageInverseTable = "channel_messages"
-	// LinkedMessageColumn is the table column denoting the linked_message relation/edge.
-	LinkedMessageColumn = "linked_message_id"
 	// CandidateAssigneesTable is the table that holds the candidate_assignees relation/edge.
 	CandidateAssigneesTable = "todo_candidate_assignees"
 	// CandidateAssigneesInverseTable is the table name for the TodoCandidateAssignee entity.
@@ -105,6 +96,13 @@ const (
 	CandidateAssigneesInverseTable = "todo_candidate_assignees"
 	// CandidateAssigneesColumn is the table column denoting the candidate_assignees relation/edge.
 	CandidateAssigneesColumn = "candidate_id"
+	// EvidenceMessagesTable is the table that holds the evidence_messages relation/edge.
+	EvidenceMessagesTable = "todo_candidate_evidence_messages"
+	// EvidenceMessagesInverseTable is the table name for the TodoCandidateEvidenceMessage entity.
+	// It exists in this package in order to avoid circular dependency with the "todocandidateevidencemessage" package.
+	EvidenceMessagesInverseTable = "todo_candidate_evidence_messages"
+	// EvidenceMessagesColumn is the table column denoting the evidence_messages relation/edge.
+	EvidenceMessagesColumn = "candidate_id"
 )
 
 // Columns holds all SQL columns for todocandidate fields.
@@ -115,7 +113,6 @@ var Columns = []string{
 	FieldChannelID,
 	FieldSourceMessageID,
 	FieldLastMessageID,
-	FieldLinkedMessageID,
 	FieldStatus,
 	FieldLastDecision,
 	FieldSummary,
@@ -296,11 +293,6 @@ func ByLastMessageID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLastMessageID, opts...).ToFunc()
 }
 
-// ByLinkedMessageID orders the results by the linked_message_id field.
-func ByLinkedMessageID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldLinkedMessageID, opts...).ToFunc()
-}
-
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
@@ -382,13 +374,6 @@ func ByLastMessageField(field string, opts ...sql.OrderTermOption) OrderOption {
 	}
 }
 
-// ByLinkedMessageField orders the results by linked_message field.
-func ByLinkedMessageField(field string, opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newLinkedMessageStep(), sql.OrderByField(field, opts...))
-	}
-}
-
 // ByCandidateAssigneesCount orders the results by candidate_assignees count.
 func ByCandidateAssigneesCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -400,6 +385,20 @@ func ByCandidateAssigneesCount(opts ...sql.OrderTermOption) OrderOption {
 func ByCandidateAssignees(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newCandidateAssigneesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByEvidenceMessagesCount orders the results by evidence_messages count.
+func ByEvidenceMessagesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newEvidenceMessagesStep(), opts...)
+	}
+}
+
+// ByEvidenceMessages orders the results by evidence_messages terms.
+func ByEvidenceMessages(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newEvidenceMessagesStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
 func newChannelStep() *sqlgraph.Step {
@@ -423,18 +422,18 @@ func newLastMessageStep() *sqlgraph.Step {
 		sqlgraph.Edge(sqlgraph.M2O, false, LastMessageTable, LastMessageColumn),
 	)
 }
-func newLinkedMessageStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(LinkedMessageInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.M2O, false, LinkedMessageTable, LinkedMessageColumn),
-	)
-}
 func newCandidateAssigneesStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(CandidateAssigneesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, CandidateAssigneesTable, CandidateAssigneesColumn),
+	)
+}
+func newEvidenceMessagesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(EvidenceMessagesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, EvidenceMessagesTable, EvidenceMessagesColumn),
 	)
 }
 

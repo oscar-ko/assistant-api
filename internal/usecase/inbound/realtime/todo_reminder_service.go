@@ -23,6 +23,8 @@ type RecentMessageStore interface {
 	FindMessageWindowAround(ctx context.Context, message *ent.ChannelMessage, beforeLimit int, afterLimit int) ([]*ent.ChannelMessage, error)
 	FindRecentMessagesBefore(ctx context.Context, message *ent.ChannelMessage, limit int) ([]*ent.ChannelMessage, error)
 	FindTodoCandidatesByMessageIDs(ctx context.Context, channelID uuid.UUID, messageIDs []uuid.UUID) ([]*ent.TodoCandidate, error)
+	FindActiveTodoCandidatesWithEvidence(ctx context.Context, channelID uuid.UUID, limit int) ([]*ent.TodoCandidate, error)
+	FindRecentTodoCandidateEvidenceMessages(ctx context.Context, candidateID uuid.UUID, limit int) ([]*ent.TodoCandidateEvidenceMessage, error)
 }
 
 // TodoCandidateInput 是 Todo Reminder usecase 傳給 repository 的落庫資料。
@@ -57,28 +59,38 @@ type PersistTodoCandidateFunc func(ctx context.Context, input TodoCandidateInput
 // 後續真正建立提醒、解析時間、寫入資料庫時，應該從這個 handler 往下擴充，
 // 不要回到 provider webhook 裡做平台專屬邏輯。
 type TodoReminderService struct {
-	platformLabel        string
-	repo                 RecentMessageStore
-	persistTodoCandidate PersistTodoCandidateFunc
-	llm                  llminteraction.InteractionService
-	ranker               reranker.Service
-	recentLimit          int
-	replyChainMaxDepth   int
-	timezone             string
-	channelLocksMu       sync.Mutex
-	channelLocks         map[string]*sync.Mutex
+	platformLabel                   string
+	repo                            RecentMessageStore
+	persistTodoCandidate            PersistTodoCandidateFunc
+	llm                             llminteraction.InteractionService
+	ranker                          reranker.Service
+	recentLimit                     int
+	replyChainMaxDepth              int
+	evidenceAnchorLimitPerCandidate int
+	evidenceWindowBeforeLimit       int
+	evidenceWindowAfterLimit        int
+	maxCandidateContexts            int
+	maxContextMessages              int
+	timezone                        string
+	channelLocksMu                  sync.Mutex
+	channelLocks                    map[string]*sync.Mutex
 }
 
 // TodoReminderServiceOptions 提供待辦提醒服務的可觀測性設定。
 type TodoReminderServiceOptions struct {
-	PlatformLabel        string
-	Repo                 RecentMessageStore
-	PersistTodoCandidate PersistTodoCandidateFunc
-	LLM                  llminteraction.InteractionService
-	Ranker               reranker.Service
-	RecentLimit          int
-	ReplyChainMaxDepth   int
-	Timezone             string
+	PlatformLabel                   string
+	Repo                            RecentMessageStore
+	PersistTodoCandidate            PersistTodoCandidateFunc
+	LLM                             llminteraction.InteractionService
+	Ranker                          reranker.Service
+	RecentLimit                     int
+	ReplyChainMaxDepth              int
+	EvidenceAnchorLimitPerCandidate int
+	EvidenceWindowBeforeLimit       int
+	EvidenceWindowAfterLimit        int
+	MaxCandidateContexts            int
+	MaxContextMessages              int
+	Timezone                        string
 }
 
 // NewTodoReminderService 建立待辦提醒即時服務。
@@ -91,12 +103,17 @@ func NewTodoReminderService(options TodoReminderServiceOptions) *TodoReminderSer
 		ranker:               options.Ranker,
 		timezone:             strings.TrimSpace(options.Timezone),
 		channelLocks:         make(map[string]*sync.Mutex),
-		// RecentLimit 必須由 config 層解析後注入；預設值集中在 ai.history_context.recent_message_limit，
-		// usecase 不再內建 8，避免未來調整召回窗口時出現「設定檔一份、程式碼一份」的漂移。
+		// RecentLimit 必須由 config 層解析後注入；預設值集中在 ai.todo_reminder.recent_context_message_limit。
+		// usecase 不內建 8，避免 Todo Reminder 的 prompt 成本和召回半徑在設定檔外悄悄漂移。
 		recentLimit: options.RecentLimit,
 		// ReplyChainMaxDepth 同樣必須由 config 注入；usecase 不內建 4，
 		// 避免 prompt 成本與 reply chain 追溯深度在設定檔外悄悄漂移。
-		replyChainMaxDepth: options.ReplyChainMaxDepth,
+		replyChainMaxDepth:              options.ReplyChainMaxDepth,
+		evidenceAnchorLimitPerCandidate: options.EvidenceAnchorLimitPerCandidate,
+		evidenceWindowBeforeLimit:       options.EvidenceWindowBeforeLimit,
+		evidenceWindowAfterLimit:        options.EvidenceWindowAfterLimit,
+		maxCandidateContexts:            options.MaxCandidateContexts,
+		maxContextMessages:              options.MaxContextMessages,
 	}
 }
 
@@ -303,11 +320,16 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 	if len(recentMessages) == 0 {
 		return
 	}
-	conversationMessages := append([]*ent.ChannelMessage(nil), recentMessages...)
-	candidateContexts, err := s.findTodoCandidateContexts(ctx, messageCtx, conversationMessages)
+	recentCandidateContexts, err := s.findTodoCandidateContexts(ctx, messageCtx, recentMessages)
 	if err != nil {
 		return
 	}
+	evidenceMessages, evidenceCandidateContexts, err := s.buildTodoCandidateEvidenceContextMessages(ctx, messageCtx)
+	if err != nil {
+		return
+	}
+	conversationMessages := limitChannelMessages(mergeChannelMessageWindows(append(append([]*ent.ChannelMessage(nil), recentMessages...), evidenceMessages...)), s.maxContextMessages)
+	candidateContexts := limitTodoCandidates(mergeTodoCandidateContexts(recentCandidateContexts, evidenceCandidateContexts), s.maxCandidateContexts)
 	if !shouldAnalyzeImplicitTodoResult(result) && len(candidateContexts) == 0 {
 		zap.L().Info("todo reminder implicit reply context skipped: classifier did not identify todo and no candidate context exists",
 			zap.String("platform", s.platformLabel),
@@ -322,7 +344,7 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 	}
 	// 如果有注入 reranker，先把「目前短句」和「近端歷史訊息」做文字對精排。
 	// 這一步只調整候選順序，不直接宣告 linked/no_link，避免把模型分數當成最終語意結論。
-	recentMessages, err = s.rerankImplicitReplyCandidates(ctx, strings.TrimSpace(messageCtx.Message.Text), recentMessages)
+	contextMessages, err := s.rerankImplicitReplyCandidates(ctx, strings.TrimSpace(messageCtx.Message.Text), conversationMessages)
 	if err != nil {
 		zap.L().Warn("todo reminder implicit reply context skipped: rerank failed",
 			zap.String("platform", s.platformLabel),
@@ -336,13 +358,14 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 		zap.String("platform", s.platformLabel),
 		zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
 		zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
-		zap.Int("candidate_count", len(recentMessages)),
-		zap.Any("ordered_candidates", formatChannelMessageLogEntries(recentMessages)),
+		zap.Int("candidate_count", len(contextMessages)),
+		zap.Int("candidate_context_count", len(candidateContexts)),
+		zap.Any("ordered_candidates", formatChannelMessageLogEntries(contextMessages)),
 	)
 
 	// todo analyzer 是最後一道結構化判斷：它會在 bounded context 內輸出 todo 專用 decision，
 	// 下游只讀 schema，不需要靠自然語言或關鍵字猜測使用者是不是在接前文。
-	prompt := buildImplicitReplyTodoPrompt(nil, recentMessages, conversationMessages, candidateContexts, result)
+	prompt := buildImplicitReplyTodoPrompt(nil, contextMessages, conversationMessages, candidateContexts, result)
 	zap.L().Info("todo reminder todo analyzer request prepared",
 		zap.String("platform", s.platformLabel),
 		zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
@@ -551,6 +574,120 @@ func (s *TodoReminderService) findTodoCandidateContexts(ctx context.Context, mes
 		return nil, err
 	}
 	return candidates, nil
+}
+
+// buildTodoCandidateEvidenceContextMessages 以 active candidate 的 evidence anchors 重建長討論串上下文。
+//
+// recent window 只能看目前訊息附近的相鄰對話；當待辦跨很多則閒聊後才被更新時，相關訊息可能早就滑出 recent window。
+// 這個 helper 會先取仍活躍的 candidate，再用每個 candidate 最近的 evidence anchor 往前後展開小訊息窗，
+// 最後交給 merge/limit 流程和 recent window 合併。它只負責召回候選上下文，不在這裡判斷語意是否真的承接。
+func (s *TodoReminderService) buildTodoCandidateEvidenceContextMessages(ctx context.Context, messageCtx MessageContext) ([]*ent.ChannelMessage, []*ent.TodoCandidate, error) {
+	if s == nil || s.repo == nil || messageCtx.Message == nil || messageCtx.SavedMessage == nil || messageCtx.SavedMessage.ChannelID == uuid.Nil {
+		return nil, nil, nil
+	}
+	if s.maxCandidateContexts <= 0 || s.evidenceAnchorLimitPerCandidate <= 0 {
+		// evidence recall 是可調的長討論串記憶層；缺少候選數或 anchor 數設定時不啟用，
+		// 讓系統保留原本 recent window 行為，而不是在 usecase 補隱性預設值。
+		return nil, nil, nil
+	}
+	candidates, err := s.repo.FindActiveTodoCandidatesWithEvidence(ctx, messageCtx.SavedMessage.ChannelID, s.maxCandidateContexts)
+	if err != nil {
+		zap.L().Warn("todo reminder evidence context skipped: active candidate query failed",
+			zap.String("platform", s.platformLabel),
+			zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+			zap.Error(err),
+		)
+		return nil, nil, err
+	}
+	if len(candidates) == 0 {
+		return nil, nil, nil
+	}
+	contextMessages := make([]*ent.ChannelMessage, 0)
+	for _, candidate := range candidates {
+		if candidate == nil || candidate.ID == uuid.Nil {
+			continue
+		}
+		evidenceItems, err := s.repo.FindRecentTodoCandidateEvidenceMessages(ctx, candidate.ID, s.evidenceAnchorLimitPerCandidate)
+		if err != nil {
+			zap.L().Warn("todo reminder evidence context skipped: evidence anchor query failed",
+				zap.String("platform", s.platformLabel),
+				zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+				zap.String("candidate_id", candidate.ID.String()),
+				zap.Error(err),
+			)
+			return nil, nil, err
+		}
+		for _, evidence := range evidenceItems {
+			if evidence == nil || evidence.Edges.Message == nil {
+				continue
+			}
+			window, err := s.repo.FindMessageWindowAround(ctx, evidence.Edges.Message, s.evidenceWindowBeforeLimit, s.evidenceWindowAfterLimit)
+			if err != nil {
+				zap.L().Warn("todo reminder evidence context skipped: evidence window query failed",
+					zap.String("platform", s.platformLabel),
+					zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+					zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+					zap.String("candidate_id", candidate.ID.String()),
+					zap.String("evidence_message_id", evidence.MessageID.String()),
+					zap.Error(err),
+				)
+				return nil, nil, err
+			}
+			contextMessages = append(contextMessages, window...)
+		}
+	}
+	mergedMessages := limitChannelMessages(mergeChannelMessageWindows(contextMessages, messageCtx.SavedMessage.ID), s.maxContextMessages)
+	zap.L().Info("todo reminder evidence context recalled",
+		zap.String("platform", s.platformLabel),
+		zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+		zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+		zap.Int("candidate_count", len(candidates)),
+		zap.Int("context_message_count", len(mergedMessages)),
+		zap.Any("context_messages", formatChannelMessageLogEntries(mergedMessages)),
+	)
+	return mergedMessages, candidates, nil
+}
+
+// mergeTodoCandidateContexts 合併 recent window 與 evidence window 找到的 candidate contexts。
+//
+// 同一個 candidate 可能同時被近端訊息與 evidence anchor 命中；這裡只去重並保留先出現的順序，
+// 不做語意重排，避免資料組裝層偷偷取代 analyzer 的最終判斷。
+func mergeTodoCandidateContexts(groups ...[]*ent.TodoCandidate) []*ent.TodoCandidate {
+	seen := make(map[uuid.UUID]struct{})
+	merged := make([]*ent.TodoCandidate, 0)
+	for _, group := range groups {
+		for _, candidate := range group {
+			if candidate == nil || candidate.ID == uuid.Nil {
+				continue
+			}
+			if _, ok := seen[candidate.ID]; ok {
+				continue
+			}
+			seen[candidate.ID] = struct{}{}
+			merged = append(merged, candidate)
+		}
+	}
+	return merged
+}
+
+// limitTodoCandidates 是 prompt 成本的最後候選數保護欄。
+// limit <= 0 代表不在這層截斷，方便測試或明確關閉 candidate context 上限。
+func limitTodoCandidates(items []*ent.TodoCandidate, limit int) []*ent.TodoCandidate {
+	if limit <= 0 || len(items) <= limit {
+		return items
+	}
+	return append([]*ent.TodoCandidate(nil), items[:limit]...)
+}
+
+// limitChannelMessages 是送進 analyzer 前的總訊息數保護欄。
+// 合併後的訊息已按時間排序，因此超過上限時保留最新一段，讓 current message 附近與最近 evidence 更不容易被截掉。
+func limitChannelMessages(items []*ent.ChannelMessage, limit int) []*ent.ChannelMessage {
+	if limit <= 0 || len(items) <= limit {
+		return items
+	}
+	return append([]*ent.ChannelMessage(nil), items[len(items)-limit:]...)
 }
 
 func (s *TodoReminderService) persistTodoCandidateAnalysis(ctx context.Context, messageCtx MessageContext, analysis *llminteraction.TodoAnalysis) {
@@ -873,13 +1010,6 @@ func formatRankedDocumentLogEntries(documents []reranker.RankedDocument) []map[s
 	return entries
 }
 
-func formatOptionalUUID(value *uuid.UUID) string {
-	if value == nil || *value == uuid.Nil {
-		return ""
-	}
-	return value.String()
-}
-
 func latestNonNilMessage(messages []*ent.ChannelMessage) *ent.ChannelMessage {
 	for index := len(messages) - 1; index >= 0; index-- {
 		if messages[index] != nil {
@@ -905,7 +1035,7 @@ func buildImplicitReplyTodoPrompt(explicitReplyTarget *ent.ChannelMessage, recen
 	builder.WriteString("你是 Todo Reminder 的內部 structured analyzer。請判斷 Current message 是否應形成、更新、承接或取消待辦候選，即使使用者沒有按平台 reply。\n")
 	builder.WriteString("只能輸出 todo_analysis JSON contract：schema_version, decision, linked_message_id, summary, assignees, due_text, confidence, missing_fields, reason。\n")
 	builder.WriteString("decision 只能是 create_candidate、update_candidate、acknowledge、cancel_candidate、needs_more_info、no_action。\n")
-	builder.WriteString("linked_message_id 必須只來自 Explicit reply/quote target 或 Context messages 的訊息 id；不可輸出 Todo candidate row id。Todo candidate contexts 的 source_message_id、last_message_id、previous_linked_message_id 是 linkage hint：若其中某個 message id 也出現在 Explicit reply/quote target 或 Context messages，就可以輸出該 message id；全新待辦或 no_action 時使用空字串。\n")
+	builder.WriteString("linked_message_id 必須只來自 Explicit reply/quote target 或 Context messages 的訊息 id；不可輸出 Todo candidate row id。Todo candidate contexts 的 source_message_id、last_message_id 是 linkage hint：若其中某個 message id 也出現在 Explicit reply/quote target 或 Context messages，就可以輸出該 message id；全新待辦或 no_action 時使用空字串。\n")
 	builder.WriteString("若存在 Explicit reply/quote target，這是使用者明確引用的訊息，即使很久以前也優先作為接續上下文。\n")
 	builder.WriteString("Context messages 可能由多個 message window 組合而成，已去重並依時間排序；請把它當成補充脈絡，不要忽略較舊的 explicit target。\n")
 	builder.WriteString("Context messages 是語意精排後的候選；Conversation messages in chronological order 是實際對話輪次。判斷短確認、否定、可行性回覆或改期時，請用 chronological order 決定最近被回覆的提案/詢問，再用 Context messages 與 Todo candidate contexts 補充狀態，不可只看 rerank 排名。\n")
@@ -977,11 +1107,10 @@ func buildImplicitReplyTodoPrompt(explicitReplyTarget *ent.ChannelMessage, recen
 			if candidate == nil {
 				continue
 			}
-			builder.WriteString(fmt.Sprintf("%d. source_message_id=%s last_message_id=%s previous_linked_message_id=%s status=%s last_decision=%s missing_fields=%v\n",
+			builder.WriteString(fmt.Sprintf("%d. source_message_id=%s last_message_id=%s status=%s last_decision=%s missing_fields=%v\n",
 				index+1,
 				candidate.SourceMessageID.String(),
 				candidate.LastMessageID.String(),
-				formatOptionalUUID(candidate.LinkedMessageID),
 				candidate.Status,
 				candidate.LastDecision,
 				candidate.MissingFields,

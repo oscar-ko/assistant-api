@@ -304,14 +304,6 @@ func (_m *TodoCandidate) LastMessage(ctx context.Context) (*ChannelMessage, erro
 	return result, err
 }
 
-func (_m *TodoCandidate) LinkedMessage(ctx context.Context) (*ChannelMessage, error) {
-	result, err := _m.Edges.LinkedMessageOrErr()
-	if IsNotLoaded(err) {
-		result, err = _m.QueryLinkedMessage().Only(ctx)
-	}
-	return result, MaskNotFound(err)
-}
-
 func (_m *TodoCandidate) CandidateAssignees(ctx context.Context) (result []*TodoCandidateAssignee, err error) {
 	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
 		result, err = _m.NamedCandidateAssignees(graphql.GetFieldContext(ctx).Field.Alias)
@@ -320,6 +312,18 @@ func (_m *TodoCandidate) CandidateAssignees(ctx context.Context) (result []*Todo
 	}
 	if IsNotLoaded(err) {
 		result, err = _m.QueryCandidateAssignees().All(ctx)
+	}
+	return result, err
+}
+
+func (_m *TodoCandidate) EvidenceMessages(ctx context.Context) (result []*TodoCandidateEvidenceMessage, err error) {
+	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
+		result, err = _m.NamedEvidenceMessages(graphql.GetFieldContext(ctx).Field.Alias)
+	} else {
+		result, err = _m.Edges.EvidenceMessagesOrErr()
+	}
+	if IsNotLoaded(err) {
+		result, err = _m.QueryEvidenceMessages().All(ctx)
 	}
 	return result, err
 }
@@ -346,6 +350,30 @@ func (_m *TodoCandidateAssignee) ResolvedUser(ctx context.Context) (*User, error
 		result, err = _m.QueryResolvedUser().Only(ctx)
 	}
 	return result, MaskNotFound(err)
+}
+
+func (_m *TodoCandidateEvidenceMessage) Candidate(ctx context.Context) (*TodoCandidate, error) {
+	result, err := _m.Edges.CandidateOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryCandidate().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *TodoCandidateEvidenceMessage) Channel(ctx context.Context) (*Channel, error) {
+	result, err := _m.Edges.ChannelOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryChannel().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *TodoCandidateEvidenceMessage) Message(ctx context.Context) (*ChannelMessage, error) {
+	result, err := _m.Edges.MessageOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryMessage().Only(ctx)
+	}
+	return result, err
 }
 
 func (_m *TodoEvent) Todo(ctx context.Context) (*Todo, error) {

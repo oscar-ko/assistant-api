@@ -47,24 +47,36 @@ type DatabaseConfig struct {
 // - LLMInteraction：依角色路由到指定 provider/model（問答、追問、決策）
 // - Embedding：第一階段候選召回（recall）
 // - Reranker：第二階段候選精排（precision）
-// - HistoryContext：跨服務共用的近端歷史訊息召回窗口
+// - TodoReminder：待辦提醒專用的時間解析、近端上下文與 evidence 視窗控制
 type AIConfig struct {
 	LLMInteraction LLMInteractionConfig `mapstructure:"llm_interaction" yaml:"llm_interaction"`
 	Embedding      EmbeddingConfig      `mapstructure:"embedding" yaml:"embedding"`
 	Reranker       RerankerConfig       `mapstructure:"reranker" yaml:"reranker"`
 	Classifier     ClassifierConfig     `mapstructure:"classifier" yaml:"classifier"`
-	HistoryContext HistoryContextConfig `mapstructure:"history_context" yaml:"history_context"`
 	TodoReminder   TodoReminderConfig   `mapstructure:"todo_reminder" yaml:"todo_reminder"`
 }
 
 // TodoReminderConfig controls Todo Reminder-specific runtime behavior.
 type TodoReminderConfig struct {
 	// Timezone 是 due_text 正規化時使用的 IANA timezone，例如 Asia/Taipei。
-	// 它屬於 todo reminder 行為設定，不放在 history_context，避免把歷史召回窗口和時間解析混在一起。
+	// 它屬於 Todo Reminder 行為設定，和訊息召回窗口同放在 todo_reminder 區塊，讓待辦相關調參集中管理。
 	Timezone string `mapstructure:"timezone" yaml:"timezone"`
 	// ReplyChainMaxDepth 控制顯式 reply/quote 往上追溯幾層 parent message。
 	// 每一層 parent 都會形成自己的 message window；設太大會讓 prompt 快速膨脹，因此必須由設定檔明確指定。
 	ReplyChainMaxDepth int `mapstructure:"reply_chain_max_depth" yaml:"reply_chain_max_depth"`
+	// RecentContextMessageLimit 控制 Todo Reminder 在 implicit analysis 前，最多往前抓幾則同 channel 的最近訊息。
+	// 這是「原始近端召回窗口」：它只決定 recent window 的候選大小，最後送進 analyzer 的總量仍由 MaxContextMessages 截斷。
+	RecentContextMessageLimit int `mapstructure:"recent_context_message_limit" yaml:"recent_context_message_limit"`
+	// EvidenceAnchorLimitPerCandidate 控制每個 candidate 最多取幾則活躍 evidence anchor 來重建上下文。
+	EvidenceAnchorLimitPerCandidate int `mapstructure:"evidence_anchor_limit_per_candidate" yaml:"evidence_anchor_limit_per_candidate"`
+	// EvidenceWindowBeforeLimit 控制每個 evidence anchor 往前取幾則同 channel 訊息。
+	EvidenceWindowBeforeLimit int `mapstructure:"evidence_window_before_limit" yaml:"evidence_window_before_limit"`
+	// EvidenceWindowAfterLimit 控制每個 evidence anchor 往後取幾則同 channel 訊息。
+	EvidenceWindowAfterLimit int `mapstructure:"evidence_window_after_limit" yaml:"evidence_window_after_limit"`
+	// MaxCandidateContexts 控制每次 implicit analysis 最多提供幾個 active candidate context 給 analyzer。
+	MaxCandidateContexts int `mapstructure:"max_candidate_contexts" yaml:"max_candidate_contexts"`
+	// MaxContextMessages 控制 evidence 小窗和 recent window 合併後，最多提供幾則 context messages 給 analyzer。
+	MaxContextMessages int `mapstructure:"max_context_messages" yaml:"max_context_messages"`
 }
 
 // ClassifierConfig controls the local message classifier used by realtime handlers.
@@ -72,12 +84,6 @@ type ClassifierConfig struct {
 	Enabled bool     `mapstructure:"enabled" yaml:"enabled"`
 	Target  string   `mapstructure:"target" yaml:"target"`
 	Labels  []string `mapstructure:"labels" yaml:"labels"`
-}
-
-// HistoryContextConfig controls shared historical message recall windows used by realtime services.
-type HistoryContextConfig struct {
-	// RecentMessageLimit 控制需要近端對話上下文時，最多往前抓幾則同 channel 訊息當作候選。
-	RecentMessageLimit int `mapstructure:"recent_message_limit" yaml:"recent_message_limit"`
 }
 
 // LLMInteractionConfig 為角色導向的 LLM 互動設定。
@@ -420,10 +426,11 @@ func MustLoad() {
 		viper.SetDefault("ai.llm_interaction.question_confidence_threshold", 0.6)
 		// action decision JSON 格式錯誤重送次數。預設為 0，避免同一訊息被重送到 AI。
 		viper.SetDefault("ai.llm_interaction.decision_json_retry_count", 0)
-		// 歷史訊息召回窗口：單位是往前幾則同 channel 訊息，不是時間長度。
-		viper.SetDefault("ai.history_context.recent_message_limit", 8)
 		// Todo Reminder 時間正規化預設使用台灣時區；部署到其他地區時應由 app.yml 明確覆寫。
 		viper.SetDefault("ai.todo_reminder.timezone", "Asia/Taipei")
+		// Todo Reminder 的近端 recent window：單位是往前幾則同 channel 訊息，不是時間長度。
+		// 這個值只控制第一段相鄰對話召回；和 evidence 視窗合併後的 prompt 總量由 max_context_messages 控制。
+		viper.SetDefault("ai.todo_reminder.recent_context_message_limit", 8)
 		viper.SetDefault("ai.embedding.url", "http://127.0.0.1:9000")
 		viper.SetDefault("ai.embedding.target", "aistant.embedding")
 		viper.SetDefault("ai.embedding.timeout_seconds", 60)

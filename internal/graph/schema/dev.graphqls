@@ -120,10 +120,6 @@ type SimulatedLineTodoMessage {
     candidate 最新 decision/reason，供開發時判斷模型為何建立、更新或取消。
     """
     todoCandidateReason: String
-    """
-    若此訊息被判定接續既有待辦，這裡保存 analyzer 連結到的歷史訊息 ID。
-    """
-    todoCandidateLinkedMessageID: ID
 }
 
 """

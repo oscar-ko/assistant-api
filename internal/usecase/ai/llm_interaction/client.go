@@ -592,7 +592,7 @@ Todo-specific validation rules:
 - linked_message_id, summary, and due_text are always JSON strings; use "" when empty.
 - reason is required for every decision and must be a non-empty JSON string.
 - linked_message_id must only be one of the provided Explicit reply or Context messages IDs; never use Todo candidate row IDs.
-- Todo candidate context message IDs are linkage hints, not row IDs: if a source_message_id, last_message_id, or previous_linked_message_id also appears in the provided Explicit reply or Context messages, it may be used as linked_message_id.
+- Todo candidate context message IDs are linkage hints, not row IDs: if a source_message_id or last_message_id also appears in the provided Explicit reply or Context messages, it may be used as linked_message_id.
 - create_candidate requires linked_message_id="", non-empty summary, missing_fields=[], and non-empty reason.
 - update_candidate, acknowledge, and cancel_candidate require linked_message_id from the provided message ID list, non-empty summary, missing_fields=[], and non-empty reason.
 - if the current message says the original time, availability, or condition no longer works and proposes an alternative time, condition, or execution arrangement for the same trackable todo, use update_candidate with linked_message_id pointing to the original task or previous update proposal; do not change it to no_action merely because the text looks like personal status or a question.

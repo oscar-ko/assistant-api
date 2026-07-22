@@ -17,6 +17,7 @@ import (
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
+	"assistant-api/internal/ent/todocandidateevidencemessage"
 	"assistant-api/internal/ent/todoevent"
 	"assistant-api/internal/ent/todoupdatecandidate"
 	"assistant-api/internal/ent/translationlocale"
@@ -90,24 +91,25 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			action.Table:                action.ValidColumn,
-			actionresult.Table:          actionresult.ValidColumn,
-			actionroute.Table:           actionroute.ValidColumn,
-			channel.Table:               channel.ValidColumn,
-			channelmessage.Table:        channelmessage.ValidColumn,
-			channelmessagemention.Table: channelmessagemention.ValidColumn,
-			channelservicemember.Table:  channelservicemember.ValidColumn,
-			line.Table:                  line.ValidColumn,
-			skill.Table:                 skill.ValidColumn,
-			slack.Table:                 slack.ValidColumn,
-			slackworkspace.Table:        slackworkspace.ValidColumn,
-			todo.Table:                  todo.ValidColumn,
-			todocandidate.Table:         todocandidate.ValidColumn,
-			todocandidateassignee.Table: todocandidateassignee.ValidColumn,
-			todoevent.Table:             todoevent.ValidColumn,
-			todoupdatecandidate.Table:   todoupdatecandidate.ValidColumn,
-			translationlocale.Table:     translationlocale.ValidColumn,
-			user.Table:                  user.ValidColumn,
+			action.Table:                       action.ValidColumn,
+			actionresult.Table:                 actionresult.ValidColumn,
+			actionroute.Table:                  actionroute.ValidColumn,
+			channel.Table:                      channel.ValidColumn,
+			channelmessage.Table:               channelmessage.ValidColumn,
+			channelmessagemention.Table:        channelmessagemention.ValidColumn,
+			channelservicemember.Table:         channelservicemember.ValidColumn,
+			line.Table:                         line.ValidColumn,
+			skill.Table:                        skill.ValidColumn,
+			slack.Table:                        slack.ValidColumn,
+			slackworkspace.Table:               slackworkspace.ValidColumn,
+			todo.Table:                         todo.ValidColumn,
+			todocandidate.Table:                todocandidate.ValidColumn,
+			todocandidateassignee.Table:        todocandidateassignee.ValidColumn,
+			todocandidateevidencemessage.Table: todocandidateevidencemessage.ValidColumn,
+			todoevent.Table:                    todoevent.ValidColumn,
+			todoupdatecandidate.Table:          todoupdatecandidate.ValidColumn,
+			translationlocale.Table:            translationlocale.ValidColumn,
+			user.Table:                         user.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

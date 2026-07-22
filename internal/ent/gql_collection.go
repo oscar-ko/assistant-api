@@ -17,6 +17,7 @@ import (
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
+	"assistant-api/internal/ent/todocandidateevidencemessage"
 	"assistant-api/internal/ent/todoevent"
 	"assistant-api/internal/ent/todoupdatecandidate"
 	"assistant-api/internal/ent/translationlocale"
@@ -1674,21 +1675,6 @@ func (_q *TodoCandidateQuery) collectField(ctx context.Context, oneNode bool, op
 				fieldSeen[todocandidate.FieldLastMessageID] = struct{}{}
 			}
 
-		case "linkedMessage":
-			var (
-				alias = field.Alias
-				path  = append(path, alias)
-				query = (&ChannelMessageClient{config: _q.config}).Query()
-			)
-			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, channelmessageImplementors)...); err != nil {
-				return err
-			}
-			_q.withLinkedMessage = query
-			if _, ok := fieldSeen[todocandidate.FieldLinkedMessageID]; !ok {
-				selectedFields = append(selectedFields, todocandidate.FieldLinkedMessageID)
-				fieldSeen[todocandidate.FieldLinkedMessageID] = struct{}{}
-			}
-
 		case "candidateAssignees":
 			var (
 				alias = field.Alias
@@ -1699,6 +1685,19 @@ func (_q *TodoCandidateQuery) collectField(ctx context.Context, oneNode bool, op
 				return err
 			}
 			_q.WithNamedCandidateAssignees(alias, func(wq *TodoCandidateAssigneeQuery) {
+				*wq = *query
+			})
+
+		case "evidenceMessages":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&TodoCandidateEvidenceMessageClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, todocandidateevidencemessageImplementors)...); err != nil {
+				return err
+			}
+			_q.WithNamedEvidenceMessages(alias, func(wq *TodoCandidateEvidenceMessageQuery) {
 				*wq = *query
 			})
 		case "createdAt":
@@ -1725,11 +1724,6 @@ func (_q *TodoCandidateQuery) collectField(ctx context.Context, oneNode bool, op
 			if _, ok := fieldSeen[todocandidate.FieldLastMessageID]; !ok {
 				selectedFields = append(selectedFields, todocandidate.FieldLastMessageID)
 				fieldSeen[todocandidate.FieldLastMessageID] = struct{}{}
-			}
-		case "linkedMessageID":
-			if _, ok := fieldSeen[todocandidate.FieldLinkedMessageID]; !ok {
-				selectedFields = append(selectedFields, todocandidate.FieldLinkedMessageID)
-				fieldSeen[todocandidate.FieldLinkedMessageID] = struct{}{}
 			}
 		case "status":
 			if _, ok := fieldSeen[todocandidate.FieldStatus]; !ok {
@@ -1990,6 +1984,163 @@ func newTodoCandidateAssigneePaginateArgs(rv map[string]any) *todocandidateassig
 	}
 	if v, ok := rv[whereField].(*TodoCandidateAssigneeWhereInput); ok {
 		args.opts = append(args.opts, WithTodoCandidateAssigneeFilter(v.Filter))
+	}
+	return args
+}
+
+// CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
+func (_q *TodoCandidateEvidenceMessageQuery) CollectFields(ctx context.Context, satisfies ...string) (*TodoCandidateEvidenceMessageQuery, error) {
+	fc := graphql.GetFieldContext(ctx)
+	if fc == nil {
+		return _q, nil
+	}
+	if err := _q.collectField(ctx, false, graphql.GetOperationContext(ctx), fc.Field, nil, satisfies...); err != nil {
+		return nil, err
+	}
+	return _q, nil
+}
+
+func (_q *TodoCandidateEvidenceMessageQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
+	path = append([]string(nil), path...)
+	var (
+		unknownSeen    bool
+		fieldSeen      = make(map[string]struct{}, len(todocandidateevidencemessage.Columns))
+		selectedFields = []string{todocandidateevidencemessage.FieldID}
+	)
+	for _, field := range graphql.CollectFields(opCtx, collected.Selections, satisfies) {
+		switch field.Name {
+
+		case "candidate":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&TodoCandidateClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, todocandidateImplementors)...); err != nil {
+				return err
+			}
+			_q.withCandidate = query
+			if _, ok := fieldSeen[todocandidateevidencemessage.FieldCandidateID]; !ok {
+				selectedFields = append(selectedFields, todocandidateevidencemessage.FieldCandidateID)
+				fieldSeen[todocandidateevidencemessage.FieldCandidateID] = struct{}{}
+			}
+
+		case "channel":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&ChannelClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, channelImplementors)...); err != nil {
+				return err
+			}
+			_q.withChannel = query
+			if _, ok := fieldSeen[todocandidateevidencemessage.FieldChannelID]; !ok {
+				selectedFields = append(selectedFields, todocandidateevidencemessage.FieldChannelID)
+				fieldSeen[todocandidateevidencemessage.FieldChannelID] = struct{}{}
+			}
+
+		case "message":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&ChannelMessageClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, channelmessageImplementors)...); err != nil {
+				return err
+			}
+			_q.withMessage = query
+			if _, ok := fieldSeen[todocandidateevidencemessage.FieldMessageID]; !ok {
+				selectedFields = append(selectedFields, todocandidateevidencemessage.FieldMessageID)
+				fieldSeen[todocandidateevidencemessage.FieldMessageID] = struct{}{}
+			}
+		case "createdAt":
+			if _, ok := fieldSeen[todocandidateevidencemessage.FieldCreatedAt]; !ok {
+				selectedFields = append(selectedFields, todocandidateevidencemessage.FieldCreatedAt)
+				fieldSeen[todocandidateevidencemessage.FieldCreatedAt] = struct{}{}
+			}
+		case "updatedAt":
+			if _, ok := fieldSeen[todocandidateevidencemessage.FieldUpdatedAt]; !ok {
+				selectedFields = append(selectedFields, todocandidateevidencemessage.FieldUpdatedAt)
+				fieldSeen[todocandidateevidencemessage.FieldUpdatedAt] = struct{}{}
+			}
+		case "channelID":
+			if _, ok := fieldSeen[todocandidateevidencemessage.FieldChannelID]; !ok {
+				selectedFields = append(selectedFields, todocandidateevidencemessage.FieldChannelID)
+				fieldSeen[todocandidateevidencemessage.FieldChannelID] = struct{}{}
+			}
+		case "candidateID":
+			if _, ok := fieldSeen[todocandidateevidencemessage.FieldCandidateID]; !ok {
+				selectedFields = append(selectedFields, todocandidateevidencemessage.FieldCandidateID)
+				fieldSeen[todocandidateevidencemessage.FieldCandidateID] = struct{}{}
+			}
+		case "messageID":
+			if _, ok := fieldSeen[todocandidateevidencemessage.FieldMessageID]; !ok {
+				selectedFields = append(selectedFields, todocandidateevidencemessage.FieldMessageID)
+				fieldSeen[todocandidateevidencemessage.FieldMessageID] = struct{}{}
+			}
+		case "relationType":
+			if _, ok := fieldSeen[todocandidateevidencemessage.FieldRelationType]; !ok {
+				selectedFields = append(selectedFields, todocandidateevidencemessage.FieldRelationType)
+				fieldSeen[todocandidateevidencemessage.FieldRelationType] = struct{}{}
+			}
+		case "source":
+			if _, ok := fieldSeen[todocandidateevidencemessage.FieldSource]; !ok {
+				selectedFields = append(selectedFields, todocandidateevidencemessage.FieldSource)
+				fieldSeen[todocandidateevidencemessage.FieldSource] = struct{}{}
+			}
+		case "confidence":
+			if _, ok := fieldSeen[todocandidateevidencemessage.FieldConfidence]; !ok {
+				selectedFields = append(selectedFields, todocandidateevidencemessage.FieldConfidence)
+				fieldSeen[todocandidateevidencemessage.FieldConfidence] = struct{}{}
+			}
+		case "reason":
+			if _, ok := fieldSeen[todocandidateevidencemessage.FieldReason]; !ok {
+				selectedFields = append(selectedFields, todocandidateevidencemessage.FieldReason)
+				fieldSeen[todocandidateevidencemessage.FieldReason] = struct{}{}
+			}
+		case "isActive":
+			if _, ok := fieldSeen[todocandidateevidencemessage.FieldIsActive]; !ok {
+				selectedFields = append(selectedFields, todocandidateevidencemessage.FieldIsActive)
+				fieldSeen[todocandidateevidencemessage.FieldIsActive] = struct{}{}
+			}
+		case "id":
+		case "__typename":
+		default:
+			unknownSeen = true
+		}
+	}
+	if !unknownSeen {
+		_q.Select(selectedFields...)
+	}
+	return nil
+}
+
+type todocandidateevidencemessagePaginateArgs struct {
+	first, last   *int
+	after, before *Cursor
+	opts          []TodoCandidateEvidenceMessagePaginateOption
+}
+
+func newTodoCandidateEvidenceMessagePaginateArgs(rv map[string]any) *todocandidateevidencemessagePaginateArgs {
+	args := &todocandidateevidencemessagePaginateArgs{}
+	if rv == nil {
+		return args
+	}
+	if v := rv[firstField]; v != nil {
+		args.first = v.(*int)
+	}
+	if v := rv[lastField]; v != nil {
+		args.last = v.(*int)
+	}
+	if v := rv[afterField]; v != nil {
+		args.after = v.(*Cursor)
+	}
+	if v := rv[beforeField]; v != nil {
+		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[whereField].(*TodoCandidateEvidenceMessageWhereInput); ok {
+		args.opts = append(args.opts, WithTodoCandidateEvidenceMessageFilter(v.Filter))
 	}
 	return args
 }

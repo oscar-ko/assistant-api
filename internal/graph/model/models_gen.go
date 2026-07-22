@@ -108,8 +108,6 @@ type SimulatedLineTodoMessage struct {
 	TodoCandidateSummary *string `json:"todoCandidateSummary,omitempty"`
 	// candidate 最新 decision/reason，供開發時判斷模型為何建立、更新或取消。
 	TodoCandidateReason *string `json:"todoCandidateReason,omitempty"`
-	// 若此訊息被判定接續既有待辦，這裡保存 analyzer 連結到的歷史訊息 ID。
-	TodoCandidateLinkedMessageID *uuid.UUID `json:"todoCandidateLinkedMessageID,omitempty"`
 }
 
 // 模擬對話中的參與者。
@@ -606,6 +604,108 @@ func (e TodoCandidateDuePrecision) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
+type TodoCandidateEvidenceMessageRelationType string
+
+const (
+	TodoCandidateEvidenceMessageRelationTypeSource          TodoCandidateEvidenceMessageRelationType = "source"
+	TodoCandidateEvidenceMessageRelationTypeLinked          TodoCandidateEvidenceMessageRelationType = "linked"
+	TodoCandidateEvidenceMessageRelationTypeUpdate          TodoCandidateEvidenceMessageRelationType = "update"
+	TodoCandidateEvidenceMessageRelationTypeClarification   TodoCandidateEvidenceMessageRelationType = "clarification"
+	TodoCandidateEvidenceMessageRelationTypeAcknowledgement TodoCandidateEvidenceMessageRelationType = "acknowledgement"
+	TodoCandidateEvidenceMessageRelationTypeCancellation    TodoCandidateEvidenceMessageRelationType = "cancellation"
+	TodoCandidateEvidenceMessageRelationTypeRelatedContext  TodoCandidateEvidenceMessageRelationType = "related_context"
+	TodoCandidateEvidenceMessageRelationTypeExplicitReply   TodoCandidateEvidenceMessageRelationType = "explicit_reply"
+	TodoCandidateEvidenceMessageRelationTypeAmbiguous       TodoCandidateEvidenceMessageRelationType = "ambiguous"
+)
+
+var AllTodoCandidateEvidenceMessageRelationType = []TodoCandidateEvidenceMessageRelationType{
+	TodoCandidateEvidenceMessageRelationTypeSource,
+	TodoCandidateEvidenceMessageRelationTypeLinked,
+	TodoCandidateEvidenceMessageRelationTypeUpdate,
+	TodoCandidateEvidenceMessageRelationTypeClarification,
+	TodoCandidateEvidenceMessageRelationTypeAcknowledgement,
+	TodoCandidateEvidenceMessageRelationTypeCancellation,
+	TodoCandidateEvidenceMessageRelationTypeRelatedContext,
+	TodoCandidateEvidenceMessageRelationTypeExplicitReply,
+	TodoCandidateEvidenceMessageRelationTypeAmbiguous,
+}
+
+func (e TodoCandidateEvidenceMessageRelationType) IsValid() bool {
+	switch e {
+	case TodoCandidateEvidenceMessageRelationTypeSource, TodoCandidateEvidenceMessageRelationTypeLinked, TodoCandidateEvidenceMessageRelationTypeUpdate, TodoCandidateEvidenceMessageRelationTypeClarification, TodoCandidateEvidenceMessageRelationTypeAcknowledgement, TodoCandidateEvidenceMessageRelationTypeCancellation, TodoCandidateEvidenceMessageRelationTypeRelatedContext, TodoCandidateEvidenceMessageRelationTypeExplicitReply, TodoCandidateEvidenceMessageRelationTypeAmbiguous:
+		return true
+	}
+	return false
+}
+
+func (e TodoCandidateEvidenceMessageRelationType) String() string {
+	return string(e)
+}
+
+func (e *TodoCandidateEvidenceMessageRelationType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TodoCandidateEvidenceMessageRelationType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TodoCandidateEvidenceMessageRelationType", str)
+	}
+	return nil
+}
+
+func (e TodoCandidateEvidenceMessageRelationType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type TodoCandidateEvidenceMessageSource string
+
+const (
+	TodoCandidateEvidenceMessageSourceAnalyzer         TodoCandidateEvidenceMessageSource = "analyzer"
+	TodoCandidateEvidenceMessageSourceExplicitReply    TodoCandidateEvidenceMessageSource = "explicit_reply"
+	TodoCandidateEvidenceMessageSourceThread           TodoCandidateEvidenceMessageSource = "thread"
+	TodoCandidateEvidenceMessageSourceSystem           TodoCandidateEvidenceMessageSource = "system"
+	TodoCandidateEvidenceMessageSourceUserConfirmation TodoCandidateEvidenceMessageSource = "user_confirmation"
+)
+
+var AllTodoCandidateEvidenceMessageSource = []TodoCandidateEvidenceMessageSource{
+	TodoCandidateEvidenceMessageSourceAnalyzer,
+	TodoCandidateEvidenceMessageSourceExplicitReply,
+	TodoCandidateEvidenceMessageSourceThread,
+	TodoCandidateEvidenceMessageSourceSystem,
+	TodoCandidateEvidenceMessageSourceUserConfirmation,
+}
+
+func (e TodoCandidateEvidenceMessageSource) IsValid() bool {
+	switch e {
+	case TodoCandidateEvidenceMessageSourceAnalyzer, TodoCandidateEvidenceMessageSourceExplicitReply, TodoCandidateEvidenceMessageSourceThread, TodoCandidateEvidenceMessageSourceSystem, TodoCandidateEvidenceMessageSourceUserConfirmation:
+		return true
+	}
+	return false
+}
+
+func (e TodoCandidateEvidenceMessageSource) String() string {
+	return string(e)
+}
+
+func (e *TodoCandidateEvidenceMessageSource) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TodoCandidateEvidenceMessageSource(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TodoCandidateEvidenceMessageSource", str)
+	}
+	return nil
+}
+
+func (e TodoCandidateEvidenceMessageSource) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
 type TodoCandidateLastDecision string
 
 const (
@@ -743,6 +843,49 @@ func (e TodoDuePrecision) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
+type TodoEventEventType string
+
+const (
+	TodoEventEventTypeCreated   TodoEventEventType = "created"
+	TodoEventEventTypeUpdated   TodoEventEventType = "updated"
+	TodoEventEventTypeCancelled TodoEventEventType = "cancelled"
+)
+
+var AllTodoEventEventType = []TodoEventEventType{
+	TodoEventEventTypeCreated,
+	TodoEventEventTypeUpdated,
+	TodoEventEventTypeCancelled,
+}
+
+func (e TodoEventEventType) IsValid() bool {
+	switch e {
+	case TodoEventEventTypeCreated, TodoEventEventTypeUpdated, TodoEventEventTypeCancelled:
+		return true
+	}
+	return false
+}
+
+func (e TodoEventEventType) String() string {
+	return string(e)
+}
+
+func (e *TodoEventEventType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TodoEventEventType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TodoEventEventType", str)
+	}
+	return nil
+}
+
+func (e TodoEventEventType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
 type TodoStatus string
 
 const (
@@ -783,5 +926,91 @@ func (e *TodoStatus) UnmarshalGQL(v any) error {
 }
 
 func (e TodoStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type TodoUpdateCandidateChangeType string
+
+const (
+	TodoUpdateCandidateChangeTypeUpdated   TodoUpdateCandidateChangeType = "updated"
+	TodoUpdateCandidateChangeTypeCancelled TodoUpdateCandidateChangeType = "cancelled"
+)
+
+var AllTodoUpdateCandidateChangeType = []TodoUpdateCandidateChangeType{
+	TodoUpdateCandidateChangeTypeUpdated,
+	TodoUpdateCandidateChangeTypeCancelled,
+}
+
+func (e TodoUpdateCandidateChangeType) IsValid() bool {
+	switch e {
+	case TodoUpdateCandidateChangeTypeUpdated, TodoUpdateCandidateChangeTypeCancelled:
+		return true
+	}
+	return false
+}
+
+func (e TodoUpdateCandidateChangeType) String() string {
+	return string(e)
+}
+
+func (e *TodoUpdateCandidateChangeType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TodoUpdateCandidateChangeType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TodoUpdateCandidateChangeType", str)
+	}
+	return nil
+}
+
+func (e TodoUpdateCandidateChangeType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type TodoUpdateCandidateStatus string
+
+const (
+	TodoUpdateCandidateStatusPending              TodoUpdateCandidateStatus = "pending"
+	TodoUpdateCandidateStatusRequiresConfirmation TodoUpdateCandidateStatus = "requires_confirmation"
+	TodoUpdateCandidateStatusApplied              TodoUpdateCandidateStatus = "applied"
+	TodoUpdateCandidateStatusRejected             TodoUpdateCandidateStatus = "rejected"
+)
+
+var AllTodoUpdateCandidateStatus = []TodoUpdateCandidateStatus{
+	TodoUpdateCandidateStatusPending,
+	TodoUpdateCandidateStatusRequiresConfirmation,
+	TodoUpdateCandidateStatusApplied,
+	TodoUpdateCandidateStatusRejected,
+}
+
+func (e TodoUpdateCandidateStatus) IsValid() bool {
+	switch e {
+	case TodoUpdateCandidateStatusPending, TodoUpdateCandidateStatusRequiresConfirmation, TodoUpdateCandidateStatusApplied, TodoUpdateCandidateStatusRejected:
+		return true
+	}
+	return false
+}
+
+func (e TodoUpdateCandidateStatus) String() string {
+	return string(e)
+}
+
+func (e *TodoUpdateCandidateStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TodoUpdateCandidateStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TodoUpdateCandidateStatus", str)
+	}
+	return nil
+}
+
+func (e TodoUpdateCandidateStatus) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }

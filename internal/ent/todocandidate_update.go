@@ -7,6 +7,7 @@ import (
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
+	"assistant-api/internal/ent/todocandidateevidencemessage"
 	"context"
 	"errors"
 	"fmt"
@@ -49,26 +50,6 @@ func (_u *TodoCandidateUpdate) SetNillableLastMessageID(v *uuid.UUID) *TodoCandi
 	if v != nil {
 		_u.SetLastMessageID(*v)
 	}
-	return _u
-}
-
-// SetLinkedMessageID sets the "linked_message_id" field.
-func (_u *TodoCandidateUpdate) SetLinkedMessageID(v uuid.UUID) *TodoCandidateUpdate {
-	_u.mutation.SetLinkedMessageID(v)
-	return _u
-}
-
-// SetNillableLinkedMessageID sets the "linked_message_id" field if the given value is not nil.
-func (_u *TodoCandidateUpdate) SetNillableLinkedMessageID(v *uuid.UUID) *TodoCandidateUpdate {
-	if v != nil {
-		_u.SetLinkedMessageID(*v)
-	}
-	return _u
-}
-
-// ClearLinkedMessageID clears the value of the "linked_message_id" field.
-func (_u *TodoCandidateUpdate) ClearLinkedMessageID() *TodoCandidateUpdate {
-	_u.mutation.ClearLinkedMessageID()
 	return _u
 }
 
@@ -337,11 +318,6 @@ func (_u *TodoCandidateUpdate) SetLastMessage(v *ChannelMessage) *TodoCandidateU
 	return _u.SetLastMessageID(v.ID)
 }
 
-// SetLinkedMessage sets the "linked_message" edge to the ChannelMessage entity.
-func (_u *TodoCandidateUpdate) SetLinkedMessage(v *ChannelMessage) *TodoCandidateUpdate {
-	return _u.SetLinkedMessageID(v.ID)
-}
-
 // AddCandidateAssigneeIDs adds the "candidate_assignees" edge to the TodoCandidateAssignee entity by IDs.
 func (_u *TodoCandidateUpdate) AddCandidateAssigneeIDs(ids ...uuid.UUID) *TodoCandidateUpdate {
 	_u.mutation.AddCandidateAssigneeIDs(ids...)
@@ -357,6 +333,21 @@ func (_u *TodoCandidateUpdate) AddCandidateAssignees(v ...*TodoCandidateAssignee
 	return _u.AddCandidateAssigneeIDs(ids...)
 }
 
+// AddEvidenceMessageIDs adds the "evidence_messages" edge to the TodoCandidateEvidenceMessage entity by IDs.
+func (_u *TodoCandidateUpdate) AddEvidenceMessageIDs(ids ...uuid.UUID) *TodoCandidateUpdate {
+	_u.mutation.AddEvidenceMessageIDs(ids...)
+	return _u
+}
+
+// AddEvidenceMessages adds the "evidence_messages" edges to the TodoCandidateEvidenceMessage entity.
+func (_u *TodoCandidateUpdate) AddEvidenceMessages(v ...*TodoCandidateEvidenceMessage) *TodoCandidateUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddEvidenceMessageIDs(ids...)
+}
+
 // Mutation returns the TodoCandidateMutation object of the builder.
 func (_u *TodoCandidateUpdate) Mutation() *TodoCandidateMutation {
 	return _u.mutation
@@ -365,12 +356,6 @@ func (_u *TodoCandidateUpdate) Mutation() *TodoCandidateMutation {
 // ClearLastMessage clears the "last_message" edge to the ChannelMessage entity.
 func (_u *TodoCandidateUpdate) ClearLastMessage() *TodoCandidateUpdate {
 	_u.mutation.ClearLastMessage()
-	return _u
-}
-
-// ClearLinkedMessage clears the "linked_message" edge to the ChannelMessage entity.
-func (_u *TodoCandidateUpdate) ClearLinkedMessage() *TodoCandidateUpdate {
-	_u.mutation.ClearLinkedMessage()
 	return _u
 }
 
@@ -393,6 +378,27 @@ func (_u *TodoCandidateUpdate) RemoveCandidateAssignees(v ...*TodoCandidateAssig
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveCandidateAssigneeIDs(ids...)
+}
+
+// ClearEvidenceMessages clears all "evidence_messages" edges to the TodoCandidateEvidenceMessage entity.
+func (_u *TodoCandidateUpdate) ClearEvidenceMessages() *TodoCandidateUpdate {
+	_u.mutation.ClearEvidenceMessages()
+	return _u
+}
+
+// RemoveEvidenceMessageIDs removes the "evidence_messages" edge to TodoCandidateEvidenceMessage entities by IDs.
+func (_u *TodoCandidateUpdate) RemoveEvidenceMessageIDs(ids ...uuid.UUID) *TodoCandidateUpdate {
+	_u.mutation.RemoveEvidenceMessageIDs(ids...)
+	return _u
+}
+
+// RemoveEvidenceMessages removes "evidence_messages" edges to TodoCandidateEvidenceMessage entities.
+func (_u *TodoCandidateUpdate) RemoveEvidenceMessages(v ...*TodoCandidateEvidenceMessage) *TodoCandidateUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveEvidenceMessageIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -594,35 +600,6 @@ func (_u *TodoCandidateUpdate) sqlSave(ctx context.Context) (_node int, err erro
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.LinkedMessageCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   todocandidate.LinkedMessageTable,
-			Columns: []string{todocandidate.LinkedMessageColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.LinkedMessageIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   todocandidate.LinkedMessageTable,
-			Columns: []string{todocandidate.LinkedMessageColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
 	if _u.mutation.CandidateAssigneesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -668,6 +645,51 @@ func (_u *TodoCandidateUpdate) sqlSave(ctx context.Context) (_node int, err erro
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.EvidenceMessagesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todocandidate.EvidenceMessagesTable,
+			Columns: []string{todocandidate.EvidenceMessagesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateevidencemessage.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedEvidenceMessagesIDs(); len(nodes) > 0 && !_u.mutation.EvidenceMessagesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todocandidate.EvidenceMessagesTable,
+			Columns: []string{todocandidate.EvidenceMessagesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateevidencemessage.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.EvidenceMessagesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todocandidate.EvidenceMessagesTable,
+			Columns: []string{todocandidate.EvidenceMessagesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateevidencemessage.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{todocandidate.Label}
@@ -705,26 +727,6 @@ func (_u *TodoCandidateUpdateOne) SetNillableLastMessageID(v *uuid.UUID) *TodoCa
 	if v != nil {
 		_u.SetLastMessageID(*v)
 	}
-	return _u
-}
-
-// SetLinkedMessageID sets the "linked_message_id" field.
-func (_u *TodoCandidateUpdateOne) SetLinkedMessageID(v uuid.UUID) *TodoCandidateUpdateOne {
-	_u.mutation.SetLinkedMessageID(v)
-	return _u
-}
-
-// SetNillableLinkedMessageID sets the "linked_message_id" field if the given value is not nil.
-func (_u *TodoCandidateUpdateOne) SetNillableLinkedMessageID(v *uuid.UUID) *TodoCandidateUpdateOne {
-	if v != nil {
-		_u.SetLinkedMessageID(*v)
-	}
-	return _u
-}
-
-// ClearLinkedMessageID clears the value of the "linked_message_id" field.
-func (_u *TodoCandidateUpdateOne) ClearLinkedMessageID() *TodoCandidateUpdateOne {
-	_u.mutation.ClearLinkedMessageID()
 	return _u
 }
 
@@ -993,11 +995,6 @@ func (_u *TodoCandidateUpdateOne) SetLastMessage(v *ChannelMessage) *TodoCandida
 	return _u.SetLastMessageID(v.ID)
 }
 
-// SetLinkedMessage sets the "linked_message" edge to the ChannelMessage entity.
-func (_u *TodoCandidateUpdateOne) SetLinkedMessage(v *ChannelMessage) *TodoCandidateUpdateOne {
-	return _u.SetLinkedMessageID(v.ID)
-}
-
 // AddCandidateAssigneeIDs adds the "candidate_assignees" edge to the TodoCandidateAssignee entity by IDs.
 func (_u *TodoCandidateUpdateOne) AddCandidateAssigneeIDs(ids ...uuid.UUID) *TodoCandidateUpdateOne {
 	_u.mutation.AddCandidateAssigneeIDs(ids...)
@@ -1013,6 +1010,21 @@ func (_u *TodoCandidateUpdateOne) AddCandidateAssignees(v ...*TodoCandidateAssig
 	return _u.AddCandidateAssigneeIDs(ids...)
 }
 
+// AddEvidenceMessageIDs adds the "evidence_messages" edge to the TodoCandidateEvidenceMessage entity by IDs.
+func (_u *TodoCandidateUpdateOne) AddEvidenceMessageIDs(ids ...uuid.UUID) *TodoCandidateUpdateOne {
+	_u.mutation.AddEvidenceMessageIDs(ids...)
+	return _u
+}
+
+// AddEvidenceMessages adds the "evidence_messages" edges to the TodoCandidateEvidenceMessage entity.
+func (_u *TodoCandidateUpdateOne) AddEvidenceMessages(v ...*TodoCandidateEvidenceMessage) *TodoCandidateUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddEvidenceMessageIDs(ids...)
+}
+
 // Mutation returns the TodoCandidateMutation object of the builder.
 func (_u *TodoCandidateUpdateOne) Mutation() *TodoCandidateMutation {
 	return _u.mutation
@@ -1021,12 +1033,6 @@ func (_u *TodoCandidateUpdateOne) Mutation() *TodoCandidateMutation {
 // ClearLastMessage clears the "last_message" edge to the ChannelMessage entity.
 func (_u *TodoCandidateUpdateOne) ClearLastMessage() *TodoCandidateUpdateOne {
 	_u.mutation.ClearLastMessage()
-	return _u
-}
-
-// ClearLinkedMessage clears the "linked_message" edge to the ChannelMessage entity.
-func (_u *TodoCandidateUpdateOne) ClearLinkedMessage() *TodoCandidateUpdateOne {
-	_u.mutation.ClearLinkedMessage()
 	return _u
 }
 
@@ -1049,6 +1055,27 @@ func (_u *TodoCandidateUpdateOne) RemoveCandidateAssignees(v ...*TodoCandidateAs
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveCandidateAssigneeIDs(ids...)
+}
+
+// ClearEvidenceMessages clears all "evidence_messages" edges to the TodoCandidateEvidenceMessage entity.
+func (_u *TodoCandidateUpdateOne) ClearEvidenceMessages() *TodoCandidateUpdateOne {
+	_u.mutation.ClearEvidenceMessages()
+	return _u
+}
+
+// RemoveEvidenceMessageIDs removes the "evidence_messages" edge to TodoCandidateEvidenceMessage entities by IDs.
+func (_u *TodoCandidateUpdateOne) RemoveEvidenceMessageIDs(ids ...uuid.UUID) *TodoCandidateUpdateOne {
+	_u.mutation.RemoveEvidenceMessageIDs(ids...)
+	return _u
+}
+
+// RemoveEvidenceMessages removes "evidence_messages" edges to TodoCandidateEvidenceMessage entities.
+func (_u *TodoCandidateUpdateOne) RemoveEvidenceMessages(v ...*TodoCandidateEvidenceMessage) *TodoCandidateUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveEvidenceMessageIDs(ids...)
 }
 
 // Where appends a list predicates to the TodoCandidateUpdate builder.
@@ -1280,35 +1307,6 @@ func (_u *TodoCandidateUpdateOne) sqlSave(ctx context.Context) (_node *TodoCandi
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.LinkedMessageCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   todocandidate.LinkedMessageTable,
-			Columns: []string{todocandidate.LinkedMessageColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.LinkedMessageIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   todocandidate.LinkedMessageTable,
-			Columns: []string{todocandidate.LinkedMessageColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(channelmessage.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
-	}
 	if _u.mutation.CandidateAssigneesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -1347,6 +1345,51 @@ func (_u *TodoCandidateUpdateOne) sqlSave(ctx context.Context) (_node *TodoCandi
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(todocandidateassignee.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.EvidenceMessagesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todocandidate.EvidenceMessagesTable,
+			Columns: []string{todocandidate.EvidenceMessagesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateevidencemessage.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedEvidenceMessagesIDs(); len(nodes) > 0 && !_u.mutation.EvidenceMessagesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todocandidate.EvidenceMessagesTable,
+			Columns: []string{todocandidate.EvidenceMessagesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateevidencemessage.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.EvidenceMessagesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todocandidate.EvidenceMessagesTable,
+			Columns: []string{todocandidate.EvidenceMessagesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todocandidateevidencemessage.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

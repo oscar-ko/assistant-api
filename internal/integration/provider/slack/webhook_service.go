@@ -113,8 +113,8 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 		BotSenderID:   "",
 		PlatformLabel: "slack:" + strings.TrimSpace(translateProfile),
 	})
-	// RecentLimit 讀取共用 history_context，讓 Slack 與 LINE 對「往前抓幾則訊息」維持一致語意。
-	// 若未來不同服務需要不同窗口，應在服務自己的 options 裡覆寫，而不是在 provider webhook 裡硬分支。
+	// RecentLimit 現在讀取 Todo Reminder 自己的 recent_context_message_limit。
+	// 這個窗口只服務待辦的 implicit analysis；若未來其他 realtime 服務需要近端上下文，應新增各自語意清楚的設定，避免共用 key 造成調參互相牽動。
 	todoReminder := realtime.NewTodoReminderService(realtime.TodoReminderServiceOptions{
 		PlatformLabel: "slack",
 		Repo:          repo,
@@ -141,11 +141,16 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 		},
 		LLM:         options.LLMInteraction,
 		Ranker:      rerankerClient,
-		RecentLimit: config.AI.HistoryContext.RecentMessageLimit,
-		// ReplyChainMaxDepth 屬於 Todo Reminder 的顯式 reply/quote 語境組裝策略；
-		// RecentLimit 只決定每個 message window 的大小，兩者語意不同，因此分開注入。
-		ReplyChainMaxDepth: config.AI.TodoReminder.ReplyChainMaxDepth,
-		Timezone:           config.AI.TodoReminder.Timezone,
+		RecentLimit: config.AI.TodoReminder.RecentContextMessageLimit,
+		// ReplyChainMaxDepth 屬於顯式 reply/quote 的追溯深度；RecentLimit 屬於 implicit recent window 的原始召回量。
+		// 兩者最後都會和 evidence 小窗合併，但各自控制不同來源的上下文，因此仍分開注入。
+		ReplyChainMaxDepth:              config.AI.TodoReminder.ReplyChainMaxDepth,
+		EvidenceAnchorLimitPerCandidate: config.AI.TodoReminder.EvidenceAnchorLimitPerCandidate,
+		EvidenceWindowBeforeLimit:       config.AI.TodoReminder.EvidenceWindowBeforeLimit,
+		EvidenceWindowAfterLimit:        config.AI.TodoReminder.EvidenceWindowAfterLimit,
+		MaxCandidateContexts:            config.AI.TodoReminder.MaxCandidateContexts,
+		MaxContextMessages:              config.AI.TodoReminder.MaxContextMessages,
+		Timezone:                        config.AI.TodoReminder.Timezone,
 	})
 	messageClassifier := realtime.NewMessageClassificationService(realtime.MessageClassificationServiceOptions{
 		TextScanGate:  repo,

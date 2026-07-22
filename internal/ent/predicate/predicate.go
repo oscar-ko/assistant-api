@@ -48,6 +48,9 @@ type TodoCandidate func(*sql.Selector)
 // TodoCandidateAssignee is the predicate function for todocandidateassignee builders.
 type TodoCandidateAssignee func(*sql.Selector)
 
+// TodoCandidateEvidenceMessage is the predicate function for todocandidateevidencemessage builders.
+type TodoCandidateEvidenceMessage func(*sql.Selector)
+
 // TodoEvent is the predicate function for todoevent builders.
 type TodoEvent func(*sql.Selector)
 

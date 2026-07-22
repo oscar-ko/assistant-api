@@ -176,6 +176,18 @@ func (f TodoCandidateAssigneeFunc) Mutate(ctx context.Context, m ent.Mutation) (
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TodoCandidateAssigneeMutation", m)
 }
 
+// The TodoCandidateEvidenceMessageFunc type is an adapter to allow the use of ordinary
+// function as TodoCandidateEvidenceMessage mutator.
+type TodoCandidateEvidenceMessageFunc func(context.Context, *ent.TodoCandidateEvidenceMessageMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f TodoCandidateEvidenceMessageFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TodoCandidateEvidenceMessageMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TodoCandidateEvidenceMessageMutation", m)
+}
+
 // The TodoEventFunc type is an adapter to allow the use of ordinary
 // function as TodoEvent mutator.
 type TodoEventFunc func(context.Context, *ent.TodoEventMutation) (ent.Value, error)

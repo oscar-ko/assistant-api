@@ -51,6 +51,26 @@ enum TodoCandidateAssigneeSource {
     reply_context
 }
 
+enum TodoCandidateEvidenceMessageRelationType {
+    source
+    linked
+    update
+    clarification
+    acknowledgement
+    cancellation
+    related_context
+    explicit_reply
+    ambiguous
+}
+
+enum TodoCandidateEvidenceMessageSource {
+    analyzer
+    explicit_reply
+    thread
+    system
+    user_confirmation
+}
+
 enum TodoCandidateDueNormalizeDecision {
     normalized
     needs_more_info
@@ -77,6 +97,24 @@ enum TodoCandidateStatus {
     needs_more_info
     acknowledged
     cancelled
+}
+
+enum TodoEventEventType {
+    created
+    updated
+    cancelled
+}
+
+enum TodoUpdateCandidateChangeType {
+    updated
+    cancelled
+}
+
+enum TodoUpdateCandidateStatus {
+    pending
+    requires_confirmation
+    applied
+    rejected
 }
 
 enum TodoStatus {

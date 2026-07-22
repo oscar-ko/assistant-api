@@ -81,11 +81,6 @@ func LastMessageID(v uuid.UUID) predicate.TodoCandidate {
 	return predicate.TodoCandidate(sql.FieldEQ(FieldLastMessageID, v))
 }
 
-// LinkedMessageID applies equality check predicate on the "linked_message_id" field. It's identical to LinkedMessageIDEQ.
-func LinkedMessageID(v uuid.UUID) predicate.TodoCandidate {
-	return predicate.TodoCandidate(sql.FieldEQ(FieldLinkedMessageID, v))
-}
-
 // Summary applies equality check predicate on the "summary" field. It's identical to SummaryEQ.
 func Summary(v string) predicate.TodoCandidate {
 	return predicate.TodoCandidate(sql.FieldEQ(FieldSummary, v))
@@ -264,36 +259,6 @@ func LastMessageIDIn(vs ...uuid.UUID) predicate.TodoCandidate {
 // LastMessageIDNotIn applies the NotIn predicate on the "last_message_id" field.
 func LastMessageIDNotIn(vs ...uuid.UUID) predicate.TodoCandidate {
 	return predicate.TodoCandidate(sql.FieldNotIn(FieldLastMessageID, vs...))
-}
-
-// LinkedMessageIDEQ applies the EQ predicate on the "linked_message_id" field.
-func LinkedMessageIDEQ(v uuid.UUID) predicate.TodoCandidate {
-	return predicate.TodoCandidate(sql.FieldEQ(FieldLinkedMessageID, v))
-}
-
-// LinkedMessageIDNEQ applies the NEQ predicate on the "linked_message_id" field.
-func LinkedMessageIDNEQ(v uuid.UUID) predicate.TodoCandidate {
-	return predicate.TodoCandidate(sql.FieldNEQ(FieldLinkedMessageID, v))
-}
-
-// LinkedMessageIDIn applies the In predicate on the "linked_message_id" field.
-func LinkedMessageIDIn(vs ...uuid.UUID) predicate.TodoCandidate {
-	return predicate.TodoCandidate(sql.FieldIn(FieldLinkedMessageID, vs...))
-}
-
-// LinkedMessageIDNotIn applies the NotIn predicate on the "linked_message_id" field.
-func LinkedMessageIDNotIn(vs ...uuid.UUID) predicate.TodoCandidate {
-	return predicate.TodoCandidate(sql.FieldNotIn(FieldLinkedMessageID, vs...))
-}
-
-// LinkedMessageIDIsNil applies the IsNil predicate on the "linked_message_id" field.
-func LinkedMessageIDIsNil() predicate.TodoCandidate {
-	return predicate.TodoCandidate(sql.FieldIsNull(FieldLinkedMessageID))
-}
-
-// LinkedMessageIDNotNil applies the NotNil predicate on the "linked_message_id" field.
-func LinkedMessageIDNotNil() predicate.TodoCandidate {
-	return predicate.TodoCandidate(sql.FieldNotNull(FieldLinkedMessageID))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
@@ -980,29 +945,6 @@ func HasLastMessageWith(preds ...predicate.ChannelMessage) predicate.TodoCandida
 	})
 }
 
-// HasLinkedMessage applies the HasEdge predicate on the "linked_message" edge.
-func HasLinkedMessage() predicate.TodoCandidate {
-	return predicate.TodoCandidate(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, LinkedMessageTable, LinkedMessageColumn),
-		)
-		sqlgraph.HasNeighbors(s, step)
-	})
-}
-
-// HasLinkedMessageWith applies the HasEdge predicate on the "linked_message" edge with a given conditions (other predicates).
-func HasLinkedMessageWith(preds ...predicate.ChannelMessage) predicate.TodoCandidate {
-	return predicate.TodoCandidate(func(s *sql.Selector) {
-		step := newLinkedMessageStep()
-		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
-			for _, p := range preds {
-				p(s)
-			}
-		})
-	})
-}
-
 // HasCandidateAssignees applies the HasEdge predicate on the "candidate_assignees" edge.
 func HasCandidateAssignees() predicate.TodoCandidate {
 	return predicate.TodoCandidate(func(s *sql.Selector) {
@@ -1018,6 +960,29 @@ func HasCandidateAssignees() predicate.TodoCandidate {
 func HasCandidateAssigneesWith(preds ...predicate.TodoCandidateAssignee) predicate.TodoCandidate {
 	return predicate.TodoCandidate(func(s *sql.Selector) {
 		step := newCandidateAssigneesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasEvidenceMessages applies the HasEdge predicate on the "evidence_messages" edge.
+func HasEvidenceMessages() predicate.TodoCandidate {
+	return predicate.TodoCandidate(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, EvidenceMessagesTable, EvidenceMessagesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasEvidenceMessagesWith applies the HasEdge predicate on the "evidence_messages" edge with a given conditions (other predicates).
+func HasEvidenceMessagesWith(preds ...predicate.TodoCandidateEvidenceMessage) predicate.TodoCandidate {
+	return predicate.TodoCandidate(func(s *sql.Selector) {
+		step := newEvidenceMessagesStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)
