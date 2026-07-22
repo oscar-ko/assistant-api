@@ -13,6 +13,7 @@ import (
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
 	"assistant-api/internal/usecase/actionpost"
+	channellifecycle "assistant-api/internal/usecase/channel_lifecycle"
 	llminteraction "assistant-api/internal/usecase/ai/llm_interaction"
 	"assistant-api/internal/usecase/ai/topkfilter"
 	"assistant-api/internal/usecase/inbound/commandchain"
@@ -410,15 +411,21 @@ func (s *WebhookService) handleChannelLifecycleEvent(ctx context.Context, event 
 		if err != nil {
 			return true, err
 		}
-		if _, err := s.repo.GetOrCreateChannel(ctx, "line", channelID, "group", channelName); err != nil {
-			return true, err
-		}
-		if err := s.repo.SetChannelActiveByPlatformGroupID(ctx, "line", channelID, true); err != nil {
+		// 共用 lifecycle service 統一負責系統 channel 的建立/重新啟用；
+		// LINE provider 只提供已解析好的平台 channel id 與 LINE 群組名稱。
+		if _, err := channellifecycle.NewService(s.repo).Join(ctx, channellifecycle.JoinInput{
+			Platform:          "line",
+			PlatformChannelID: channelID,
+			ChannelType:       "group",
+			ChannelName:       channelName,
+		}); err != nil {
 			return true, err
 		}
 		return true, nil
 	case "leave":
-		if err := s.repo.SetChannelActiveByPlatformGroupID(ctx, "line", channelID, false); err != nil {
+		// leave 不應重新建立 channel，只能停用既有 channel；
+		// 共用 usecase 會保留 repository 的嚴格語意，找不到 channel 時直接回錯，避免 LINE provider 靜默吞掉資料狀態不一致。
+		if err := channellifecycle.NewService(s.repo).Leave(ctx, "line", channelID); err != nil {
 			return true, err
 		}
 		return true, nil

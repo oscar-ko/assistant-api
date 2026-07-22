@@ -21,6 +21,7 @@ import (
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
 	"assistant-api/internal/usecase/actionpost"
+	channellifecycle "assistant-api/internal/usecase/channel_lifecycle"
 	"assistant-api/internal/usecase/inbound/commandchain"
 	"assistant-api/internal/usecase/inbound/commanddecision"
 	"assistant-api/internal/usecase/inbound/conversationflow"
@@ -66,16 +67,16 @@ type slackWebhookRequest struct {
 }
 
 type slackEvent struct {
-	Type        string `json:"type"`
-	Subtype     string `json:"subtype"`
-	Text        string `json:"text"`
-	User        string `json:"user"`
+	Type        string          `json:"type"`
+	Subtype     string          `json:"subtype"`
+	Text        string          `json:"text"`
+	User        string          `json:"user"`
 	Channel     slackChannelRef `json:"channel"`
-	ChannelType string `json:"channel_type"`
-	TS          string `json:"ts"`
-	ThreadTS    string `json:"thread_ts"`
-	ClientMsgID string `json:"client_msg_id"`
-	BotID       string `json:"bot_id"`
+	ChannelType string          `json:"channel_type"`
+	TS          string          `json:"ts"`
+	ThreadTS    string          `json:"thread_ts"`
+	ClientMsgID string          `json:"client_msg_id"`
+	BotID       string          `json:"bot_id"`
 }
 
 type slackChannelRef struct {
@@ -388,7 +389,9 @@ func (s *WebhookService) handleChannelLifecycleEvent(ctx context.Context, teamID
 			}
 			return true, nil
 		}
-		if err := s.repo.SetChannelActiveByPlatformGroupID(ctx, "slack", channelID, false); err != nil {
+		// message subtype 的 leave 只代表 bot 已離開對話空間；
+		// 停用規則交給 channel_lifecycle usecase，讓 Slack/LINE 對 inactive 狀態的處理一致。
+		if err := channellifecycle.NewService(s.repo).Leave(ctx, "slack", channelID); err != nil {
 			return true, err
 		}
 		zap.L().Info("slack channel lifecycle deactivated channel",
@@ -449,7 +452,9 @@ func (s *WebhookService) handleChannelLifecycleEvent(ctx context.Context, teamID
 			)
 			return true, nil
 		}
-		if err := s.repo.SetChannelActiveByPlatformGroupID(ctx, "slack", channelID, false); err != nil {
+		// member_left_channel 會同時涵蓋一般成員與 bot；走到這裡已確認離開者是 bot，
+		// 因此只需要停用我們系統 channel，不在 Slack provider 內重複實作 repository 操作。
+		if err := channellifecycle.NewService(s.repo).Leave(ctx, "slack", channelID); err != nil {
 			return true, err
 		}
 		zap.L().Info("slack channel lifecycle deactivated channel",
@@ -460,7 +465,9 @@ func (s *WebhookService) handleChannelLifecycleEvent(ctx context.Context, teamID
 		)
 		return true, nil
 	case "channel_left":
-		if err := s.repo.SetChannelActiveByPlatformGroupID(ctx, "slack", channelID, false); err != nil {
+		// channel_left 是 app/bot 離開頻道的直接 lifecycle event；
+		// 和其他 leave 來源一樣統一交給 usecase 停用 channel，避免不同 Slack event 走出不一致狀態。
+		if err := channellifecycle.NewService(s.repo).Leave(ctx, "slack", channelID); err != nil {
 			return true, err
 		}
 		zap.L().Info("slack channel lifecycle deactivated channel",
@@ -476,13 +483,15 @@ func (s *WebhookService) handleChannelLifecycleEvent(ctx context.Context, teamID
 }
 
 func (s *WebhookService) createOrActivateSlackLifecycleChannel(ctx context.Context, teamID string, eventType string, eventSubtype string, channelID string, channelName string) error {
-	// GetOrCreateChannel 負責建立或同步名稱/type；接著再明確 SetChannelActive，
-	// 讓「bot 重新被邀請進既有頻道」和 LINE join 流程一樣會把 channel 從 inactive 重新啟用。
-	channelItem, err := s.repo.GetOrCreateChannel(ctx, "slack", channelID, "group", channelName)
+	// 共用 lifecycle service 負責系統 channel 的建立/啟用規則；
+	// Slack provider 只保留事件來源、bot 身分判斷與可觀測 log metadata。
+	channelItem, err := channellifecycle.NewService(s.repo).Join(ctx, channellifecycle.JoinInput{
+		Platform:          "slack",
+		PlatformChannelID: channelID,
+		ChannelType:       "group",
+		ChannelName:       channelName,
+	})
 	if err != nil {
-		return err
-	}
-	if err := s.repo.SetChannelActiveByPlatformGroupID(ctx, "slack", channelID, true); err != nil {
 		return err
 	}
 	zap.L().Info("slack channel lifecycle created or activated channel",
