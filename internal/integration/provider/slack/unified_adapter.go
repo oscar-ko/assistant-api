@@ -15,7 +15,10 @@ func adaptSlackEventToUnified(event slackEvent) (*unifiedmessage.Message, bool, 
 	if !strings.EqualFold(strings.TrimSpace(event.Type), "message") {
 		return nil, false, "event type is not message"
 	}
-	if strings.TrimSpace(event.Channel) == "" {
+	// channel 可能已由 webhook service 解析自字串或物件 payload；
+	// adapter 後續只依賴正規化後的 channel id，避免不同 Slack event 形狀滲入共用訊息模型。
+	channelID := event.Channel.String()
+	if channelID == "" {
 		return nil, false, "channel is empty"
 	}
 	if strings.TrimSpace(event.User) == "" {
@@ -24,7 +27,8 @@ func adaptSlackEventToUnified(event slackEvent) (*unifiedmessage.Message, bool, 
 
 	channelType := strings.ToLower(strings.TrimSpace(event.ChannelType))
 	if channelType == "" {
-		if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(event.Channel)), "D") {
+		// Slack DM channel id 以 D 開頭；缺少 channel_type 的事件仍可用這個平台穩定規則分辨 private/group。
+		if strings.HasPrefix(strings.ToUpper(channelID), "D") {
 			channelType = "private"
 		} else {
 			channelType = "group"
@@ -60,7 +64,7 @@ func adaptSlackEventToUnified(event slackEvent) (*unifiedmessage.Message, bool, 
 	msg := &unifiedmessage.Message{
 		Platform:          "slack",
 		SourceType:        strings.TrimSpace(channelType),
-		ChannelID:         strings.TrimSpace(event.Channel),
+		ChannelID:         channelID,
 		ChannelType:       channelType,
 		SenderID:          strings.TrimSpace(event.User),
 		PlatformMessageID: ts,

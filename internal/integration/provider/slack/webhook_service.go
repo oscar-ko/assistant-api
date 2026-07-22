@@ -29,6 +29,7 @@ import (
 	"assistant-api/internal/usecase/inbound/realtime"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type WebhookProcessor interface {
@@ -69,12 +70,45 @@ type slackEvent struct {
 	Subtype     string `json:"subtype"`
 	Text        string `json:"text"`
 	User        string `json:"user"`
-	Channel     string `json:"channel"`
+	Channel     slackChannelRef `json:"channel"`
 	ChannelType string `json:"channel_type"`
 	TS          string `json:"ts"`
 	ThreadTS    string `json:"thread_ts"`
 	ClientMsgID string `json:"client_msg_id"`
 	BotID       string `json:"bot_id"`
+}
+
+type slackChannelRef struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// UnmarshalJSON 同時接受 Slack event 裡兩種 channel 表示法：
+// - 一般 message/member lifecycle 事件常給字串 channel id，例如 "C123"。
+// - channel_joined 事件可能給物件，例如 {"id":"C123","name":"general"}。
+// 若只用 string 會讓物件型 payload 解析失敗，bot invite 事件就會在 webhook 入口被吃掉。
+func (r *slackChannelRef) UnmarshalJSON(data []byte) error {
+	var raw string
+	if err := json.Unmarshal(data, &raw); err == nil {
+		r.ID = strings.TrimSpace(raw)
+		r.Name = ""
+		return nil
+	}
+
+	var parsed struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return err
+	}
+	r.ID = strings.TrimSpace(parsed.ID)
+	r.Name = strings.TrimSpace(parsed.Name)
+	return nil
+}
+
+func (r slackChannelRef) String() string {
+	return strings.TrimSpace(r.ID)
 }
 
 func NewWebhookService(repo *repository.ChannelMessageRepo, tokenStore slackBotTokenStore) WebhookProcessor {
@@ -257,7 +291,7 @@ func (s *WebhookService) ProcessIncoming(body []byte) (string, error) {
 		EventType:     req.Event.Type,
 		SourceType:    req.Event.ChannelType,
 		SourceUserID:  req.Event.User,
-		SourceGroupID: req.Event.Channel,
+		SourceGroupID: req.Event.Channel.String(),
 		SourceRoomID:  "",
 		MessageID:     req.Event.TS,
 		Text:          req.Event.Text,
@@ -276,7 +310,7 @@ func (s *WebhookService) ProcessIncoming(body []byte) (string, error) {
 			EventType:     req.Event.Type,
 			SourceType:    req.Event.ChannelType,
 			SourceUserID:  req.Event.User,
-			SourceGroupID: req.Event.Channel,
+			SourceGroupID: req.Event.Channel.String(),
 			SourceRoomID:  "",
 			MessageID:     req.Event.TS,
 			Reason:        reason,
@@ -315,48 +349,177 @@ func (s *WebhookService) handleChannelLifecycleEvent(ctx context.Context, teamID
 		return false, nil
 	}
 	eventType := strings.ToLower(strings.TrimSpace(event.Type))
-	channelID := strings.TrimSpace(event.Channel)
+	channelID := event.Channel.String()
 	if channelID == "" {
 		return false, nil
 	}
 
-	botUserID, err := s.resolveWorkspaceBotUserID(ctx, teamID)
-	if err != nil {
-		return true, err
-	}
 	switch eventType {
-	case "member_joined_channel":
-		// 只有「加入者是 bot 本身」才視為頻道生命週期事件。
-		if strings.TrimSpace(event.User) != botUserID {
-			return true, nil
+	case "message":
+		// Slack 的 bot 加入/離開頻道不一定會送獨立 lifecycle event；
+		// 有些 workspace 只會送 type=message 並用 subtype=channel_join/group_join 表達。
+		// 這裡只看 structured subtype 和 bot user id，不解析「has joined the channel」這類顯示文字。
+		lifecycleAction, ok := slackMessageLifecycleAction(event.Subtype)
+		if !ok {
+			return false, nil
 		}
-		channelName, err := GetChannelNameByID(ctx, s.tokenStore, teamID, channelID)
+		botUserID, err := s.resolveWorkspaceBotUserID(ctx, teamID)
 		if err != nil {
 			return true, err
 		}
-		if _, err := s.repo.GetOrCreateChannel(ctx, "slack", channelID, "group", channelName); err != nil {
-			return true, err
-		}
-		if err := s.repo.SetChannelActiveByPlatformGroupID(ctx, "slack", channelID, true); err != nil {
-			return true, err
-		}
-		return true, nil
-	case "member_left_channel":
 		if strings.TrimSpace(event.User) != botUserID {
+			zap.L().Info("slack channel lifecycle skipped: joined user is not bot",
+				zap.String("team_id", strings.TrimSpace(teamID)),
+				zap.String("event_type", eventType),
+				zap.String("event_subtype", strings.TrimSpace(event.Subtype)),
+				zap.String("channel_id", channelID),
+				zap.String("event_user", strings.TrimSpace(event.User)),
+				zap.String("bot_user_id", botUserID),
+			)
+			return true, nil
+		}
+		if lifecycleAction == slackLifecycleActionJoin {
+			channelName, err := s.resolveSlackLifecycleChannelName(ctx, teamID, event)
+			if err != nil {
+				return true, err
+			}
+			if err := s.createOrActivateSlackLifecycleChannel(ctx, teamID, eventType, event.Subtype, channelID, channelName); err != nil {
+				return true, err
+			}
 			return true, nil
 		}
 		if err := s.repo.SetChannelActiveByPlatformGroupID(ctx, "slack", channelID, false); err != nil {
 			return true, err
 		}
+		zap.L().Info("slack channel lifecycle deactivated channel",
+			zap.String("team_id", strings.TrimSpace(teamID)),
+			zap.String("event_type", eventType),
+			zap.String("event_subtype", strings.TrimSpace(event.Subtype)),
+			zap.String("channel_id", channelID),
+		)
+		return true, nil
+	case "channel_joined":
+		channelName, err := s.resolveSlackLifecycleChannelName(ctx, teamID, event)
+		if err != nil {
+			return true, err
+		}
+		if err := s.createOrActivateSlackLifecycleChannel(ctx, teamID, eventType, event.Subtype, channelID, channelName); err != nil {
+			return true, err
+		}
+		return true, nil
+	case "member_joined_channel":
+		botUserID, err := s.resolveWorkspaceBotUserID(ctx, teamID)
+		if err != nil {
+			return true, err
+		}
+		// member_joined_channel 也會在一般使用者加入頻道時觸發；
+		// 我們的系統 channel 代表「bot 已在該 Slack 對話空間提供服務」，所以只有加入者是 bot 本身才建立。
+		if strings.TrimSpace(event.User) != botUserID {
+			zap.L().Info("slack channel lifecycle skipped: joined user is not bot",
+				zap.String("team_id", strings.TrimSpace(teamID)),
+				zap.String("event_type", eventType),
+				zap.String("event_subtype", strings.TrimSpace(event.Subtype)),
+				zap.String("channel_id", channelID),
+				zap.String("event_user", strings.TrimSpace(event.User)),
+				zap.String("bot_user_id", botUserID),
+			)
+			return true, nil
+		}
+		channelName, err := s.resolveSlackLifecycleChannelName(ctx, teamID, event)
+		if err != nil {
+			return true, err
+		}
+		if err := s.createOrActivateSlackLifecycleChannel(ctx, teamID, eventType, event.Subtype, channelID, channelName); err != nil {
+			return true, err
+		}
+		return true, nil
+	case "member_left_channel":
+		botUserID, err := s.resolveWorkspaceBotUserID(ctx, teamID)
+		if err != nil {
+			return true, err
+		}
+		if strings.TrimSpace(event.User) != botUserID {
+			zap.L().Info("slack channel lifecycle skipped: left user is not bot",
+				zap.String("team_id", strings.TrimSpace(teamID)),
+				zap.String("event_type", eventType),
+				zap.String("event_subtype", strings.TrimSpace(event.Subtype)),
+				zap.String("channel_id", channelID),
+				zap.String("event_user", strings.TrimSpace(event.User)),
+				zap.String("bot_user_id", botUserID),
+			)
+			return true, nil
+		}
+		if err := s.repo.SetChannelActiveByPlatformGroupID(ctx, "slack", channelID, false); err != nil {
+			return true, err
+		}
+		zap.L().Info("slack channel lifecycle deactivated channel",
+			zap.String("team_id", strings.TrimSpace(teamID)),
+			zap.String("event_type", eventType),
+			zap.String("event_subtype", strings.TrimSpace(event.Subtype)),
+			zap.String("channel_id", channelID),
+		)
 		return true, nil
 	case "channel_left":
 		if err := s.repo.SetChannelActiveByPlatformGroupID(ctx, "slack", channelID, false); err != nil {
 			return true, err
 		}
+		zap.L().Info("slack channel lifecycle deactivated channel",
+			zap.String("team_id", strings.TrimSpace(teamID)),
+			zap.String("event_type", eventType),
+			zap.String("event_subtype", strings.TrimSpace(event.Subtype)),
+			zap.String("channel_id", channelID),
+		)
 		return true, nil
 	default:
 		return false, nil
 	}
+}
+
+func (s *WebhookService) createOrActivateSlackLifecycleChannel(ctx context.Context, teamID string, eventType string, eventSubtype string, channelID string, channelName string) error {
+	// GetOrCreateChannel 負責建立或同步名稱/type；接著再明確 SetChannelActive，
+	// 讓「bot 重新被邀請進既有頻道」和 LINE join 流程一樣會把 channel 從 inactive 重新啟用。
+	channelItem, err := s.repo.GetOrCreateChannel(ctx, "slack", channelID, "group", channelName)
+	if err != nil {
+		return err
+	}
+	if err := s.repo.SetChannelActiveByPlatformGroupID(ctx, "slack", channelID, true); err != nil {
+		return err
+	}
+	zap.L().Info("slack channel lifecycle created or activated channel",
+		zap.String("team_id", strings.TrimSpace(teamID)),
+		zap.String("event_type", strings.TrimSpace(eventType)),
+		zap.String("event_subtype", strings.TrimSpace(eventSubtype)),
+		zap.String("channel_id", channelID),
+		zap.String("channel_name", strings.TrimSpace(channelName)),
+		zap.String("system_channel_id", channelItem.ID.String()),
+	)
+	return nil
+}
+
+const (
+	slackLifecycleActionJoin  = "join"
+	slackLifecycleActionLeave = "leave"
+)
+
+func slackMessageLifecycleAction(subtype string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(subtype)) {
+	case "channel_join", "group_join":
+		return slackLifecycleActionJoin, true
+	case "channel_leave", "group_leave":
+		return slackLifecycleActionLeave, true
+	default:
+		return "", false
+	}
+}
+
+func (s *WebhookService) resolveSlackLifecycleChannelName(ctx context.Context, teamID string, event *slackEvent) (string, error) {
+	if event == nil {
+		return "", fmt.Errorf("slack event is nil")
+	}
+	if name := strings.TrimSpace(event.Channel.Name); name != "" {
+		return name, nil
+	}
+	return GetChannelNameByID(ctx, s.tokenStore, teamID, event.Channel.String())
 }
 
 func resolveSlackChannelDisplayName(ctx context.Context, tokenStore slackBotTokenStore, message *unifiedmessage.Message) (string, error) {

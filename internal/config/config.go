@@ -470,7 +470,9 @@ func MustLoad() {
 		viper.SetDefault("slack.bot_user_id", "")
 		viper.SetDefault("slack.redirect_uri", "")
 		viper.SetDefault("slack.login_redirect_uri", "")
-		viper.SetDefault("slack.scopes", "app_mentions:read,channels:history,chat:write,groups:history,im:history,mpim:history")
+		// Slack bot 被邀請進頻道時會用 conversations.info 解析頻道名稱。
+		// history scope 只允許讀訊息，不允許讀頻道基本資訊；缺少 channels:read/groups:read 會讓 webhook lifecycle 在建立 channel 前因 missing_scope 失敗。
+		viper.SetDefault("slack.scopes", "app_mentions:read,channels:history,channels:read,chat:write,groups:history,groups:read,im:history,mpim:history")
 		viper.SetDefault("slack.login_scopes", "openid profile email")
 		viper.SetDefault("slack.user_scopes", "")
 		viper.SetDefault("graphql.query_path", "/query")

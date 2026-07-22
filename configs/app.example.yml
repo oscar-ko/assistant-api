@@ -219,7 +219,9 @@ slack:
     bot_user_id: ""
     redirect_uri: "https://uninebriated-nonexplorative-kasey.ngrok-free.dev/slack/oauth/callback"
     login_redirect_uri: "https://uninebriated-nonexplorative-kasey.ngrok-free.dev/slack/login/callback"
-    scopes: "app_mentions:read,channels:history,chat:write,groups:history,im:history,mpim:history"
+    # channels:read / groups:read 是 conversations.info 讀取頻道名稱所需權限；
+    # 如果只給 history scope，webhook 收到 bot join 事件時會因 missing_scope 無法建立系統 channel。
+    scopes: "app_mentions:read,channels:history,channels:read,chat:write,groups:history,groups:read,im:history,mpim:history"
     login_scopes: "openid profile email"
     user_scopes: ""
 
