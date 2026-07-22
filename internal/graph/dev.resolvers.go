@@ -151,12 +151,21 @@ func (r *mutationResolver) ClearDevRealtimeTodoData(ctx context.Context) (*model
 		return nil, fmt.Errorf("ent client is not initialized")
 	}
 
-	// 刪除順序必須順著外鍵依賴方向從「台終」往「上游」刪，否則會因子資料尚存在而蟒點失敗：
-	// action_result 參照 todo，todo_candidate_assignee/channel_message_mention 參照 todo_candidate/channel_message，
-	// todo_candidate 參照 channel_message，因此最後才能刪 channel_message。
+	// 刪除順序必須順著外鍵依賴方向從「葉節點」往「上游」刪，否則會因子資料尚存在而卡在外鍵限制：
+	// action_result 參照 channel_message；todo_event/todo_update_candidate 參照正式 Todo，也可能參照 candidate/message；
+	// todo_candidate_assignee/todo_candidate_evidence_message 參照 todo_candidate；channel_message_mention 與 evidence 也會參照 channel_message，
+	// 因此最後才能刪 todo_candidate 與 channel_message。
 	actionResultCount, err := r.Client.ActionResult.Delete().Exec(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("delete action results failed: %w", err)
+	}
+	todoEventCount, err := r.Client.TodoEvent.Delete().Exec(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("delete todo events failed: %w", err)
+	}
+	todoUpdateCandidateCount, err := r.Client.TodoUpdateCandidate.Delete().Exec(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("delete todo update candidates failed: %w", err)
 	}
 	todoCount, err := r.Client.Todo.Delete().Exec(ctx)
 	if err != nil {
@@ -165,6 +174,10 @@ func (r *mutationResolver) ClearDevRealtimeTodoData(ctx context.Context) (*model
 	todoCandidateAssigneeCount, err := r.Client.TodoCandidateAssignee.Delete().Exec(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("delete todo candidate assignees failed: %w", err)
+	}
+	todoCandidateEvidenceMessageCount, err := r.Client.TodoCandidateEvidenceMessage.Delete().Exec(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("delete todo candidate evidence messages failed: %w", err)
 	}
 	channelMessageMentionCount, err := r.Client.ChannelMessageMention.Delete().Exec(ctx)
 	if err != nil {
@@ -181,12 +194,15 @@ func (r *mutationResolver) ClearDevRealtimeTodoData(ctx context.Context) (*model
 
 	// 回傳每種實體實際被刪除的筆數，方便呼叫端（開發工具）確認清空範圍與結果。
 	return &model.ClearDevRealtimeTodoDataPayload{
-		Status:                     "cleared",
-		TodoCount:                  todoCount,
-		ChannelMessageCount:        channelMessageCount,
-		TodoCandidateCount:         todoCandidateCount,
-		TodoCandidateAssigneeCount: todoCandidateAssigneeCount,
-		ChannelMessageMentionCount: channelMessageMentionCount,
-		ActionResultCount:          actionResultCount,
+		Status:                            "cleared",
+		TodoCount:                         todoCount,
+		TodoEventCount:                    todoEventCount,
+		TodoUpdateCandidateCount:          todoUpdateCandidateCount,
+		ChannelMessageCount:               channelMessageCount,
+		TodoCandidateCount:                todoCandidateCount,
+		TodoCandidateEvidenceMessageCount: todoCandidateEvidenceMessageCount,
+		TodoCandidateAssigneeCount:        todoCandidateAssigneeCount,
+		ChannelMessageMentionCount:        channelMessageMentionCount,
+		ActionResultCount:                 actionResultCount,
 	}, nil
 }

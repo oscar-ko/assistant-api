@@ -12,16 +12,22 @@ import (
 
 // 清理開發用 realtime Todo 資料後的統計結果。
 //
-// 每個 count 都代表對應資料表實際刪除的筆數，方便確認下次模擬前沒有殘留 Todo、candidate、mention 或 action result。
+// 每個 count 都代表對應資料表實際刪除的筆數，方便確認下次模擬前沒有殘留 Todo、Todo event/update candidate、candidate、candidate evidence、mention 或 action result。
 type ClearDevRealtimeTodoDataPayload struct {
 	// 清理操作狀態。
 	Status string `json:"status"`
 	// 刪除的正式 Todo 筆數；這是每個使用者自己的待辦資料，清理 candidate 前必須先刪除。
 	TodoCount int `json:"todoCount"`
+	// 刪除的 TodoEvent 筆數；這是正式 Todo 的狀態變更歷史，會參照 Todo、TodoCandidate 與 ChannelMessage。
+	TodoEventCount int `json:"todoEventCount"`
+	// 刪除的 TodoUpdateCandidate 筆數；這是正式 Todo 的待確認變更，會參照 Todo、TodoCandidate 與 ChannelMessage。
+	TodoUpdateCandidateCount int `json:"todoUpdateCandidateCount"`
 	// 刪除的 ChannelMessage 筆數。
 	ChannelMessageCount int `json:"channelMessageCount"`
 	// 刪除的 TodoCandidate 筆數。
 	TodoCandidateCount int `json:"todoCandidateCount"`
+	// 刪除的 TodoCandidateEvidenceMessage 筆數；這是 candidate 與原始訊息之間的 evidence anchor，必須在刪除 TodoCandidate 或 ChannelMessage 前先清掉。
+	TodoCandidateEvidenceMessageCount int `json:"todoCandidateEvidenceMessageCount"`
 	// 刪除的 TodoCandidateAssignee evidence 筆數。
 	TodoCandidateAssigneeCount int `json:"todoCandidateAssigneeCount"`
 	// 刪除的 ChannelMessageMention 筆數。

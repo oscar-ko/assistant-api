@@ -61,13 +61,16 @@ type DirectiveRoot struct {
 
 type ComplexityRoot struct {
 	ClearDevRealtimeTodoDataPayload struct {
-		ActionResultCount          func(childComplexity int) int
-		ChannelMessageCount        func(childComplexity int) int
-		ChannelMessageMentionCount func(childComplexity int) int
-		Status                     func(childComplexity int) int
-		TodoCandidateAssigneeCount func(childComplexity int) int
-		TodoCandidateCount         func(childComplexity int) int
-		TodoCount                  func(childComplexity int) int
+		ActionResultCount                 func(childComplexity int) int
+		ChannelMessageCount               func(childComplexity int) int
+		ChannelMessageMentionCount        func(childComplexity int) int
+		Status                            func(childComplexity int) int
+		TodoCandidateAssigneeCount        func(childComplexity int) int
+		TodoCandidateCount                func(childComplexity int) int
+		TodoCandidateEvidenceMessageCount func(childComplexity int) int
+		TodoCount                         func(childComplexity int) int
+		TodoEventCount                    func(childComplexity int) int
+		TodoUpdateCandidateCount          func(childComplexity int) int
 	}
 
 	Mutation struct {
@@ -307,12 +310,33 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.ClearDevRealtimeTodoDataPayload.TodoCandidateCount(childComplexity), true
 
+	case "ClearDevRealtimeTodoDataPayload.todoCandidateEvidenceMessageCount":
+		if e.complexity.ClearDevRealtimeTodoDataPayload.TodoCandidateEvidenceMessageCount == nil {
+			break
+		}
+
+		return e.complexity.ClearDevRealtimeTodoDataPayload.TodoCandidateEvidenceMessageCount(childComplexity), true
+
 	case "ClearDevRealtimeTodoDataPayload.todoCount":
 		if e.complexity.ClearDevRealtimeTodoDataPayload.TodoCount == nil {
 			break
 		}
 
 		return e.complexity.ClearDevRealtimeTodoDataPayload.TodoCount(childComplexity), true
+
+	case "ClearDevRealtimeTodoDataPayload.todoEventCount":
+		if e.complexity.ClearDevRealtimeTodoDataPayload.TodoEventCount == nil {
+			break
+		}
+
+		return e.complexity.ClearDevRealtimeTodoDataPayload.TodoEventCount(childComplexity), true
+
+	case "ClearDevRealtimeTodoDataPayload.todoUpdateCandidateCount":
+		if e.complexity.ClearDevRealtimeTodoDataPayload.TodoUpdateCandidateCount == nil {
+			break
+		}
+
+		return e.complexity.ClearDevRealtimeTodoDataPayload.TodoUpdateCandidateCount(childComplexity), true
 
 	case "Mutation.clearDevRealtimeTodoData":
 		if e.complexity.Mutation.ClearDevRealtimeTodoData == nil {
@@ -3201,7 +3225,7 @@ extend type Mutation {
     清除開發測試用的 realtime Todo 資料。
 
     這個操作是 destructive dev helper，目標是讓同一組模擬資料可以重跑。
-    回傳各資料表刪除筆數，方便確認正式 Todo、candidate、assignee evidence、mention 與 action result 都有被清乾淨。
+    回傳各資料表刪除筆數，方便確認正式 Todo、Todo event/update candidate、candidate、candidate evidence、assignee evidence、mention 與 action result 都有被清乾淨。
     """
     clearDevRealtimeTodoData: ClearDevRealtimeTodoDataPayload!
 }
@@ -3344,7 +3368,7 @@ type SimulateLineTodoConversationPayload {
 """
 清理開發用 realtime Todo 資料後的統計結果。
 
-每個 count 都代表對應資料表實際刪除的筆數，方便確認下次模擬前沒有殘留 Todo、candidate、mention 或 action result。
+每個 count 都代表對應資料表實際刪除的筆數，方便確認下次模擬前沒有殘留 Todo、Todo event/update candidate、candidate、candidate evidence、mention 或 action result。
 """
 type ClearDevRealtimeTodoDataPayload {
     """
@@ -3356,6 +3380,14 @@ type ClearDevRealtimeTodoDataPayload {
     """
     todoCount: Int!
     """
+    刪除的 TodoEvent 筆數；這是正式 Todo 的狀態變更歷史，會參照 Todo、TodoCandidate 與 ChannelMessage。
+    """
+    todoEventCount: Int!
+    """
+    刪除的 TodoUpdateCandidate 筆數；這是正式 Todo 的待確認變更，會參照 Todo、TodoCandidate 與 ChannelMessage。
+    """
+    todoUpdateCandidateCount: Int!
+    """
     刪除的 ChannelMessage 筆數。
     """
     channelMessageCount: Int!
@@ -3363,6 +3395,10 @@ type ClearDevRealtimeTodoDataPayload {
     刪除的 TodoCandidate 筆數。
     """
     todoCandidateCount: Int!
+    """
+    刪除的 TodoCandidateEvidenceMessage 筆數；這是 candidate 與原始訊息之間的 evidence anchor，必須在刪除 TodoCandidate 或 ChannelMessage 前先清掉。
+    """
+    todoCandidateEvidenceMessageCount: Int!
     """
     刪除的 TodoCandidateAssignee evidence 筆數。
     """
@@ -3997,6 +4033,94 @@ func (ec *executionContext) fieldContext_ClearDevRealtimeTodoDataPayload_todoCou
 	return fc, nil
 }
 
+func (ec *executionContext) _ClearDevRealtimeTodoDataPayload_todoEventCount(ctx context.Context, field graphql.CollectedField, obj *model.ClearDevRealtimeTodoDataPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ClearDevRealtimeTodoDataPayload_todoEventCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TodoEventCount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ClearDevRealtimeTodoDataPayload_todoEventCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ClearDevRealtimeTodoDataPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ClearDevRealtimeTodoDataPayload_todoUpdateCandidateCount(ctx context.Context, field graphql.CollectedField, obj *model.ClearDevRealtimeTodoDataPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ClearDevRealtimeTodoDataPayload_todoUpdateCandidateCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TodoUpdateCandidateCount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ClearDevRealtimeTodoDataPayload_todoUpdateCandidateCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ClearDevRealtimeTodoDataPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ClearDevRealtimeTodoDataPayload_channelMessageCount(ctx context.Context, field graphql.CollectedField, obj *model.ClearDevRealtimeTodoDataPayload) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_ClearDevRealtimeTodoDataPayload_channelMessageCount(ctx, field)
 	if err != nil {
@@ -4073,6 +4197,50 @@ func (ec *executionContext) _ClearDevRealtimeTodoDataPayload_todoCandidateCount(
 }
 
 func (ec *executionContext) fieldContext_ClearDevRealtimeTodoDataPayload_todoCandidateCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ClearDevRealtimeTodoDataPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ClearDevRealtimeTodoDataPayload_todoCandidateEvidenceMessageCount(ctx context.Context, field graphql.CollectedField, obj *model.ClearDevRealtimeTodoDataPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ClearDevRealtimeTodoDataPayload_todoCandidateEvidenceMessageCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TodoCandidateEvidenceMessageCount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ClearDevRealtimeTodoDataPayload_todoCandidateEvidenceMessageCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ClearDevRealtimeTodoDataPayload",
 		Field:      field,
@@ -4518,10 +4686,16 @@ func (ec *executionContext) fieldContext_Mutation_clearDevRealtimeTodoData(_ con
 				return ec.fieldContext_ClearDevRealtimeTodoDataPayload_status(ctx, field)
 			case "todoCount":
 				return ec.fieldContext_ClearDevRealtimeTodoDataPayload_todoCount(ctx, field)
+			case "todoEventCount":
+				return ec.fieldContext_ClearDevRealtimeTodoDataPayload_todoEventCount(ctx, field)
+			case "todoUpdateCandidateCount":
+				return ec.fieldContext_ClearDevRealtimeTodoDataPayload_todoUpdateCandidateCount(ctx, field)
 			case "channelMessageCount":
 				return ec.fieldContext_ClearDevRealtimeTodoDataPayload_channelMessageCount(ctx, field)
 			case "todoCandidateCount":
 				return ec.fieldContext_ClearDevRealtimeTodoDataPayload_todoCandidateCount(ctx, field)
+			case "todoCandidateEvidenceMessageCount":
+				return ec.fieldContext_ClearDevRealtimeTodoDataPayload_todoCandidateEvidenceMessageCount(ctx, field)
 			case "todoCandidateAssigneeCount":
 				return ec.fieldContext_ClearDevRealtimeTodoDataPayload_todoCandidateAssigneeCount(ctx, field)
 			case "channelMessageMentionCount":
@@ -20276,6 +20450,16 @@ func (ec *executionContext) _ClearDevRealtimeTodoDataPayload(ctx context.Context
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "todoEventCount":
+			out.Values[i] = ec._ClearDevRealtimeTodoDataPayload_todoEventCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "todoUpdateCandidateCount":
+			out.Values[i] = ec._ClearDevRealtimeTodoDataPayload_todoUpdateCandidateCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "channelMessageCount":
 			out.Values[i] = ec._ClearDevRealtimeTodoDataPayload_channelMessageCount(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -20283,6 +20467,11 @@ func (ec *executionContext) _ClearDevRealtimeTodoDataPayload(ctx context.Context
 			}
 		case "todoCandidateCount":
 			out.Values[i] = ec._ClearDevRealtimeTodoDataPayload_todoCandidateCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "todoCandidateEvidenceMessageCount":
+			out.Values[i] = ec._ClearDevRealtimeTodoDataPayload_todoCandidateEvidenceMessageCount(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
