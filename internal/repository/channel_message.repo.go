@@ -983,7 +983,8 @@ func (r *ChannelMessageRepo) FindLatestActionResultByMessageID(ctx context.Conte
 // 寫入策略：
 // - create_candidate / needs_more_info：以目前訊息建立新的 candidate。
 // - update_candidate / acknowledge / cancel_candidate：用 linked_message_id 對應的 evidence anchor 在同 channel 找既有 candidate，找到就更新最新狀態。
-// - 找不到 linked candidate 時回錯誤，讓上層 log 出資料連結缺口；不靜默建立錯誤候選。
+// - explicit reply 可能第一次把舊訊息補齊成可提醒待辦；若 linked message 存在但尚無 candidate，update_candidate 會以 linked message 作為 source 初始化 candidate。
+// - 找不到 linked message/candidate 時回錯誤，讓上層 log 出資料連結缺口；不靜默建立錯誤候選。
 func (r *ChannelMessageRepo) SaveTodoCandidateFromAnalysis(ctx context.Context, input SaveTodoCandidateInput) (*ent.TodoCandidate, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("channel repository not initialized")
@@ -1016,6 +1017,15 @@ func (r *ChannelMessageRepo) SaveTodoCandidateFromAnalysis(ctx context.Context, 
 		return nil, err
 	}
 	if existing == nil {
+		if decision == todocandidate.LastDecisionUpdateCandidate {
+			// explicit reply 可能第一次把「早就存在但尚未形成 candidate 的 parent message」補齊負責人/期限；
+			// 這種情境不是 fallback，而是使用者明確引用 parent 的合法初始化路徑。
+			item, err := r.createTodoCandidateFromLinkedMessageUpdate(ctx, input, decision, status)
+			if err != nil {
+				return nil, err
+			}
+			return item, r.promoteTodoCandidate(ctx, item)
+		}
 		return nil, fmt.Errorf("todo candidate linked message %s has no existing candidate", input.LinkedMessageID)
 	}
 	item, err := r.updateTodoCandidate(ctx, existing.ID, input, decision, status)
@@ -1416,6 +1426,63 @@ func (r *ChannelMessageRepo) createTodoCandidate(ctx context.Context, input Save
 	return item, nil
 }
 
+func (r *ChannelMessageRepo) createTodoCandidateFromLinkedMessageUpdate(ctx context.Context, input SaveTodoCandidateInput, decision todocandidate.LastDecision, status todocandidate.Status) (*ent.TodoCandidate, error) {
+	// update_candidate 若找不到既有 candidate，只能在 linked message 確實存在且屬於同 channel 時初始化；
+	// 找不到 linked message 仍要 fail-fast，避免模型輸出錯誤 id 時默默建立孤兒 candidate。
+	linkedMessage, err := r.db.ChannelMessage.Query().Where(channelmessage.IDEQ(input.LinkedMessageID), channelmessage.ChannelIDEQ(input.ChannelID)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, fmt.Errorf("todo candidate linked message %s not found", input.LinkedMessageID)
+		}
+		return nil, fmt.Errorf("query todo candidate linked message failed: %w", err)
+	}
+	if linkedMessage == nil {
+		return nil, fmt.Errorf("todo candidate linked message %s not found", input.LinkedMessageID)
+	}
+
+	create := r.db.TodoCandidate.Create().
+		SetChannelID(input.ChannelID).
+		SetSourceMessageID(input.LinkedMessageID).
+		SetLastMessageID(input.MessageID).
+		SetStatus(status).
+		SetLastDecision(decision).
+		SetSummary(strings.TrimSpace(input.Summary)).
+		SetAssignees(normalizeStringSlice(input.Assignees)).
+		SetDueText(strings.TrimSpace(input.DueText)).
+		SetDueTimezone(strings.TrimSpace(input.DueTimezone)).
+		SetDuePrecision(normalizeTodoDuePrecision(input.DuePrecision)).
+		SetDueConfidence(input.DueConfidence).
+		SetDueReason(strings.TrimSpace(input.DueReason)).
+		SetMissingFields(normalizeStringSlice(input.MissingFields)).
+		SetConfidence(input.Confidence).
+		SetReason(strings.TrimSpace(input.Reason))
+	if input.DueAt != nil {
+		create.SetDueAt(*input.DueAt)
+	}
+	if dueDecision := normalizeTodoDueDecision(input.DueDecision); dueDecision != "" {
+		create.SetDueNormalizeDecision(dueDecision)
+	}
+	item, err := create.Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("create todo candidate from linked message update failed: %w", err)
+	}
+	if err := r.syncTodoCandidateMentionAssignees(ctx, item.ID, input.MessageID); err != nil {
+		return nil, err
+	}
+	if err := r.syncTodoCandidateAnalyzerAssignees(ctx, item.ID, input.ChannelID, input.Assignees); err != nil {
+		return nil, err
+	}
+	// source evidence 指向被 reply 的舊訊息，update evidence 指向目前補欄位的訊息；
+	// 這樣後續 evidence recall 能同時找回原始交辦與補充內容。
+	if err := r.upsertTodoCandidateEvidenceMessage(ctx, item.ID, SaveTodoCandidateInput{ChannelID: input.ChannelID, MessageID: input.LinkedMessageID, Confidence: input.Confidence, Reason: input.Reason}, todocandidateevidencemessage.RelationTypeSource, todocandidateevidencemessage.SourceAnalyzer); err != nil {
+		return nil, err
+	}
+	if err := r.upsertTodoCandidateEvidenceMessage(ctx, item.ID, input, todoCandidateEvidenceRelationFromDecision(decision), todocandidateevidencemessage.SourceAnalyzer); err != nil {
+		return nil, err
+	}
+	return item, nil
+}
+
 func (r *ChannelMessageRepo) updateTodoCandidate(ctx context.Context, candidateID uuid.UUID, input SaveTodoCandidateInput, decision todocandidate.LastDecision, status todocandidate.Status) (*ent.TodoCandidate, error) {
 	update := r.db.TodoCandidate.UpdateOneID(candidateID).
 		SetLastMessageID(input.MessageID).
@@ -1590,7 +1657,7 @@ func (r *ChannelMessageRepo) syncTodoCandidateAnalyzerAssignees(ctx context.Cont
 
 	creates := make([]*ent.TodoCandidateAssigneeCreate, 0, len(normalizedAssignees))
 	for _, assignee := range normalizedAssignees {
-		matchedUserID, status, reason, err := r.resolveAnalyzerAssigneeByChannelSenderName(ctx, channelID, assignee)
+		matchedUserID, status, reason, err := r.resolveAnalyzerAssigneeByChannelSender(ctx, channelID, assignee)
 		if err != nil {
 			return err
 		}
@@ -1614,17 +1681,33 @@ func (r *ChannelMessageRepo) syncTodoCandidateAnalyzerAssignees(ctx context.Cont
 	return nil
 }
 
-func (r *ChannelMessageRepo) resolveAnalyzerAssigneeByChannelSenderName(ctx context.Context, channelID uuid.UUID, assignee string) (uuid.UUID, todocandidateassignee.ResolutionStatus, string, error) {
+func (r *ChannelMessageRepo) resolveAnalyzerAssigneeByChannelSender(ctx context.Context, channelID uuid.UUID, assignee string) (uuid.UUID, todocandidateassignee.ResolutionStatus, string, error) {
 	assignee = strings.TrimSpace(assignee)
 	if assignee == "" {
 		return uuid.Nil, todocandidateassignee.ResolutionStatusUnsupported, "empty analyzer assignee", nil
 	}
-	items, err := r.db.ChannelMessage.Query().
-		Where(
-			channelmessage.ChannelIDEQ(channelID),
-			channelmessage.SenderNameEqualFold(assignee),
-			channelmessage.SenderUserIDNotNil(),
-		).
+	// 解析順序由精確到寬鬆：平台 sender id -> channel 內顯示名 -> 顯示名 alias -> workspace Slack profile。
+	// 任一步出現 ambiguous 就立刻停下來，不用後面的寬鬆規則掩蓋資料歧義。
+	if userID, status, reason, err := r.resolveAnalyzerAssigneeByChannelSenderField(ctx, channelID, assignee, true); err != nil || status == todocandidateassignee.ResolutionStatusResolved || status == todocandidateassignee.ResolutionStatusAmbiguous {
+		return userID, status, reason, err
+	}
+	if userID, status, reason, err := r.resolveAnalyzerAssigneeByChannelSenderField(ctx, channelID, assignee, false); err != nil || status == todocandidateassignee.ResolutionStatusResolved || status == todocandidateassignee.ResolutionStatusAmbiguous {
+		return userID, status, reason, err
+	}
+	if userID, status, reason, err := r.resolveAnalyzerAssigneeByChannelSenderDisplayAlias(ctx, channelID, assignee); err != nil || status == todocandidateassignee.ResolutionStatusResolved || status == todocandidateassignee.ResolutionStatusAmbiguous {
+		return userID, status, reason, err
+	}
+	return r.resolveAnalyzerAssigneeByChannelWorkspaceSlackDisplayAlias(ctx, channelID, assignee)
+}
+
+func (r *ChannelMessageRepo) resolveAnalyzerAssigneeByChannelSenderField(ctx context.Context, channelID uuid.UUID, assignee string, matchPlatformSenderID bool) (uuid.UUID, todocandidateassignee.ResolutionStatus, string, error) {
+	query := r.db.ChannelMessage.Query().Where(channelmessage.ChannelIDEQ(channelID), channelmessage.SenderUserIDNotNil())
+	if matchPlatformSenderID {
+		query = query.Where(channelmessage.SenderIDEQ(assignee))
+	} else {
+		query = query.Where(channelmessage.SenderNameEqualFold(assignee))
+	}
+	items, err := query.
 		Order(ent.Desc(channelmessage.FieldCreatedAt)).
 		Limit(50).
 		All(ctx)
@@ -1640,13 +1723,120 @@ func (r *ChannelMessageRepo) resolveAnalyzerAssigneeByChannelSenderName(ctx cont
 	}
 	switch len(uniqueUserIDs) {
 	case 0:
+		if matchPlatformSenderID {
+			return uuid.Nil, todocandidateassignee.ResolutionStatusUnresolved, "no channel sender matched analyzer assignee platform sender id", nil
+		}
 		return uuid.Nil, todocandidateassignee.ResolutionStatusUnresolved, "no channel sender matched analyzer assignee display text", nil
 	case 1:
 		for userID := range uniqueUserIDs {
+			if matchPlatformSenderID {
+				return userID, todocandidateassignee.ResolutionStatusResolved, "matched unique channel sender platform id", nil
+			}
 			return userID, todocandidateassignee.ResolutionStatusResolved, "matched unique channel sender display name", nil
 		}
 	}
+	if matchPlatformSenderID {
+		return uuid.Nil, todocandidateassignee.ResolutionStatusAmbiguous, "multiple channel senders matched analyzer assignee platform sender id", nil
+	}
 	return uuid.Nil, todocandidateassignee.ResolutionStatusAmbiguous, "multiple channel senders matched analyzer assignee display text", nil
+}
+
+func (r *ChannelMessageRepo) resolveAnalyzerAssigneeByChannelSenderDisplayAlias(ctx context.Context, channelID uuid.UUID, assignee string) (uuid.UUID, todocandidateassignee.ResolutionStatus, string, error) {
+	assigneeKey := normalizeSenderDisplayAlias(assignee)
+	if assigneeKey == "" {
+		return uuid.Nil, todocandidateassignee.ResolutionStatusUnresolved, "no channel sender matched analyzer assignee display alias", nil
+	}
+	items, err := r.db.ChannelMessage.Query().
+		Where(channelmessage.ChannelIDEQ(channelID), channelmessage.SenderUserIDNotNil(), channelmessage.SenderNameNotNil()).
+		Order(ent.Desc(channelmessage.FieldCreatedAt)).
+		Limit(50).
+		All(ctx)
+	if err != nil {
+		return uuid.Nil, "", "", fmt.Errorf("query analyzer assignee sender alias matches failed: %w", err)
+	}
+	uniqueUserIDs := make(map[uuid.UUID]struct{}, len(items))
+	for _, item := range items {
+		if item == nil || item.SenderUserID == nil || *item.SenderUserID == uuid.Nil || strings.TrimSpace(item.SenderName) == "" {
+			continue
+		}
+		if senderDisplayAliasMatches(assigneeKey, item.SenderName) {
+			uniqueUserIDs[*item.SenderUserID] = struct{}{}
+		}
+	}
+	switch len(uniqueUserIDs) {
+	case 0:
+		return uuid.Nil, todocandidateassignee.ResolutionStatusUnresolved, "no channel sender matched analyzer assignee display alias", nil
+	case 1:
+		for userID := range uniqueUserIDs {
+			return userID, todocandidateassignee.ResolutionStatusResolved, "matched unique channel sender display alias", nil
+		}
+	}
+	return uuid.Nil, todocandidateassignee.ResolutionStatusAmbiguous, "multiple channel senders matched analyzer assignee display alias", nil
+}
+
+func senderDisplayAliasMatches(assigneeKey string, senderName string) bool {
+	// Alias 比對只做大小寫/空白正規化與 token 邊界比對；
+	// 不使用硬編關鍵字或語言特例，避免把特定測試人名寫死進解析流程。
+	senderKey := normalizeSenderDisplayAlias(senderName)
+	if assigneeKey == "" || senderKey == "" {
+		return false
+	}
+	if assigneeKey == senderKey {
+		return true
+	}
+	for _, token := range strings.Fields(senderKey) {
+		if token == assigneeKey {
+			return true
+		}
+	}
+	return strings.HasPrefix(senderKey, assigneeKey+" ")
+}
+
+func normalizeSenderDisplayAlias(value string) string {
+	return strings.Join(strings.Fields(strings.ToLower(strings.TrimSpace(value))), " ")
+}
+
+func (r *ChannelMessageRepo) resolveAnalyzerAssigneeByChannelWorkspaceSlackDisplayAlias(ctx context.Context, channelID uuid.UUID, assignee string) (uuid.UUID, todocandidateassignee.ResolutionStatus, string, error) {
+	assigneeKey := normalizeSenderDisplayAlias(assignee)
+	if assigneeKey == "" {
+		return uuid.Nil, todocandidateassignee.ResolutionStatusUnresolved, "no workspace slack user matched analyzer assignee display alias", nil
+	}
+	latest, err := r.db.ChannelMessage.Query().
+		Where(channelmessage.ChannelIDEQ(channelID), channelmessage.PlatformTenantIDNotNil()).
+		Order(ent.Desc(channelmessage.FieldCreatedAt)).
+		First(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return uuid.Nil, "", "", fmt.Errorf("query channel message tenant for workspace assignee resolution failed: %w", err)
+	}
+	teamID := ""
+	if latest != nil {
+		teamID = strings.TrimSpace(latest.PlatformTenantID)
+	}
+	if teamID == "" {
+		return uuid.Nil, todocandidateassignee.ResolutionStatusUnresolved, "channel workspace team id is empty", nil
+	}
+	items, err := r.db.Slack.Query().Where(slack.PlatformTeamIDEQ(teamID)).WithUser().All(ctx)
+	if err != nil {
+		return uuid.Nil, "", "", fmt.Errorf("query slack workspace users for assignee resolution failed: %w", err)
+	}
+	uniqueUserIDs := make(map[uuid.UUID]struct{}, len(items))
+	for _, item := range items {
+		if item == nil || item.DisplayName == nil || strings.TrimSpace(*item.DisplayName) == "" {
+			continue
+		}
+		if senderDisplayAliasMatches(assigneeKey, *item.DisplayName) {
+			uniqueUserIDs[item.UserID] = struct{}{}
+		}
+	}
+	switch len(uniqueUserIDs) {
+	case 0:
+		return uuid.Nil, todocandidateassignee.ResolutionStatusUnresolved, "no workspace slack user matched analyzer assignee display alias", nil
+	case 1:
+		for userID := range uniqueUserIDs {
+			return userID, todocandidateassignee.ResolutionStatusResolved, "matched unique workspace slack user display alias", nil
+		}
+	}
+	return uuid.Nil, todocandidateassignee.ResolutionStatusAmbiguous, "multiple workspace slack users matched analyzer assignee display alias", nil
 }
 
 // findTodoCandidateByLinkedMessage 透過 evidence anchor 解析 LLM 回傳的 linked_message_id。

@@ -17,5 +17,6 @@ type Resolver struct {
 	LinePushService       lineprovider.PushMessageService
 	LinePushInitErr       error
 	LineWebhookProcessor  lineprovider.WebhookProcessor
+	SlackPushService      slackprovider.PushMessageService
 	SlackWebhookProcessor slackprovider.WebhookProcessor
 }

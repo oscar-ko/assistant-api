@@ -7,9 +7,16 @@ package graph
 import (
 	"assistant-api/internal/config"
 	"assistant-api/internal/ent"
+	"assistant-api/internal/ent/actionresult"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
+	"assistant-api/internal/ent/channelmessagemention"
+	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
+	"assistant-api/internal/ent/todocandidateassignee"
+	"assistant-api/internal/ent/todocandidateevidencemessage"
+	"assistant-api/internal/ent/todoevent"
+	"assistant-api/internal/ent/todoupdatecandidate"
 	"assistant-api/internal/graph/model"
 	"context"
 	"fmt"
@@ -41,11 +48,22 @@ func (r *mutationResolver) SimulateTodoConversation(ctx context.Context, input m
 	default:
 		return nil, fmt.Errorf("unsupported simulation platform: %s", input.Platform)
 	}
-	if input.ParticipantCount < 2 {
-		return nil, fmt.Errorf("participantCount must be at least 2")
+	if input.ParticipantCount < 1 {
+		return nil, fmt.Errorf("participantCount must be at least 1")
 	}
-	if input.MessageCount < input.ParticipantCount {
+	if len(input.Messages) == 0 && input.ParticipantCount < 2 {
+		return nil, fmt.Errorf("participantCount must be at least 2 when messages is not provided")
+	}
+	if len(input.Messages) == 0 && input.MessageCount < input.ParticipantCount {
 		return nil, fmt.Errorf("messageCount must be greater than or equal to participantCount")
+	}
+	messageCount := input.MessageCount
+	if len(input.Messages) > 0 {
+		messageCount = len(input.Messages)
+	}
+	deliveryMode, err := normalizeTodoSimulationDeliveryMode(input.DeliveryMode)
+	if err != nil {
+		return nil, err
 	}
 
 	ch, err := r.Client.Channel.Get(ctx, input.ChannelID)
@@ -74,6 +92,10 @@ func (r *mutationResolver) SimulateTodoConversation(ctx context.Context, input m
 	if err != nil {
 		return nil, err
 	}
+	senderParticipant, err := r.resolveSimulationSenderParticipant(ctx, platform, platformTenantID, input.SenderUserID)
+	if err != nil {
+		return nil, err
+	}
 	var slackBotSigningSecret string
 	if platform == "line" {
 		if r.LineWebhookProcessor == nil {
@@ -96,17 +118,55 @@ func (r *mutationResolver) SimulateTodoConversation(ctx context.Context, input m
 		slackBotSigningSecret = strings.TrimSpace(bot.SigningSecret)
 	}
 
-	messages := make([]*model.SimulatedTodoMessage, 0, input.MessageCount)
-	for index := 0; index < input.MessageCount; index++ {
-		participant := participants[index%len(participants)]
-		text := buildCasualTodoSimulationText(index, participants)
-		timestamp := time.Now().UnixMilli()
-		platformMessageID, body, err := r.buildSimulatedWebhookBody(platform, platformTenantID, platformChannelID, participant, text, timestamp)
+	messages := make([]*model.SimulatedTodoMessage, 0, messageCount)
+	// platformMessageIDs 保存「內部 webhook 模擬事件」使用的平台訊息 ID；
+	// visiblePlatformMessageIDs 保存真實 Slack chat.postMessage 回傳的 ts。
+	// 兩者刻意分開：visible mode 會先貼一則真實訊息給人看，再送一則內部事件給 analyzer，
+	// replyToMessageIndex 必須同時能對到 Slack thread_ts 與內部 ChannelMessage.reply_to_msg_id。
+	platformMessageIDs := make([]string, 0, messageCount)
+	visiblePlatformMessageIDs := make([]string, 0, messageCount)
+	for index := 0; index < messageCount; index++ {
+		turn, err := r.buildSimulatedTodoTurnPlan(ctx, devSimulationTurnPlanInput{
+			Index:                     index,
+			Platform:                  platform,
+			DeliveryMode:              deliveryMode,
+			DefaultPlatformAppID:      platformAppID,
+			PlatformTenantID:          platformTenantID,
+			Script:                    input.Messages,
+			Participants:              participants,
+			SenderParticipant:         senderParticipant,
+			PlatformMessageIDs:        platformMessageIDs,
+			VisiblePlatformMessageIDs: visiblePlatformMessageIDs,
+		})
 		if err != nil {
 			return nil, err
 		}
+		var visiblePlatformMessageID *string
+		if deliveryMode == "visible" {
+			if platform != "slack" {
+				return nil, fmt.Errorf("visible deliveryMode currently supports slack only")
+			}
+			// visible delivery 只負責讓 Slack 頻道真的看得到劇本台詞；
+			// 後面仍會建立 signed webhook body 並送進正式 SlackWebhookProcessor，確保 analyzer 路徑一致。
+			sentID, err := r.sendVisibleSlackSimulationMessage(ctx, platformTenantID, turn.VisiblePlatformAppID, platformChannelID, turn.Participant, turn.Text, turn.ReplyToVisiblePlatformMessageID)
+			if err != nil {
+				return nil, fmt.Errorf("send visible simulated slack message failed: %w", err)
+			}
+			if strings.TrimSpace(sentID) != "" {
+				visiblePlatformMessageID = &sentID
+			}
+			visiblePlatformMessageIDs = append(visiblePlatformMessageIDs, strings.TrimSpace(sentID))
+		} else {
+			visiblePlatformMessageIDs = append(visiblePlatformMessageIDs, "")
+		}
+		timestamp := time.Now().UnixMilli()
+		platformMessageID, body, err := r.buildSimulatedWebhookBody(platform, platformTenantID, platformChannelID, turn.Participant, turn.Text, turn.ReplyToPlatformMessageID, timestamp)
+		if err != nil {
+			return nil, err
+		}
+		platformMessageIDs = append(platformMessageIDs, platformMessageID)
 
-		platformText := buildPlatformSimulationText(platform, participant.Name, text)
+		platformText := buildPlatformSimulationText(platform, turn.Participant.Name, turn.Text)
 		// 每則訊息都組成平台原生 webhook payload，再交給對應 provider processor。
 		// 這能同時測到 provider adapter、message persistence、command/realtime dispatcher 與 Todo analyzer。
 		if platform == "line" {
@@ -133,6 +193,8 @@ func (r *mutationResolver) SimulateTodoConversation(ctx context.Context, input m
 		var todoCandidateDecision *string
 		var todoCandidateSummary *string
 		var todoCandidateReason *string
+		// 每則訊息處理後立即查一次落庫結果，讓 GraphQL 回傳能指出哪一則台詞觸發了 candidate。
+		// 這只是 dev helper 的觀測資料；正式流程仍以 repository/promotion 表為準。
 		if saved, err := r.Client.ChannelMessage.Query().Where(channelmessage.ChannelIDEQ(ch.ID), channelmessage.PlatformMessageIDEQ(platformMessageID)).Only(ctx); err != nil {
 			if !ent.IsNotFound(err) {
 				return nil, fmt.Errorf("query saved simulated message failed: %w", err)
@@ -161,23 +223,28 @@ func (r *mutationResolver) SimulateTodoConversation(ctx context.Context, input m
 		}
 
 		messages = append(messages, &model.SimulatedTodoMessage{
-			SpeakerUserID:         participant.UserID,
-			PlatformUserID:        participant.PlatformUserID,
-			DisplayName:           participant.Name,
-			Text:                  text,
-			PlatformText:          platformText,
-			PlatformMessageID:     platformMessageID,
-			SavedMessageID:        savedMessageID,
-			TodoCandidateID:       todoCandidateID,
-			TodoCandidateStatus:   todoCandidateStatus,
-			TodoCandidateDecision: todoCandidateDecision,
-			TodoCandidateSummary:  todoCandidateSummary,
-			TodoCandidateReason:   todoCandidateReason,
+			SpeakerUserID:            turn.Participant.UserID,
+			PlatformUserID:           turn.Participant.PlatformUserID,
+			DisplayName:              turn.Participant.Name,
+			Text:                     turn.Text,
+			PlatformText:             platformText,
+			PlatformMessageID:        platformMessageID,
+			VisiblePlatformMessageID: visiblePlatformMessageID,
+			SavedMessageID:           savedMessageID,
+			TodoCandidateID:          todoCandidateID,
+			TodoCandidateStatus:      todoCandidateStatus,
+			TodoCandidateDecision:    todoCandidateDecision,
+			TodoCandidateSummary:     todoCandidateSummary,
+			TodoCandidateReason:      todoCandidateReason,
 		})
 	}
 
 	payloadParticipants := make([]*model.SimulatedTodoParticipant, 0, len(participants))
-	for _, participant := range participants {
+	listedParticipants := participants
+	if senderParticipant != nil {
+		listedParticipants = []devSimulationParticipant{*senderParticipant}
+	}
+	for _, participant := range listedParticipants {
 		payloadParticipants = append(payloadParticipants, &model.SimulatedTodoParticipant{
 			UserID:         participant.UserID,
 			PlatformUserID: participant.PlatformUserID,
@@ -206,58 +273,132 @@ func (r *mutationResolver) SimulateTodoConversation(ctx context.Context, input m
 //
 // 用途：開發時清空實時 Todo 流程產生的測試資料，方便重複測試實時分析/挑治流程而不用手動清 DB。
 // 僅允許在 dev run mode 執行，避免誤操作清空正式環境資料。
-func (r *mutationResolver) ClearDevRealtimeTodoData(ctx context.Context) (*model.ClearDevRealtimeTodoDataPayload, error) {
+func (r *mutationResolver) ClearDevRealtimeTodoData(ctx context.Context, input model.ClearDevRealtimeTodoDataInput) (*model.ClearDevRealtimeTodoDataPayload, error) {
 	if !strings.EqualFold(strings.TrimSpace(config.RunMode), "dev") {
 		return nil, fmt.Errorf("clearDevRealtimeTodoData is only available in dev run mode")
 	}
 	if r == nil || r.Client == nil {
 		return nil, fmt.Errorf("ent client is not initialized")
 	}
+	if input.ChannelID == uuid.Nil {
+		return nil, fmt.Errorf("channelID is required")
+	}
+	if _, err := r.Client.Channel.Get(ctx, input.ChannelID); err != nil {
+		if ent.IsNotFound(err) {
+			return nil, fmt.Errorf("channel is not found: %s", input.ChannelID.String())
+		}
+		return nil, fmt.Errorf("query channel failed: %w", err)
+	}
+	counts, err := r.clearDevRealtimeTodoData(ctx, input.ChannelID)
+	if err != nil {
+		return nil, err
+	}
+	return counts.toGraphQLPayload(), nil
+}
 
+type devRealtimeTodoClearCounts struct {
+	TodoCount                         int
+	TodoEventCount                    int
+	TodoUpdateCandidateCount          int
+	ChannelMessageCount               int
+	TodoCandidateCount                int
+	TodoCandidateEvidenceMessageCount int
+	TodoCandidateAssigneeCount        int
+	ChannelMessageMentionCount        int
+	ActionResultCount                 int
+}
+
+// toGraphQLPayload 把內部清理結果轉成 schema payload。
+// 保留這層 mapping 是為了讓未來 CLI scenario runner 也能重用 clearDevRealtimeTodoData，
+// 而不必依賴 GraphQL model 型別作為內部工具的資料結構。
+func (c devRealtimeTodoClearCounts) toGraphQLPayload() *model.ClearDevRealtimeTodoDataPayload {
+	return &model.ClearDevRealtimeTodoDataPayload{
+		Status:                            "cleared",
+		TodoCount:                         c.TodoCount,
+		TodoEventCount:                    c.TodoEventCount,
+		TodoUpdateCandidateCount:          c.TodoUpdateCandidateCount,
+		ChannelMessageCount:               c.ChannelMessageCount,
+		TodoCandidateCount:                c.TodoCandidateCount,
+		TodoCandidateEvidenceMessageCount: c.TodoCandidateEvidenceMessageCount,
+		TodoCandidateAssigneeCount:        c.TodoCandidateAssigneeCount,
+		ChannelMessageMentionCount:        c.ChannelMessageMentionCount,
+		ActionResultCount:                 c.ActionResultCount,
+	}
+}
+
+func (r *Resolver) clearDevRealtimeTodoData(ctx context.Context, channelID uuid.UUID) (devRealtimeTodoClearCounts, error) {
 	// 刪除順序必須順著外鍵依賴方向從「葉節點」往「上游」刪，否則會因子資料尚存在而卡在外鍵限制：
 	// action_result 參照 channel_message；todo_event/todo_update_candidate 參照正式 Todo，也可能參照 candidate/message；
 	// todo_candidate_assignee/todo_candidate_evidence_message 參照 todo_candidate；channel_message_mention 與 evidence 也會參照 channel_message，
 	// 因此最後才能刪 todo_candidate 與 channel_message。
-	actionResultCount, err := r.Client.ActionResult.Delete().Exec(ctx)
+	actionResultCount, err := r.Client.ActionResult.Delete().Where(
+		actionresult.HasChannelMessageWith(channelmessage.ChannelIDEQ(channelID)),
+	).Exec(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("delete action results failed: %w", err)
+		return devRealtimeTodoClearCounts{}, fmt.Errorf("delete action results failed: %w", err)
 	}
-	todoEventCount, err := r.Client.TodoEvent.Delete().Exec(ctx)
+	todoEventCount, err := r.Client.TodoEvent.Delete().Where(
+		todoevent.Or(
+			todoevent.HasTodoWith(todo.ChannelIDEQ(channelID)),
+			todoevent.HasSourceCandidateWith(todocandidate.ChannelIDEQ(channelID)),
+			todoevent.HasSourceMessageWith(channelmessage.ChannelIDEQ(channelID)),
+		),
+	).Exec(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("delete todo events failed: %w", err)
+		return devRealtimeTodoClearCounts{}, fmt.Errorf("delete todo events failed: %w", err)
 	}
-	todoUpdateCandidateCount, err := r.Client.TodoUpdateCandidate.Delete().Exec(ctx)
+	todoUpdateCandidateCount, err := r.Client.TodoUpdateCandidate.Delete().Where(
+		todoupdatecandidate.Or(
+			todoupdatecandidate.HasTodoWith(todo.ChannelIDEQ(channelID)),
+			todoupdatecandidate.HasSourceCandidateWith(todocandidate.ChannelIDEQ(channelID)),
+			todoupdatecandidate.HasSourceMessageWith(channelmessage.ChannelIDEQ(channelID)),
+		),
+	).Exec(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("delete todo update candidates failed: %w", err)
+		return devRealtimeTodoClearCounts{}, fmt.Errorf("delete todo update candidates failed: %w", err)
 	}
-	todoCount, err := r.Client.Todo.Delete().Exec(ctx)
+	todoCount, err := r.Client.Todo.Delete().Where(
+		todo.Or(
+			todo.ChannelIDEQ(channelID),
+			todo.HasSourceCandidateWith(todocandidate.ChannelIDEQ(channelID)),
+		),
+	).Exec(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("delete todos failed: %w", err)
+		return devRealtimeTodoClearCounts{}, fmt.Errorf("delete todos failed: %w", err)
 	}
-	todoCandidateAssigneeCount, err := r.Client.TodoCandidateAssignee.Delete().Exec(ctx)
+	todoCandidateAssigneeCount, err := r.Client.TodoCandidateAssignee.Delete().Where(
+		todocandidateassignee.Or(
+			todocandidateassignee.HasCandidateWith(todocandidate.ChannelIDEQ(channelID)),
+			todocandidateassignee.HasSourceMessageMentionWith(
+				channelmessagemention.HasMessageWith(channelmessage.ChannelIDEQ(channelID)),
+			),
+		),
+	).Exec(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("delete todo candidate assignees failed: %w", err)
+		return devRealtimeTodoClearCounts{}, fmt.Errorf("delete todo candidate assignees failed: %w", err)
 	}
-	todoCandidateEvidenceMessageCount, err := r.Client.TodoCandidateEvidenceMessage.Delete().Exec(ctx)
+	todoCandidateEvidenceMessageCount, err := r.Client.TodoCandidateEvidenceMessage.Delete().Where(
+		todocandidateevidencemessage.ChannelIDEQ(channelID),
+	).Exec(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("delete todo candidate evidence messages failed: %w", err)
+		return devRealtimeTodoClearCounts{}, fmt.Errorf("delete todo candidate evidence messages failed: %w", err)
 	}
-	channelMessageMentionCount, err := r.Client.ChannelMessageMention.Delete().Exec(ctx)
+	channelMessageMentionCount, err := r.Client.ChannelMessageMention.Delete().Where(
+		channelmessagemention.HasMessageWith(channelmessage.ChannelIDEQ(channelID)),
+	).Exec(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("delete channel message mentions failed: %w", err)
+		return devRealtimeTodoClearCounts{}, fmt.Errorf("delete channel message mentions failed: %w", err)
 	}
-	todoCandidateCount, err := r.Client.TodoCandidate.Delete().Exec(ctx)
+	todoCandidateCount, err := r.Client.TodoCandidate.Delete().Where(todocandidate.ChannelIDEQ(channelID)).Exec(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("delete todo candidates failed: %w", err)
+		return devRealtimeTodoClearCounts{}, fmt.Errorf("delete todo candidates failed: %w", err)
 	}
-	channelMessageCount, err := r.Client.ChannelMessage.Delete().Exec(ctx)
+	channelMessageCount, err := r.Client.ChannelMessage.Delete().Where(channelmessage.ChannelIDEQ(channelID)).Exec(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("delete channel messages failed: %w", err)
+		return devRealtimeTodoClearCounts{}, fmt.Errorf("delete channel messages failed: %w", err)
 	}
 
-	// 回傳每種實體實際被刪除的筆數，方便呼叫端（開發工具）確認清空範圍與結果。
-	return &model.ClearDevRealtimeTodoDataPayload{
-		Status:                            "cleared",
+	return devRealtimeTodoClearCounts{
 		TodoCount:                         todoCount,
 		TodoEventCount:                    todoEventCount,
 		TodoUpdateCandidateCount:          todoUpdateCandidateCount,

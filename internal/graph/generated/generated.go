@@ -74,7 +74,7 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		ClearDevRealtimeTodoData func(childComplexity int) int
+		ClearDevRealtimeTodoData func(childComplexity int, input model.ClearDevRealtimeTodoDataInput) int
 		CreateUser               func(childComplexity int, input ent.CreateUserInput) int
 		SendLineText             func(childComplexity int, input model.SendLineTextInput) int
 		SimulateTodoConversation func(childComplexity int, input model.SimulateTodoConversationInput) int
@@ -104,18 +104,19 @@ type ComplexityRoot struct {
 	}
 
 	SimulatedTodoMessage struct {
-		DisplayName           func(childComplexity int) int
-		PlatformMessageID     func(childComplexity int) int
-		PlatformText          func(childComplexity int) int
-		PlatformUserID        func(childComplexity int) int
-		SavedMessageID        func(childComplexity int) int
-		SpeakerUserID         func(childComplexity int) int
-		Text                  func(childComplexity int) int
-		TodoCandidateDecision func(childComplexity int) int
-		TodoCandidateID       func(childComplexity int) int
-		TodoCandidateReason   func(childComplexity int) int
-		TodoCandidateStatus   func(childComplexity int) int
-		TodoCandidateSummary  func(childComplexity int) int
+		DisplayName              func(childComplexity int) int
+		PlatformMessageID        func(childComplexity int) int
+		PlatformText             func(childComplexity int) int
+		PlatformUserID           func(childComplexity int) int
+		SavedMessageID           func(childComplexity int) int
+		SpeakerUserID            func(childComplexity int) int
+		Text                     func(childComplexity int) int
+		TodoCandidateDecision    func(childComplexity int) int
+		TodoCandidateID          func(childComplexity int) int
+		TodoCandidateReason      func(childComplexity int) int
+		TodoCandidateStatus      func(childComplexity int) int
+		TodoCandidateSummary     func(childComplexity int) int
+		VisiblePlatformMessageID func(childComplexity int) int
 	}
 
 	SimulatedTodoParticipant struct {
@@ -136,7 +137,7 @@ type MutationResolver interface {
 	UpdateUser(ctx context.Context, id uuid.UUID, input ent.UpdateUserInput) (*ent.User, error)
 	SendLineText(ctx context.Context, input model.SendLineTextInput) (*model.SendLineTextPayload, error)
 	SimulateTodoConversation(ctx context.Context, input model.SimulateTodoConversationInput) (*model.SimulateTodoConversationPayload, error)
-	ClearDevRealtimeTodoData(ctx context.Context) (*model.ClearDevRealtimeTodoDataPayload, error)
+	ClearDevRealtimeTodoData(ctx context.Context, input model.ClearDevRealtimeTodoDataInput) (*model.ClearDevRealtimeTodoDataPayload, error)
 }
 type QueryResolver interface {
 	Node(ctx context.Context, id uuid.UUID) (ent.Noder, error)
@@ -344,7 +345,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			break
 		}
 
-		return e.complexity.Mutation.ClearDevRealtimeTodoData(childComplexity), true
+		args, err := ec.field_Mutation_clearDevRealtimeTodoData_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ClearDevRealtimeTodoData(childComplexity, args["input"].(model.ClearDevRealtimeTodoDataInput)), true
 
 	case "Mutation.createUser":
 		if e.complexity.Mutation.CreateUser == nil {
@@ -579,6 +585,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.SimulatedTodoMessage.TodoCandidateSummary(childComplexity), true
 
+	case "SimulatedTodoMessage.visiblePlatformMessageID":
+		if e.complexity.SimulatedTodoMessage.VisiblePlatformMessageID == nil {
+			break
+		}
+
+		return e.complexity.SimulatedTodoMessage.VisiblePlatformMessageID(childComplexity), true
+
 	case "SimulatedTodoParticipant.displayName":
 		if e.complexity.SimulatedTodoParticipant.DisplayName == nil {
 			break
@@ -636,10 +649,12 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputChannelMessageWhereInput,
 		ec.unmarshalInputChannelServiceMemberWhereInput,
 		ec.unmarshalInputChannelWhereInput,
+		ec.unmarshalInputClearDevRealtimeTodoDataInput,
 		ec.unmarshalInputCreateUserInput,
 		ec.unmarshalInputLineWhereInput,
 		ec.unmarshalInputSendLineTextInput,
 		ec.unmarshalInputSimulateTodoConversationInput,
+		ec.unmarshalInputSimulateTodoConversationMessageInput,
 		ec.unmarshalInputSkillWhereInput,
 		ec.unmarshalInputSlackWhereInput,
 		ec.unmarshalInputSlackWorkspaceWhereInput,
@@ -3235,7 +3250,21 @@ extend type Mutation {
     這個操作是 destructive dev helper，目標是讓同一組模擬資料可以重跑。
     回傳各資料表刪除筆數，方便確認正式 Todo、Todo event/update candidate、candidate、candidate evidence、assignee evidence、mention 與 action result 都有被清乾淨。
     """
-    clearDevRealtimeTodoData: ClearDevRealtimeTodoDataPayload!
+    clearDevRealtimeTodoData(
+        input: ClearDevRealtimeTodoDataInput!
+    ): ClearDevRealtimeTodoDataPayload!
+}
+
+"""
+清理開發用 realtime Todo 資料的輸入參數。
+
+channelID 會把清理範圍限縮在指定 channel 直接產生，或透過 source message/source candidate 關聯到該 channel 的資料。
+"""
+input ClearDevRealtimeTodoDataInput {
+    """
+    要清理 realtime Todo 測試資料的 channel ID。
+    """
+    channelID: ID!
 }
 
 """
@@ -3267,6 +3296,10 @@ input SimulateTodoConversationInput {
     """
     participantCount: Int!
     """
+    指定整段模擬對話送進內部 pipeline 時使用的系統 User ID；適合 visible mode 用多個 bot 扮演未註冊角色，但內部事件固定代表同一個已註冊使用者。
+    """
+    senderUserID: ID
+    """
     要產生的模擬訊息數量；數量越多，越容易覆蓋 create/update/ack/cancel 等 candidate 狀態流。
     """
     messageCount: Int!
@@ -3274,6 +3307,39 @@ input SimulateTodoConversationInput {
     每則訊息送進 pipeline 後額外等待的毫秒數，用來觀察非同步 realtime analyzer 的落庫結果。
     """
     analysisWaitMilliseconds: Int! = 0
+    """
+    訊息投遞模式。internal 只走內部 webhook 模擬；visible 會先把劇本台詞貼到真實 Slack channel，再送內部模擬事件進 pipeline。
+    """
+    deliveryMode: String! = "internal"
+    """
+    自訂模擬訊息劇本；未提供時使用內建隨機 Todo 對話。
+    """
+    messages: [SimulateTodoConversationMessageInput!]
+}
+
+"""
+自訂模擬對話中的單則訊息。
+
+participantIndex 以本次 payload 回傳 participants 的 0-based 順序指定發話者；replyToMessageIndex 可指定要回覆前面哪一則模擬訊息，
+用來測試 Slack thread_ts / LINE reply anchor 這類顯式 reply 情境。
+"""
+input SimulateTodoConversationMessageInput {
+    """
+    0-based 發話者索引；未提供時依序輪替 participants。
+    """
+    participantIndex: Int
+    """
+    要送進正式 webhook pipeline 的純文字內容。
+    """
+    text: String!
+    """
+    0-based 被 reply 的前序訊息索引；只允許指向已送出的訊息。
+    """
+    replyToMessageIndex: Int
+    """
+    deliveryMode 為 visible 且 platform 為 slack 時，指定這則可見訊息要用哪個 Slack app/bot 發出；未提供時使用 input.platformAppID。
+    """
+    visiblePlatformAppID: String
 }
 
 """
@@ -3318,6 +3384,10 @@ type SimulatedTodoMessage {
     模擬平台訊息 ID，用來測試 reply/linking 與 message lookup。
     """
     platformMessageID: String!
+    """
+    deliveryMode 為 visible 時，真實貼到 Slack channel 的訊息 ts；internal 模式為空。
+    """
+    visiblePlatformMessageID: String
     """
     訊息成功保存後的 ChannelMessage ID；若保存失敗則為空。
     """
@@ -3629,6 +3699,34 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
+
+func (ec *executionContext) field_Mutation_clearDevRealtimeTodoData_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_clearDevRealtimeTodoData_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_clearDevRealtimeTodoData_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.ClearDevRealtimeTodoDataInput, error) {
+	if _, ok := rawArgs["input"]; !ok {
+		var zeroVal model.ClearDevRealtimeTodoDataInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNClearDevRealtimeTodoDataInput2assistantᚑapiᚋinternalᚋgraphᚋmodelᚐClearDevRealtimeTodoDataInput(ctx, tmp)
+	}
+
+	var zeroVal model.ClearDevRealtimeTodoDataInput
+	return zeroVal, nil
+}
 
 func (ec *executionContext) field_Mutation_createUser_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
@@ -4685,7 +4783,7 @@ func (ec *executionContext) _Mutation_clearDevRealtimeTodoData(ctx context.Conte
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().ClearDevRealtimeTodoData(rctx)
+		return ec.resolvers.Mutation().ClearDevRealtimeTodoData(rctx, fc.Args["input"].(model.ClearDevRealtimeTodoDataInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4702,7 +4800,7 @@ func (ec *executionContext) _Mutation_clearDevRealtimeTodoData(ctx context.Conte
 	return ec.marshalNClearDevRealtimeTodoDataPayload2ᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐClearDevRealtimeTodoDataPayload(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Mutation_clearDevRealtimeTodoData(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_clearDevRealtimeTodoData(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -4733,6 +4831,17 @@ func (ec *executionContext) fieldContext_Mutation_clearDevRealtimeTodoData(_ con
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ClearDevRealtimeTodoDataPayload", field.Name)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_clearDevRealtimeTodoData_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -5482,6 +5591,8 @@ func (ec *executionContext) fieldContext_SimulateTodoConversationPayload_message
 				return ec.fieldContext_SimulatedTodoMessage_platformText(ctx, field)
 			case "platformMessageID":
 				return ec.fieldContext_SimulatedTodoMessage_platformMessageID(ctx, field)
+			case "visiblePlatformMessageID":
+				return ec.fieldContext_SimulatedTodoMessage_visiblePlatformMessageID(ctx, field)
 			case "savedMessageID":
 				return ec.fieldContext_SimulatedTodoMessage_savedMessageID(ctx, field)
 			case "todoCandidateID":
@@ -5753,6 +5864,47 @@ func (ec *executionContext) _SimulatedTodoMessage_platformMessageID(ctx context.
 }
 
 func (ec *executionContext) fieldContext_SimulatedTodoMessage_platformMessageID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SimulatedTodoMessage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SimulatedTodoMessage_visiblePlatformMessageID(ctx context.Context, field graphql.CollectedField, obj *model.SimulatedTodoMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SimulatedTodoMessage_visiblePlatformMessageID(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.VisiblePlatformMessageID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SimulatedTodoMessage_visiblePlatformMessageID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "SimulatedTodoMessage",
 		Field:      field,
@@ -12748,6 +12900,33 @@ func (ec *executionContext) unmarshalInputChannelWhereInput(ctx context.Context,
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputClearDevRealtimeTodoDataInput(ctx context.Context, obj any) (model.ClearDevRealtimeTodoDataInput, error) {
+	var it model.ClearDevRealtimeTodoDataInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"channelID"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "channelID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("channelID"))
+			data, err := ec.unmarshalNID2githubᚗcomᚋgoogleᚋuuidᚐUUID(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ChannelID = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, obj any) (ent.CreateUserInput, error) {
 	var it ent.CreateUserInput
 	asMap := map[string]any{}
@@ -13321,8 +13500,11 @@ func (ec *executionContext) unmarshalInputSimulateTodoConversationInput(ctx cont
 	if _, present := asMap["analysisWaitMilliseconds"]; !present {
 		asMap["analysisWaitMilliseconds"] = 0
 	}
+	if _, present := asMap["deliveryMode"]; !present {
+		asMap["deliveryMode"] = "internal"
+	}
 
-	fieldsInOrder := [...]string{"platform", "platformTenantID", "platformAppID", "channelID", "participantCount", "messageCount", "analysisWaitMilliseconds"}
+	fieldsInOrder := [...]string{"platform", "platformTenantID", "platformAppID", "channelID", "participantCount", "senderUserID", "messageCount", "analysisWaitMilliseconds", "deliveryMode", "messages"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13364,6 +13546,13 @@ func (ec *executionContext) unmarshalInputSimulateTodoConversationInput(ctx cont
 				return it, err
 			}
 			it.ParticipantCount = data
+		case "senderUserID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("senderUserID"))
+			data, err := ec.unmarshalOID2ᚖgithubᚗcomᚋgoogleᚋuuidᚐUUID(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SenderUserID = data
 		case "messageCount":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("messageCount"))
 			data, err := ec.unmarshalNInt2int(ctx, v)
@@ -13378,6 +13567,68 @@ func (ec *executionContext) unmarshalInputSimulateTodoConversationInput(ctx cont
 				return it, err
 			}
 			it.AnalysisWaitMilliseconds = data
+		case "deliveryMode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("deliveryMode"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DeliveryMode = data
+		case "messages":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("messages"))
+			data, err := ec.unmarshalOSimulateTodoConversationMessageInput2ᚕᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulateTodoConversationMessageInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Messages = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputSimulateTodoConversationMessageInput(ctx context.Context, obj any) (model.SimulateTodoConversationMessageInput, error) {
+	var it model.SimulateTodoConversationMessageInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"participantIndex", "text", "replyToMessageIndex", "visiblePlatformAppID"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "participantIndex":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("participantIndex"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ParticipantIndex = data
+		case "text":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("text"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Text = data
+		case "replyToMessageIndex":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("replyToMessageIndex"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ReplyToMessageIndex = data
+		case "visiblePlatformAppID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("visiblePlatformAppID"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.VisiblePlatformAppID = data
 		}
 	}
 
@@ -20942,6 +21193,8 @@ func (ec *executionContext) _SimulatedTodoMessage(ctx context.Context, sel ast.S
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "visiblePlatformMessageID":
+			out.Values[i] = ec._SimulatedTodoMessage_visiblePlatformMessageID(ctx, field, obj)
 		case "savedMessageID":
 			out.Values[i] = ec._SimulatedTodoMessage_savedMessageID(ctx, field, obj)
 		case "todoCandidateID":
@@ -21530,6 +21783,11 @@ func (ec *executionContext) unmarshalNChannelWhereInput2ᚖassistantᚑapiᚋint
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNClearDevRealtimeTodoDataInput2assistantᚑapiᚋinternalᚋgraphᚋmodelᚐClearDevRealtimeTodoDataInput(ctx context.Context, v any) (model.ClearDevRealtimeTodoDataInput, error) {
+	res, err := ec.unmarshalInputClearDevRealtimeTodoDataInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNClearDevRealtimeTodoDataPayload2assistantᚑapiᚋinternalᚋgraphᚋmodelᚐClearDevRealtimeTodoDataPayload(ctx context.Context, sel ast.SelectionSet, v model.ClearDevRealtimeTodoDataPayload) graphql.Marshaler {
 	return ec._ClearDevRealtimeTodoDataPayload(ctx, sel, &v)
 }
@@ -21630,6 +21888,11 @@ func (ec *executionContext) marshalNSendLineTextPayload2ᚖassistantᚑapiᚋint
 func (ec *executionContext) unmarshalNSimulateTodoConversationInput2assistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulateTodoConversationInput(ctx context.Context, v any) (model.SimulateTodoConversationInput, error) {
 	res, err := ec.unmarshalInputSimulateTodoConversationInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNSimulateTodoConversationMessageInput2ᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulateTodoConversationMessageInput(ctx context.Context, v any) (*model.SimulateTodoConversationMessageInput, error) {
+	res, err := ec.unmarshalInputSimulateTodoConversationMessageInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNSimulateTodoConversationPayload2assistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulateTodoConversationPayload(ctx context.Context, sel ast.SelectionSet, v model.SimulateTodoConversationPayload) graphql.Marshaler {
@@ -23314,6 +23577,24 @@ func (ec *executionContext) marshalONode2assistantᚑapiᚋinternalᚋentᚐNode
 		return graphql.Null
 	}
 	return ec._Node(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOSimulateTodoConversationMessageInput2ᚕᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulateTodoConversationMessageInputᚄ(ctx context.Context, v any) ([]*model.SimulateTodoConversationMessageInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.SimulateTodoConversationMessageInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNSimulateTodoConversationMessageInput2ᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐSimulateTodoConversationMessageInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) unmarshalOSkillWhereInput2ᚕᚖassistantᚑapiᚋinternalᚋentᚐSkillWhereInputᚄ(ctx context.Context, v any) ([]*ent.SkillWhereInput, error) {

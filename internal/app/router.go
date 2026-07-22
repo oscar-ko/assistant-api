@@ -60,6 +60,9 @@ func registerGraphQLRoutes(r gin.IRouter, client *ent.Client) {
 	// - Slack 模擬會組 Slack event_callback、產生合法 dev signature，再呼叫 SlackWebhookProcessor。
 	// 這樣開發工具測到的是正式 message pipeline，而不是另一條只為測試存在的落庫捷徑。
 	lineWebhookProcessor := lineprovider.NewWebhookServiceWithOptions(channelMessageRepo, lineprovider.WebhookServiceOptions{LLMInteraction: llmInteractionService, FollowUpSender: linePushService})
+	// Slack push service 同時服務正式 follow-up 與 dev visible simulation：
+	// visible simulation 需要真的把劇本台詞貼到 Slack channel，讓人工可以看見對話進行；
+	// internal webhook 仍另外注入，因為 Slack 不會把 bot 自己送出的訊息再可靠地回送成可分析事件。
 	slackFollowUpSender, _ := slackprovider.NewPushMessageService(slackRepo)
 	slackWebhookProcessor := slackprovider.NewWebhookServiceWithOptions(channelMessageRepo, slackRepo, slackprovider.WebhookServiceOptions{
 		LLMInteraction: llmInteractionService,
@@ -72,6 +75,7 @@ func registerGraphQLRoutes(r gin.IRouter, client *ent.Client) {
 		LinePushService:       linePushService,
 		LinePushInitErr:       linePushInitErr,
 		LineWebhookProcessor:  lineWebhookProcessor,
+		SlackPushService:      slackFollowUpSender,
 		SlackWebhookProcessor: slackWebhookProcessor,
 	}}))
 

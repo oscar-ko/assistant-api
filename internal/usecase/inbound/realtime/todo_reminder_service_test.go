@@ -237,7 +237,7 @@ func TestTodoReminderServiceAnalyzesImplicitReplyContext(t *testing.T) {
 	if !strings.Contains(analyzer.prompt, recentMessageID.String()) || !strings.Contains(analyzer.prompt, "那報價單今天誰處理一下") {
 		t.Fatalf("expected prompt to include recent candidate context, got %q", analyzer.prompt)
 	}
-	for _, expected := range []string{"Todo candidate contexts", recentMessageID.String(), "status=needs_more_info", "last_decision=needs_more_info", "missing_fields=[due_text]"} {
+	for _, expected := range []string{"Todo candidate contexts", recentMessageID.String(), "status=needs_more_info", "last_decision=needs_more_info", "missing_fields=[due_text]", `known_summary="模型舊摘要不應污染 prompt"`} {
 		if !strings.Contains(analyzer.prompt, expected) {
 			t.Fatalf("expected prompt to include structured todo candidate context %q, got %q", expected, analyzer.prompt)
 		}
@@ -246,7 +246,7 @@ func TestTodoReminderServiceAnalyzesImplicitReplyContext(t *testing.T) {
 	if marker := strings.Index(analyzer.prompt, "Todo candidate contexts:"); marker >= 0 {
 		candidateContextSection = analyzer.prompt[marker:]
 	}
-	for _, unexpected := range []string{candidateID.String(), "candidate_id=", "模型舊摘要不應污染 prompt", "模型舊原因不應污染 prompt", "summary=", "reason="} {
+	for _, unexpected := range []string{candidateID.String(), "candidate_id=", "模型舊原因不應污染 prompt", "reason="} {
 		if strings.Contains(candidateContextSection, unexpected) {
 			t.Fatalf("expected todo candidate context section to omit prior AI-generated candidate field %q, got %q", unexpected, candidateContextSection)
 		}

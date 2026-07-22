@@ -280,7 +280,7 @@ type SlackConfig struct {
 // - AppID 使用 Slack 官方 app_id，而不是自訂 bot key，讓 route、workspace install 與 webhook 驗章都能對齊 Slack 後台。
 // - Name 是系統內部顯示用的人名，例如 Jarvis / Thor；之後 outbound message 或管理介面可用它呈現較好讀的 bot 名稱。
 // - SigningSecret 用於 Events API request signature；多 bot 情境下會逐一比對，找出本次 webhook 屬於哪個 Slack App。
-// - BotUserID 是設定檔層級的預設值；實際 workspace install 後仍會以 slack_workspaces 內 app_id + team_id 的 bot user id 為準。
+// - Slack bot_user_id 不屬於靜態設定；它是 workspace install 結果，必須從 slack_workspaces 依 app_id + team_id 讀取。
 type SlackBotConfig struct {
 	Name              string `mapstructure:"name" yaml:"name"`
 	AppID             string `mapstructure:"app_id" yaml:"app_id"`
@@ -288,7 +288,6 @@ type SlackBotConfig struct {
 	ClientSecret      string `mapstructure:"client_secret" yaml:"client_secret"`
 	SigningSecret     string `mapstructure:"signing_secret" yaml:"signing_secret"`
 	VerificationToken string `mapstructure:"verification_token" yaml:"verification_token"`
-	BotUserID         string `mapstructure:"bot_user_id" yaml:"bot_user_id"`
 }
 
 // DefaultBot 回傳未指定 app id 時使用的 Slack bot（清單中的第一筆）。
@@ -540,7 +539,6 @@ func MustLoad() {
 		viper.SetDefault("slack.client_secret", "")
 		viper.SetDefault("slack.signing_secret", "")
 		viper.SetDefault("slack.verification_token", "")
-		viper.SetDefault("slack.bot_user_id", "")
 		viper.SetDefault("slack.redirect_uri", "")
 		viper.SetDefault("slack.login_redirect_uri", "")
 		// Slack bot 被邀請進頻道時會用 conversations.info 解析頻道名稱。

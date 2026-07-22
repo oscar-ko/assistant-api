@@ -11,7 +11,11 @@ import (
 	"math/big"
 	"strings"
 
+	"assistant-api/internal/config"
 	"assistant-api/internal/ent/slack"
+	"assistant-api/internal/ent/slackworkspace"
+	"assistant-api/internal/graph/model"
+	"assistant-api/internal/integration/runtimecontext"
 
 	"github.com/google/uuid"
 )
@@ -20,6 +24,104 @@ type devSimulationParticipant struct {
 	UserID         uuid.UUID
 	PlatformUserID string
 	Name           string
+}
+
+type devSimulationTurnPlanInput struct {
+	Index                     int
+	Platform                  string
+	DeliveryMode              string
+	DefaultPlatformAppID      string
+	PlatformTenantID          string
+	Script                    []*model.SimulateTodoConversationMessageInput
+	Participants              []devSimulationParticipant
+	SenderParticipant         *devSimulationParticipant
+	PlatformMessageIDs        []string
+	VisiblePlatformMessageIDs []string
+}
+
+type devSimulationTurnPlan struct {
+	Participant                     devSimulationParticipant
+	Text                            string
+	VisiblePlatformAppID            string
+	ReplyToPlatformMessageID        string
+	ReplyToVisiblePlatformMessageID string
+}
+
+// buildSimulatedTodoTurnPlan 將「這一輪訊息要怎麼送」集中成單一決策點。
+// 這裡同時處理 scripted participant、senderUserID override、visible Slack app 選擇、
+// 以及 replyToMessageIndex 對應出的 internal/visible 兩種 message id。
+// resolver loop 只負責執行 plan，避免未來新增 scenario 時把 sender/reply/visible 規則散落各處。
+func (r *Resolver) buildSimulatedTodoTurnPlan(ctx context.Context, input devSimulationTurnPlanInput) (devSimulationTurnPlan, error) {
+	participantIndex, text, replyToMessageIndex, err := resolveSimulatedTodoScriptTurn(input.Index, input.Script, input.Participants)
+	if err != nil {
+		return devSimulationTurnPlan{}, err
+	}
+	participant := input.Participants[participantIndex]
+	if input.SenderParticipant != nil {
+		participant = *input.SenderParticipant
+	}
+
+	visiblePlatformAppID := ""
+	if input.DeliveryMode == "visible" && strings.EqualFold(strings.TrimSpace(input.Platform), "slack") {
+		visiblePlatformAppID = resolveVisibleSlackPlatformAppID(input.DefaultPlatformAppID, input.Script, input.Index)
+		if input.SenderParticipant == nil {
+			// visible mode 的多 bot 對話代表「外部未註冊長官」在發話；
+			// 因此沒有 senderUserID override 時，內部 sender 也要用該 Slack bot user id，
+			// 讓 ChannelMessage.sender_user_id 保持空值，避免誤認成已註冊使用者本人。
+			botParticipant, err := r.resolveSlackBotSimulationParticipant(ctx, input.PlatformTenantID, visiblePlatformAppID)
+			if err != nil {
+				return devSimulationTurnPlan{}, err
+			}
+			participant = botParticipant
+		}
+	}
+
+	replyToPlatformMessageID := ""
+	replyToVisiblePlatformMessageID := ""
+	if replyToMessageIndex != nil {
+		if *replyToMessageIndex < 0 || *replyToMessageIndex >= len(input.PlatformMessageIDs) {
+			return devSimulationTurnPlan{}, fmt.Errorf("messages[%d].replyToMessageIndex must point to an earlier message", input.Index)
+		}
+		replyToPlatformMessageID = input.PlatformMessageIDs[*replyToMessageIndex]
+		if *replyToMessageIndex < len(input.VisiblePlatformMessageIDs) {
+			replyToVisiblePlatformMessageID = input.VisiblePlatformMessageIDs[*replyToMessageIndex]
+		}
+	}
+
+	return devSimulationTurnPlan{
+		Participant:                     participant,
+		Text:                            text,
+		VisiblePlatformAppID:            visiblePlatformAppID,
+		ReplyToPlatformMessageID:        replyToPlatformMessageID,
+		ReplyToVisiblePlatformMessageID: replyToVisiblePlatformMessageID,
+	}, nil
+}
+
+func (r *Resolver) resolveSlackBotSimulationParticipant(ctx context.Context, platformTenantID string, platformAppID string) (devSimulationParticipant, error) {
+	bot, err := config.Slack.BotByAppID(strings.TrimSpace(platformAppID))
+	if err != nil {
+		return devSimulationParticipant{}, err
+	}
+	botUserID := ""
+	if r != nil && r.Client != nil {
+		// Slack bot user id 是 workspace install 的結果，同一個 app 在不同 workspace 可能不同；
+		// 不從 app.yml 讀 fallback，避免靜態設定與 OAuth install 狀態不一致。
+		workspace, err := r.Client.SlackWorkspace.Query().Where(slackworkspace.AppIDEQ(strings.TrimSpace(platformAppID)), slackworkspace.PlatformTeamIDEQ(strings.TrimSpace(platformTenantID))).Only(ctx)
+		if err != nil {
+			return devSimulationParticipant{}, fmt.Errorf("query slack workspace bot user id failed: %w", err)
+		}
+		if workspace.BotUserID != nil {
+			botUserID = strings.TrimSpace(*workspace.BotUserID)
+		}
+	}
+	if botUserID == "" {
+		return devSimulationParticipant{}, fmt.Errorf("slack workspace bot_user_id is empty for app %s team %s", strings.TrimSpace(platformAppID), strings.TrimSpace(platformTenantID))
+	}
+	name := strings.TrimSpace(bot.Name)
+	if name == "" {
+		name = strings.TrimSpace(bot.AppID)
+	}
+	return devSimulationParticipant{PlatformUserID: botUserID, Name: name}, nil
 }
 
 // 以下 simulated* 結構只描述 dev helper 要送進 provider webhook processor 的最小平台 payload。
@@ -62,6 +164,7 @@ type simulatedSlackMessage struct {
 	Channel     string `json:"channel"`
 	ChannelType string `json:"channel_type"`
 	TS          string `json:"ts"`
+	ThreadTS    string `json:"thread_ts,omitempty"`
 	ClientMsgID string `json:"client_msg_id"`
 }
 
@@ -154,7 +257,42 @@ func (r *Resolver) pickRandomSimulationParticipants(ctx context.Context, platfor
 	}
 }
 
-func (r *Resolver) buildSimulatedWebhookBody(platform string, platformTenantID string, platformChannelID string, participant devSimulationParticipant, text string, timestamp int64) (string, []byte, error) {
+func (r *Resolver) resolveSimulationSenderParticipant(ctx context.Context, platform string, platformTenantID string, senderUserID *uuid.UUID) (*devSimulationParticipant, error) {
+	if senderUserID == nil {
+		return nil, nil
+	}
+	switch strings.ToLower(strings.TrimSpace(platform)) {
+	case "slack":
+		// senderUserID 是「刻意要用已註冊使用者身份」的 override；
+		// boss-bot / 未註冊外部角色情境不應帶這個欄位，會改由 visible bot identity 決定 sender。
+		teamID := strings.TrimSpace(platformTenantID)
+		if teamID == "" {
+			return nil, fmt.Errorf("slack platformTenantID is required")
+		}
+		item, err := r.Client.Slack.Query().Where(slack.PlatformTeamIDEQ(teamID), slack.UserIDEQ(*senderUserID)).WithUser().Only(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("query slack sender user failed: %w", err)
+		}
+		user, err := item.Edges.UserOrErr()
+		if err != nil {
+			return nil, fmt.Errorf("slack sender user edge is not loaded: %w", err)
+		}
+		name := strings.TrimSpace(user.Name)
+		if item.DisplayName != nil && strings.TrimSpace(*item.DisplayName) != "" {
+			name = strings.TrimSpace(*item.DisplayName)
+		}
+		if name == "" {
+			return nil, fmt.Errorf("slack sender user display name is empty: %s", user.ID.String())
+		}
+		return &devSimulationParticipant{UserID: user.ID, PlatformUserID: strings.TrimSpace(item.PlatformUserID), Name: name}, nil
+	case "line":
+		return nil, fmt.Errorf("senderUserID override currently supports slack simulation only")
+	default:
+		return nil, fmt.Errorf("unsupported simulation platform: %s", platform)
+	}
+}
+
+func (r *Resolver) buildSimulatedWebhookBody(platform string, platformTenantID string, platformChannelID string, participant devSimulationParticipant, text string, replyToPlatformMessageID string, timestamp int64) (string, []byte, error) {
 	switch strings.ToLower(strings.TrimSpace(platform)) {
 	case "line":
 		platformMessageID := "dev-line-todo-" + uuid.NewString()
@@ -167,7 +305,7 @@ func (r *Resolver) buildSimulatedWebhookBody(platform string, platformTenantID s
 		// Slack 的 message ts 同時是平台訊息 ID，也是 thread/reply 參照用的穩定值。
 		// 使用 Slack 常見的 seconds.microseconds 形狀，讓 dev 資料更接近真實 Events API payload。
 		platformMessageID := fmt.Sprintf("%d.%06d", timestamp/1000, timestamp%1000*1000)
-		body, err := marshalSimulatedSlackWebhook(platformTenantID, participant, platformChannelID, "channel", platformMessageID, text)
+		body, err := marshalSimulatedSlackWebhook(platformTenantID, participant, platformChannelID, "channel", platformMessageID, text, replyToPlatformMessageID)
 		if err != nil {
 			return "", nil, fmt.Errorf("marshal simulated slack webhook failed: %w", err)
 		}
@@ -213,7 +351,7 @@ func marshalSimulatedLineWebhook(participant devSimulationParticipant, platformC
 	}}})
 }
 
-func marshalSimulatedSlackWebhook(teamID string, participant devSimulationParticipant, platformChannelID string, channelType string, platformMessageID string, text string) ([]byte, error) {
+func marshalSimulatedSlackWebhook(teamID string, participant devSimulationParticipant, platformChannelID string, channelType string, platformMessageID string, text string, replyToPlatformMessageID string) ([]byte, error) {
 	return json.Marshal(simulatedSlackWebhookBody{
 		Type:   "event_callback",
 		TeamID: strings.TrimSpace(teamID),
@@ -224,6 +362,7 @@ func marshalSimulatedSlackWebhook(teamID string, participant devSimulationPartic
 			Channel:     platformChannelID,
 			ChannelType: channelType,
 			TS:          platformMessageID,
+			ThreadTS:    strings.TrimSpace(replyToPlatformMessageID),
 			ClientMsgID: "dev-slack-todo-" + uuid.NewString(),
 		},
 	})
@@ -243,6 +382,65 @@ func trimOptionalString(value *string) string {
 		return ""
 	}
 	return strings.TrimSpace(*value)
+}
+
+func normalizeTodoSimulationDeliveryMode(value string) (string, error) {
+	// deliveryMode 目前只接受兩種明確模式：
+	// internal 用於 AI/自動化快速回歸；visible 用於把同一份劇本同步貼到真實 Slack channel 供人工觀察。
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "internal":
+		return "internal", nil
+	case "visible":
+		return "visible", nil
+	default:
+		return "", fmt.Errorf("unsupported simulation deliveryMode: %s", value)
+	}
+}
+
+func (r *Resolver) sendVisibleSlackSimulationMessage(ctx context.Context, platformTenantID string, platformAppID string, platformChannelID string, participant devSimulationParticipant, text string, replyToVisiblePlatformMessageID string) (string, error) {
+	if r == nil || r.SlackPushService == nil {
+		return "", fmt.Errorf("slack push service is not initialized")
+	}
+	visibleText := strings.TrimSpace(text)
+	// runtime context 指定 workspace team/app，讓 Slack push service 用正確 install token 發訊息；
+	// replyToVisiblePlatformMessageID 會成為 Slack thread_ts，用來測試人工可見的 thread/reply 形狀。
+	messageCtx := runtimecontext.WithWorkspaceAppID(runtimecontext.WithWorkspaceTeamID(ctx, platformTenantID), platformAppID)
+	return r.SlackPushService.SendTextToChat(messageCtx, platformChannelID, "", visibleText, replyToVisiblePlatformMessageID, "")
+}
+
+func resolveVisibleSlackPlatformAppID(defaultPlatformAppID string, script []*model.SimulateTodoConversationMessageInput, index int) string {
+	if index >= 0 && index < len(script) && script[index] != nil {
+		if value := trimOptionalString(script[index].VisiblePlatformAppID); value != "" {
+			return value
+		}
+	}
+	return strings.TrimSpace(defaultPlatformAppID)
+}
+
+func resolveSimulatedTodoScriptTurn(index int, script []*model.SimulateTodoConversationMessageInput, participants []devSimulationParticipant) (int, string, *int, error) {
+	participantCount := len(participants)
+	if participantCount <= 0 {
+		return 0, "", nil, fmt.Errorf("participant count must be positive")
+	}
+	if len(script) == 0 {
+		return index % participantCount, buildCasualTodoSimulationText(index, participants), nil, nil
+	}
+	if index < 0 || index >= len(script) || script[index] == nil {
+		return 0, "", nil, fmt.Errorf("messages[%d] is required", index)
+	}
+	turn := script[index]
+	participantIndex := index % participantCount
+	if turn.ParticipantIndex != nil {
+		participantIndex = *turn.ParticipantIndex
+	}
+	if participantIndex < 0 || participantIndex >= participantCount {
+		return 0, "", nil, fmt.Errorf("messages[%d].participantIndex is out of range", index)
+	}
+	text := strings.TrimSpace(turn.Text)
+	if text == "" {
+		return 0, "", nil, fmt.Errorf("messages[%d].text is required", index)
+	}
+	return participantIndex, text, turn.ReplyToMessageIndex, nil
 }
 
 func shuffleParticipants(items []devSimulationParticipant) error {

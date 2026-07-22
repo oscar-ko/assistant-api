@@ -10,6 +10,14 @@ import (
 	"github.com/google/uuid"
 )
 
+// 清理開發用 realtime Todo 資料的輸入參數。
+//
+// channelID 會把清理範圍限縮在指定 channel 直接產生，或透過 source message/source candidate 關聯到該 channel 的資料。
+type ClearDevRealtimeTodoDataInput struct {
+	// 要清理 realtime Todo 測試資料的 channel ID。
+	ChannelID uuid.UUID `json:"channelID"`
+}
+
 // 清理開發用 realtime Todo 資料後的統計結果。
 //
 // 每個 count 都代表對應資料表實際刪除的筆數，方便確認下次模擬前沒有殘留 Todo、Todo event/update candidate、candidate、candidate evidence、mention 或 action result。
@@ -62,10 +70,31 @@ type SimulateTodoConversationInput struct {
 	ChannelID uuid.UUID `json:"channelID"`
 	// 模擬對話中的參與者數量；會影響訊息 speaker 與 mention/assignee 的分布。
 	ParticipantCount int `json:"participantCount"`
+	// 指定整段模擬對話送進內部 pipeline 時使用的系統 User ID；適合 visible mode 用多個 bot 扮演未註冊角色，但內部事件固定代表同一個已註冊使用者。
+	SenderUserID *uuid.UUID `json:"senderUserID,omitempty"`
 	// 要產生的模擬訊息數量；數量越多，越容易覆蓋 create/update/ack/cancel 等 candidate 狀態流。
 	MessageCount int `json:"messageCount"`
 	// 每則訊息送進 pipeline 後額外等待的毫秒數，用來觀察非同步 realtime analyzer 的落庫結果。
 	AnalysisWaitMilliseconds int `json:"analysisWaitMilliseconds"`
+	// 訊息投遞模式。internal 只走內部 webhook 模擬；visible 會先把劇本台詞貼到真實 Slack channel，再送內部模擬事件進 pipeline。
+	DeliveryMode string `json:"deliveryMode"`
+	// 自訂模擬訊息劇本；未提供時使用內建隨機 Todo 對話。
+	Messages []*SimulateTodoConversationMessageInput `json:"messages,omitempty"`
+}
+
+// 自訂模擬對話中的單則訊息。
+//
+// participantIndex 以本次 payload 回傳 participants 的 0-based 順序指定發話者；replyToMessageIndex 可指定要回覆前面哪一則模擬訊息，
+// 用來測試 Slack thread_ts / LINE reply anchor 這類顯式 reply 情境。
+type SimulateTodoConversationMessageInput struct {
+	// 0-based 發話者索引；未提供時依序輪替 participants。
+	ParticipantIndex *int `json:"participantIndex,omitempty"`
+	// 要送進正式 webhook pipeline 的純文字內容。
+	Text string `json:"text"`
+	// 0-based 被 reply 的前序訊息索引；只允許指向已送出的訊息。
+	ReplyToMessageIndex *int `json:"replyToMessageIndex,omitempty"`
+	// deliveryMode 為 visible 且 platform 為 slack 時，指定這則可見訊息要用哪個 Slack app/bot 發出；未提供時使用 input.platformAppID。
+	VisiblePlatformAppID *string `json:"visiblePlatformAppID,omitempty"`
 }
 
 // 模擬聊天平台 Todo 對話的執行結果。
@@ -110,6 +139,8 @@ type SimulatedTodoMessage struct {
 	PlatformText string `json:"platformText"`
 	// 模擬平台訊息 ID，用來測試 reply/linking 與 message lookup。
 	PlatformMessageID string `json:"platformMessageID"`
+	// deliveryMode 為 visible 時，真實貼到 Slack channel 的訊息 ts；internal 模式為空。
+	VisiblePlatformMessageID *string `json:"visiblePlatformMessageID,omitempty"`
 	// 訊息成功保存後的 ChannelMessage ID；若保存失敗則為空。
 	SavedMessageID *uuid.UUID `json:"savedMessageID,omitempty"`
 	// 此訊息觸發或更新的 TodoCandidate ID；未觸發 Todo pipeline 時為空。

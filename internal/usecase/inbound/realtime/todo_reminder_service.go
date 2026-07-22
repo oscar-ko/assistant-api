@@ -1059,6 +1059,9 @@ func buildImplicitReplyTodoPrompt(explicitReplyTarget *ent.ChannelMessage, recen
 	builder.WriteString("needs_more_info 只適用於 Current message 已可判定為可追蹤待辦或對既有待辦的承接，但缺少必要欄位而需要使用者補充；若 Current message 本身不是可追蹤待辦、只是聊天、狀態描述、個人行程通知、無需系統追蹤的答覆或無法形成待辦意圖，decision 必須是 no_action，而不是 needs_more_info。\n")
 	builder.WriteString("decision 欄位規則：create_candidate 需要 linked_message_id=\"\"、summary 非空、missing_fields=[]；update_candidate/acknowledge/cancel_candidate 需要 linked_message_id 來自訊息 id 清單、summary 非空、missing_fields=[]；needs_more_info 需要 summary 非空且 missing_fields 非空；no_action 需要 linked_message_id=\"\"、summary=\"\"、assignees=[]、due_text=\"\"、missing_fields=[]。所有 decision 的 reason 都必須是非空字串。\n")
 	builder.WriteString("對 update_candidate/acknowledge/cancel_candidate，summary、assignees、due_text 可承接 linked message 與 Todo candidate contexts 中已知且未被 Current message 改變的資訊；若同一任務已可由上下文辨識，不可把這些已知欄位列入 missing_fields，missing_fields 必須是 []。\n")
+	builder.WriteString("Todo candidate contexts 代表同 channel 仍活躍的既有候選待辦狀態。若 Current message 的任務目標、交付物、負責人、期限或限制條件與某個 candidate context 的 known_summary/known_assignees/known_due_text 指向同一件事，即使中間隔了許多非待辦聊天，也應輸出 update_candidate 或 acknowledge，linked_message_id 指向該 candidate 的 source_message_id 或 last_message_id；不可重新輸出 create_candidate。\n")
+	builder.WriteString("只有 Current message 引入與所有 Todo candidate contexts 明顯不同的獨立任務目標時，才可以使用 create_candidate。若只是補充既有任務的摘要、追蹤項目、優先順序、負責人、期限、範圍或交付格式，必須視為既有 candidate 的 update_candidate。\n")
+	builder.WriteString("若 Current message 使用指回既有事項的語氣，例如這件事、那件事、那個待辦、這個期限、上述任務、前面那件、剛剛說的，並補充負責人、期限、範圍、交付格式或確認內容，必須先在 Todo candidate contexts 與 Context messages 中尋找同一任務；找到時輸出 update_candidate 或 acknowledge，不可因 Current message 包含可追蹤欄位就重新 create_candidate。\n")
 	builder.WriteString("decision=no_action 的欄位表必須固定為 linked_message_id=\"\"、summary=\"\"、assignees=[]、due_text=\"\"、missing_fields=[]；即使原因是缺少任務目標、時間、對象、交付內容或 action intent，也只能把原因寫進 reason，missing_fields 仍必須是 []。\n")
 	builder.WriteString("missing_fields 只有 decision=needs_more_info 時可以非空；若 decision=no_action，請把不可形成待辦的原因寫在 reason，不可把缺少的欄位放進 missing_fields，不可輸出 [\"reason\"]、[\"time\"]、[\"task_goal\"] 或任何其他 missing_fields。\n")
 	builder.WriteString("no_action 合法 JSON 範例只適用於 target selection 已判定 Current message 完全沒有承接任何提案、詢問、待確認事項或既有待辦時：{\"schema_version\":\"v1\",\"decision\":\"no_action\",\"linked_message_id\":\"\",\"summary\":\"\",\"assignees\":[],\"due_text\":\"\",\"confidence\":0.0,\"missing_fields\":[],\"reason\":\"訊息不構成可追蹤待辦\"}\n")
@@ -1107,13 +1110,16 @@ func buildImplicitReplyTodoPrompt(explicitReplyTarget *ent.ChannelMessage, recen
 			if candidate == nil {
 				continue
 			}
-			builder.WriteString(fmt.Sprintf("%d. source_message_id=%s last_message_id=%s status=%s last_decision=%s missing_fields=%v\n",
+			builder.WriteString(fmt.Sprintf("%d. source_message_id=%s last_message_id=%s status=%s last_decision=%s missing_fields=%v known_summary=%q known_assignees=%v known_due_text=%q\n",
 				index+1,
 				candidate.SourceMessageID.String(),
 				candidate.LastMessageID.String(),
 				candidate.Status,
 				candidate.LastDecision,
 				candidate.MissingFields,
+				strings.TrimSpace(candidate.Summary),
+				normalizeTodoPromptStringSlice(candidate.Assignees),
+				strings.TrimSpace(candidate.DueText),
 			))
 		}
 	}
@@ -1127,6 +1133,21 @@ func buildImplicitReplyTodoPrompt(explicitReplyTarget *ent.ChannelMessage, recen
 	return builder.String()
 }
 
+func normalizeTodoPromptStringSlice(values []string) []string {
+	if len(values) == 0 {
+		return []string{}
+	}
+	items := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		items = append(items, value)
+	}
+	return items
+}
+
 func buildTodoDueTimePrompt(messageCtx MessageContext, analysis *llminteraction.TodoAnalysis, referenceTime time.Time, timezone string) string {
 	return strings.TrimSpace(fmt.Sprintf(`你是 Todo Reminder 的時間正規化器。請把 due_text 依 reference_time 與 timezone 轉成 RFC3339 due_at。
 只能輸出 todo_due_time JSON contract：schema_version, decision, due_at, timezone, precision, confidence, missing_fields, reason。
@@ -1134,7 +1155,9 @@ func buildTodoDueTimePrompt(messageCtx MessageContext, analysis *llminteraction.
 
 規則：
 - decision 只能是 normalized、needs_more_info、no_due_time。
+- precision 只能是 datetime、date、relative_window、unknown；不可輸出 time、hour、minute 或其他值。
 - normalized 時 due_at 必須是 RFC3339，例如 2026-07-20T09:00:00+08:00，timezone 必須使用輸入 timezone。
+- 若 due_text 同時包含日期與明確時間，precision 必須使用 datetime。
 - 相對日期必須以 reference_time 在輸入 timezone 的本地日曆日換算；例如 due_text=明天 代表 reference_time 日期加一天，不可使用模型執行當下日期或伺服器現在時間。
 - 若 due_text 只有日期沒有時間，precision 使用 date，due_at 可用該日期 09:00:00 作為候選提醒時間，但 reason 必須說明時間是預設候選。
 - 若 due_text 太模糊而無法安全排程，decision 使用 needs_more_info，due_at 使用空字串，timezone 使用輸入 timezone，precision 使用 unknown，confidence 使用 0 到 0.5，並填 missing_fields。
