@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"assistant-api/internal/ent"
@@ -21,6 +22,7 @@ type RecentMessageStore interface {
 	ResolveParentMessage(ctx context.Context, message *ent.ChannelMessage) (*ent.ChannelMessage, error)
 	FindMessageWindowAround(ctx context.Context, message *ent.ChannelMessage, beforeLimit int, afterLimit int) ([]*ent.ChannelMessage, error)
 	FindRecentMessagesBefore(ctx context.Context, message *ent.ChannelMessage, limit int) ([]*ent.ChannelMessage, error)
+	FindTodoCandidatesByMessageIDs(ctx context.Context, channelID uuid.UUID, messageIDs []uuid.UUID) ([]*ent.TodoCandidate, error)
 }
 
 // TodoCandidateInput 是 Todo Reminder usecase 傳給 repository 的落庫資料。
@@ -63,6 +65,8 @@ type TodoReminderService struct {
 	recentLimit          int
 	replyChainMaxDepth   int
 	timezone             string
+	channelLocksMu       sync.Mutex
+	channelLocks         map[string]*sync.Mutex
 }
 
 // TodoReminderServiceOptions 提供待辦提醒服務的可觀測性設定。
@@ -86,6 +90,7 @@ func NewTodoReminderService(options TodoReminderServiceOptions) *TodoReminderSer
 		llm:                  options.LLM,
 		ranker:               options.Ranker,
 		timezone:             strings.TrimSpace(options.Timezone),
+		channelLocks:         make(map[string]*sync.Mutex),
 		// RecentLimit 必須由 config 層解析後注入；預設值集中在 ai.history_context.recent_message_limit，
 		// usecase 不再內建 8，避免未來調整召回窗口時出現「設定檔一份、程式碼一份」的漂移。
 		recentLimit: options.RecentLimit,
@@ -117,10 +122,40 @@ func (s *TodoReminderService) HandleClassification(ctx context.Context, messageC
 		zap.String("model_name", strings.TrimSpace(result.ModelName)),
 	)
 
+	unlock := s.lockTodoReminderChannel(messageCtx)
+	defer unlock()
+
 	// 中期 implicit reply 流程：
 	// classifier 只判斷這則非指令訊息值得進一步檢查；真正「它是否接續前文待辦」交給 context analyzer。
 	// 這能處理使用者沒有按 reply、但隔幾句回「我晚點弄」的情境，不用靠關鍵字規則硬判斷。
 	s.analyzeImplicitReplyContext(ctx, messageCtx, result)
+}
+
+func (s *TodoReminderService) lockTodoReminderChannel(messageCtx MessageContext) func() {
+	if s == nil {
+		return func() {}
+	}
+	key := ""
+	if messageCtx.SavedMessage != nil && messageCtx.SavedMessage.ChannelID != uuid.Nil {
+		key = messageCtx.SavedMessage.ChannelID.String()
+	} else if messageCtx.Message != nil {
+		key = strings.TrimSpace(messageCtx.Message.ChannelID)
+	}
+	if key == "" {
+		return func() {}
+	}
+	s.channelLocksMu.Lock()
+	if s.channelLocks == nil {
+		s.channelLocks = make(map[string]*sync.Mutex)
+	}
+	lock := s.channelLocks[key]
+	if lock == nil {
+		lock = &sync.Mutex{}
+		s.channelLocks[key] = lock
+	}
+	s.channelLocksMu.Unlock()
+	lock.Lock()
+	return lock.Unlock
 }
 
 func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, messageCtx MessageContext, result ClassificationResult) {
@@ -177,7 +212,11 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 		if err != nil {
 			return
 		}
-		prompt := buildImplicitReplyTodoPrompt(explicitReplyTarget, contextMessages, result)
+		candidateContexts, err := s.findTodoCandidateContexts(ctx, messageCtx, contextMessages)
+		if err != nil {
+			return
+		}
+		prompt := buildImplicitReplyTodoPrompt(explicitReplyTarget, contextMessages, contextMessages, candidateContexts, result)
 		zap.L().Info("todo reminder todo analyzer request prepared",
 			zap.String("platform", s.platformLabel),
 			zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
@@ -264,6 +303,23 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 	if len(recentMessages) == 0 {
 		return
 	}
+	conversationMessages := append([]*ent.ChannelMessage(nil), recentMessages...)
+	candidateContexts, err := s.findTodoCandidateContexts(ctx, messageCtx, conversationMessages)
+	if err != nil {
+		return
+	}
+	if !shouldAnalyzeImplicitTodoResult(result) && len(candidateContexts) == 0 {
+		zap.L().Info("todo reminder implicit reply context skipped: classifier did not identify todo and no candidate context exists",
+			zap.String("platform", s.platformLabel),
+			zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+			zap.String("classifier_tag", strings.TrimSpace(result.Tag)),
+			zap.String("classifier_signal", strings.TrimSpace(result.Signal)),
+			zap.Float64("classifier_confidence", result.Confidence),
+			zap.Float64("classifier_score_margin", result.ScoreMargin),
+		)
+		return
+	}
 	// 如果有注入 reranker，先把「目前短句」和「近端歷史訊息」做文字對精排。
 	// 這一步只調整候選順序，不直接宣告 linked/no_link，避免把模型分數當成最終語意結論。
 	recentMessages, err = s.rerankImplicitReplyCandidates(ctx, strings.TrimSpace(messageCtx.Message.Text), recentMessages)
@@ -286,7 +342,7 @@ func (s *TodoReminderService) analyzeImplicitReplyContext(ctx context.Context, m
 
 	// todo analyzer 是最後一道結構化判斷：它會在 bounded context 內輸出 todo 專用 decision，
 	// 下游只讀 schema，不需要靠自然語言或關鍵字猜測使用者是不是在接前文。
-	prompt := buildImplicitReplyTodoPrompt(nil, recentMessages, result)
+	prompt := buildImplicitReplyTodoPrompt(nil, recentMessages, conversationMessages, candidateContexts, result)
 	zap.L().Info("todo reminder todo analyzer request prepared",
 		zap.String("platform", s.platformLabel),
 		zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
@@ -465,14 +521,54 @@ func mergeChannelMessageWindows(items []*ent.ChannelMessage, excludeMessageIDs .
 	return merged
 }
 
+func (s *TodoReminderService) findTodoCandidateContexts(ctx context.Context, messageCtx MessageContext, messages []*ent.ChannelMessage) ([]*ent.TodoCandidate, error) {
+	if s == nil || s.repo == nil || messageCtx.SavedMessage == nil || messageCtx.SavedMessage.ChannelID == uuid.Nil || len(messages) == 0 {
+		return nil, nil
+	}
+	messageIDs := make([]uuid.UUID, 0, len(messages))
+	seen := make(map[uuid.UUID]struct{}, len(messages))
+	for _, message := range messages {
+		if message == nil || message.ID == uuid.Nil {
+			continue
+		}
+		if _, ok := seen[message.ID]; ok {
+			continue
+		}
+		seen[message.ID] = struct{}{}
+		messageIDs = append(messageIDs, message.ID)
+	}
+	if len(messageIDs) == 0 {
+		return nil, nil
+	}
+	candidates, err := s.repo.FindTodoCandidatesByMessageIDs(ctx, messageCtx.SavedMessage.ChannelID, messageIDs)
+	if err != nil {
+		zap.L().Warn("todo reminder candidate context skipped: candidate query failed",
+			zap.String("platform", s.platformLabel),
+			zap.String("channel_id", strings.TrimSpace(messageCtx.Message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+			zap.Error(err),
+		)
+		return nil, err
+	}
+	return candidates, nil
+}
+
 func (s *TodoReminderService) persistTodoCandidateAnalysis(ctx context.Context, messageCtx MessageContext, analysis *llminteraction.TodoAnalysis) {
 	if s == nil || s.persistTodoCandidate == nil || messageCtx.SavedMessage == nil || analysis == nil {
 		// persistence function 沒注入時保留 log-only 模式，方便測試或尚未啟用資料表的環境先觀測 analyzer 結果。
 		return
 	}
+	// 這裡是 structured analyzer 輸出進入資料庫前的最後整理點：
+	// linked_message_id 轉成 UUID、due_text 交給獨立 normalizer、missing_fields 合併兩個模型契約的缺口。
+	// repository 之後只看這份結構化輸入，不再重新解析自然語言，避免語意判斷分散在多層。
 	decision := strings.TrimSpace(analysis.Decision)
 	if decision == "no_action" {
 		// no_action 是 analyzer 明確判斷不應啟動 Todo Reminder；不落庫才能避免堆積無效候選。
+		zap.L().Info("todo reminder candidate persistence skipped: no_action",
+			zap.String("platform", s.platformLabel),
+			zap.String("message_id", strings.TrimSpace(messageCtx.Message.PlatformMessageID)),
+			zap.String("reason", strings.TrimSpace(analysis.Reason)),
+		)
 		return
 	}
 	linkedMessageID, err := parseOptionalUUID(strings.TrimSpace(analysis.LinkedMessageID))
@@ -486,6 +582,7 @@ func (s *TodoReminderService) persistTodoCandidateAnalysis(ctx context.Context, 
 		return
 	}
 	dueTime := s.normalizeTodoDueTime(ctx, messageCtx, analysis)
+	missingFields := mergeTodoMissingFields(analysis.MissingFields, dueTime.missingFields)
 	item, err := s.persistTodoCandidate(ctx, TodoCandidateInput{
 		ChannelID:       messageCtx.SavedMessage.ChannelID,
 		MessageID:       messageCtx.SavedMessage.ID,
@@ -500,7 +597,7 @@ func (s *TodoReminderService) persistTodoCandidateAnalysis(ctx context.Context, 
 		DueDecision:     dueTime.decision,
 		DueConfidence:   dueTime.confidence,
 		DueReason:       dueTime.reason,
-		MissingFields:   append([]string(nil), analysis.MissingFields...),
+		MissingFields:   missingFields,
 		Confidence:      analysis.Confidence,
 		Reason:          strings.TrimSpace(analysis.Reason),
 	})
@@ -538,12 +635,13 @@ func parseOptionalUUID(value string) (uuid.UUID, error) {
 }
 
 type normalizedTodoDueTime struct {
-	dueAt      *time.Time
-	timezone   string
-	precision  string
-	decision   string
-	confidence float64
-	reason     string
+	dueAt         *time.Time
+	timezone      string
+	precision     string
+	decision      string
+	confidence    float64
+	missingFields []string
+	reason        string
 }
 
 func (s *TodoReminderService) normalizeTodoDueTime(ctx context.Context, messageCtx MessageContext, analysis *llminteraction.TodoAnalysis) normalizedTodoDueTime {
@@ -610,7 +708,7 @@ func (s *TodoReminderService) normalizeTodoDueTime(ctx context.Context, messageC
 		zap.String("reason", strings.TrimSpace(result.Reason)),
 	)
 	if strings.TrimSpace(result.Decision) != "normalized" {
-		return normalizedTodoDueTime{decision: strings.TrimSpace(result.Decision), timezone: strings.TrimSpace(result.Timezone), precision: strings.TrimSpace(result.Precision), confidence: result.Confidence, reason: strings.TrimSpace(result.Reason)}
+		return normalizedTodoDueTime{decision: strings.TrimSpace(result.Decision), timezone: strings.TrimSpace(result.Timezone), precision: strings.TrimSpace(result.Precision), confidence: result.Confidence, missingFields: append([]string(nil), result.MissingFields...), reason: strings.TrimSpace(result.Reason)}
 	}
 	parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(result.DueAt))
 	if err != nil {
@@ -623,6 +721,25 @@ func (s *TodoReminderService) normalizeTodoDueTime(ctx context.Context, messageC
 		return normalizedTodoDueTime{}
 	}
 	return normalizedTodoDueTime{dueAt: &parsed, decision: strings.TrimSpace(result.Decision), timezone: strings.TrimSpace(result.Timezone), precision: strings.TrimSpace(result.Precision), confidence: result.Confidence, reason: strings.TrimSpace(result.Reason)}
+}
+
+func mergeTodoMissingFields(groups ...[]string) []string {
+	seen := make(map[string]struct{})
+	merged := make([]string, 0)
+	for _, group := range groups {
+		for _, field := range group {
+			trimmed := strings.TrimSpace(field)
+			if trimmed == "" {
+				continue
+			}
+			if _, ok := seen[trimmed]; ok {
+				continue
+			}
+			seen[trimmed] = struct{}{}
+			merged = append(merged, trimmed)
+		}
+	}
+	return merged
 }
 
 func (s *TodoReminderService) rerankImplicitReplyCandidates(ctx context.Context, query string, recentMessages []*ent.ChannelMessage) ([]*ent.ChannelMessage, error) {
@@ -756,25 +873,68 @@ func formatRankedDocumentLogEntries(documents []reranker.RankedDocument) []map[s
 	return entries
 }
 
-func buildImplicitReplyTodoPrompt(explicitReplyTarget *ent.ChannelMessage, recentMessages []*ent.ChannelMessage, result ClassificationResult) string {
+func formatOptionalUUID(value *uuid.UUID) string {
+	if value == nil || *value == uuid.Nil {
+		return ""
+	}
+	return value.String()
+}
+
+func latestNonNilMessage(messages []*ent.ChannelMessage) *ent.ChannelMessage {
+	for index := len(messages) - 1; index >= 0; index-- {
+		if messages[index] != nil {
+			return messages[index]
+		}
+	}
+	return nil
+}
+
+func shouldAnalyzeImplicitTodoResult(result ClassificationResult) bool {
+	signal := strings.TrimSpace(result.Signal)
+	tag := strings.TrimSpace(result.Tag)
+	return signal == ClassificationSignalCandidate || tag == "todo"
+}
+
+func buildImplicitReplyTodoPrompt(explicitReplyTarget *ent.ChannelMessage, recentMessages []*ent.ChannelMessage, conversationMessages []*ent.ChannelMessage, candidateContexts []*ent.TodoCandidate, result ClassificationResult) string {
 	var builder strings.Builder
 	// 同一份 todo_analysis contract 同時支援兩種上下文來源：
 	// 1. Explicit reply/quote target：平台明確指出的 parent message，不受 recentLimit 影響。
 	// 2. Context messages：多個 message window 去重後依時間排序；沒有 reply/quote 時則是單一 recent window。
-	// prompt 明確要求 linked_message_id 只能來自這兩個區塊，讓下游 persistence 可以用 message id
-	// 回查既有 TodoCandidate，避免模型編造不可追蹤的 linkage。
+	// prompt 明確要求 linked_message_id 只能來自這兩個訊息區塊，讓下游 persistence 可以用 message id
+	// 回查既有 TodoCandidate；candidate context 只提供 message-id linkage hint，不提供 row id。
 	builder.WriteString("你是 Todo Reminder 的內部 structured analyzer。請判斷 Current message 是否應形成、更新、承接或取消待辦候選，即使使用者沒有按平台 reply。\n")
 	builder.WriteString("只能輸出 todo_analysis JSON contract：schema_version, decision, linked_message_id, summary, assignees, due_text, confidence, missing_fields, reason。\n")
 	builder.WriteString("decision 只能是 create_candidate、update_candidate、acknowledge、cancel_candidate、needs_more_info、no_action。\n")
-	builder.WriteString("linked_message_id 必須來自 Explicit reply/quote target 或 Context messages 的 id；全新待辦或 no_action 時使用空字串。\n")
+	builder.WriteString("linked_message_id 必須只來自 Explicit reply/quote target 或 Context messages 的訊息 id；不可輸出 Todo candidate row id。Todo candidate contexts 的 source_message_id、last_message_id、previous_linked_message_id 是 linkage hint：若其中某個 message id 也出現在 Explicit reply/quote target 或 Context messages，就可以輸出該 message id；全新待辦或 no_action 時使用空字串。\n")
 	builder.WriteString("若存在 Explicit reply/quote target，這是使用者明確引用的訊息，即使很久以前也優先作為接續上下文。\n")
 	builder.WriteString("Context messages 可能由多個 message window 組合而成，已去重並依時間排序；請把它當成補充脈絡，不要忽略較舊的 explicit target。\n")
+	builder.WriteString("Context messages 是語意精排後的候選；Conversation messages in chronological order 是實際對話輪次。判斷短確認、否定、可行性回覆或改期時，請用 chronological order 決定最近被回覆的提案/詢問，再用 Context messages 與 Todo candidate contexts 補充狀態，不可只看 rerank 排名。\n")
+	builder.WriteString("判斷 update_candidate/acknowledge/cancel_candidate 時，Current message 必須和 linked message 指向同一件可追蹤事項；請比較行動主體、待辦目標、時間/條件變更、語用功能與對話輪次是否共同支持同一任務，不可只因為兩則訊息都有時間、人物或相似詞就連結。\n")
+	builder.WriteString("若 Current message 表示原本時間、可用性或條件不成立，並提出替代時間、條件或執行安排，且上下文顯示它仍在處理同一件可追蹤待辦，decision 應為 update_candidate，linked_message_id 指向被修改的原任務或上一則改期提案；不可因為訊息表面像個人狀態或詢問就判 no_action。\n")
+	builder.WriteString("若 Current message 的主要語用功能是在對既有任務提出替代時間、替代條件或可行性確認，且它沒有引入新的獨立任務目標，decision 不可使用 create_candidate；應輸出 update_candidate 並連到被修改的既有任務訊息。\n")
+	builder.WriteString("個人可用性、請假、行程或狀態描述只有在 standalone 且沒有承接既有任務時才可判 no_action；若它是在回覆前文交辦、提案或待確認任務，並改變原時間/條件或詢問替代安排是否可行，必須依同一任務輸出 update_candidate，而不是 no_action。\n")
+	builder.WriteString("Mandatory decision procedure：先判 Current message 的語用類型，再判欄位完整性。A. 若 Current message 本身包含可追蹤行動、交付內容、時間安排、承諾或請求他人完成事項，這是任務內容訊息，優先輸出 create_candidate 或 update_candidate，不可因 Latest prior conversation message 是問題/狀態回覆而輸出 acknowledge。B. 若 Current message 主要是在說明不可用、請假、行程衝突、條件不成立，並提出替代時間/替代條件/詢問替代安排是否可行，且 Latest prior conversation message 或 Context messages 顯示前文有交辦或待確認任務，輸出 update_candidate，linked_message_id 指向被修改的任務提案或交辦訊息。C. 只有 Current message 是短確認、短否定或短可行性答覆，且沒有新的任務內容、替代時間或替代條件時，才使用 acknowledge。D. 只有 A/B/C 都不成立時，才考慮 needs_more_info 或 no_action。\n")
+	builder.WriteString("在判斷欄位是否完整之前，必須先執行 dialogue target selection：若沒有 Explicit reply/quote target，Latest prior conversation message 是 Current message 的相鄰回覆目標候選；若 Current message 是短確認、短否定或短可行性答覆，且 Latest prior conversation message 是提案、詢問、改期請求或待確認事項，decision 應為 acknowledge，linked_message_id 指向 Latest prior conversation message 的 id，summary/assignees/due_text 從該訊息與同任務上下文承接，missing_fields=[]。\n")
+	builder.WriteString("若 Latest prior conversation message 本身是在修改更早的待辦時間/條件，Current message 的短確認是在確認該修改提案；此時仍以 acknowledge 連到 Latest prior conversation message，而不是連到更舊的 Todo candidate context。Todo candidate contexts 只能用來補充同任務狀態，不能覆蓋相鄰對話目標。\n")
+	builder.WriteString("只有在 target selection 判定 Current message 不是任何提案、詢問、待確認事項或既有待辦的語用回覆時，才可以因 Current message 本身缺少任務目標或欄位而輸出 no_action。\n")
+	builder.WriteString("輸出前必須依序套用 decision precedence：1. Current message 本身的新任務內容或替代安排；2. Explicit reply/quote target；3. Latest prior conversation message 的短確認/短否定/可行性答覆；4. Todo candidate contexts 的待確認狀態；5. no_action。若前面任一層成立，不可再因 Current message 本身很短或缺欄位而改成 no_action。\n")
+	builder.WriteString("acknowledge 是 linked decision：只有在能從 Explicit reply/quote target 或 Context messages 中選出被承接的訊息 id 時才能使用；若無法選出有效 linked_message_id，必須改用 no_action 或 needs_more_info。\n")
+	builder.WriteString("若 Current message 本身資訊很短，請先判斷它在對話中是否是對最近提案、詢問或待確認事項的語用回覆；若是，輸出 acknowledge 並把 linked_message_id 指向被回覆的提案訊息；不可只因為短訊息本身缺 summary/due_text 就判 no_action。\n")
+	builder.WriteString("對極短確認或否定回覆，請優先依時間相鄰性、發話者輪替、上一則提案/詢問、以及 Todo candidate contexts 的待確認狀態判斷語用功能；不要讓語意上無待確認功能的短狀態訊息只因 rerank 排名較前就成為 linked target，也不可因 Current message 字數很少就忽略最近提案。\n")
+	builder.WriteString("若極短確認/否定的上一則相鄰訊息本身是提案、詢問或改期請求，即使該上一則尚未出現在 Todo candidate contexts，也應優先考慮把 linked_message_id 指向該上一則 Context message；不要為了使用既有 candidate context 而連到更舊、語用功能不同的訊息。\n")
 	builder.WriteString("提醒、請記得、到時提醒我、不要忘記、幫我記一下等日常提醒語氣，只要包含可追蹤事項、承諾、交付、時間或對象，就屬於 Todo candidate；不可只因為語氣日常就判 no_action。\n")
 	builder.WriteString("summary 是整理後的待辦內容；due_text 保留使用者原本的時間字面，不要自行正規化日期；assignees 保留訊息中可見的人名或稱呼。\n")
 	builder.WriteString("欄位型別必須固定：schema_version/decision/linked_message_id/summary/due_text/reason 是 string，confidence 是 number，assignees 與 missing_fields 永遠是 string array；沒有人名或缺漏欄位時輸出 []，不可輸出字串、物件或 null。\n")
 	builder.WriteString("JSON key 必須只使用 schema_version、decision、linked_message_id、summary、assignees、due_text、confidence、missing_fields、reason 這 9 個欄位名稱；不可把 JSON 片段、跳脫字元或 key/value 片段放進欄位名稱，例如不可輸出 due_text\\\":\\\"\\\" 這類壞 key。\n")
-	builder.WriteString("needs_more_info 時 missing_fields 必須指出缺 summary、assignees 或 due_text 等欄位；no_action 時 linked_message_id、summary、assignees、due_text、missing_fields 都必須為空。\n")
-	builder.WriteString("JSON shape 範例：{\"schema_version\":\"v1\",\"decision\":\"no_action\",\"linked_message_id\":\"\",\"summary\":\"\",\"assignees\":[],\"due_text\":\"\",\"confidence\":0.0,\"missing_fields\":[],\"reason\":\"...\"}\n")
+	builder.WriteString("needs_more_info 只適用於 Current message 已可判定為可追蹤待辦或對既有待辦的承接，但缺少必要欄位而需要使用者補充；若 Current message 本身不是可追蹤待辦、只是聊天、狀態描述、個人行程通知、無需系統追蹤的答覆或無法形成待辦意圖，decision 必須是 no_action，而不是 needs_more_info。\n")
+	builder.WriteString("decision 欄位規則：create_candidate 需要 linked_message_id=\"\"、summary 非空、missing_fields=[]；update_candidate/acknowledge/cancel_candidate 需要 linked_message_id 來自訊息 id 清單、summary 非空、missing_fields=[]；needs_more_info 需要 summary 非空且 missing_fields 非空；no_action 需要 linked_message_id=\"\"、summary=\"\"、assignees=[]、due_text=\"\"、missing_fields=[]。所有 decision 的 reason 都必須是非空字串。\n")
+	builder.WriteString("對 update_candidate/acknowledge/cancel_candidate，summary、assignees、due_text 可承接 linked message 與 Todo candidate contexts 中已知且未被 Current message 改變的資訊；若同一任務已可由上下文辨識，不可把這些已知欄位列入 missing_fields，missing_fields 必須是 []。\n")
+	builder.WriteString("decision=no_action 的欄位表必須固定為 linked_message_id=\"\"、summary=\"\"、assignees=[]、due_text=\"\"、missing_fields=[]；即使原因是缺少任務目標、時間、對象、交付內容或 action intent，也只能把原因寫進 reason，missing_fields 仍必須是 []。\n")
+	builder.WriteString("missing_fields 只有 decision=needs_more_info 時可以非空；若 decision=no_action，請把不可形成待辦的原因寫在 reason，不可把缺少的欄位放進 missing_fields，不可輸出 [\"reason\"]、[\"time\"]、[\"task_goal\"] 或任何其他 missing_fields。\n")
+	builder.WriteString("no_action 合法 JSON 範例只適用於 target selection 已判定 Current message 完全沒有承接任何提案、詢問、待確認事項或既有待辦時：{\"schema_version\":\"v1\",\"decision\":\"no_action\",\"linked_message_id\":\"\",\"summary\":\"\",\"assignees\":[],\"due_text\":\"\",\"confidence\":0.0,\"missing_fields\":[],\"reason\":\"訊息不構成可追蹤待辦\"}\n")
+	builder.WriteString("Current message 本身包含任務內容/交付/時間安排時的合法 JSON 範例優先於 adjacency acknowledge：{\"schema_version\":\"v1\",\"decision\":\"create_candidate\",\"linked_message_id\":\"\",\"summary\":\"整理並回報前文事項的原因\",\"assignees\":[],\"due_text\":\"明天\",\"confidence\":0.8,\"missing_fields\":[],\"reason\":\"Current message 本身提出可追蹤交付內容與時間安排\"}\n")
+	builder.WriteString("個人可用性或行程衝突承接既有任務並提出替代安排時的合法 JSON 範例優先於 no_action：{\"schema_version\":\"v1\",\"decision\":\"update_candidate\",\"linked_message_id\":\"<message_id_from_context>\",\"summary\":\"承接既有任務並改為替代時間或條件執行\",\"assignees\":[],\"due_text\":\"替代時間字面\",\"confidence\":0.7,\"missing_fields\":[],\"reason\":\"Current message 是對既有任務的可用性/替代安排回覆\"}\n")
+	builder.WriteString("短確認承接 Latest prior conversation message 的合法 JSON 範例優先於 no_action 範例；linked_message_id 必須替換為 Latest prior conversation message 的 id，summary/due_text 可從該訊息與同任務上下文承接：{\"schema_version\":\"v1\",\"decision\":\"acknowledge\",\"linked_message_id\":\"<latest_prior_message_id>\",\"summary\":\"承接最近提案或待確認事項\",\"assignees\":[],\"due_text\":\"\",\"confidence\":0.7,\"missing_fields\":[],\"reason\":\"Current message 是對 Latest prior conversation message 的短確認或可行性答覆\"}\n")
 	builder.WriteString("不可輸出額外欄位，不可用自然語言包住 JSON。\n\n")
 	builder.WriteString("Explicit reply/quote target:\n")
 	if explicitReplyTarget != nil {
@@ -789,6 +949,44 @@ func buildImplicitReplyTodoPrompt(explicitReplyTarget *ent.ChannelMessage, recen
 			continue
 		}
 		builder.WriteString(fmt.Sprintf("%d. id=%s sender=%s text=%q\n", index+1, item.ID.String(), strings.TrimSpace(item.SenderName), strings.TrimSpace(item.Content)))
+	}
+	builder.WriteString("\nConversation messages in chronological order:\n")
+	if len(conversationMessages) == 0 {
+		builder.WriteString("none\n")
+	} else {
+		for index, item := range conversationMessages {
+			if item == nil {
+				continue
+			}
+			builder.WriteString(fmt.Sprintf("%d. id=%s sender=%s text=%q\n", index+1, item.ID.String(), strings.TrimSpace(item.SenderName), strings.TrimSpace(item.Content)))
+		}
+	}
+	builder.WriteString("\nLatest prior conversation message:\n")
+	latestPriorMessage := latestNonNilMessage(conversationMessages)
+	if latestPriorMessage == nil {
+		builder.WriteString("none\n")
+	} else {
+		builder.WriteString(fmt.Sprintf("id=%s sender=%s text=%q\n", latestPriorMessage.ID.String(), strings.TrimSpace(latestPriorMessage.SenderName), strings.TrimSpace(latestPriorMessage.Content)))
+		builder.WriteString("Use this as the first adjacency target candidate for short confirmations, denials, feasibility answers, and acknowledgements.\n")
+	}
+	builder.WriteString("\nTodo candidate contexts:\n")
+	if len(candidateContexts) == 0 {
+		builder.WriteString("none\n")
+	} else {
+		for index, candidate := range candidateContexts {
+			if candidate == nil {
+				continue
+			}
+			builder.WriteString(fmt.Sprintf("%d. source_message_id=%s last_message_id=%s previous_linked_message_id=%s status=%s last_decision=%s missing_fields=%v\n",
+				index+1,
+				candidate.SourceMessageID.String(),
+				candidate.LastMessageID.String(),
+				formatOptionalUUID(candidate.LinkedMessageID),
+				candidate.Status,
+				candidate.LastDecision,
+				candidate.MissingFields,
+			))
+		}
 	}
 	builder.WriteString("\nClassifier observation:\n")
 	builder.WriteString(fmt.Sprintf("tag=%s signal=%s confidence=%.4f score_margin=%.4f\n",

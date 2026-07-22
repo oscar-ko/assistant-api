@@ -8,6 +8,7 @@ import (
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todoevent"
+	"assistant-api/internal/ent/todoupdatecandidate"
 	"assistant-api/internal/ent/user"
 	"context"
 	"database/sql/driver"
@@ -24,17 +25,19 @@ import (
 // TodoQuery is the builder for querying Todo entities.
 type TodoQuery struct {
 	config
-	ctx                 *QueryContext
-	order               []todo.OrderOption
-	inters              []Interceptor
-	predicates          []predicate.Todo
-	withChannel         *ChannelQuery
-	withOwner           *UserQuery
-	withSourceCandidate *TodoCandidateQuery
-	withEvents          *TodoEventQuery
-	modifiers           []func(*sql.Selector)
-	loadTotal           []func(context.Context, []*Todo) error
-	withNamedEvents     map[string]*TodoEventQuery
+	ctx                       *QueryContext
+	order                     []todo.OrderOption
+	inters                    []Interceptor
+	predicates                []predicate.Todo
+	withChannel               *ChannelQuery
+	withOwner                 *UserQuery
+	withSourceCandidate       *TodoCandidateQuery
+	withEvents                *TodoEventQuery
+	withUpdateCandidates      *TodoUpdateCandidateQuery
+	modifiers                 []func(*sql.Selector)
+	loadTotal                 []func(context.Context, []*Todo) error
+	withNamedEvents           map[string]*TodoEventQuery
+	withNamedUpdateCandidates map[string]*TodoUpdateCandidateQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -152,6 +155,28 @@ func (_q *TodoQuery) QueryEvents() *TodoEventQuery {
 			sqlgraph.From(todo.Table, todo.FieldID, selector),
 			sqlgraph.To(todoevent.Table, todoevent.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, todo.EventsTable, todo.EventsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryUpdateCandidates chains the current query on the "update_candidates" edge.
+func (_q *TodoQuery) QueryUpdateCandidates() *TodoUpdateCandidateQuery {
+	query := (&TodoUpdateCandidateClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(todo.Table, todo.FieldID, selector),
+			sqlgraph.To(todoupdatecandidate.Table, todoupdatecandidate.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, todo.UpdateCandidatesTable, todo.UpdateCandidatesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -346,15 +371,16 @@ func (_q *TodoQuery) Clone() *TodoQuery {
 		return nil
 	}
 	return &TodoQuery{
-		config:              _q.config,
-		ctx:                 _q.ctx.Clone(),
-		order:               append([]todo.OrderOption{}, _q.order...),
-		inters:              append([]Interceptor{}, _q.inters...),
-		predicates:          append([]predicate.Todo{}, _q.predicates...),
-		withChannel:         _q.withChannel.Clone(),
-		withOwner:           _q.withOwner.Clone(),
-		withSourceCandidate: _q.withSourceCandidate.Clone(),
-		withEvents:          _q.withEvents.Clone(),
+		config:               _q.config,
+		ctx:                  _q.ctx.Clone(),
+		order:                append([]todo.OrderOption{}, _q.order...),
+		inters:               append([]Interceptor{}, _q.inters...),
+		predicates:           append([]predicate.Todo{}, _q.predicates...),
+		withChannel:          _q.withChannel.Clone(),
+		withOwner:            _q.withOwner.Clone(),
+		withSourceCandidate:  _q.withSourceCandidate.Clone(),
+		withEvents:           _q.withEvents.Clone(),
+		withUpdateCandidates: _q.withUpdateCandidates.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -402,6 +428,17 @@ func (_q *TodoQuery) WithEvents(opts ...func(*TodoEventQuery)) *TodoQuery {
 		opt(query)
 	}
 	_q.withEvents = query
+	return _q
+}
+
+// WithUpdateCandidates tells the query-builder to eager-load the nodes that are connected to
+// the "update_candidates" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *TodoQuery) WithUpdateCandidates(opts ...func(*TodoUpdateCandidateQuery)) *TodoQuery {
+	query := (&TodoUpdateCandidateClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withUpdateCandidates = query
 	return _q
 }
 
@@ -483,11 +520,12 @@ func (_q *TodoQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Todo, e
 	var (
 		nodes       = []*Todo{}
 		_spec       = _q.querySpec()
-		loadedTypes = [4]bool{
+		loadedTypes = [5]bool{
 			_q.withChannel != nil,
 			_q.withOwner != nil,
 			_q.withSourceCandidate != nil,
 			_q.withEvents != nil,
+			_q.withUpdateCandidates != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -536,10 +574,24 @@ func (_q *TodoQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Todo, e
 			return nil, err
 		}
 	}
+	if query := _q.withUpdateCandidates; query != nil {
+		if err := _q.loadUpdateCandidates(ctx, query, nodes,
+			func(n *Todo) { n.Edges.UpdateCandidates = []*TodoUpdateCandidate{} },
+			func(n *Todo, e *TodoUpdateCandidate) { n.Edges.UpdateCandidates = append(n.Edges.UpdateCandidates, e) }); err != nil {
+			return nil, err
+		}
+	}
 	for name, query := range _q.withNamedEvents {
 		if err := _q.loadEvents(ctx, query, nodes,
 			func(n *Todo) { n.appendNamedEvents(name) },
 			func(n *Todo, e *TodoEvent) { n.appendNamedEvents(name, e) }); err != nil {
+			return nil, err
+		}
+	}
+	for name, query := range _q.withNamedUpdateCandidates {
+		if err := _q.loadUpdateCandidates(ctx, query, nodes,
+			func(n *Todo) { n.appendNamedUpdateCandidates(name) },
+			func(n *Todo, e *TodoUpdateCandidate) { n.appendNamedUpdateCandidates(name, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -671,6 +723,36 @@ func (_q *TodoQuery) loadEvents(ctx context.Context, query *TodoEventQuery, node
 	}
 	return nil
 }
+func (_q *TodoQuery) loadUpdateCandidates(ctx context.Context, query *TodoUpdateCandidateQuery, nodes []*Todo, init func(*Todo), assign func(*Todo, *TodoUpdateCandidate)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Todo)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(todoupdatecandidate.FieldTodoID)
+	}
+	query.Where(predicate.TodoUpdateCandidate(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(todo.UpdateCandidatesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.TodoID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "todo_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
 
 func (_q *TodoQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
@@ -776,6 +858,20 @@ func (_q *TodoQuery) WithNamedEvents(name string, opts ...func(*TodoEventQuery))
 		_q.withNamedEvents = make(map[string]*TodoEventQuery)
 	}
 	_q.withNamedEvents[name] = query
+	return _q
+}
+
+// WithNamedUpdateCandidates tells the query-builder to eager-load the nodes that are connected to the "update_candidates"
+// edge with the given name. The optional arguments are used to configure the query builder of the edge.
+func (_q *TodoQuery) WithNamedUpdateCandidates(name string, opts ...func(*TodoUpdateCandidateQuery)) *TodoQuery {
+	query := (&TodoUpdateCandidateClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	if _q.withNamedUpdateCandidates == nil {
+		_q.withNamedUpdateCandidates = make(map[string]*TodoUpdateCandidateQuery)
+	}
+	_q.withNamedUpdateCandidates[name] = query
 	return _q
 }
 

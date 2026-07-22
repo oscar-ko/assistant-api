@@ -268,6 +268,18 @@ func (_m *Todo) Events(ctx context.Context) (result []*TodoEvent, err error) {
 	return result, err
 }
 
+func (_m *Todo) UpdateCandidates(ctx context.Context) (result []*TodoUpdateCandidate, err error) {
+	if fc := graphql.GetFieldContext(ctx); fc != nil && fc.Field.Alias != "" {
+		result, err = _m.NamedUpdateCandidates(graphql.GetFieldContext(ctx).Field.Alias)
+	} else {
+		result, err = _m.Edges.UpdateCandidatesOrErr()
+	}
+	if IsNotLoaded(err) {
+		result, err = _m.QueryUpdateCandidates().All(ctx)
+	}
+	return result, err
+}
+
 func (_m *TodoCandidate) Channel(ctx context.Context) (*Channel, error) {
 	result, err := _m.Edges.ChannelOrErr()
 	if IsNotLoaded(err) {
@@ -353,6 +365,30 @@ func (_m *TodoEvent) SourceCandidate(ctx context.Context) (*TodoCandidate, error
 }
 
 func (_m *TodoEvent) SourceMessage(ctx context.Context) (*ChannelMessage, error) {
+	result, err := _m.Edges.SourceMessageOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QuerySourceMessage().Only(ctx)
+	}
+	return result, MaskNotFound(err)
+}
+
+func (_m *TodoUpdateCandidate) Todo(ctx context.Context) (*Todo, error) {
+	result, err := _m.Edges.TodoOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QueryTodo().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *TodoUpdateCandidate) SourceCandidate(ctx context.Context) (*TodoCandidate, error) {
+	result, err := _m.Edges.SourceCandidateOrErr()
+	if IsNotLoaded(err) {
+		result, err = _m.QuerySourceCandidate().Only(ctx)
+	}
+	return result, err
+}
+
+func (_m *TodoUpdateCandidate) SourceMessage(ctx context.Context) (*ChannelMessage, error) {
 	result, err := _m.Edges.SourceMessageOrErr()
 	if IsNotLoaded(err) {
 		result, err = _m.QuerySourceMessage().Only(ctx)

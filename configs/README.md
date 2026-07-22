@@ -11,13 +11,17 @@ Suggested future layout:
 
 Current loader reads `configs/app.yml` by default.
 Set `APP_CONFIG` environment variable to override config file path.
-If `configs/app.local.yml` exists, it is merged after the main config and is intended for local-only secrets such as API tokens.
 
-Recommended local override for secrets:
+執行模式：
 
-- Copy `configs/app.local.yml.example` to `configs/app.local.yml`
-- Put local-only values such as `llm_providers.openai.token` there
-- Keep `configs/app.local.yml` out of git
+- `run_mode: "dev"` 是目前唯一被程式明確辨識且有特殊行為的模式。它會啟用開發專用 GraphQL 模擬 resolver，並輸出 embedding/reranker 探活狀態轉換日誌。
+- 任何非 `dev` 的值都會被視為一般非開發模式。目前尚未定義獨立的 `prod`、`staging` 或 `test` enum；只有在要關閉 dev-only 行為時才使用非 `dev` 值。
+
+Secrets and provider tokens:
+
+- Put runtime-only values such as `llm_providers.openai.token` or `llm_providers.deepseek.token` in the active config file (`configs/app.yml` by default, or the file selected by `APP_CONFIG`).
+- Keep public examples such as `configs/app.example.yml` token-free.
+- `configs/app.local.yml` is no longer loaded or used.
 
 Database setup:
 

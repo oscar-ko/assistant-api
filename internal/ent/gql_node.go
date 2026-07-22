@@ -18,6 +18,7 @@ import (
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
 	"assistant-api/internal/ent/todoevent"
+	"assistant-api/internal/ent/todoupdatecandidate"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -108,6 +109,11 @@ var todoeventImplementors = []string{"TodoEvent", "Node"}
 
 // IsNode implements the Node interface check for GQLGen.
 func (*TodoEvent) IsNode() {}
+
+var todoupdatecandidateImplementors = []string{"TodoUpdateCandidate", "Node"}
+
+// IsNode implements the Node interface check for GQLGen.
+func (*TodoUpdateCandidate) IsNode() {}
 
 var translationlocaleImplementors = []string{"TranslationLocale", "Node"}
 
@@ -308,6 +314,15 @@ func (c *Client) noder(ctx context.Context, table string, id uuid.UUID) (Noder, 
 			Where(todoevent.ID(id))
 		if fc := graphql.GetFieldContext(ctx); fc != nil {
 			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, todoeventImplementors...); err != nil {
+				return nil, err
+			}
+		}
+		return query.Only(ctx)
+	case todoupdatecandidate.Table:
+		query := c.TodoUpdateCandidate.Query().
+			Where(todoupdatecandidate.ID(id))
+		if fc := graphql.GetFieldContext(ctx); fc != nil {
+			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, todoupdatecandidateImplementors...); err != nil {
 				return nil, err
 			}
 		}
@@ -631,6 +646,22 @@ func (c *Client) noders(ctx context.Context, table string, ids []uuid.UUID) ([]N
 		query := c.TodoEvent.Query().
 			Where(todoevent.IDIn(ids...))
 		query, err := query.CollectFields(ctx, todoeventImplementors...)
+		if err != nil {
+			return nil, err
+		}
+		nodes, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, node := range nodes {
+			for _, noder := range idmap[node.ID] {
+				*noder = node
+			}
+		}
+	case todoupdatecandidate.Table:
+		query := c.TodoUpdateCandidate.Query().
+			Where(todoupdatecandidate.IDIn(ids...))
+		query, err := query.CollectFields(ctx, todoupdatecandidateImplementors...)
 		if err != nil {
 			return nil, err
 		}

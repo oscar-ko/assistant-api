@@ -188,6 +188,18 @@ func (f TodoEventFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, e
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TodoEventMutation", m)
 }
 
+// The TodoUpdateCandidateFunc type is an adapter to allow the use of ordinary
+// function as TodoUpdateCandidate mutator.
+type TodoUpdateCandidateFunc func(context.Context, *ent.TodoUpdateCandidateMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f TodoUpdateCandidateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TodoUpdateCandidateMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TodoUpdateCandidateMutation", m)
+}
+
 // The TranslationLocaleFunc type is an adapter to allow the use of ordinary
 // function as TranslationLocale mutator.
 type TranslationLocaleFunc func(context.Context, *ent.TranslationLocaleMutation) (ent.Value, error)

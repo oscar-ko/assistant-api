@@ -532,7 +532,8 @@ Todo JSON formatting rules:
 - Use commas between fields.
 - Do not put JSON fragments inside key names.
 - assignees and missing_fields must be JSON arrays, never strings or objects.
-- Use "" for empty string fields and [] for empty array fields.
+- reason is required for every decision and must be a non-empty string.
+- Use "" for empty string fields except reason; use [] for empty array fields.
 - Do not include markdown, code fences, explanations, or extra keys.`)
 }
 
@@ -588,10 +589,26 @@ Todo-specific validation rules:
 - decision must be one of create_candidate, update_candidate, acknowledge, cancel_candidate, needs_more_info, no_action.
 - confidence is required and must be a JSON number between 0 and 1.
 - assignees and missing_fields are always JSON string arrays; use [] when empty.
-- linked_message_id, summary, due_text, and reason are always JSON strings; use "" when empty.
-- needs_more_info requires missing_fields to name the missing fields.
-- no_action requires linked_message_id, summary, assignees, due_text, and missing_fields to be empty.
-- update_candidate, acknowledge, and cancel_candidate require linked_message_id.
+- linked_message_id, summary, and due_text are always JSON strings; use "" when empty.
+- reason is required for every decision and must be a non-empty JSON string.
+- linked_message_id must only be one of the provided Explicit reply or Context messages IDs; never use Todo candidate row IDs.
+- Todo candidate context message IDs are linkage hints, not row IDs: if a source_message_id, last_message_id, or previous_linked_message_id also appears in the provided Explicit reply or Context messages, it may be used as linked_message_id.
+- create_candidate requires linked_message_id="", non-empty summary, missing_fields=[], and non-empty reason.
+- update_candidate, acknowledge, and cancel_candidate require linked_message_id from the provided message ID list, non-empty summary, missing_fields=[], and non-empty reason.
+- if the current message says the original time, availability, or condition no longer works and proposes an alternative time, condition, or execution arrangement for the same trackable todo, use update_candidate with linked_message_id pointing to the original task or previous update proposal; do not change it to no_action merely because the text looks like personal status or a question.
+- if the current message's pragmatic function is to propose an alternative time, alternative condition, or feasibility confirmation for an existing todo and it does not introduce a new independent task objective, do not use create_candidate; use update_candidate linked to the modified existing task message.
+- for update_candidate, acknowledge, and cancel_candidate, summary, assignees, and due_text may inherit known values from the linked message and Todo candidate contexts when the current message does not change them; do not list inherited known fields in missing_fields, because missing_fields must be [] for linked action decisions.
+- needs_more_info requires non-empty summary, missing_fields to name the missing fields, and reason to be non-empty.
+- use needs_more_info only when the current message is already a trackable todo or a valid continuation of an existing todo, but required fields are missing; if the message is not a trackable todo, use no_action instead.
+- no_action requires linked_message_id="", summary="", assignees=[], due_text="", missing_fields=[], and non-empty reason.
+- missing_fields may be non-empty only when decision=needs_more_info; for create_candidate, update_candidate, acknowledge, cancel_candidate, and no_action, missing_fields must be [].
+- for no_action, explain why it is not a todo in reason and keep missing_fields=[].
+- if no provided message ID is semantically valid for acknowledge/update/cancel, change decision to no_action or needs_more_info instead of inventing or copying another ID.
+
+When correcting decision=no_action, use this exact field shape and only change confidence/reason text if needed:
+{"schema_version":"v1","decision":"no_action","linked_message_id":"","summary":"","assignees":[],"due_text":"","confidence":0.0,"missing_fields":[],"reason":"message is not a trackable todo"}
+
+Return one complete JSON object on one line. Do not truncate the JSON. Do not omit reason.
 Validation failure: {validation_error}`)
 }
 

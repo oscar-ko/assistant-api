@@ -62,13 +62,16 @@ type TodoEdges struct {
 	SourceCandidate *TodoCandidate `json:"source_candidate,omitempty"`
 	// 此 Todo 的狀態變更事件；保存 AI promotion 與後續更新歷史
 	Events []*TodoEvent `json:"events,omitempty"`
+	// 此 Todo 的待確認更新候選
+	UpdateCandidates []*TodoUpdateCandidate `json:"update_candidates,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [4]bool
+	loadedTypes [5]bool
 	// totalCount holds the count of the edges above.
-	totalCount [4]map[string]int
+	totalCount [5]map[string]int
 
-	namedEvents map[string][]*TodoEvent
+	namedEvents           map[string][]*TodoEvent
+	namedUpdateCandidates map[string][]*TodoUpdateCandidate
 }
 
 // ChannelOrErr returns the Channel value or an error if the edge
@@ -111,6 +114,15 @@ func (e TodoEdges) EventsOrErr() ([]*TodoEvent, error) {
 		return e.Events, nil
 	}
 	return nil, &NotLoadedError{edge: "events"}
+}
+
+// UpdateCandidatesOrErr returns the UpdateCandidates value or an error if the edge
+// was not loaded in eager-loading.
+func (e TodoEdges) UpdateCandidatesOrErr() ([]*TodoUpdateCandidate, error) {
+	if e.loadedTypes[4] {
+		return e.UpdateCandidates, nil
+	}
+	return nil, &NotLoadedError{edge: "update_candidates"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -254,6 +266,11 @@ func (_m *Todo) QueryEvents() *TodoEventQuery {
 	return NewTodoClient(_m.config).QueryEvents(_m)
 }
 
+// QueryUpdateCandidates queries the "update_candidates" edge of the Todo entity.
+func (_m *Todo) QueryUpdateCandidates() *TodoUpdateCandidateQuery {
+	return NewTodoClient(_m.config).QueryUpdateCandidates(_m)
+}
+
 // Update returns a builder for updating this Todo.
 // Note that you need to call Todo.Unwrap() before calling this method if this Todo
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -341,6 +358,30 @@ func (_m *Todo) appendNamedEvents(name string, edges ...*TodoEvent) {
 		_m.Edges.namedEvents[name] = []*TodoEvent{}
 	} else {
 		_m.Edges.namedEvents[name] = append(_m.Edges.namedEvents[name], edges...)
+	}
+}
+
+// NamedUpdateCandidates returns the UpdateCandidates named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (_m *Todo) NamedUpdateCandidates(name string) ([]*TodoUpdateCandidate, error) {
+	if _m.Edges.namedUpdateCandidates == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := _m.Edges.namedUpdateCandidates[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (_m *Todo) appendNamedUpdateCandidates(name string, edges ...*TodoUpdateCandidate) {
+	if _m.Edges.namedUpdateCandidates == nil {
+		_m.Edges.namedUpdateCandidates = make(map[string][]*TodoUpdateCandidate)
+	}
+	if len(edges) == 0 {
+		_m.Edges.namedUpdateCandidates[name] = []*TodoUpdateCandidate{}
+	} else {
+		_m.Edges.namedUpdateCandidates[name] = append(_m.Edges.namedUpdateCandidates[name], edges...)
 	}
 }
 

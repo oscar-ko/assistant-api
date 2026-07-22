@@ -19,14 +19,16 @@ import (
 	"assistant-api/internal/ent/skill"
 	"assistant-api/internal/ent/slack"
 	"assistant-api/internal/ent/todo"
-	"assistant-api/internal/ent/todoevent"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
+	"assistant-api/internal/ent/todoevent"
+	"assistant-api/internal/ent/todoupdatecandidate"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"assistant-api/internal/integration/unifiedmessage"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 // ChannelMessageRepo handles channel and inbound message persistence.
@@ -760,6 +762,48 @@ func (r *ChannelMessageRepo) FindRecentMessagesBefore(ctx context.Context, messa
 	return items, nil
 }
 
+// FindTodoCandidatesByMessageIDs 取得近端訊息已關聯的 TodoCandidate 結構化狀態。
+//
+// repository 只用 message id 做資料關聯，不判斷語意；是否承接、確認或更新仍交給 todo analyzer。
+func (r *ChannelMessageRepo) FindTodoCandidatesByMessageIDs(ctx context.Context, channelID uuid.UUID, messageIDs []uuid.UUID) ([]*ent.TodoCandidate, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("channel repository not initialized")
+	}
+	if channelID == uuid.Nil || len(messageIDs) == 0 {
+		return nil, nil
+	}
+	uniqueMessageIDs := make([]uuid.UUID, 0, len(messageIDs))
+	seen := make(map[uuid.UUID]struct{}, len(messageIDs))
+	for _, messageID := range messageIDs {
+		if messageID == uuid.Nil {
+			continue
+		}
+		if _, ok := seen[messageID]; ok {
+			continue
+		}
+		seen[messageID] = struct{}{}
+		uniqueMessageIDs = append(uniqueMessageIDs, messageID)
+	}
+	if len(uniqueMessageIDs) == 0 {
+		return nil, nil
+	}
+	items, err := r.db.TodoCandidate.Query().
+		Where(
+			todocandidate.ChannelIDEQ(channelID),
+			todocandidate.Or(
+				todocandidate.SourceMessageIDIn(uniqueMessageIDs...),
+				todocandidate.LastMessageIDIn(uniqueMessageIDs...),
+				todocandidate.LinkedMessageIDIn(uniqueMessageIDs...),
+			),
+		).
+		Order(ent.Asc(todocandidate.FieldCreatedAt)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query todo candidates by message ids failed: %w", err)
+	}
+	return items, nil
+}
+
 // FindMessageWindowAround 取得同一 channel 內、指定 anchor message 前後的訊息窗口。
 //
 // 用途：
@@ -896,7 +940,7 @@ func (r *ChannelMessageRepo) SaveTodoCandidateFromAnalysis(ctx context.Context, 
 	}
 
 	decision := todocandidate.LastDecision(strings.TrimSpace(input.Decision))
-	status, err := todoCandidateStatusFromDecision(decision)
+	status, err := todoCandidateStatusFromInput(input, decision)
 	if err != nil {
 		return nil, err
 	}
@@ -922,6 +966,12 @@ func (r *ChannelMessageRepo) SaveTodoCandidateFromAnalysis(ctx context.Context, 
 	if err != nil {
 		return nil, err
 	}
+	if decision == todocandidate.LastDecisionAcknowledge {
+		applied, err := r.applyPendingTodoUpdateCandidate(ctx, item)
+		if err != nil || applied {
+			return item, err
+		}
+	}
 	return item, r.promoteTodoCandidate(ctx, item)
 }
 
@@ -929,12 +979,23 @@ func (r *ChannelMessageRepo) promoteTodoCandidate(ctx context.Context, candidate
 	if r == nil || r.db == nil || candidate == nil {
 		return nil
 	}
+	// promotion 是 Todo Reminder 的資料分層邊界：
+	// TodoCandidate 保存模型抽取與對話 evidence，Todo 保存產品真正要提醒的目前狀態。
+	// 因此這裡只在 candidate 已通過完整性 gate 時建立/銜接正式 Todo；
+	// 尚未完整、尚未確認或取消中的資料，都留在 candidate/update candidate/event 層處理。
 	if candidate.Status == todocandidate.StatusCancelled {
 		// candidate 被取消時不刪正式 Todo，而是保留紀錄並轉 cancelled。
 		// 取消原因、模型理由與追蹤資料留在 TodoCandidate；Todo 只維持產品狀態。
 		return r.cancelTodoFromCandidate(ctx, candidate.ID)
 	}
 	if !isTodoCandidatePromotionReady(candidate) {
+		zap.L().Info("todo candidate promotion skipped: candidate is not ready",
+			zap.String("candidate_id", candidate.ID.String()),
+			zap.String("status", string(candidate.Status)),
+			zap.String("summary", strings.TrimSpace(candidate.Summary)),
+			zap.Bool("has_due_at", candidate.DueAt != nil),
+			zap.Strings("missing_fields", normalizeStringSlice(candidate.MissingFields)),
+		)
 		return nil
 	}
 
@@ -945,6 +1006,10 @@ func (r *ChannelMessageRepo) promoteTodoCandidate(ctx context.Context, candidate
 		return err
 	}
 	if len(ownerUserIDs) == 0 {
+		zap.L().Info("todo candidate promotion skipped: no resolved owner",
+			zap.String("candidate_id", candidate.ID.String()),
+			zap.Strings("assignees", normalizeStringSlice(candidate.Assignees)),
+		)
 		return nil
 	}
 	for _, ownerUserID := range ownerUserIDs {
@@ -978,25 +1043,102 @@ func (r *ChannelMessageRepo) promoteTodoCandidate(ctx context.Context, candidate
 			}
 			continue
 		}
-		// 既有 Todo 再次被同一 candidate+owner 命中時，代表 analyzer/normalizer 取得了更新後的欄位。
-		// 更新前先保存 old snapshot，之後寫 updated event，避免 due_at/title 等欄位被無痕覆蓋。
-		oldSnapshot := todoEventSnapshot(existing)
-
-		update := r.db.Todo.UpdateOneID(existing.ID).
-			SetStatus(todo.StatusActive).
-			SetTitle(strings.TrimSpace(candidate.Summary)).
-			SetDueAt(*candidate.DueAt).
-			SetDueTimezone(strings.TrimSpace(candidate.DueTimezone)).
-			SetDuePrecision(todo.DuePrecision(candidate.DuePrecision))
-		updated, err := update.Save(ctx)
-		if err != nil {
-			return fmt.Errorf("update promoted todo failed: %w", err)
-		}
-		if err := r.createTodoEvent(ctx, updated, oldSnapshot, candidate, todoevent.EventTypeUpdated); err != nil {
+		// 既有 Todo 再次被同一 candidate+owner 命中時，代表後續訊息提出了對正式 Todo 的變更。
+		// 這裡不直接覆蓋 Todo，而是建立 requires_confirmation 更新候選，讓確認流程之後再決定是否 apply。
+		if err := r.createTodoUpdateCandidate(ctx, existing, candidate, todoupdatecandidate.StatusRequiresConfirmation); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (r *ChannelMessageRepo) createTodoUpdateCandidate(ctx context.Context, item *ent.Todo, candidate *ent.TodoCandidate, status todoupdatecandidate.Status) error {
+	if r == nil || r.db == nil || item == nil || candidate == nil {
+		return nil
+	}
+	// update candidate 是正式 Todo 的「建議變更」，不是已套用事件。
+	// 因此 current_values 取正式 Todo 當下狀態，proposed_values 取 candidate 最新抽取結果；Todo 本身保持不變。
+	create := r.db.TodoUpdateCandidate.Create().
+		SetTodoID(item.ID).
+		SetSourceCandidateID(candidate.ID).
+		SetChangeType(todoupdatecandidate.ChangeTypeUpdated).
+		SetStatus(status).
+		SetCurrentValues(todoEventSnapshot(item)).
+		SetProposedValues(todoCandidateProposedTodoValues(candidate)).
+		SetConfidence(candidate.Confidence).
+		SetReason(strings.TrimSpace(candidate.Reason))
+	if candidate.LastMessageID != uuid.Nil {
+		create.SetSourceMessageID(candidate.LastMessageID)
+	}
+	if _, err := create.Save(ctx); err != nil {
+		return fmt.Errorf("create todo update candidate failed: %w", err)
+	}
+	return nil
+}
+
+func (r *ChannelMessageRepo) applyPendingTodoUpdateCandidate(ctx context.Context, candidate *ent.TodoCandidate) (bool, error) {
+	if r == nil || r.db == nil || candidate == nil {
+		return false, nil
+	}
+	// acknowledge 只會套用「同一個 source candidate 最新的一筆待確認更新」。
+	// 這避免使用者連續改期時，較舊的 proposed_values 在晚到的確認訊息中被重新套用。
+	// 若未找到 pending/requires_confirmation，呼叫端會回到一般 promotion 流程，讓新 candidate 仍可被處理。
+	updateCandidate, err := r.db.TodoUpdateCandidate.Query().
+		Where(
+			todoupdatecandidate.SourceCandidateIDEQ(candidate.ID),
+			todoupdatecandidate.StatusIn(todoupdatecandidate.StatusRequiresConfirmation, todoupdatecandidate.StatusPending),
+		).
+		Order(ent.Desc(todoupdatecandidate.FieldCreatedAt)).
+		First(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			zap.L().Info("todo update candidate apply skipped: no pending update",
+				zap.String("candidate_id", candidate.ID.String()),
+			)
+			return false, nil
+		}
+		return false, fmt.Errorf("query pending todo update candidate failed: %w", err)
+	}
+	item, err := r.db.Todo.Get(ctx, updateCandidate.TodoID)
+	if err != nil {
+		return false, fmt.Errorf("query todo for pending update apply failed: %w", err)
+	}
+	oldSnapshot := todoEventSnapshot(item)
+	update := r.db.Todo.UpdateOneID(item.ID)
+	if statusText := strings.TrimSpace(stringFromMap(updateCandidate.ProposedValues, "status")); statusText != "" {
+		update.SetStatus(todo.Status(statusText))
+	}
+	if title := strings.TrimSpace(stringFromMap(updateCandidate.ProposedValues, "title")); title != "" {
+		update.SetTitle(title)
+	}
+	if dueTimezone := strings.TrimSpace(stringFromMap(updateCandidate.ProposedValues, "due_timezone")); dueTimezone != "" {
+		update.SetDueTimezone(dueTimezone)
+	}
+	if duePrecision := strings.TrimSpace(stringFromMap(updateCandidate.ProposedValues, "due_precision")); duePrecision != "" {
+		update.SetDuePrecision(todo.DuePrecision(duePrecision))
+	}
+	dueAtText := strings.TrimSpace(stringFromMap(updateCandidate.ProposedValues, "due_at"))
+	if dueAtText == "" {
+		return false, fmt.Errorf("todo update candidate proposed due_at is required")
+	}
+	dueAt, err := time.Parse(time.RFC3339, dueAtText)
+	if err != nil {
+		return false, fmt.Errorf("parse todo update candidate proposed due_at failed: %w", err)
+	}
+	update.SetDueAt(dueAt)
+	updated, err := update.Save(ctx)
+	if err != nil {
+		return false, fmt.Errorf("apply pending todo update failed: %w", err)
+	}
+	if _, err := r.db.TodoUpdateCandidate.UpdateOneID(updateCandidate.ID).
+		SetStatus(todoupdatecandidate.StatusApplied).
+		Save(ctx); err != nil {
+		return false, fmt.Errorf("mark todo update candidate applied failed: %w", err)
+	}
+	if err := r.createTodoEvent(ctx, updated, oldSnapshot, candidate, todoevent.EventTypeUpdated); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (r *ChannelMessageRepo) createTodoEvent(ctx context.Context, item *ent.Todo, oldValues map[string]any, candidate *ent.TodoCandidate, eventType todoevent.EventType) error {
@@ -1034,6 +1176,21 @@ func normalizeTodoEventValues(values map[string]any) map[string]any {
 	return values
 }
 
+func stringFromMap(values map[string]any, key string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	value, ok := values[key]
+	if !ok || value == nil {
+		return ""
+	}
+	text, ok := value.(string)
+	if !ok {
+		return ""
+	}
+	return text
+}
+
 func todoEventSnapshot(item *ent.Todo) map[string]any {
 	if item == nil {
 		return map[string]any{}
@@ -1048,6 +1205,26 @@ func todoEventSnapshot(item *ent.Todo) map[string]any {
 	}
 	if item.DueAt != nil {
 		values["due_at"] = item.DueAt.Format(time.RFC3339)
+	} else {
+		values["due_at"] = ""
+	}
+	return values
+}
+
+func todoCandidateProposedTodoValues(candidate *ent.TodoCandidate) map[string]any {
+	if candidate == nil {
+		return map[string]any{}
+	}
+	// proposed snapshot 使用和 TodoEvent new_values 一樣的欄位名稱，
+	// 讓之後 apply update candidate 時可以直接把 proposed_values 轉成 Todo 更新與 TodoEvent updated 記錄。
+	values := map[string]any{
+		"status":        string(todo.StatusActive),
+		"title":         strings.TrimSpace(candidate.Summary),
+		"due_timezone":  strings.TrimSpace(candidate.DueTimezone),
+		"due_precision": string(candidate.DuePrecision),
+	}
+	if candidate.DueAt != nil {
+		values["due_at"] = candidate.DueAt.Format(time.RFC3339)
 	} else {
 		values["due_at"] = ""
 	}
@@ -1391,6 +1568,17 @@ func todoCandidateStatusFromDecision(decision todocandidate.LastDecision) (todoc
 	default:
 		return "", fmt.Errorf("todo candidate decision %q is not persistable", decision)
 	}
+}
+
+func todoCandidateStatusFromInput(input SaveTodoCandidateInput, decision todocandidate.LastDecision) (todocandidate.Status, error) {
+	status, err := todoCandidateStatusFromDecision(decision)
+	if err != nil {
+		return "", err
+	}
+	if status == todocandidate.StatusCandidate && strings.TrimSpace(input.DueDecision) == "needs_more_info" {
+		return todocandidate.StatusNeedsMoreInfo, nil
+	}
+	return status, nil
 }
 
 func normalizeStringSlice(values []string) []string {

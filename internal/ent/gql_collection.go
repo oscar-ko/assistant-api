@@ -18,6 +18,7 @@ import (
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
 	"assistant-api/internal/ent/todoevent"
+	"assistant-api/internal/ent/todoupdatecandidate"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"context"
@@ -1492,6 +1493,19 @@ func (_q *TodoQuery) collectField(ctx context.Context, oneNode bool, opCtx *grap
 			_q.WithNamedEvents(alias, func(wq *TodoEventQuery) {
 				*wq = *query
 			})
+
+		case "updateCandidates":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&TodoUpdateCandidateClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, false, opCtx, field, path, mayAddCondition(satisfies, todoupdatecandidateImplementors)...); err != nil {
+				return err
+			}
+			_q.WithNamedUpdateCandidates(alias, func(wq *TodoUpdateCandidateQuery) {
+				*wq = *query
+			})
 		case "createdAt":
 			if _, ok := fieldSeen[todo.FieldCreatedAt]; !ok {
 				selectedFields = append(selectedFields, todo.FieldCreatedAt)
@@ -2133,6 +2147,168 @@ func newTodoEventPaginateArgs(rv map[string]any) *todoeventPaginateArgs {
 	}
 	if v, ok := rv[whereField].(*TodoEventWhereInput); ok {
 		args.opts = append(args.opts, WithTodoEventFilter(v.Filter))
+	}
+	return args
+}
+
+// CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
+func (_q *TodoUpdateCandidateQuery) CollectFields(ctx context.Context, satisfies ...string) (*TodoUpdateCandidateQuery, error) {
+	fc := graphql.GetFieldContext(ctx)
+	if fc == nil {
+		return _q, nil
+	}
+	if err := _q.collectField(ctx, false, graphql.GetOperationContext(ctx), fc.Field, nil, satisfies...); err != nil {
+		return nil, err
+	}
+	return _q, nil
+}
+
+func (_q *TodoUpdateCandidateQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
+	path = append([]string(nil), path...)
+	var (
+		unknownSeen    bool
+		fieldSeen      = make(map[string]struct{}, len(todoupdatecandidate.Columns))
+		selectedFields = []string{todoupdatecandidate.FieldID}
+	)
+	for _, field := range graphql.CollectFields(opCtx, collected.Selections, satisfies) {
+		switch field.Name {
+
+		case "todo":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&TodoClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, todoImplementors)...); err != nil {
+				return err
+			}
+			_q.withTodo = query
+			if _, ok := fieldSeen[todoupdatecandidate.FieldTodoID]; !ok {
+				selectedFields = append(selectedFields, todoupdatecandidate.FieldTodoID)
+				fieldSeen[todoupdatecandidate.FieldTodoID] = struct{}{}
+			}
+
+		case "sourceCandidate":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&TodoCandidateClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, todocandidateImplementors)...); err != nil {
+				return err
+			}
+			_q.withSourceCandidate = query
+			if _, ok := fieldSeen[todoupdatecandidate.FieldSourceCandidateID]; !ok {
+				selectedFields = append(selectedFields, todoupdatecandidate.FieldSourceCandidateID)
+				fieldSeen[todoupdatecandidate.FieldSourceCandidateID] = struct{}{}
+			}
+
+		case "sourceMessage":
+			var (
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&ChannelMessageClient{config: _q.config}).Query()
+			)
+			if err := query.collectField(ctx, oneNode, opCtx, field, path, mayAddCondition(satisfies, channelmessageImplementors)...); err != nil {
+				return err
+			}
+			_q.withSourceMessage = query
+			if _, ok := fieldSeen[todoupdatecandidate.FieldSourceMessageID]; !ok {
+				selectedFields = append(selectedFields, todoupdatecandidate.FieldSourceMessageID)
+				fieldSeen[todoupdatecandidate.FieldSourceMessageID] = struct{}{}
+			}
+		case "createdAt":
+			if _, ok := fieldSeen[todoupdatecandidate.FieldCreatedAt]; !ok {
+				selectedFields = append(selectedFields, todoupdatecandidate.FieldCreatedAt)
+				fieldSeen[todoupdatecandidate.FieldCreatedAt] = struct{}{}
+			}
+		case "updatedAt":
+			if _, ok := fieldSeen[todoupdatecandidate.FieldUpdatedAt]; !ok {
+				selectedFields = append(selectedFields, todoupdatecandidate.FieldUpdatedAt)
+				fieldSeen[todoupdatecandidate.FieldUpdatedAt] = struct{}{}
+			}
+		case "todoID":
+			if _, ok := fieldSeen[todoupdatecandidate.FieldTodoID]; !ok {
+				selectedFields = append(selectedFields, todoupdatecandidate.FieldTodoID)
+				fieldSeen[todoupdatecandidate.FieldTodoID] = struct{}{}
+			}
+		case "sourceCandidateID":
+			if _, ok := fieldSeen[todoupdatecandidate.FieldSourceCandidateID]; !ok {
+				selectedFields = append(selectedFields, todoupdatecandidate.FieldSourceCandidateID)
+				fieldSeen[todoupdatecandidate.FieldSourceCandidateID] = struct{}{}
+			}
+		case "sourceMessageID":
+			if _, ok := fieldSeen[todoupdatecandidate.FieldSourceMessageID]; !ok {
+				selectedFields = append(selectedFields, todoupdatecandidate.FieldSourceMessageID)
+				fieldSeen[todoupdatecandidate.FieldSourceMessageID] = struct{}{}
+			}
+		case "changeType":
+			if _, ok := fieldSeen[todoupdatecandidate.FieldChangeType]; !ok {
+				selectedFields = append(selectedFields, todoupdatecandidate.FieldChangeType)
+				fieldSeen[todoupdatecandidate.FieldChangeType] = struct{}{}
+			}
+		case "status":
+			if _, ok := fieldSeen[todoupdatecandidate.FieldStatus]; !ok {
+				selectedFields = append(selectedFields, todoupdatecandidate.FieldStatus)
+				fieldSeen[todoupdatecandidate.FieldStatus] = struct{}{}
+			}
+		case "currentValues":
+			if _, ok := fieldSeen[todoupdatecandidate.FieldCurrentValues]; !ok {
+				selectedFields = append(selectedFields, todoupdatecandidate.FieldCurrentValues)
+				fieldSeen[todoupdatecandidate.FieldCurrentValues] = struct{}{}
+			}
+		case "proposedValues":
+			if _, ok := fieldSeen[todoupdatecandidate.FieldProposedValues]; !ok {
+				selectedFields = append(selectedFields, todoupdatecandidate.FieldProposedValues)
+				fieldSeen[todoupdatecandidate.FieldProposedValues] = struct{}{}
+			}
+		case "confidence":
+			if _, ok := fieldSeen[todoupdatecandidate.FieldConfidence]; !ok {
+				selectedFields = append(selectedFields, todoupdatecandidate.FieldConfidence)
+				fieldSeen[todoupdatecandidate.FieldConfidence] = struct{}{}
+			}
+		case "reason":
+			if _, ok := fieldSeen[todoupdatecandidate.FieldReason]; !ok {
+				selectedFields = append(selectedFields, todoupdatecandidate.FieldReason)
+				fieldSeen[todoupdatecandidate.FieldReason] = struct{}{}
+			}
+		case "id":
+		case "__typename":
+		default:
+			unknownSeen = true
+		}
+	}
+	if !unknownSeen {
+		_q.Select(selectedFields...)
+	}
+	return nil
+}
+
+type todoupdatecandidatePaginateArgs struct {
+	first, last   *int
+	after, before *Cursor
+	opts          []TodoUpdateCandidatePaginateOption
+}
+
+func newTodoUpdateCandidatePaginateArgs(rv map[string]any) *todoupdatecandidatePaginateArgs {
+	args := &todoupdatecandidatePaginateArgs{}
+	if rv == nil {
+		return args
+	}
+	if v := rv[firstField]; v != nil {
+		args.first = v.(*int)
+	}
+	if v := rv[lastField]; v != nil {
+		args.last = v.(*int)
+	}
+	if v := rv[afterField]; v != nil {
+		args.after = v.(*Cursor)
+	}
+	if v := rv[beforeField]; v != nil {
+		args.before = v.(*Cursor)
+	}
+	if v, ok := rv[whereField].(*TodoUpdateCandidateWhereInput); ok {
+		args.opts = append(args.opts, WithTodoUpdateCandidateFilter(v.Filter))
 	}
 	return args
 }

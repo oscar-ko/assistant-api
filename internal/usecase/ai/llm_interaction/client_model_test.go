@@ -104,7 +104,7 @@ func TestInteractionClientAnalyzeTodoUsesTodoPath(t *testing.T) {
 	if !ok {
 		t.Fatalf("json_decode_retry_prompt missing or invalid: %#v", captured["json_decode_retry_prompt"])
 	}
-	for _, fragment := range []string{"todo_analysis", "Do not put JSON fragments inside key names", "assignees and missing_fields must be JSON arrays"} {
+	for _, fragment := range []string{"todo_analysis", "Do not put JSON fragments inside key names", "assignees and missing_fields must be JSON arrays", "reason is required for every decision and must be a non-empty string"} {
 		if !strings.Contains(jsonRetryPrompt, fragment) {
 			t.Fatalf("expected todo json retry prompt to contain %q, got %s", fragment, jsonRetryPrompt)
 		}
@@ -113,7 +113,7 @@ func TestInteractionClientAnalyzeTodoUsesTodoPath(t *testing.T) {
 	if !ok {
 		t.Fatalf("validation_retry_prompt missing or invalid: %#v", captured["validation_retry_prompt"])
 	}
-	for _, fragment := range []string{"todo_analysis", "confidence: number, required", "Validation failure: {validation_error}"} {
+	for _, fragment := range []string{"todo_analysis", "confidence: number, required", "reason is required for every decision and must be a non-empty JSON string", "linked_message_id must only be one of the provided Explicit reply or Context messages IDs", "never use Todo candidate row IDs", "source_message_id, last_message_id, or previous_linked_message_id also appears", "it may be used as linked_message_id", "original time, availability, or condition no longer works", "proposes an alternative time, condition, or execution arrangement", "pragmatic function is to propose an alternative time, alternative condition, or feasibility confirmation", "do not use create_candidate", "summary, assignees, and due_text may inherit known values", "do not list inherited known fields in missing_fields", "needs_more_info requires non-empty summary", "no_action requires linked_message_id=\"\", summary=\"\", assignees=[], due_text=\"\", missing_fields=[], and non-empty reason", "use needs_more_info only when the current message is already a trackable todo or a valid continuation of an existing todo", "if the message is not a trackable todo, use no_action instead", "missing_fields may be non-empty only when decision=needs_more_info", "for no_action, explain why it is not a todo in reason and keep missing_fields=[]", `"decision":"no_action"`, `"missing_fields":[]`, `"reason":"message is not a trackable todo"`, "Do not truncate the JSON", "change decision to no_action or needs_more_info", "Validation failure: {validation_error}"} {
 		if !strings.Contains(validationRetryPrompt, fragment) {
 			t.Fatalf("expected todo validation retry prompt to contain %q, got %s", fragment, validationRetryPrompt)
 		}
@@ -197,6 +197,34 @@ func TestDecodeTodoAnalysisResponseRejectsInvalidContract(t *testing.T) {
 	decoded, err := decodeTodoAnalysisResponse(resp, "/predict/todo_analyze")
 	if err == nil {
 		t.Fatalf("expected contract validation error, got decoded=%+v", decoded)
+	}
+}
+
+func TestDecodeTodoAnalysisResponseRejectsNeedsMoreInfoWithoutSummary(t *testing.T) {
+	// needs_more_info 代表已確認是待辦但缺欄位；若連 provisional summary 都沒有，
+	// 模型其實是在說「不是可追蹤待辦」，應由 validation retry 改成 no_action。
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(`{"schema_version":"v1","decision":"needs_more_info","linked_message_id":"","summary":"","assignees":[],"due_text":"","confidence":0,"missing_fields":["待辦內容與對象"],"reason":"訊息僅包含個人行程通知，未指出具體任務或系統需追蹤的行動。"}`)),
+	}
+
+	decoded, err := decodeTodoAnalysisResponse(resp, "/predict/todo_analyze")
+	if err == nil {
+		t.Fatalf("expected needs_more_info without summary to fail validation, got decoded=%+v", decoded)
+	}
+}
+
+func TestDecodeTodoAnalysisResponseRejectsActionDecisionWithMissingFields(t *testing.T) {
+	// create/update/ack/cancel 是可執行的 todo decision；缺欄位時必須改成 needs_more_info，
+	// 不能用 action decision 夾帶 missing_fields 後仍讓 candidate 落庫。
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(`{"schema_version":"v1","decision":"create_candidate","linked_message_id":"","summary":"我明天請假，後天早上行嗎？","assignees":[],"due_text":"","confidence":0.7142,"missing_fields":["action_intent"],"reason":"缺乏明確行動指令。"}`)),
+	}
+
+	decoded, err := decodeTodoAnalysisResponse(resp, "/predict/todo_analyze")
+	if err == nil {
+		t.Fatalf("expected create_candidate with missing_fields to fail validation, got decoded=%+v", decoded)
 	}
 }
 

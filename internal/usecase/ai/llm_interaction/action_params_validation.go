@@ -237,6 +237,9 @@ func validateTodoAnalysis(result *TodoAnalysis) error {
 		return nil
 	}
 
+	// Todo analyzer 是 realtime service 和 repository 狀態機之間的唯一機器契約。
+	// 這裡先把模型常見的空值字面正規化，再用 decision-specific 規則 fail-fast，
+	// 避免下游靠 prompt 文字或欄位殘值猜測要建立、更新、確認或略過待辦。
 	result.SchemaVersion = normalizeQuestionAnswerSchemaVersion(result.SchemaVersion)
 	result.Decision = strings.TrimSpace(result.Decision)
 	result.LinkedMessageID = normalizeTodoOptionalText(result.LinkedMessageID)
@@ -264,6 +267,12 @@ func validateTodoAnalysis(result *TodoAnalysis) error {
 	if result.Decision == "needs_more_info" && len(result.MissingFields) == 0 {
 		return fmt.Errorf("todo analysis missing_fields is required when decision=needs_more_info")
 	}
+	if result.Decision == "needs_more_info" && result.Summary == "" {
+		return fmt.Errorf("todo analysis summary is required when decision=needs_more_info")
+	}
+	if result.Decision != "needs_more_info" && len(result.MissingFields) > 0 {
+		return fmt.Errorf("todo analysis missing_fields must be empty unless decision=needs_more_info")
+	}
 	// no_action 代表明確不要進 Todo Reminder；所有 todo 欄位都必須清空，避免 log-only 階段的殘值在未來落庫時被誤用。
 	if result.Decision == "no_action" && (result.LinkedMessageID != "" || result.Summary != "" || len(result.Assignees) > 0 || result.DueText != "" || len(result.MissingFields) > 0) {
 		return fmt.Errorf("todo analysis fields must be empty when decision=no_action")
@@ -272,8 +281,8 @@ func validateTodoAnalysis(result *TodoAnalysis) error {
 	if (result.Decision == "update_candidate" || result.Decision == "acknowledge" || result.Decision == "cancel_candidate") && result.LinkedMessageID == "" {
 		return fmt.Errorf("todo analysis linked_message_id is required for linked decisions")
 	}
-	// 除了 no_action 與純追問狀態，其餘 todo decision 都應提供人可讀摘要，讓 debug log 和後續 state machine 有一致主體。
-	if result.Decision != "no_action" && result.Decision != "needs_more_info" && result.Summary == "" {
+	// 除了 no_action，其餘 todo decision 都應提供人可讀摘要，讓 debug log 和後續 state machine 有一致主體。
+	if result.Decision != "no_action" && result.Summary == "" {
 		return fmt.Errorf("todo analysis summary is required for todo action decisions")
 	}
 	if result.Reason == "" {
@@ -298,6 +307,8 @@ func validateTodoDueTimeAnalysis(result *TodoDueTimeAnalysis) error {
 	if result == nil {
 		return nil
 	}
+	// due-time normalizer 只負責把 due_text 變成可排程時間，不能替 todo analyzer 補語意判斷。
+	// normalized 以外的 decision 一律不得夾帶 due_at，讓 repository promotion gate 能清楚知道此 candidate 尚未可提醒。
 	result.SchemaVersion = normalizeQuestionAnswerSchemaVersion(result.SchemaVersion)
 	result.Decision = strings.TrimSpace(result.Decision)
 	result.DueAt = normalizeTodoOptionalText(result.DueAt)

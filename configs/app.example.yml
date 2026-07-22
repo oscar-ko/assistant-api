@@ -1,3 +1,6 @@
+# run_mode 目前只有 dev 會被程式明確辨識為開發模式。
+# dev: 啟用 dev-only GraphQL 模擬功能，並輸出 embedding/reranker 探活狀態轉換日誌。
+# 非 dev 值: 視為一般非開發模式，不啟用上述 dev-only 行為。
 run_mode: "dev"
 
 # 日誌設定：控制輸出等級與檔案輪替策略。
@@ -77,13 +80,13 @@ ai:
             max_token: 1024
             temperature: 0.2
         context_analyzer:
-            profile: "aistant.context_analyzer"
-            timeout: 120
-            max_token: 512
+            profile: "deepseek.context_analyzer"
+            timeout: 180
+            max_token: 1024
             temperature: 0.1
         chatgpt:
             url: "https://api.openai.com/v1"
-            # 安全規範：公開版 app.yml 不放密鑰，請在 app.local.yml 填入實際 token。
+            # 安全規範：公開範例不放密鑰；請在實際載入的 app.yml 或 APP_CONFIG 指定檔填入 token。
             token: ""
             profiles:
                 action_decision:
@@ -140,7 +143,7 @@ llm_providers:
     openai:
         type: "cloud"
         url: "https://api.openai.com/v1"
-        # 安全規範：公開版 app.yml 不放密鑰，請在 app.local.yml 填入實際 token。
+        # 安全規範：公開範例不放密鑰；請在實際載入的 app.yml 或 APP_CONFIG 指定檔填入 token。
         token: ""
         profiles:
             chat_search:
@@ -151,6 +154,29 @@ llm_providers:
                 # 搜尋型 chat profile 不相容 response_format=json_object，因此在設定層關閉。
                 # JSON 契約仍由 prompt 與後端 parse 驗證維持，不依賴 OpenAI 強制輸出模式。
                 use_json_response_format: false
+
+    deepseek:
+        type: "cloud"
+        url: "https://api.deepseek.com/v1"
+        # 安全規範：公開範例不放密鑰；請在實際載入的 app.yml 或 APP_CONFIG 指定檔填入 token。
+        token: ""
+        profiles:
+            chat:
+                model_name: "deepseek-chat"
+                timeout_seconds: 120
+                max_tokens: 1024
+                temperature: 0.2
+            context_analyzer:
+                model_name: "deepseek-chat"
+                timeout_seconds: 180
+                max_tokens: 1024
+                temperature: 0.1
+                use_json_response_format: true
+            reasoner:
+                model_name: "deepseek-reasoner"
+                timeout_seconds: 180
+                max_tokens: 2048
+                temperature: null
 
 # 資料庫 schema 自動建立開關（開發環境常設為 true）。
 database:

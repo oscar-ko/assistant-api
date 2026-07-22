@@ -37,3 +37,28 @@ func TestTodoCandidatePromotionReadyGate(t *testing.T) {
 		t.Fatal("expected candidate without due_at to be blocked")
 	}
 }
+
+func TestTodoCandidateStatusFromInputReflectsDueTimeNeedsMoreInfo(t *testing.T) {
+	status, err := todoCandidateStatusFromInput(SaveTodoCandidateInput{
+		Decision:      "create_candidate",
+		DueDecision:   "needs_more_info",
+		MissingFields: []string{"specific_date_or_time"},
+	}, todocandidate.LastDecisionCreateCandidate)
+	if err != nil {
+		t.Fatalf("expected status mapping to succeed: %v", err)
+	}
+	if status != todocandidate.StatusNeedsMoreInfo {
+		t.Fatalf("expected due-time needs_more_info to pause candidate, got %s", status)
+	}
+
+	status, err = todoCandidateStatusFromInput(SaveTodoCandidateInput{
+		Decision:    "create_candidate",
+		DueDecision: "normalized",
+	}, todocandidate.LastDecisionCreateCandidate)
+	if err != nil {
+		t.Fatalf("expected status mapping to succeed: %v", err)
+	}
+	if status != todocandidate.StatusCandidate {
+		t.Fatalf("expected normalized due-time to keep candidate status, got %s", status)
+	}
+}

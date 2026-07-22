@@ -6,6 +6,7 @@ import (
 	"assistant-api/internal/ent/predicate"
 	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todoevent"
+	"assistant-api/internal/ent/todoupdatecandidate"
 	"context"
 	"errors"
 	"fmt"
@@ -173,6 +174,21 @@ func (_u *TodoUpdate) AddEvents(v ...*TodoEvent) *TodoUpdate {
 	return _u.AddEventIDs(ids...)
 }
 
+// AddUpdateCandidateIDs adds the "update_candidates" edge to the TodoUpdateCandidate entity by IDs.
+func (_u *TodoUpdate) AddUpdateCandidateIDs(ids ...uuid.UUID) *TodoUpdate {
+	_u.mutation.AddUpdateCandidateIDs(ids...)
+	return _u
+}
+
+// AddUpdateCandidates adds the "update_candidates" edges to the TodoUpdateCandidate entity.
+func (_u *TodoUpdate) AddUpdateCandidates(v ...*TodoUpdateCandidate) *TodoUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddUpdateCandidateIDs(ids...)
+}
+
 // Mutation returns the TodoMutation object of the builder.
 func (_u *TodoUpdate) Mutation() *TodoMutation {
 	return _u.mutation
@@ -197,6 +213,27 @@ func (_u *TodoUpdate) RemoveEvents(v ...*TodoEvent) *TodoUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveEventIDs(ids...)
+}
+
+// ClearUpdateCandidates clears all "update_candidates" edges to the TodoUpdateCandidate entity.
+func (_u *TodoUpdate) ClearUpdateCandidates() *TodoUpdate {
+	_u.mutation.ClearUpdateCandidates()
+	return _u
+}
+
+// RemoveUpdateCandidateIDs removes the "update_candidates" edge to TodoUpdateCandidate entities by IDs.
+func (_u *TodoUpdate) RemoveUpdateCandidateIDs(ids ...uuid.UUID) *TodoUpdate {
+	_u.mutation.RemoveUpdateCandidateIDs(ids...)
+	return _u
+}
+
+// RemoveUpdateCandidates removes "update_candidates" edges to TodoUpdateCandidate entities.
+func (_u *TodoUpdate) RemoveUpdateCandidates(v ...*TodoUpdateCandidate) *TodoUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveUpdateCandidateIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -342,6 +379,51 @@ func (_u *TodoUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(todoevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.UpdateCandidatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todo.UpdateCandidatesTable,
+			Columns: []string{todo.UpdateCandidatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todoupdatecandidate.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedUpdateCandidatesIDs(); len(nodes) > 0 && !_u.mutation.UpdateCandidatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todo.UpdateCandidatesTable,
+			Columns: []string{todo.UpdateCandidatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todoupdatecandidate.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.UpdateCandidatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todo.UpdateCandidatesTable,
+			Columns: []string{todo.UpdateCandidatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todoupdatecandidate.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -512,6 +594,21 @@ func (_u *TodoUpdateOne) AddEvents(v ...*TodoEvent) *TodoUpdateOne {
 	return _u.AddEventIDs(ids...)
 }
 
+// AddUpdateCandidateIDs adds the "update_candidates" edge to the TodoUpdateCandidate entity by IDs.
+func (_u *TodoUpdateOne) AddUpdateCandidateIDs(ids ...uuid.UUID) *TodoUpdateOne {
+	_u.mutation.AddUpdateCandidateIDs(ids...)
+	return _u
+}
+
+// AddUpdateCandidates adds the "update_candidates" edges to the TodoUpdateCandidate entity.
+func (_u *TodoUpdateOne) AddUpdateCandidates(v ...*TodoUpdateCandidate) *TodoUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddUpdateCandidateIDs(ids...)
+}
+
 // Mutation returns the TodoMutation object of the builder.
 func (_u *TodoUpdateOne) Mutation() *TodoMutation {
 	return _u.mutation
@@ -536,6 +633,27 @@ func (_u *TodoUpdateOne) RemoveEvents(v ...*TodoEvent) *TodoUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveEventIDs(ids...)
+}
+
+// ClearUpdateCandidates clears all "update_candidates" edges to the TodoUpdateCandidate entity.
+func (_u *TodoUpdateOne) ClearUpdateCandidates() *TodoUpdateOne {
+	_u.mutation.ClearUpdateCandidates()
+	return _u
+}
+
+// RemoveUpdateCandidateIDs removes the "update_candidates" edge to TodoUpdateCandidate entities by IDs.
+func (_u *TodoUpdateOne) RemoveUpdateCandidateIDs(ids ...uuid.UUID) *TodoUpdateOne {
+	_u.mutation.RemoveUpdateCandidateIDs(ids...)
+	return _u
+}
+
+// RemoveUpdateCandidates removes "update_candidates" edges to TodoUpdateCandidate entities.
+func (_u *TodoUpdateOne) RemoveUpdateCandidates(v ...*TodoUpdateCandidate) *TodoUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveUpdateCandidateIDs(ids...)
 }
 
 // Where appends a list predicates to the TodoUpdate builder.
@@ -711,6 +829,51 @@ func (_u *TodoUpdateOne) sqlSave(ctx context.Context) (_node *Todo, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(todoevent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.UpdateCandidatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todo.UpdateCandidatesTable,
+			Columns: []string{todo.UpdateCandidatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todoupdatecandidate.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedUpdateCandidatesIDs(); len(nodes) > 0 && !_u.mutation.UpdateCandidatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todo.UpdateCandidatesTable,
+			Columns: []string{todo.UpdateCandidatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todoupdatecandidate.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.UpdateCandidatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   todo.UpdateCandidatesTable,
+			Columns: []string{todo.UpdateCandidatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(todoupdatecandidate.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

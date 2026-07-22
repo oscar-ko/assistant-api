@@ -728,6 +728,29 @@ func HasEventsWith(preds ...predicate.TodoEvent) predicate.Todo {
 	})
 }
 
+// HasUpdateCandidates applies the HasEdge predicate on the "update_candidates" edge.
+func HasUpdateCandidates() predicate.Todo {
+	return predicate.Todo(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, UpdateCandidatesTable, UpdateCandidatesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasUpdateCandidatesWith applies the HasEdge predicate on the "update_candidates" edge with a given conditions (other predicates).
+func HasUpdateCandidatesWith(preds ...predicate.TodoUpdateCandidate) predicate.Todo {
+	return predicate.Todo(func(s *sql.Selector) {
+		step := newUpdateCandidatesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Todo) predicate.Todo {
 	return predicate.Todo(sql.AndPredicates(predicates...))

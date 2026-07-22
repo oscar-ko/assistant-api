@@ -51,6 +51,9 @@ type TodoCandidateAssignee func(*sql.Selector)
 // TodoEvent is the predicate function for todoevent builders.
 type TodoEvent func(*sql.Selector)
 
+// TodoUpdateCandidate is the predicate function for todoupdatecandidate builders.
+type TodoUpdateCandidate func(*sql.Selector)
+
 // TranslationLocale is the predicate function for translationlocale builders.
 type TranslationLocale func(*sql.Selector)
 

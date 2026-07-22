@@ -50,6 +50,8 @@ const (
 	EdgeSourceCandidate = "source_candidate"
 	// EdgeEvents holds the string denoting the events edge name in mutations.
 	EdgeEvents = "events"
+	// EdgeUpdateCandidates holds the string denoting the update_candidates edge name in mutations.
+	EdgeUpdateCandidates = "update_candidates"
 	// Table holds the table name of the todo in the database.
 	Table = "todos"
 	// ChannelTable is the table that holds the channel relation/edge.
@@ -80,6 +82,13 @@ const (
 	EventsInverseTable = "todo_events"
 	// EventsColumn is the table column denoting the events relation/edge.
 	EventsColumn = "todo_id"
+	// UpdateCandidatesTable is the table that holds the update_candidates relation/edge.
+	UpdateCandidatesTable = "todo_update_candidates"
+	// UpdateCandidatesInverseTable is the table name for the TodoUpdateCandidate entity.
+	// It exists in this package in order to avoid circular dependency with the "todoupdatecandidate" package.
+	UpdateCandidatesInverseTable = "todo_update_candidates"
+	// UpdateCandidatesColumn is the table column denoting the update_candidates relation/edge.
+	UpdateCandidatesColumn = "todo_id"
 )
 
 // Columns holds all SQL columns for todo fields.
@@ -277,6 +286,20 @@ func ByEvents(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newEventsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByUpdateCandidatesCount orders the results by update_candidates count.
+func ByUpdateCandidatesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newUpdateCandidatesStep(), opts...)
+	}
+}
+
+// ByUpdateCandidates orders the results by update_candidates terms.
+func ByUpdateCandidates(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newUpdateCandidatesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newChannelStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -303,6 +326,13 @@ func newEventsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(EventsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, EventsTable, EventsColumn),
+	)
+}
+func newUpdateCandidatesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(UpdateCandidatesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, UpdateCandidatesTable, UpdateCandidatesColumn),
 	)
 }
 

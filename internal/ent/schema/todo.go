@@ -57,6 +57,9 @@ func (Todo) Edges() []ent.Edge {
 		// events 是正式 Todo 的變更時間線；讀取目前狀態仍以 Todo 欄位為準，
 		// 只有需要解釋「為什麼時間被改掉」或追查 AI 套用來源時才查這條 edge。
 		edge.To("events", TodoEvent.Type).Comment("此 Todo 的狀態變更事件；保存 AI promotion 與後續更新歷史"),
+		// update_candidates 保存尚未套用到 Todo 的 AI 建議變更；例如後續訊息把 due_at 改成明天。
+		// 這條 edge 讓 UI 或確認流程可以查出待處理的 proposed change，再決定 apply/reject。
+		edge.To("update_candidates", TodoUpdateCandidate.Type).Comment("此 Todo 的待確認更新候選"),
 	}
 }
 

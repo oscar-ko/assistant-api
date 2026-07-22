@@ -679,6 +679,69 @@ var (
 			},
 		},
 	}
+	// TodoUpdateCandidatesColumns holds the columns for the "todo_update_candidates" table.
+	TodoUpdateCandidatesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "change_type", Type: field.TypeEnum, Enums: []string{"updated", "cancelled"}},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "requires_confirmation", "applied", "rejected"}, Default: "requires_confirmation"},
+		{Name: "current_values", Type: field.TypeJSON, Nullable: true},
+		{Name: "proposed_values", Type: field.TypeJSON, Nullable: true},
+		{Name: "confidence", Type: field.TypeFloat64, Default: 0},
+		{Name: "reason", Type: field.TypeString, Nullable: true},
+		{Name: "todo_id", Type: field.TypeUUID},
+		{Name: "source_candidate_id", Type: field.TypeUUID},
+		{Name: "source_message_id", Type: field.TypeUUID, Nullable: true},
+	}
+	// TodoUpdateCandidatesTable holds the schema information for the "todo_update_candidates" table.
+	TodoUpdateCandidatesTable = &schema.Table{
+		Name:       "todo_update_candidates",
+		Columns:    TodoUpdateCandidatesColumns,
+		PrimaryKey: []*schema.Column{TodoUpdateCandidatesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "todo_update_candidates_todos_update_candidates",
+				Columns:    []*schema.Column{TodoUpdateCandidatesColumns[9]},
+				RefColumns: []*schema.Column{TodosColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "todo_update_candidates_todo_candidates_source_candidate",
+				Columns:    []*schema.Column{TodoUpdateCandidatesColumns[10]},
+				RefColumns: []*schema.Column{TodoCandidatesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "todo_update_candidates_channel_messages_source_message",
+				Columns:    []*schema.Column{TodoUpdateCandidatesColumns[11]},
+				RefColumns: []*schema.Column{ChannelMessagesColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "todoupdatecandidate_todo_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{TodoUpdateCandidatesColumns[9], TodoUpdateCandidatesColumns[4]},
+			},
+			{
+				Name:    "todoupdatecandidate_source_candidate_id",
+				Unique:  false,
+				Columns: []*schema.Column{TodoUpdateCandidatesColumns[10]},
+			},
+			{
+				Name:    "todoupdatecandidate_source_message_id",
+				Unique:  false,
+				Columns: []*schema.Column{TodoUpdateCandidatesColumns[11]},
+			},
+			{
+				Name:    "todoupdatecandidate_change_type_status",
+				Unique:  false,
+				Columns: []*schema.Column{TodoUpdateCandidatesColumns[3], TodoUpdateCandidatesColumns[4]},
+			},
+		},
+	}
 	// TranslationLocalesColumns holds the columns for the "translation_locales" table.
 	TranslationLocalesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -771,6 +834,7 @@ var (
 		TodoCandidatesTable,
 		TodoCandidateAssigneesTable,
 		TodoEventsTable,
+		TodoUpdateCandidatesTable,
 		TranslationLocalesTable,
 		UsersTable,
 	}
@@ -803,6 +867,9 @@ func init() {
 	TodoEventsTable.ForeignKeys[0].RefTable = TodosTable
 	TodoEventsTable.ForeignKeys[1].RefTable = TodoCandidatesTable
 	TodoEventsTable.ForeignKeys[2].RefTable = ChannelMessagesTable
+	TodoUpdateCandidatesTable.ForeignKeys[0].RefTable = TodosTable
+	TodoUpdateCandidatesTable.ForeignKeys[1].RefTable = TodoCandidatesTable
+	TodoUpdateCandidatesTable.ForeignKeys[2].RefTable = ChannelMessagesTable
 	TranslationLocalesTable.ForeignKeys[0].RefTable = ChannelsTable
 	TranslationLocalesTable.ForeignKeys[1].RefTable = SkillsTable
 	TranslationLocalesTable.ForeignKeys[2].RefTable = UsersTable

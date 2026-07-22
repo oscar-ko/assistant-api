@@ -19,6 +19,7 @@ import (
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/ent/todocandidateassignee"
 	"assistant-api/internal/ent/todoevent"
+	"assistant-api/internal/ent/todoupdatecandidate"
 	"assistant-api/internal/ent/translationlocale"
 	"assistant-api/internal/ent/user"
 	"time"
@@ -377,6 +378,31 @@ func init() {
 	todoeventDescID := todoeventMixinFields0[0].Descriptor()
 	// todoevent.DefaultID holds the default value on creation for the id field.
 	todoevent.DefaultID = todoeventDescID.Default.(func() uuid.UUID)
+	todoupdatecandidateMixin := schema.TodoUpdateCandidate{}.Mixin()
+	todoupdatecandidateMixinFields0 := todoupdatecandidateMixin[0].Fields()
+	_ = todoupdatecandidateMixinFields0
+	todoupdatecandidateMixinFields1 := todoupdatecandidateMixin[1].Fields()
+	_ = todoupdatecandidateMixinFields1
+	todoupdatecandidateFields := schema.TodoUpdateCandidate{}.Fields()
+	_ = todoupdatecandidateFields
+	// todoupdatecandidateDescCreatedAt is the schema descriptor for created_at field.
+	todoupdatecandidateDescCreatedAt := todoupdatecandidateMixinFields1[0].Descriptor()
+	// todoupdatecandidate.DefaultCreatedAt holds the default value on creation for the created_at field.
+	todoupdatecandidate.DefaultCreatedAt = todoupdatecandidateDescCreatedAt.Default.(func() time.Time)
+	// todoupdatecandidateDescUpdatedAt is the schema descriptor for updated_at field.
+	todoupdatecandidateDescUpdatedAt := todoupdatecandidateMixinFields1[1].Descriptor()
+	// todoupdatecandidate.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	todoupdatecandidate.DefaultUpdatedAt = todoupdatecandidateDescUpdatedAt.Default.(func() time.Time)
+	// todoupdatecandidate.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	todoupdatecandidate.UpdateDefaultUpdatedAt = todoupdatecandidateDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// todoupdatecandidateDescConfidence is the schema descriptor for confidence field.
+	todoupdatecandidateDescConfidence := todoupdatecandidateFields[7].Descriptor()
+	// todoupdatecandidate.DefaultConfidence holds the default value on creation for the confidence field.
+	todoupdatecandidate.DefaultConfidence = todoupdatecandidateDescConfidence.Default.(float64)
+	// todoupdatecandidateDescID is the schema descriptor for id field.
+	todoupdatecandidateDescID := todoupdatecandidateMixinFields0[0].Descriptor()
+	// todoupdatecandidate.DefaultID holds the default value on creation for the id field.
+	todoupdatecandidate.DefaultID = todoupdatecandidateDescID.Default.(func() uuid.UUID)
 	translationlocaleMixin := schema.TranslationLocale{}.Mixin()
 	translationlocaleMixinFields0 := translationlocaleMixin[0].Fields()
 	_ = translationlocaleMixinFields0
