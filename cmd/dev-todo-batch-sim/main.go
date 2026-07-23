@@ -17,6 +17,7 @@ import (
 
 type scriptMessage struct {
 	Text                 string `json:"text"`
+	ParticipantIndex     *int   `json:"participantIndex,omitempty"`
 	ReplyToMessageIndex  *int   `json:"replyToMessageIndex,omitempty"`
 	VisiblePlatformAppID string `json:"visiblePlatformAppID,omitempty"`
 }
@@ -96,6 +97,7 @@ func main() {
 	platformTenantID := flag.String("team", "T017LF31KBM", "Slack team id")
 	platformAppID := flag.String("app", "A0BJ1BJFNQH", "default Slack app id")
 	deliveryMode := flag.String("delivery", "visible", "delivery mode: internal or visible")
+	participantCount := flag.Int("participants", 2, "number of simulated conversation participants")
 	batchSize := flag.Int("batch", 50, "messages per GraphQL request")
 	totalMessages := flag.Int("total", 200, "total script messages to generate")
 	analysisWait := flag.Int("wait", 700, "analysis wait milliseconds per message")
@@ -114,10 +116,13 @@ func main() {
 	if *totalMessages < 1 {
 		exitError(errors.New("total must be at least 1"))
 	}
+	if *participantCount < 1 {
+		exitError(errors.New("participants must be at least 1"))
+	}
 
 	ctx := context.Background()
 	client := &http.Client{Timeout: 15 * time.Minute}
-	messages := buildMessages(*totalMessages)
+	messages := buildMessages(*totalMessages, *participantCount)
 	if *printScript {
 		printJSON(messages)
 		return
@@ -145,7 +150,7 @@ func main() {
 			"platformTenantID":         *platformTenantID,
 			"platformAppID":            *platformAppID,
 			"deliveryMode":             mode,
-			"participantCount":         1,
+			"participantCount":         *participantCount,
 			"messageCount":             end - offset,
 			"analysisWaitMilliseconds": *analysisWait,
 			"messages":                 messages[offset:end],
@@ -184,11 +189,12 @@ func main() {
 	}
 }
 
-func buildMessages(total int) []scriptMessage {
+func buildMessages(total int, participantCount int) []scriptMessage {
 	botApps := []string{"A0BJ1BJFNQH", "A0BJXJE37CN", "A0BJJHNDCQ7"}
 	messages := make([]scriptMessage, 0, total)
 	add := func(text string, replyTo int) {
-		message := scriptMessage{Text: text, VisiblePlatformAppID: botApps[len(messages)%len(botApps)]}
+		participantIndex := len(messages) % participantCount
+		message := scriptMessage{Text: text, ParticipantIndex: &participantIndex, VisiblePlatformAppID: botApps[len(messages)%len(botApps)]}
 		if replyTo >= 0 {
 			message.ReplyToMessageIndex = &replyTo
 		}

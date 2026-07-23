@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"sort"
 
 	"assistant-api/internal/config"
 	"assistant-api/internal/ent"
@@ -69,6 +70,7 @@ type probeTodoTables struct {
 	TodoCount                     int                    `json:"todo_count"`
 	TodoEventCount                int                    `json:"todo_event_count"`
 	TodoUpdateCandidateCount      int                    `json:"todo_update_candidate_count"`
+	SenderCounts                  []probeSenderCount     `json:"sender_counts"`
 	LatestMessages                []probeChannelMessage  `json:"latest_messages"`
 	ReplyMessages                 []probeChannelMessage  `json:"reply_messages"`
 	TodoCandidates                []probeTodoCandidate   `json:"todo_candidates"`
@@ -77,6 +79,12 @@ type probeTodoTables struct {
 	TodoUpdateCandidates          []probeTodoUpdate      `json:"todo_update_candidates"`
 	TodoCandidateEvidenceMessages []probeCandidateAnchor `json:"todo_candidate_evidence_messages"`
 	TodoCandidateAssignees        []probeCandidatePerson `json:"todo_candidate_assignees"`
+}
+
+type probeSenderCount struct {
+	SenderID     string `json:"sender_id"`
+	SenderUserID string `json:"sender_user_id"`
+	Count        int    `json:"count"`
 }
 
 type probeChannelMessage struct {
@@ -279,6 +287,7 @@ func probeTodoTableState(ctx context.Context, client *ent.Client, channelID uuid
 		TodoCount:                     todoCount,
 		TodoEventCount:                todoEventCount,
 		TodoUpdateCandidateCount:      updateCount,
+		SenderCounts:                  []probeSenderCount{},
 		LatestMessages:                []probeChannelMessage{},
 		ReplyMessages:                 []probeChannelMessage{},
 		TodoCandidates:                []probeTodoCandidate{},
@@ -287,6 +296,32 @@ func probeTodoTableState(ctx context.Context, client *ent.Client, channelID uuid
 		TodoUpdateCandidates:          []probeTodoUpdate{},
 		TodoCandidateEvidenceMessages: []probeCandidateAnchor{},
 		TodoCandidateAssignees:        []probeCandidatePerson{},
+	}
+
+	allMessages, err := client.ChannelMessage.Query().Where(channelmessage.ChannelIDEQ(channelID)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	senderCounts := make(map[string]probeSenderCount)
+	for _, item := range allMessages {
+		senderUserID := ""
+		if item.SenderUserID != nil {
+			senderUserID = item.SenderUserID.String()
+		}
+		key := item.SenderID + "\x00" + senderUserID
+		count := senderCounts[key]
+		count.SenderID = item.SenderID
+		count.SenderUserID = senderUserID
+		count.Count++
+		senderCounts[key] = count
+	}
+	keys := make([]string, 0, len(senderCounts))
+	for key := range senderCounts {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		tables.SenderCounts = append(tables.SenderCounts, senderCounts[key])
 	}
 
 	messages, err := client.ChannelMessage.Query().Where(channelmessage.ChannelIDEQ(channelID)).Order(ent.Desc(channelmessage.FieldCreatedAt)).Limit(12).All(ctx)
