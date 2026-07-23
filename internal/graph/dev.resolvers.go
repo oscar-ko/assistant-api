@@ -7,16 +7,9 @@ package graph
 import (
 	"assistant-api/internal/config"
 	"assistant-api/internal/ent"
-	"assistant-api/internal/ent/actionresult"
 	"assistant-api/internal/ent/channel"
 	"assistant-api/internal/ent/channelmessage"
-	"assistant-api/internal/ent/channelmessagemention"
-	"assistant-api/internal/ent/todo"
 	"assistant-api/internal/ent/todocandidate"
-	"assistant-api/internal/ent/todocandidateassignee"
-	"assistant-api/internal/ent/todocandidateevidencemessage"
-	"assistant-api/internal/ent/todoevent"
-	"assistant-api/internal/ent/todoupdatecandidate"
 	"assistant-api/internal/graph/model"
 	"context"
 	"fmt"
@@ -123,8 +116,20 @@ func (r *mutationResolver) SimulateTodoConversation(ctx context.Context, input m
 	// visiblePlatformMessageIDs 保存真實 Slack chat.postMessage 回傳的 ts。
 	// 兩者刻意分開：visible mode 會先貼一則真實訊息給人看，再送一則內部事件給 analyzer，
 	// replyToMessageIndex 必須同時能對到 Slack thread_ts 與內部 ChannelMessage.reply_to_msg_id。
-	platformMessageIDs := make([]string, 0, messageCount)
-	visiblePlatformMessageIDs := make([]string, 0, messageCount)
+	platformMessageIDs := normalizeSimulationBaseMessageIDs(input.BasePlatformMessageIDs)
+	visiblePlatformMessageIDs := normalizeSimulationBaseMessageIDs(input.BaseVisiblePlatformMessageIDs)
+	if len(visiblePlatformMessageIDs) > len(platformMessageIDs) {
+		return nil, fmt.Errorf("baseVisiblePlatformMessageIDs must not be longer than basePlatformMessageIDs")
+	}
+	platformMessageIDs = append([]string(nil), platformMessageIDs...)
+	visiblePlatformMessageIDs = append([]string(nil), visiblePlatformMessageIDs...)
+	baseMessageCount := len(platformMessageIDs)
+	if cap(platformMessageIDs) < baseMessageCount+messageCount {
+		platformMessageIDs = append(make([]string, 0, baseMessageCount+messageCount), platformMessageIDs...)
+	}
+	if cap(visiblePlatformMessageIDs) < baseMessageCount+messageCount {
+		visiblePlatformMessageIDs = append(make([]string, 0, baseMessageCount+messageCount), visiblePlatformMessageIDs...)
+	}
 	for index := 0; index < messageCount; index++ {
 		turn, err := r.buildSimulatedTodoTurnPlan(ctx, devSimulationTurnPlanInput{
 			Index:                     index,
@@ -294,119 +299,4 @@ func (r *mutationResolver) ClearDevRealtimeTodoData(ctx context.Context, input m
 		return nil, err
 	}
 	return counts.toGraphQLPayload(), nil
-}
-
-type devRealtimeTodoClearCounts struct {
-	TodoCount                         int
-	TodoEventCount                    int
-	TodoUpdateCandidateCount          int
-	ChannelMessageCount               int
-	TodoCandidateCount                int
-	TodoCandidateEvidenceMessageCount int
-	TodoCandidateAssigneeCount        int
-	ChannelMessageMentionCount        int
-	ActionResultCount                 int
-}
-
-// toGraphQLPayload 把內部清理結果轉成 schema payload。
-// 保留這層 mapping 是為了讓未來 CLI scenario runner 也能重用 clearDevRealtimeTodoData，
-// 而不必依賴 GraphQL model 型別作為內部工具的資料結構。
-func (c devRealtimeTodoClearCounts) toGraphQLPayload() *model.ClearDevRealtimeTodoDataPayload {
-	return &model.ClearDevRealtimeTodoDataPayload{
-		Status:                            "cleared",
-		TodoCount:                         c.TodoCount,
-		TodoEventCount:                    c.TodoEventCount,
-		TodoUpdateCandidateCount:          c.TodoUpdateCandidateCount,
-		ChannelMessageCount:               c.ChannelMessageCount,
-		TodoCandidateCount:                c.TodoCandidateCount,
-		TodoCandidateEvidenceMessageCount: c.TodoCandidateEvidenceMessageCount,
-		TodoCandidateAssigneeCount:        c.TodoCandidateAssigneeCount,
-		ChannelMessageMentionCount:        c.ChannelMessageMentionCount,
-		ActionResultCount:                 c.ActionResultCount,
-	}
-}
-
-func (r *Resolver) clearDevRealtimeTodoData(ctx context.Context, channelID uuid.UUID) (devRealtimeTodoClearCounts, error) {
-	// 刪除順序必須順著外鍵依賴方向從「葉節點」往「上游」刪，否則會因子資料尚存在而卡在外鍵限制：
-	// action_result 參照 channel_message；todo_event/todo_update_candidate 參照正式 Todo，也可能參照 candidate/message；
-	// todo_candidate_assignee/todo_candidate_evidence_message 參照 todo_candidate；channel_message_mention 與 evidence 也會參照 channel_message，
-	// 因此最後才能刪 todo_candidate 與 channel_message。
-	actionResultCount, err := r.Client.ActionResult.Delete().Where(
-		actionresult.HasChannelMessageWith(channelmessage.ChannelIDEQ(channelID)),
-	).Exec(ctx)
-	if err != nil {
-		return devRealtimeTodoClearCounts{}, fmt.Errorf("delete action results failed: %w", err)
-	}
-	todoEventCount, err := r.Client.TodoEvent.Delete().Where(
-		todoevent.Or(
-			todoevent.HasTodoWith(todo.ChannelIDEQ(channelID)),
-			todoevent.HasSourceCandidateWith(todocandidate.ChannelIDEQ(channelID)),
-			todoevent.HasSourceMessageWith(channelmessage.ChannelIDEQ(channelID)),
-		),
-	).Exec(ctx)
-	if err != nil {
-		return devRealtimeTodoClearCounts{}, fmt.Errorf("delete todo events failed: %w", err)
-	}
-	todoUpdateCandidateCount, err := r.Client.TodoUpdateCandidate.Delete().Where(
-		todoupdatecandidate.Or(
-			todoupdatecandidate.HasTodoWith(todo.ChannelIDEQ(channelID)),
-			todoupdatecandidate.HasSourceCandidateWith(todocandidate.ChannelIDEQ(channelID)),
-			todoupdatecandidate.HasSourceMessageWith(channelmessage.ChannelIDEQ(channelID)),
-		),
-	).Exec(ctx)
-	if err != nil {
-		return devRealtimeTodoClearCounts{}, fmt.Errorf("delete todo update candidates failed: %w", err)
-	}
-	todoCount, err := r.Client.Todo.Delete().Where(
-		todo.Or(
-			todo.ChannelIDEQ(channelID),
-			todo.HasSourceCandidateWith(todocandidate.ChannelIDEQ(channelID)),
-		),
-	).Exec(ctx)
-	if err != nil {
-		return devRealtimeTodoClearCounts{}, fmt.Errorf("delete todos failed: %w", err)
-	}
-	todoCandidateAssigneeCount, err := r.Client.TodoCandidateAssignee.Delete().Where(
-		todocandidateassignee.Or(
-			todocandidateassignee.HasCandidateWith(todocandidate.ChannelIDEQ(channelID)),
-			todocandidateassignee.HasSourceMessageMentionWith(
-				channelmessagemention.HasMessageWith(channelmessage.ChannelIDEQ(channelID)),
-			),
-		),
-	).Exec(ctx)
-	if err != nil {
-		return devRealtimeTodoClearCounts{}, fmt.Errorf("delete todo candidate assignees failed: %w", err)
-	}
-	todoCandidateEvidenceMessageCount, err := r.Client.TodoCandidateEvidenceMessage.Delete().Where(
-		todocandidateevidencemessage.ChannelIDEQ(channelID),
-	).Exec(ctx)
-	if err != nil {
-		return devRealtimeTodoClearCounts{}, fmt.Errorf("delete todo candidate evidence messages failed: %w", err)
-	}
-	channelMessageMentionCount, err := r.Client.ChannelMessageMention.Delete().Where(
-		channelmessagemention.HasMessageWith(channelmessage.ChannelIDEQ(channelID)),
-	).Exec(ctx)
-	if err != nil {
-		return devRealtimeTodoClearCounts{}, fmt.Errorf("delete channel message mentions failed: %w", err)
-	}
-	todoCandidateCount, err := r.Client.TodoCandidate.Delete().Where(todocandidate.ChannelIDEQ(channelID)).Exec(ctx)
-	if err != nil {
-		return devRealtimeTodoClearCounts{}, fmt.Errorf("delete todo candidates failed: %w", err)
-	}
-	channelMessageCount, err := r.Client.ChannelMessage.Delete().Where(channelmessage.ChannelIDEQ(channelID)).Exec(ctx)
-	if err != nil {
-		return devRealtimeTodoClearCounts{}, fmt.Errorf("delete channel messages failed: %w", err)
-	}
-
-	return devRealtimeTodoClearCounts{
-		TodoCount:                         todoCount,
-		TodoEventCount:                    todoEventCount,
-		TodoUpdateCandidateCount:          todoUpdateCandidateCount,
-		ChannelMessageCount:               channelMessageCount,
-		TodoCandidateCount:                todoCandidateCount,
-		TodoCandidateEvidenceMessageCount: todoCandidateEvidenceMessageCount,
-		TodoCandidateAssigneeCount:        todoCandidateAssigneeCount,
-		ChannelMessageMentionCount:        channelMessageMentionCount,
-		ActionResultCount:                 actionResultCount,
-	}, nil
 }

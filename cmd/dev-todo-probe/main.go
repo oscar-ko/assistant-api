@@ -70,6 +70,7 @@ type probeTodoTables struct {
 	TodoEventCount                int                    `json:"todo_event_count"`
 	TodoUpdateCandidateCount      int                    `json:"todo_update_candidate_count"`
 	LatestMessages                []probeChannelMessage  `json:"latest_messages"`
+	ReplyMessages                 []probeChannelMessage  `json:"reply_messages"`
 	TodoCandidates                []probeTodoCandidate   `json:"todo_candidates"`
 	Todos                         []probeTodo            `json:"todos"`
 	TodoEvents                    []probeTodoEvent       `json:"todo_events"`
@@ -279,6 +280,7 @@ func probeTodoTableState(ctx context.Context, client *ent.Client, channelID uuid
 		TodoEventCount:                todoEventCount,
 		TodoUpdateCandidateCount:      updateCount,
 		LatestMessages:                []probeChannelMessage{},
+		ReplyMessages:                 []probeChannelMessage{},
 		TodoCandidates:                []probeTodoCandidate{},
 		Todos:                         []probeTodo{},
 		TodoEvents:                    []probeTodoEvent{},
@@ -297,6 +299,18 @@ func probeTodoTableState(ctx context.Context, client *ent.Client, channelID uuid
 			senderUserID = item.SenderUserID.String()
 		}
 		tables.LatestMessages = append(tables.LatestMessages, probeChannelMessage{ID: item.ID.String(), SenderID: item.SenderID, SenderUserID: senderUserID, PlatformMessageID: item.PlatformMessageID, ReplyToMsgID: item.ReplyToMsgID, Content: item.Content})
+	}
+
+	replyMessages, err := client.ChannelMessage.Query().Where(channelmessage.ChannelIDEQ(channelID), channelmessage.ReplyToMsgIDNEQ("")).Order(ent.Asc(channelmessage.FieldCreatedAt)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range replyMessages {
+		senderUserID := ""
+		if item.SenderUserID != nil {
+			senderUserID = item.SenderUserID.String()
+		}
+		tables.ReplyMessages = append(tables.ReplyMessages, probeChannelMessage{ID: item.ID.String(), SenderID: item.SenderID, SenderUserID: senderUserID, PlatformMessageID: item.PlatformMessageID, ReplyToMsgID: item.ReplyToMsgID, Content: item.Content})
 	}
 
 	candidates, err := client.TodoCandidate.Query().Where(todocandidate.ChannelIDEQ(channelID)).Order(ent.Asc(todocandidate.FieldCreatedAt)).All(ctx)

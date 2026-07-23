@@ -1018,6 +1018,17 @@ func (r *ChannelMessageRepo) SaveTodoCandidateFromAnalysis(ctx context.Context, 
 	}
 	if existing == nil {
 		if decision == todocandidate.LastDecisionUpdateCandidate {
+			unambiguous, err := r.findUnambiguousTodoCandidateForLinkedUpdate(ctx, input)
+			if err != nil {
+				return nil, err
+			}
+			if unambiguous != nil {
+				item, err := r.updateTodoCandidate(ctx, unambiguous.ID, input, decision, status)
+				if err != nil {
+					return nil, err
+				}
+				return item, r.promoteTodoCandidate(ctx, item)
+			}
 			// explicit reply 可能第一次把「早就存在但尚未形成 candidate 的 parent message」補齊負責人/期限；
 			// 這種情境不是 fallback，而是使用者明確引用 parent 的合法初始化路徑。
 			item, err := r.createTodoCandidateFromLinkedMessageUpdate(ctx, input, decision, status)
@@ -1037,6 +1048,7 @@ func (r *ChannelMessageRepo) SaveTodoCandidateFromAnalysis(ctx context.Context, 
 		if err != nil || applied {
 			return item, err
 		}
+		return item, nil
 	}
 	return item, r.promoteTodoCandidate(ctx, item)
 }
@@ -1107,6 +1119,9 @@ func (r *ChannelMessageRepo) promoteTodoCandidate(ctx context.Context, candidate
 			if err := r.createTodoEvent(ctx, created, nil, candidate, todoevent.EventTypeCreated); err != nil {
 				return err
 			}
+			continue
+		}
+		if candidate.LastDecision == todocandidate.LastDecisionAcknowledge {
 			continue
 		}
 		// 既有 Todo 再次被同一 candidate+owner 命中時，代表後續訊息提出了對正式 Todo 的變更。
@@ -1845,6 +1860,24 @@ func (r *ChannelMessageRepo) resolveAnalyzerAssigneeByChannelWorkspaceSlackDispl
 // repository 因此只允許在同 channel、仍活躍的 evidence 裡查找 candidate；找不到就 fail-fast 回到上層，
 // 避免把訊息 ID 誤當資料列 ID 或跨 channel 串錯待辦。
 func (r *ChannelMessageRepo) findTodoCandidateByLinkedMessage(ctx context.Context, channelID uuid.UUID, linkedMessageID uuid.UUID) (*ent.TodoCandidate, error) {
+	candidate, err := r.db.TodoCandidate.Query().
+		Where(
+			todocandidate.ChannelIDEQ(channelID),
+			todocandidate.Or(
+				todocandidate.SourceMessageIDEQ(linkedMessageID),
+				todocandidate.LastMessageIDEQ(linkedMessageID),
+			),
+		).
+		Order(ent.Desc(todocandidate.FieldUpdatedAt), ent.Desc(todocandidate.FieldCreatedAt)).
+		First(ctx)
+	if err != nil {
+		if !ent.IsNotFound(err) {
+			return nil, fmt.Errorf("query todo candidate by linked message failed: %w", err)
+		}
+	} else {
+		return candidate, nil
+	}
+
 	item, err := r.db.TodoCandidateEvidenceMessage.Query().
 		Where(
 			todocandidateevidencemessage.ChannelIDEQ(channelID),
@@ -1860,11 +1893,60 @@ func (r *ChannelMessageRepo) findTodoCandidateByLinkedMessage(ctx context.Contex
 		}
 		return nil, fmt.Errorf("query todo candidate evidence by linked message failed: %w", err)
 	}
-	candidate, err := item.Edges.CandidateOrErr()
+	candidate, err = item.Edges.CandidateOrErr()
 	if err != nil {
 		return nil, fmt.Errorf("load todo candidate from evidence failed: %w", err)
 	}
 	return candidate, nil
+}
+
+func (r *ChannelMessageRepo) findUnambiguousTodoCandidateForLinkedUpdate(ctx context.Context, input SaveTodoCandidateInput) (*ent.TodoCandidate, error) {
+	assignees := normalizeStringSlice(input.Assignees)
+	if len(assignees) == 0 {
+		return nil, nil
+	}
+	candidates, err := r.db.TodoCandidate.Query().
+		Where(
+			todocandidate.ChannelIDEQ(input.ChannelID),
+			todocandidate.StatusNEQ(todocandidate.StatusCancelled),
+		).
+		Order(ent.Desc(todocandidate.FieldUpdatedAt), ent.Desc(todocandidate.FieldCreatedAt)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query todo candidates for linked update disambiguation failed: %w", err)
+	}
+
+	var matched *ent.TodoCandidate
+	for _, candidate := range candidates {
+		if !stringSlicesOverlap(assignees, normalizeStringSlice(candidate.Assignees)) {
+			continue
+		}
+		if matched != nil {
+			return nil, nil
+		}
+		matched = candidate
+	}
+	return matched, nil
+}
+
+func stringSlicesOverlap(left []string, right []string) bool {
+	if len(left) == 0 || len(right) == 0 {
+		return false
+	}
+	seen := make(map[string]struct{}, len(left))
+	for _, value := range left {
+		trimmed := strings.ToLower(strings.TrimSpace(value))
+		if trimmed != "" {
+			seen[trimmed] = struct{}{}
+		}
+	}
+	for _, value := range right {
+		trimmed := strings.ToLower(strings.TrimSpace(value))
+		if _, ok := seen[trimmed]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func todoCandidateStatusFromDecision(decision todocandidate.LastDecision) (todocandidate.Status, error) {

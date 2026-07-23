@@ -47,6 +47,18 @@ type devSimulationTurnPlan struct {
 	ReplyToVisiblePlatformMessageID string
 }
 
+func normalizeSimulationBaseMessageIDs(values []string) []string {
+	items := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		items = append(items, trimmed)
+	}
+	return items
+}
+
 // buildSimulatedTodoTurnPlan 將「這一輪訊息要怎麼送」集中成單一決策點。
 // 這裡同時處理 scripted participant、senderUserID override、visible Slack app 選擇、
 // 以及 replyToMessageIndex 對應出的 internal/visible 兩種 message id。

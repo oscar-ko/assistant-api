@@ -80,6 +80,10 @@ type SimulateTodoConversationInput struct {
 	DeliveryMode string `json:"deliveryMode"`
 	// 自訂模擬訊息劇本；未提供時使用內建隨機 Todo 對話。
 	Messages []*SimulateTodoConversationMessageInput `json:"messages,omitempty"`
+	// 分批續跑時，前面批次已產生的內部平台訊息 ID。replyToMessageIndex 會先對應到這個陣列，再接本批 messages。
+	BasePlatformMessageIDs []string `json:"basePlatformMessageIDs,omitempty"`
+	// 分批 visible mode 續跑時，前面批次已產生的真實 Slack ts。internal mode 可省略。
+	BaseVisiblePlatformMessageIDs []string `json:"baseVisiblePlatformMessageIDs,omitempty"`
 }
 
 // 自訂模擬對話中的單則訊息。

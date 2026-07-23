@@ -182,3 +182,251 @@ func TestSaveTodoCandidateFromAnalysisPromotesReadyCandidateToTodo(t *testing.T)
 		t.Fatalf("unexpected updated event values: old=%+v new=%+v", updatedEvent.OldValues, updatedEvent.NewValues)
 	}
 }
+
+func TestSaveTodoCandidateFromAnalysisAcknowledgeWithoutPendingUpdateDoesNotCreateUpdateCandidate(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", "file:todo_ack_without_pending?mode=memory&cache=shared&_fk=1")
+	t.Cleanup(func() { client.Close() })
+
+	repo := NewChannelMessageRepo(client)
+	channel := client.Channel.Create().
+		SetName("todo-test").
+		SetPlatform("line").
+		SetGroupID("group-1").
+		SetType("group").
+		SaveX(ctx)
+	owner := client.User.Create().
+		SetName("阿明").
+		SetEmail("aming-ack@example.com").
+		SaveX(ctx)
+	message := client.ChannelMessage.Create().
+		SetChannelID(channel.ID).
+		SetContent("阿明明天上午十點交報價單").
+		SetSenderID("line-user-1").
+		SetSenderName("阿明").
+		SetSenderUserID(owner.ID).
+		SetMessageType("text").
+		SaveX(ctx)
+	dueAt := time.Date(2026, 7, 22, 10, 0, 0, 0, time.FixedZone("Asia/Taipei", 8*60*60))
+
+	candidate, err := repo.SaveTodoCandidateFromAnalysis(ctx, SaveTodoCandidateInput{
+		ChannelID:     channel.ID,
+		MessageID:     message.ID,
+		Decision:      "create_candidate",
+		Summary:       "交報價單",
+		Assignees:     []string{"阿明"},
+		DueText:       "明天上午十點",
+		DueAt:         &dueAt,
+		DueTimezone:   "Asia/Taipei",
+		DuePrecision:  "datetime",
+		DueDecision:   "normalized",
+		DueConfidence: 0.93,
+		Confidence:    0.91,
+		Reason:        "message describes a complete todo",
+	})
+	if err != nil {
+		t.Fatalf("expected ready candidate to persist and promote: %v", err)
+	}
+
+	ackMessage := client.ChannelMessage.Create().
+		SetChannelID(channel.ID).
+		SetContent("了解").
+		SetSenderID("line-user-2").
+		SetSenderName("主管").
+		SetMessageType("text").
+		SaveX(ctx)
+	acknowledgedCandidate, err := repo.SaveTodoCandidateFromAnalysis(ctx, SaveTodoCandidateInput{
+		ChannelID:       channel.ID,
+		MessageID:       ackMessage.ID,
+		LinkedMessageID: message.ID,
+		Decision:        "acknowledge",
+		Summary:         "交報價單",
+		Assignees:       []string{"阿明"},
+		DueText:         "明天上午十點",
+		DueAt:           &dueAt,
+		DueTimezone:     "Asia/Taipei",
+		DuePrecision:    "datetime",
+		DueDecision:     "normalized",
+		DueConfidence:   0.88,
+		Confidence:      0.81,
+		Reason:          "確認已收到既有待辦",
+	})
+	if err != nil {
+		t.Fatalf("expected acknowledge without pending update to persist evidence only: %v", err)
+	}
+	if acknowledgedCandidate == nil || acknowledgedCandidate.ID != candidate.ID {
+		t.Fatalf("expected acknowledge to keep existing candidate, got %+v want %s", acknowledgedCandidate, candidate.ID)
+	}
+	if count := client.TodoUpdateCandidate.Query().CountX(ctx); count != 0 {
+		t.Fatalf("expected acknowledge without pending update not to create todo update candidate, got %d", count)
+	}
+	if count := client.TodoEvent.Query().Where(todoevent.EventTypeEQ(todoevent.EventTypeUpdated)).CountX(ctx); count != 0 {
+		t.Fatalf("expected acknowledge without pending update not to create updated event, got %d", count)
+	}
+}
+
+func TestSaveTodoCandidateFromAnalysisLinksCandidateBySourceMessage(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", "file:todo_link_by_source_message?mode=memory&cache=shared&_fk=1")
+	t.Cleanup(func() { client.Close() })
+
+	repo := NewChannelMessageRepo(client)
+	channel := client.Channel.Create().
+		SetName("todo-test").
+		SetPlatform("line").
+		SetGroupID("group-1").
+		SetType("group").
+		SaveX(ctx)
+	owner := client.User.Create().
+		SetName("阿明").
+		SetEmail("aming-source-link@example.com").
+		SaveX(ctx)
+	sourceMessage := client.ChannelMessage.Create().
+		SetChannelID(channel.ID).
+		SetContent("阿明明天上午十點交報價單").
+		SetSenderID("line-user-1").
+		SetSenderName("阿明").
+		SetSenderUserID(owner.ID).
+		SetMessageType("text").
+		SaveX(ctx)
+	dueAt := time.Date(2026, 7, 22, 10, 0, 0, 0, time.FixedZone("Asia/Taipei", 8*60*60))
+
+	candidate, err := repo.SaveTodoCandidateFromAnalysis(ctx, SaveTodoCandidateInput{
+		ChannelID:     channel.ID,
+		MessageID:     sourceMessage.ID,
+		Decision:      "create_candidate",
+		Summary:       "交報價單",
+		Assignees:     []string{"阿明"},
+		DueText:       "明天上午十點",
+		DueAt:         &dueAt,
+		DueTimezone:   "Asia/Taipei",
+		DuePrecision:  "datetime",
+		DueDecision:   "normalized",
+		DueConfidence: 0.93,
+		Confidence:    0.91,
+		Reason:        "message describes a complete todo",
+	})
+	if err != nil {
+		t.Fatalf("expected ready candidate to persist: %v", err)
+	}
+
+	client.TodoCandidateEvidenceMessage.Delete().ExecX(ctx)
+	updateMessage := client.ChannelMessage.Create().
+		SetChannelID(channel.ID).
+		SetContent("報價單請多加運費欄位").
+		SetSenderID("line-user-2").
+		SetSenderName("主管").
+		SetMessageType("text").
+		SaveX(ctx)
+	updatedCandidate, err := repo.SaveTodoCandidateFromAnalysis(ctx, SaveTodoCandidateInput{
+		ChannelID:       channel.ID,
+		MessageID:       updateMessage.ID,
+		LinkedMessageID: sourceMessage.ID,
+		Decision:        "update_candidate",
+		Summary:         "交報價單並多加運費欄位",
+		Assignees:       []string{"阿明"},
+		DueText:         "明天上午十點",
+		DueAt:           &dueAt,
+		DueTimezone:     "Asia/Taipei",
+		DuePrecision:    "datetime",
+		DueDecision:     "normalized",
+		DueConfidence:   0.92,
+		Confidence:      0.88,
+		Reason:          "explicit reply updates the source task",
+	})
+	if err != nil {
+		t.Fatalf("expected source-message linked update to persist: %v", err)
+	}
+	if updatedCandidate.ID != candidate.ID {
+		t.Fatalf("expected update to keep original candidate %s, got %s", candidate.ID, updatedCandidate.ID)
+	}
+	if count := client.TodoCandidate.Query().CountX(ctx); count != 1 {
+		t.Fatalf("expected source-message linked update not to create a duplicate candidate, got %d", count)
+	}
+}
+
+func TestSaveTodoCandidateFromAnalysisLinksExplicitReplyByUniqueAssignee(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", "file:todo_link_by_unique_assignee?mode=memory&cache=shared&_fk=1")
+	t.Cleanup(func() { client.Close() })
+
+	repo := NewChannelMessageRepo(client)
+	channel := client.Channel.Create().
+		SetName("todo-test").
+		SetPlatform("line").
+		SetGroupID("group-1").
+		SetType("group").
+		SaveX(ctx)
+	owner := client.User.Create().
+		SetName("阿明").
+		SetEmail("aming-unique-link@example.com").
+		SaveX(ctx)
+	earlyMessage := client.ChannelMessage.Create().
+		SetChannelID(channel.ID).
+		SetContent("請整理報價資料").
+		SetSenderID("line-user-2").
+		SetSenderName("主管").
+		SetMessageType("text").
+		SaveX(ctx)
+	sourceMessage := client.ChannelMessage.Create().
+		SetChannelID(channel.ID).
+		SetContent("阿明明天上午十點整理報價資料").
+		SetSenderID("line-user-1").
+		SetSenderName("阿明").
+		SetSenderUserID(owner.ID).
+		SetMessageType("text").
+		SaveX(ctx)
+	dueAt := time.Date(2026, 7, 22, 10, 0, 0, 0, time.FixedZone("Asia/Taipei", 8*60*60))
+
+	candidate, err := repo.SaveTodoCandidateFromAnalysis(ctx, SaveTodoCandidateInput{
+		ChannelID:     channel.ID,
+		MessageID:     sourceMessage.ID,
+		Decision:      "create_candidate",
+		Summary:       "整理報價資料",
+		Assignees:     []string{"阿明"},
+		DueText:       "明天上午十點",
+		DueAt:         &dueAt,
+		DueTimezone:   "Asia/Taipei",
+		DuePrecision:  "datetime",
+		DueDecision:   "normalized",
+		DueConfidence: 0.93,
+		Confidence:    0.91,
+		Reason:        "message describes a complete todo",
+	})
+	if err != nil {
+		t.Fatalf("expected ready candidate to persist: %v", err)
+	}
+
+	replyMessage := client.ChannelMessage.Create().
+		SetChannelID(channel.ID).
+		SetContent("回覆前面報價資料：請多加運費欄位").
+		SetSenderID("line-user-2").
+		SetSenderName("主管").
+		SetMessageType("text").
+		SaveX(ctx)
+	updatedCandidate, err := repo.SaveTodoCandidateFromAnalysis(ctx, SaveTodoCandidateInput{
+		ChannelID:       channel.ID,
+		MessageID:       replyMessage.ID,
+		LinkedMessageID: earlyMessage.ID,
+		Decision:        "update_candidate",
+		Summary:         "整理報價資料並多加運費欄位",
+		Assignees:       []string{"阿明"},
+		DueText:         "明天上午十點",
+		DueAt:           &dueAt,
+		DueTimezone:     "Asia/Taipei",
+		DuePrecision:    "datetime",
+		DueDecision:     "normalized",
+		DueConfidence:   0.92,
+		Confidence:      0.88,
+		Reason:          "explicit reply updates the same assignee's only active task",
+	})
+	if err != nil {
+		t.Fatalf("expected unique-assignee linked update to persist: %v", err)
+	}
+	if updatedCandidate.ID != candidate.ID {
+		t.Fatalf("expected update to keep original candidate %s, got %s", candidate.ID, updatedCandidate.ID)
+	}
+	if count := client.TodoCandidate.Query().CountX(ctx); count != 1 {
+		t.Fatalf("expected unique-assignee linked update not to create a duplicate candidate, got %d", count)
+	}
+}

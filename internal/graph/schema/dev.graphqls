@@ -86,6 +86,14 @@ input SimulateTodoConversationInput {
     自訂模擬訊息劇本；未提供時使用內建隨機 Todo 對話。
     """
     messages: [SimulateTodoConversationMessageInput!]
+    """
+    分批續跑時，前面批次已產生的內部平台訊息 ID。replyToMessageIndex 會先對應到這個陣列，再接本批 messages。
+    """
+    basePlatformMessageIDs: [String!]
+    """
+    分批 visible mode 續跑時，前面批次已產生的真實 Slack ts。internal mode 可省略。
+    """
+    baseVisiblePlatformMessageIDs: [String!]
 }
 
 """

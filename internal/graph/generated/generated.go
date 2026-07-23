@@ -3315,6 +3315,14 @@ input SimulateTodoConversationInput {
     自訂模擬訊息劇本；未提供時使用內建隨機 Todo 對話。
     """
     messages: [SimulateTodoConversationMessageInput!]
+    """
+    分批續跑時，前面批次已產生的內部平台訊息 ID。replyToMessageIndex 會先對應到這個陣列，再接本批 messages。
+    """
+    basePlatformMessageIDs: [String!]
+    """
+    分批 visible mode 續跑時，前面批次已產生的真實 Slack ts。internal mode 可省略。
+    """
+    baseVisiblePlatformMessageIDs: [String!]
 }
 
 """
@@ -13504,7 +13512,7 @@ func (ec *executionContext) unmarshalInputSimulateTodoConversationInput(ctx cont
 		asMap["deliveryMode"] = "internal"
 	}
 
-	fieldsInOrder := [...]string{"platform", "platformTenantID", "platformAppID", "channelID", "participantCount", "senderUserID", "messageCount", "analysisWaitMilliseconds", "deliveryMode", "messages"}
+	fieldsInOrder := [...]string{"platform", "platformTenantID", "platformAppID", "channelID", "participantCount", "senderUserID", "messageCount", "analysisWaitMilliseconds", "deliveryMode", "messages", "basePlatformMessageIDs", "baseVisiblePlatformMessageIDs"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13581,6 +13589,20 @@ func (ec *executionContext) unmarshalInputSimulateTodoConversationInput(ctx cont
 				return it, err
 			}
 			it.Messages = data
+		case "basePlatformMessageIDs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("basePlatformMessageIDs"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BasePlatformMessageIDs = data
+		case "baseVisiblePlatformMessageIDs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("baseVisiblePlatformMessageIDs"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BaseVisiblePlatformMessageIDs = data
 		}
 	}
 
