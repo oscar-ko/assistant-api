@@ -17,6 +17,9 @@ func NewSenderNameResolver(tokenStore slackBotTokenStore) messagepersist.SenderN
 		appID := workspaceAppIDFromContext(ctx)
 		teamID := strings.TrimSpace(platformTenantID)
 		trimmedSenderID := strings.TrimSpace(senderID)
+		// Slack bot 的名字不是一般 users.info 的 user profile；bot user id 是 workspace install 產物，
+		// 需要先用 app_id + team_id 查出本次 app 的 bot_user_id，再對回 config 裡的 bot name。
+		// 這樣 channel_messages.sender_name 才會落成 Jarvis/Thor/Hulk，而不是 null 或錯誤的真人名稱。
 		botUserID, err := tokenStore.ResolveWorkspaceBotUserID(ctx, appID, teamID)
 		if err != nil {
 			return "", err

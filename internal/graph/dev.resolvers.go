@@ -83,6 +83,8 @@ func (r *mutationResolver) SimulateTodoConversation(ctx context.Context, input m
 	platformAppID := trimOptionalString(input.PlatformAppID)
 	var participants []devSimulationParticipant
 	if platform == "slack" && input.SenderUserID == nil && hasSlackScriptPlatformAppIDs(input.Messages) {
+		// Slack script 明確指定 app/bot 時，參與者應該是「未註冊的 bot 長官/同事」，不是 slack table 裡的真人。
+		// 這能避免測試資料把 Oscar/Tony 這些已註冊 user 誤當成發話者，導致 sender_user_id 被錯誤寫入。
 		participants, err = r.pickSlackBotScriptParticipants(ctx, platformTenantID, platformAppID, input.Messages, input.ParticipantCount)
 	} else {
 		participants, err = r.pickRandomSimulationParticipants(ctx, platform, platformTenantID, input.ParticipantCount)
@@ -185,6 +187,7 @@ func (r *mutationResolver) SimulateTodoConversation(ctx context.Context, input m
 		} else {
 			// Slack webhook service 會先以簽章判斷本次事件屬於哪個 app_id。
 			// dev 模擬也產生合法簽章，才能測到多 bot signing secret selection 與後續 workspace token lookup。
+			// 這裡必須用 turn.VisiblePlatformAppID，而不是 input.platformAppID；否則三 bot 劇本會被同一個 app 的 signing secret 吃掉。
 			bot, err := config.Slack.BotByAppID(turn.VisiblePlatformAppID)
 			if err != nil {
 				return nil, err

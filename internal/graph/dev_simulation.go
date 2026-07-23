@@ -275,6 +275,9 @@ func (r *Resolver) pickSlackBotScriptParticipants(ctx context.Context, platformT
 	if count < 1 {
 		return nil, fmt.Errorf("participantCount must be at least 1")
 	}
+	// scripted Slack bot 模擬的參與者來源是 app_id，而不是已綁定 Slack user。
+	// 先依劇本出現順序收集 app_id，能讓 participantIndex 穩定對到同一組 bot；
+	// 再用 slack_workspaces.bot_user_id 建出平台 sender，確保 sender_user_id 保持空值。
 	appIDs := make([]string, 0, count)
 	seen := map[string]struct{}{}
 	addApp := func(appID string) {
@@ -300,6 +303,8 @@ func (r *Resolver) pickSlackBotScriptParticipants(ctx context.Context, platformT
 	}
 	addApp(defaultPlatformAppID)
 	if len(appIDs) < count {
+		// 呼叫端宣告的 participantCount 必須和劇本可用 bot app 數量一致；
+		// 不自動補真人 user，避免測試語意從「bot 長官」悄悄變成「已註冊員工」。
 		return nil, fmt.Errorf("not enough slack bot apps in script: need %d, got %d", count, len(appIDs))
 	}
 	participants := make([]devSimulationParticipant, 0, count)
@@ -314,6 +319,8 @@ func (r *Resolver) pickSlackBotScriptParticipants(ctx context.Context, platformT
 }
 
 func hasSlackScriptPlatformAppIDs(script []*model.SimulateTodoConversationMessageInput) bool {
+	// 只要任一訊息帶 visiblePlatformAppID，就代表這份 script 在描述多 bot 身分，
+	// resolver 會改走 bot participant 路徑，而不是從 slack 綁定真人中抽 participant。
 	for _, message := range script {
 		if message != nil && trimOptionalString(message.VisiblePlatformAppID) != "" {
 			return true

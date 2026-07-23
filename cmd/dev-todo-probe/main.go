@@ -82,6 +82,9 @@ type probeTodoTables struct {
 }
 
 type probeSenderCount struct {
+	// SenderID/SenderUserID 直接反映 channel_messages 的落庫狀態；
+	// BotAppID/BotName 則是 probe 額外用 slack_workspaces.bot_user_id 反查出的診斷資訊。
+	// 這讓我們能同時確認「發話者是 bot」與「沒有被誤綁成 Oscar 這類系統使用者」。
 	SenderID     string `json:"sender_id"`
 	SenderUserID string `json:"sender_user_id"`
 	BotAppID     string `json:"bot_app_id"`
@@ -312,6 +315,8 @@ func probeTodoTableState(ctx context.Context, client *ent.Client, channelID uuid
 	}
 	senderCounts := make(map[string]probeSenderCount)
 	for _, item := range allMessages {
+		// sender_user_id 為空時，sender_id 仍可能是已安裝 Slack App 的 bot_user_id；
+		// probe 在這裡把 bot_user_id 補成 app/name，避免只看 U0... 看不出是 Jarvis、Thor 還是 Hulk。
 		senderUserID := ""
 		if item.SenderUserID != nil {
 			senderUserID = item.SenderUserID.String()
@@ -462,6 +467,8 @@ type probeSlackBotSender struct {
 }
 
 func probeSlackBotSenderNames(ctx context.Context, client *ent.Client) (map[string]probeSlackBotSender, error) {
+	// Slack bot user id 不存在 app.yml，而是 workspace install 後寫在 slack_workspaces；
+	// bot 顯示名則來自 config.Slack.Bots。這裡刻意把兩者接起來，專門服務 DB probe 的可讀性。
 	workspaces, err := client.SlackWorkspace.Query().All(ctx)
 	if err != nil {
 		return nil, err
