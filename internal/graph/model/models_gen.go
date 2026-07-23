@@ -99,6 +99,7 @@ type SimulateTodoConversationMessageInput struct {
 	ReplyToMessageIndex *int `json:"replyToMessageIndex,omitempty"`
 	// platform 為 slack 時，指定這則模擬訊息要用哪個 Slack app/bot 發出；visible mode 也會用同一個 bot 貼到真實 channel。
 	// 未提供時使用 input.platformAppID；internal mode 若有指定，sender 也會是該 bot user，而不是已註冊系統使用者。
+	// 這個欄位雖沿用 visible 命名，但現在同時控制內部 webhook sender identity，方便模擬未註冊長官/同事 bot 對 Oscar 交辦工作。
 	VisiblePlatformAppID *string `json:"visiblePlatformAppID,omitempty"`
 }
 

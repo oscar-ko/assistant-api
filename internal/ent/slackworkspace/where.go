@@ -135,11 +135,6 @@ func UpdatedAtEQ(v time.Time) predicate.SlackWorkspace {
 	return predicate.SlackWorkspace(sql.FieldEQ(FieldUpdatedAt, v))
 }
 
-// AppIDEQ applies the EQ predicate on the "app_id" field.
-func AppIDEQ(v string) predicate.SlackWorkspace {
-	return predicate.SlackWorkspace(sql.FieldEQ(FieldAppID, v))
-}
-
 // UpdatedAtNEQ applies the NEQ predicate on the "updated_at" field.
 func UpdatedAtNEQ(v time.Time) predicate.SlackWorkspace {
 	return predicate.SlackWorkspace(sql.FieldNEQ(FieldUpdatedAt, v))
@@ -173,6 +168,71 @@ func UpdatedAtLT(v time.Time) predicate.SlackWorkspace {
 // UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
 func UpdatedAtLTE(v time.Time) predicate.SlackWorkspace {
 	return predicate.SlackWorkspace(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// AppIDEQ applies the EQ predicate on the "app_id" field.
+func AppIDEQ(v string) predicate.SlackWorkspace {
+	return predicate.SlackWorkspace(sql.FieldEQ(FieldAppID, v))
+}
+
+// AppIDNEQ applies the NEQ predicate on the "app_id" field.
+func AppIDNEQ(v string) predicate.SlackWorkspace {
+	return predicate.SlackWorkspace(sql.FieldNEQ(FieldAppID, v))
+}
+
+// AppIDIn applies the In predicate on the "app_id" field.
+func AppIDIn(vs ...string) predicate.SlackWorkspace {
+	return predicate.SlackWorkspace(sql.FieldIn(FieldAppID, vs...))
+}
+
+// AppIDNotIn applies the NotIn predicate on the "app_id" field.
+func AppIDNotIn(vs ...string) predicate.SlackWorkspace {
+	return predicate.SlackWorkspace(sql.FieldNotIn(FieldAppID, vs...))
+}
+
+// AppIDGT applies the GT predicate on the "app_id" field.
+func AppIDGT(v string) predicate.SlackWorkspace {
+	return predicate.SlackWorkspace(sql.FieldGT(FieldAppID, v))
+}
+
+// AppIDGTE applies the GTE predicate on the "app_id" field.
+func AppIDGTE(v string) predicate.SlackWorkspace {
+	return predicate.SlackWorkspace(sql.FieldGTE(FieldAppID, v))
+}
+
+// AppIDLT applies the LT predicate on the "app_id" field.
+func AppIDLT(v string) predicate.SlackWorkspace {
+	return predicate.SlackWorkspace(sql.FieldLT(FieldAppID, v))
+}
+
+// AppIDLTE applies the LTE predicate on the "app_id" field.
+func AppIDLTE(v string) predicate.SlackWorkspace {
+	return predicate.SlackWorkspace(sql.FieldLTE(FieldAppID, v))
+}
+
+// AppIDContains applies the Contains predicate on the "app_id" field.
+func AppIDContains(v string) predicate.SlackWorkspace {
+	return predicate.SlackWorkspace(sql.FieldContains(FieldAppID, v))
+}
+
+// AppIDHasPrefix applies the HasPrefix predicate on the "app_id" field.
+func AppIDHasPrefix(v string) predicate.SlackWorkspace {
+	return predicate.SlackWorkspace(sql.FieldHasPrefix(FieldAppID, v))
+}
+
+// AppIDHasSuffix applies the HasSuffix predicate on the "app_id" field.
+func AppIDHasSuffix(v string) predicate.SlackWorkspace {
+	return predicate.SlackWorkspace(sql.FieldHasSuffix(FieldAppID, v))
+}
+
+// AppIDEqualFold applies the EqualFold predicate on the "app_id" field.
+func AppIDEqualFold(v string) predicate.SlackWorkspace {
+	return predicate.SlackWorkspace(sql.FieldEqualFold(FieldAppID, v))
+}
+
+// AppIDContainsFold applies the ContainsFold predicate on the "app_id" field.
+func AppIDContainsFold(v string) predicate.SlackWorkspace {
+	return predicate.SlackWorkspace(sql.FieldContainsFold(FieldAppID, v))
 }
 
 // PlatformTeamIDEQ applies the EQ predicate on the "platform_team_id" field.

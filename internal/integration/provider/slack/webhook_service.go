@@ -139,12 +139,13 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 	// Slack 也直接掛到共用 realtime 翻譯流程上，避免跟 LINE 各自維護一套非指令處理邏輯。
 	// 這裡只提供 Slack 專用的 sender 與 platform user id 來源，核心翻譯行為仍由共用模組執行。
 	autoTranslate := realtime.NewAutoTranslateService(realtime.AutoTranslateServiceOptions{
-		Repo:       repo,
-		Sender:     slackRealtimeSender{sender: options.FollowUpSender},
-		Translator: translateClient,
-		// 翻譯服務只看平台 user id，不關心它來自哪一種事件格式。
+		Repo:             repo,
+		Sender:           slackRealtimeSender{sender: options.FollowUpSender},
+		Translator:       translateClient,
+		LanguageDetector: realtimeclient.NewWhatlangLanguageDetector(),
+		// 即時翻譯的 owner 必須從平台帳號綁定表解析；Slack 需要 workspace team id 才能定位同名 user id。
 		ResolveOwnerUserID: func(ctx context.Context, platformUserID string) (uuid.UUID, error) {
-			return repo.ResolveUserIDByPlatformUserID(ctx, platformUserID)
+			return repo.ResolveBoundUserIDByPlatformIdentity(ctx, "slack", runtimecontext.WorkspaceTeamIDFromContext(ctx), platformUserID)
 		},
 		BotSenderID:   "",
 		PlatformLabel: "slack:" + strings.TrimSpace(translateProfile),

@@ -80,26 +80,6 @@ func (_u *ChannelServiceMemberUpdate) SetNillableSkillID(v *uuid.UUID) *ChannelS
 	return _u
 }
 
-// SetPlatformUserID sets the "platform_user_id" field.
-func (_u *ChannelServiceMemberUpdate) SetPlatformUserID(v string) *ChannelServiceMemberUpdate {
-	_u.mutation.SetPlatformUserID(v)
-	return _u
-}
-
-// SetNillablePlatformUserID sets the "platform_user_id" field if the given value is not nil.
-func (_u *ChannelServiceMemberUpdate) SetNillablePlatformUserID(v *string) *ChannelServiceMemberUpdate {
-	if v != nil {
-		_u.SetPlatformUserID(*v)
-	}
-	return _u
-}
-
-// ClearPlatformUserID clears the value of the "platform_user_id" field.
-func (_u *ChannelServiceMemberUpdate) ClearPlatformUserID() *ChannelServiceMemberUpdate {
-	_u.mutation.ClearPlatformUserID()
-	return _u
-}
-
 // SetChannel sets the "channel" edge to the Channel entity.
 func (_u *ChannelServiceMemberUpdate) SetChannel(v *Channel) *ChannelServiceMemberUpdate {
 	return _u.SetChannelID(v.ID)
@@ -202,12 +182,6 @@ func (_u *ChannelServiceMemberUpdate) sqlSave(ctx context.Context) (_node int, e
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(channelservicemember.FieldUpdatedAt, field.TypeTime, value)
-	}
-	if value, ok := _u.mutation.PlatformUserID(); ok {
-		_spec.SetField(channelservicemember.FieldPlatformUserID, field.TypeString, value)
-	}
-	if _u.mutation.PlatformUserIDCleared() {
-		_spec.ClearField(channelservicemember.FieldPlatformUserID, field.TypeString)
 	}
 	if _u.mutation.ChannelCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -364,26 +338,6 @@ func (_u *ChannelServiceMemberUpdateOne) SetNillableSkillID(v *uuid.UUID) *Chann
 	return _u
 }
 
-// SetPlatformUserID sets the "platform_user_id" field.
-func (_u *ChannelServiceMemberUpdateOne) SetPlatformUserID(v string) *ChannelServiceMemberUpdateOne {
-	_u.mutation.SetPlatformUserID(v)
-	return _u
-}
-
-// SetNillablePlatformUserID sets the "platform_user_id" field if the given value is not nil.
-func (_u *ChannelServiceMemberUpdateOne) SetNillablePlatformUserID(v *string) *ChannelServiceMemberUpdateOne {
-	if v != nil {
-		_u.SetPlatformUserID(*v)
-	}
-	return _u
-}
-
-// ClearPlatformUserID clears the value of the "platform_user_id" field.
-func (_u *ChannelServiceMemberUpdateOne) ClearPlatformUserID() *ChannelServiceMemberUpdateOne {
-	_u.mutation.ClearPlatformUserID()
-	return _u
-}
-
 // SetChannel sets the "channel" edge to the Channel entity.
 func (_u *ChannelServiceMemberUpdateOne) SetChannel(v *Channel) *ChannelServiceMemberUpdateOne {
 	return _u.SetChannelID(v.ID)
@@ -516,12 +470,6 @@ func (_u *ChannelServiceMemberUpdateOne) sqlSave(ctx context.Context) (_node *Ch
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(channelservicemember.FieldUpdatedAt, field.TypeTime, value)
-	}
-	if value, ok := _u.mutation.PlatformUserID(); ok {
-		_spec.SetField(channelservicemember.FieldPlatformUserID, field.TypeString, value)
-	}
-	if _u.mutation.PlatformUserIDCleared() {
-		_spec.ClearField(channelservicemember.FieldPlatformUserID, field.TypeString)
 	}
 	if _u.mutation.ChannelCleared() {
 		edge := &sqlgraph.EdgeSpec{

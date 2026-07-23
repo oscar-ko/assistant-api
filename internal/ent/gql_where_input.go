@@ -3108,23 +3108,6 @@ type ChannelServiceMemberWhereInput struct {
 	SkillIDIn    []uuid.UUID `json:"skillIDIn,omitempty"`
 	SkillIDNotIn []uuid.UUID `json:"skillIDNotIn,omitempty"`
 
-	// "platform_user_id" field predicates.
-	PlatformUserID             *string  `json:"platformUserID,omitempty"`
-	PlatformUserIDNEQ          *string  `json:"platformUserIDNEQ,omitempty"`
-	PlatformUserIDIn           []string `json:"platformUserIDIn,omitempty"`
-	PlatformUserIDNotIn        []string `json:"platformUserIDNotIn,omitempty"`
-	PlatformUserIDGT           *string  `json:"platformUserIDGT,omitempty"`
-	PlatformUserIDGTE          *string  `json:"platformUserIDGTE,omitempty"`
-	PlatformUserIDLT           *string  `json:"platformUserIDLT,omitempty"`
-	PlatformUserIDLTE          *string  `json:"platformUserIDLTE,omitempty"`
-	PlatformUserIDContains     *string  `json:"platformUserIDContains,omitempty"`
-	PlatformUserIDHasPrefix    *string  `json:"platformUserIDHasPrefix,omitempty"`
-	PlatformUserIDHasSuffix    *string  `json:"platformUserIDHasSuffix,omitempty"`
-	PlatformUserIDIsNil        bool     `json:"platformUserIDIsNil,omitempty"`
-	PlatformUserIDNotNil       bool     `json:"platformUserIDNotNil,omitempty"`
-	PlatformUserIDEqualFold    *string  `json:"platformUserIDEqualFold,omitempty"`
-	PlatformUserIDContainsFold *string  `json:"platformUserIDContainsFold,omitempty"`
-
 	// "channel" edge predicates.
 	HasChannel     *bool                `json:"hasChannel,omitempty"`
 	HasChannelWith []*ChannelWhereInput `json:"hasChannelWith,omitempty"`
@@ -3316,51 +3299,6 @@ func (i *ChannelServiceMemberWhereInput) P() (predicate.ChannelServiceMember, er
 	}
 	if len(i.SkillIDNotIn) > 0 {
 		predicates = append(predicates, channelservicemember.SkillIDNotIn(i.SkillIDNotIn...))
-	}
-	if i.PlatformUserID != nil {
-		predicates = append(predicates, channelservicemember.PlatformUserIDEQ(*i.PlatformUserID))
-	}
-	if i.PlatformUserIDNEQ != nil {
-		predicates = append(predicates, channelservicemember.PlatformUserIDNEQ(*i.PlatformUserIDNEQ))
-	}
-	if len(i.PlatformUserIDIn) > 0 {
-		predicates = append(predicates, channelservicemember.PlatformUserIDIn(i.PlatformUserIDIn...))
-	}
-	if len(i.PlatformUserIDNotIn) > 0 {
-		predicates = append(predicates, channelservicemember.PlatformUserIDNotIn(i.PlatformUserIDNotIn...))
-	}
-	if i.PlatformUserIDGT != nil {
-		predicates = append(predicates, channelservicemember.PlatformUserIDGT(*i.PlatformUserIDGT))
-	}
-	if i.PlatformUserIDGTE != nil {
-		predicates = append(predicates, channelservicemember.PlatformUserIDGTE(*i.PlatformUserIDGTE))
-	}
-	if i.PlatformUserIDLT != nil {
-		predicates = append(predicates, channelservicemember.PlatformUserIDLT(*i.PlatformUserIDLT))
-	}
-	if i.PlatformUserIDLTE != nil {
-		predicates = append(predicates, channelservicemember.PlatformUserIDLTE(*i.PlatformUserIDLTE))
-	}
-	if i.PlatformUserIDContains != nil {
-		predicates = append(predicates, channelservicemember.PlatformUserIDContains(*i.PlatformUserIDContains))
-	}
-	if i.PlatformUserIDHasPrefix != nil {
-		predicates = append(predicates, channelservicemember.PlatformUserIDHasPrefix(*i.PlatformUserIDHasPrefix))
-	}
-	if i.PlatformUserIDHasSuffix != nil {
-		predicates = append(predicates, channelservicemember.PlatformUserIDHasSuffix(*i.PlatformUserIDHasSuffix))
-	}
-	if i.PlatformUserIDIsNil {
-		predicates = append(predicates, channelservicemember.PlatformUserIDIsNil())
-	}
-	if i.PlatformUserIDNotNil {
-		predicates = append(predicates, channelservicemember.PlatformUserIDNotNil())
-	}
-	if i.PlatformUserIDEqualFold != nil {
-		predicates = append(predicates, channelservicemember.PlatformUserIDEqualFold(*i.PlatformUserIDEqualFold))
-	}
-	if i.PlatformUserIDContainsFold != nil {
-		predicates = append(predicates, channelservicemember.PlatformUserIDContainsFold(*i.PlatformUserIDContainsFold))
 	}
 
 	if i.HasChannel != nil {
@@ -4644,6 +4582,21 @@ type SlackWorkspaceWhereInput struct {
 	UpdatedAtLT    *time.Time  `json:"updatedAtLT,omitempty"`
 	UpdatedAtLTE   *time.Time  `json:"updatedAtLTE,omitempty"`
 
+	// "app_id" field predicates.
+	AppID             *string  `json:"appID,omitempty"`
+	AppIDNEQ          *string  `json:"appIDNEQ,omitempty"`
+	AppIDIn           []string `json:"appIDIn,omitempty"`
+	AppIDNotIn        []string `json:"appIDNotIn,omitempty"`
+	AppIDGT           *string  `json:"appIDGT,omitempty"`
+	AppIDGTE          *string  `json:"appIDGTE,omitempty"`
+	AppIDLT           *string  `json:"appIDLT,omitempty"`
+	AppIDLTE          *string  `json:"appIDLTE,omitempty"`
+	AppIDContains     *string  `json:"appIDContains,omitempty"`
+	AppIDHasPrefix    *string  `json:"appIDHasPrefix,omitempty"`
+	AppIDHasSuffix    *string  `json:"appIDHasSuffix,omitempty"`
+	AppIDEqualFold    *string  `json:"appIDEqualFold,omitempty"`
+	AppIDContainsFold *string  `json:"appIDContainsFold,omitempty"`
+
 	// "platform_team_id" field predicates.
 	PlatformTeamID             *string  `json:"platformTeamID,omitempty"`
 	PlatformTeamIDNEQ          *string  `json:"platformTeamIDNEQ,omitempty"`
@@ -4851,6 +4804,45 @@ func (i *SlackWorkspaceWhereInput) P() (predicate.SlackWorkspace, error) {
 	}
 	if i.UpdatedAtLTE != nil {
 		predicates = append(predicates, slackworkspace.UpdatedAtLTE(*i.UpdatedAtLTE))
+	}
+	if i.AppID != nil {
+		predicates = append(predicates, slackworkspace.AppIDEQ(*i.AppID))
+	}
+	if i.AppIDNEQ != nil {
+		predicates = append(predicates, slackworkspace.AppIDNEQ(*i.AppIDNEQ))
+	}
+	if len(i.AppIDIn) > 0 {
+		predicates = append(predicates, slackworkspace.AppIDIn(i.AppIDIn...))
+	}
+	if len(i.AppIDNotIn) > 0 {
+		predicates = append(predicates, slackworkspace.AppIDNotIn(i.AppIDNotIn...))
+	}
+	if i.AppIDGT != nil {
+		predicates = append(predicates, slackworkspace.AppIDGT(*i.AppIDGT))
+	}
+	if i.AppIDGTE != nil {
+		predicates = append(predicates, slackworkspace.AppIDGTE(*i.AppIDGTE))
+	}
+	if i.AppIDLT != nil {
+		predicates = append(predicates, slackworkspace.AppIDLT(*i.AppIDLT))
+	}
+	if i.AppIDLTE != nil {
+		predicates = append(predicates, slackworkspace.AppIDLTE(*i.AppIDLTE))
+	}
+	if i.AppIDContains != nil {
+		predicates = append(predicates, slackworkspace.AppIDContains(*i.AppIDContains))
+	}
+	if i.AppIDHasPrefix != nil {
+		predicates = append(predicates, slackworkspace.AppIDHasPrefix(*i.AppIDHasPrefix))
+	}
+	if i.AppIDHasSuffix != nil {
+		predicates = append(predicates, slackworkspace.AppIDHasSuffix(*i.AppIDHasSuffix))
+	}
+	if i.AppIDEqualFold != nil {
+		predicates = append(predicates, slackworkspace.AppIDEqualFold(*i.AppIDEqualFold))
+	}
+	if i.AppIDContainsFold != nil {
+		predicates = append(predicates, slackworkspace.AppIDContainsFold(*i.AppIDContainsFold))
 	}
 	if i.PlatformTeamID != nil {
 		predicates = append(predicates, slackworkspace.PlatformTeamIDEQ(*i.PlatformTeamID))

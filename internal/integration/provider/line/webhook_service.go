@@ -13,9 +13,9 @@ import (
 	"assistant-api/internal/integration/unifiedmessage"
 	"assistant-api/internal/repository"
 	"assistant-api/internal/usecase/actionpost"
-	channellifecycle "assistant-api/internal/usecase/channel_lifecycle"
 	llminteraction "assistant-api/internal/usecase/ai/llm_interaction"
 	"assistant-api/internal/usecase/ai/topkfilter"
+	channellifecycle "assistant-api/internal/usecase/channel_lifecycle"
 	"assistant-api/internal/usecase/inbound/commandchain"
 	"assistant-api/internal/usecase/inbound/commanddecision"
 	"assistant-api/internal/usecase/inbound/conversationflow"
@@ -127,13 +127,14 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 	// 這樣 Slack 也可以用同一套「非指令訊息 -> 翻譯 side-effect」流程，
 	// 差別只剩底層 sender 與平台使用者識別來源。
 	autoTranslate := realtime.NewAutoTranslateService(realtime.AutoTranslateServiceOptions{
-		Repo:       repo,
-		Sender:     lineRealtimeSender{sender: options.FollowUpSender},
-		Translator: translateClient,
-		// 這裡用平台中立的 user id 來反查內部 owner，
-		// 讓翻譯流程不需要知道來源是 LINE 還是 Slack。
+		Repo:             repo,
+		Sender:           lineRealtimeSender{sender: options.FollowUpSender},
+		Translator:       translateClient,
+		LanguageDetector: realtimeclient.NewWhatlangLanguageDetector(),
+		// 即時翻譯的 owner 必須從 LINE 綁定表解析；channel_service_members 只代表服務啟用狀態，
+		// 不保存 platform_user_id，不能拿來做平台身分反查。
 		ResolveOwnerUserID: func(ctx context.Context, platformUserID string) (uuid.UUID, error) {
-			return repo.ResolveUserIDByPlatformUserID(ctx, platformUserID)
+			return repo.ResolveBoundUserIDByPlatformIdentity(ctx, "line", "", platformUserID)
 		},
 		BotSenderID:   botUserID,
 		PlatformLabel: "line:" + strings.TrimSpace(translateProfile),

@@ -25,8 +25,6 @@ const (
 	FieldUserID = "user_id"
 	// FieldSkillID holds the string denoting the skill_id field in the database.
 	FieldSkillID = "skill_id"
-	// FieldPlatformUserID holds the string denoting the platform_user_id field in the database.
-	FieldPlatformUserID = "platform_user_id"
 	// EdgeChannel holds the string denoting the channel edge name in mutations.
 	EdgeChannel = "channel"
 	// EdgeUser holds the string denoting the user edge name in mutations.
@@ -66,7 +64,6 @@ var Columns = []string{
 	FieldChannelID,
 	FieldUserID,
 	FieldSkillID,
-	FieldPlatformUserID,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -121,11 +118,6 @@ func ByUserID(opts ...sql.OrderTermOption) OrderOption {
 // BySkillID orders the results by the skill_id field.
 func BySkillID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSkillID, opts...).ToFunc()
-}
-
-// ByPlatformUserID orders the results by the platform_user_id field.
-func ByPlatformUserID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldPlatformUserID, opts...).ToFunc()
 }
 
 // ByChannelField orders the results by channel field.

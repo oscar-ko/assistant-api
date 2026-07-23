@@ -10,6 +10,11 @@ type Translator interface {
 	Translate(ctx context.Context, text string, targetLocales []string) (map[string]string, error)
 }
 
+// LanguageDetector 定義即時翻譯用的來源語言偵測能力。
+type LanguageDetector interface {
+	DetectLanguage(ctx context.Context, text string) (string, error)
+}
+
 // Classifier 定義非指令訊息分類 usecase 所需的分類能力。
 //
 // usecase 只關心分類結果，不關心模型服務 URL、prompt、labels 如何組裝。

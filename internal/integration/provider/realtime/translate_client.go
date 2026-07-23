@@ -117,6 +117,8 @@ func (c *LocalTranslateClient) Translate(ctx context.Context, text string, targe
 
 	result := make(map[string]string, len(locales))
 	for _, locale := range locales {
+		// 先用完全相同的 locale key 取值，因為 target locale 是對外契約的一部分；
+		// 只有大小寫差異才做容忍，避免模型回傳非目標語系卻被誤認為可用結果。
 		if value, ok := decoded.Translations[locale]; ok {
 			if translated := strings.TrimSpace(value); translated != "" {
 				result[locale] = translated
@@ -135,7 +137,28 @@ func (c *LocalTranslateClient) Translate(ctx context.Context, text string, targe
 	if len(result) == 0 {
 		return nil, fmt.Errorf("translate endpoint returned no matching locale translations")
 	}
+	// 翻譯結果必須完整覆蓋所有 target locales。
+	// 即時推播若只送部分語言，使用者會以為其他語言已被移除或服務失效，因此這裡採 fail-fast。
+	if missing := missingTranslationLocales(locales, result); len(missing) > 0 {
+		return nil, fmt.Errorf("translate endpoint missing locale translations: %s", strings.Join(missing, ", "))
+	}
 	return result, nil
+}
+
+func missingTranslationLocales(locales []string, translations map[string]string) []string {
+	// locales 已經由 dedupeLocales 正規化順序；照原順序回報 missing，
+	// 讓 log/error 能直接對應使用者設定的目標語系清單。
+	missing := make([]string, 0)
+	for _, locale := range locales {
+		trimmed := strings.TrimSpace(locale)
+		if trimmed == "" {
+			continue
+		}
+		if strings.TrimSpace(translations[trimmed]) == "" {
+			missing = append(missing, trimmed)
+		}
+	}
+	return missing
 }
 
 func buildLocalTranslatePrompt(locales []string, inputText string) string {

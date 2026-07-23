@@ -5900,22 +5900,21 @@ func (m *ChannelMessageMentionMutation) ResetEdge(name string) error {
 // ChannelServiceMemberMutation represents an operation that mutates the ChannelServiceMember nodes in the graph.
 type ChannelServiceMemberMutation struct {
 	config
-	op               Op
-	typ              string
-	id               *uuid.UUID
-	created_at       *time.Time
-	updated_at       *time.Time
-	platform_user_id *string
-	clearedFields    map[string]struct{}
-	channel          *uuid.UUID
-	clearedchannel   bool
-	user             *uuid.UUID
-	cleareduser      bool
-	skill            *uuid.UUID
-	clearedskill     bool
-	done             bool
-	oldValue         func(context.Context) (*ChannelServiceMember, error)
-	predicates       []predicate.ChannelServiceMember
+	op             Op
+	typ            string
+	id             *uuid.UUID
+	created_at     *time.Time
+	updated_at     *time.Time
+	clearedFields  map[string]struct{}
+	channel        *uuid.UUID
+	clearedchannel bool
+	user           *uuid.UUID
+	cleareduser    bool
+	skill          *uuid.UUID
+	clearedskill   bool
+	done           bool
+	oldValue       func(context.Context) (*ChannelServiceMember, error)
+	predicates     []predicate.ChannelServiceMember
 }
 
 var _ ent.Mutation = (*ChannelServiceMemberMutation)(nil)
@@ -6202,55 +6201,6 @@ func (m *ChannelServiceMemberMutation) ResetSkillID() {
 	m.skill = nil
 }
 
-// SetPlatformUserID sets the "platform_user_id" field.
-func (m *ChannelServiceMemberMutation) SetPlatformUserID(s string) {
-	m.platform_user_id = &s
-}
-
-// PlatformUserID returns the value of the "platform_user_id" field in the mutation.
-func (m *ChannelServiceMemberMutation) PlatformUserID() (r string, exists bool) {
-	v := m.platform_user_id
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldPlatformUserID returns the old "platform_user_id" field's value of the ChannelServiceMember entity.
-// If the ChannelServiceMember object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ChannelServiceMemberMutation) OldPlatformUserID(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldPlatformUserID is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldPlatformUserID requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldPlatformUserID: %w", err)
-	}
-	return oldValue.PlatformUserID, nil
-}
-
-// ClearPlatformUserID clears the value of the "platform_user_id" field.
-func (m *ChannelServiceMemberMutation) ClearPlatformUserID() {
-	m.platform_user_id = nil
-	m.clearedFields[channelservicemember.FieldPlatformUserID] = struct{}{}
-}
-
-// PlatformUserIDCleared returns if the "platform_user_id" field was cleared in this mutation.
-func (m *ChannelServiceMemberMutation) PlatformUserIDCleared() bool {
-	_, ok := m.clearedFields[channelservicemember.FieldPlatformUserID]
-	return ok
-}
-
-// ResetPlatformUserID resets all changes to the "platform_user_id" field.
-func (m *ChannelServiceMemberMutation) ResetPlatformUserID() {
-	m.platform_user_id = nil
-	delete(m.clearedFields, channelservicemember.FieldPlatformUserID)
-}
-
 // ClearChannel clears the "channel" edge to the Channel entity.
 func (m *ChannelServiceMemberMutation) ClearChannel() {
 	m.clearedchannel = true
@@ -6366,7 +6316,7 @@ func (m *ChannelServiceMemberMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelServiceMemberMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 5)
 	if m.created_at != nil {
 		fields = append(fields, channelservicemember.FieldCreatedAt)
 	}
@@ -6381,9 +6331,6 @@ func (m *ChannelServiceMemberMutation) Fields() []string {
 	}
 	if m.skill != nil {
 		fields = append(fields, channelservicemember.FieldSkillID)
-	}
-	if m.platform_user_id != nil {
-		fields = append(fields, channelservicemember.FieldPlatformUserID)
 	}
 	return fields
 }
@@ -6403,8 +6350,6 @@ func (m *ChannelServiceMemberMutation) Field(name string) (ent.Value, bool) {
 		return m.UserID()
 	case channelservicemember.FieldSkillID:
 		return m.SkillID()
-	case channelservicemember.FieldPlatformUserID:
-		return m.PlatformUserID()
 	}
 	return nil, false
 }
@@ -6424,8 +6369,6 @@ func (m *ChannelServiceMemberMutation) OldField(ctx context.Context, name string
 		return m.OldUserID(ctx)
 	case channelservicemember.FieldSkillID:
 		return m.OldSkillID(ctx)
-	case channelservicemember.FieldPlatformUserID:
-		return m.OldPlatformUserID(ctx)
 	}
 	return nil, fmt.Errorf("unknown ChannelServiceMember field %s", name)
 }
@@ -6470,13 +6413,6 @@ func (m *ChannelServiceMemberMutation) SetField(name string, value ent.Value) er
 		}
 		m.SetSkillID(v)
 		return nil
-	case channelservicemember.FieldPlatformUserID:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetPlatformUserID(v)
-		return nil
 	}
 	return fmt.Errorf("unknown ChannelServiceMember field %s", name)
 }
@@ -6506,11 +6442,7 @@ func (m *ChannelServiceMemberMutation) AddField(name string, value ent.Value) er
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *ChannelServiceMemberMutation) ClearedFields() []string {
-	var fields []string
-	if m.FieldCleared(channelservicemember.FieldPlatformUserID) {
-		fields = append(fields, channelservicemember.FieldPlatformUserID)
-	}
-	return fields
+	return nil
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -6523,11 +6455,6 @@ func (m *ChannelServiceMemberMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *ChannelServiceMemberMutation) ClearField(name string) error {
-	switch name {
-	case channelservicemember.FieldPlatformUserID:
-		m.ClearPlatformUserID()
-		return nil
-	}
 	return fmt.Errorf("unknown ChannelServiceMember nullable field %s", name)
 }
 
@@ -6549,9 +6476,6 @@ func (m *ChannelServiceMemberMutation) ResetField(name string) error {
 		return nil
 	case channelservicemember.FieldSkillID:
 		m.ResetSkillID()
-		return nil
-	case channelservicemember.FieldPlatformUserID:
-		m.ResetPlatformUserID()
 		return nil
 	}
 	return fmt.Errorf("unknown ChannelServiceMember field %s", name)
@@ -9011,6 +8935,8 @@ func (m *SlackWorkspaceMutation) AppID() (r string, exists bool) {
 }
 
 // OldAppID returns the old "app_id" field's value of the SlackWorkspace entity.
+// If the SlackWorkspace object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
 func (m *SlackWorkspaceMutation) OldAppID(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldAppID is only allowed on UpdateOne operations")
@@ -9428,6 +9354,9 @@ func (m *SlackWorkspaceMutation) ResetField(name string) error {
 		return nil
 	case slackworkspace.FieldUpdatedAt:
 		m.ResetUpdatedAt()
+		return nil
+	case slackworkspace.FieldAppID:
+		m.ResetAppID()
 		return nil
 	case slackworkspace.FieldPlatformTeamID:
 		m.ResetPlatformTeamID()

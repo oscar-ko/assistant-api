@@ -14,6 +14,8 @@ log:
 server:
     # API 服務對外監聽埠。
     port: "8080"
+    # Gin runtime mode: debug, release, or test.
+    gin_mode: "debug"
 
 ai:
     # 第一階段：embedding 向量服務（用於 top-k 候選召回）。
@@ -25,22 +27,26 @@ ai:
         # 第一階段向量召回（top-k）最多取回幾筆候選。
         retrieval_top_k: 10
         # embedding 探活策略（毫秒）：
-        #背景主動探活週期
+        # - alive_probe_interval_ms: 背景主動探活週期
+        # - alive_probe_timeout_ms: 單次探活最長等待
         alive_probe_interval_ms: 2000
-        #單次探活最長等待
         alive_probe_timeout_ms: 1500
-        #成功後快取多久不再探活
+        # - alive_success_ttl_ms: 成功後快取多久不再探活
         alive_success_ttl_ms: 10000
-        #失敗後多久內直接快回錯
+        # - alive_failure_cooldown_ms: 失敗後多久內直接快回錯
         alive_failure_cooldown_ms: 3000
 
+    # cross-encoder reranker（第二階段精排）
+    # 用法：先由 embedding/pgvector 召回候選，再用 reranker 重排候選順序。
     reranker:
         enabled: true
         target: "aistant.reranker"
         timeout_seconds: 60
         # 第二階段精排後最終保留幾筆候選，這筆數會小於 retrieval_top_k，代表從較大候選集中縮減到最終要交給 semantic decision 判斷的筆數。
         top_k: 3
-        # reranker 探活策略（毫秒），用途同 embedding。
+        # reranker 探活策略（毫秒），用途同 embedding。調整方向：品質優先可拉高 timeout/attempts，延遲優先則反向調整。
+        alive_probe_interval_ms: 2000
+        alive_probe_timeout_ms: 1500
         alive_success_ttl_ms: 10000
         alive_failure_cooldown_ms: 3000
 
@@ -57,7 +63,7 @@ ai:
         reply_chain_max_depth: 4
         # Todo Reminder 的近端歷史召回窗口，單位是「往前幾則同 channel 訊息」，不是時間長度。
         # 它只控制 recent window 的原始候選量；recent window 與 evidence 小窗合併後，仍會再受 max_context_messages 的總量限制。
-        recent_context_message_limit: 8
+        recent_context_message_limit: 16
         # 每個 candidate 最多取幾則活躍 evidence anchor 來重建長討論串上下文。
         evidence_anchor_limit_per_candidate: 5
         # 每個 evidence anchor 前後各取幾則同 channel 訊息形成小訊息窗。
@@ -69,18 +75,20 @@ ai:
         max_context_messages: 40
 
     # LLM 互動服務（第三階段）
+    # 職責：接收「原始訊息 + rerank 後候選」並產生單一最終 api_operation。
     llm_interaction:
         decision:
             profile: "aistant.llm"
-            timeout: 180
+            timeout: 120
             max_token: 1024
             temperature: 0.2
         chat:
-            # 公開版預設走本地 provider，避免 cloud token 留空時啟動失敗。
-            profile: "aistant.llm"
+            profile: "openai.chat_search"
             timeout: 120
             max_token: 1024
             temperature: null
+            # 搜尋型 chat profile 不相容 response_format=json_object，因此在設定層關閉。 JSON 契約仍由 prompt 與後端 parse 驗證維持，不依賴 OpenAI 強制輸出模式。
+            use_json_response_format: false
         translate:
             profile: "aistant.llm"
             timeout: 120
@@ -91,27 +99,15 @@ ai:
             timeout: 180
             max_token: 1024
             temperature: 0.1
-        chatgpt:
-            url: "https://api.openai.com/v1"
-            # 安全規範：公開範例不放密鑰；請在實際載入的 app.yml 或 APP_CONFIG 指定檔填入 token。
-            token: ""
-            profiles:
-                action_decision:
-                    model_name: "gpt-4o-mini"
-                    timeout_seconds: 120
-                    max_tokens: 1024
-                    temperature: 0.2
-                chat_search:
-                    model_name: "gpt-5-search-api-2025-10-14"
-                    timeout_seconds: 120
-                    max_tokens: 1024
-                    temperature: null
+        # ChatGPT/OpenAI 供應商設定（provider=chatgpt 時使用）。
         command_confidence_threshold: 0.7
         question_confidence_threshold: 0.6
+        # action decision JSON 格式錯誤時，預設不重送，改為 fail-fast。
         decision_json_retry_count: 0
 
 # LLM provider 分組設定：每個 provider 底下可放多個 profile。
 llm_providers:
+    # Aistant 自家 provider，本地契約端點以 profile 區分。
     aistant:
         type: "local"
         profiles:
@@ -127,8 +123,8 @@ llm_providers:
                 path: "/rerank"
             llm:
                 url: "http://127.0.0.1:9003"
-                # 本機 action decision 預設使用 4b，避免 9b 在一般開發機上啟動 Ollama 時 OOM。
-                model_name: "qwen3.5:4b"
+                # 本機 action decision 預設使用 9b，避免較小模型在嚴格 JSON contract 下不穩。
+                model_name: "qwen3.5:9b"
                 timeout_seconds: 120
                 action_decision_path: "/predict/action_decision"
                 question_answer_path: "/predict/question_answer"
@@ -136,7 +132,7 @@ llm_providers:
             context_analyzer:
                 url: "http://127.0.0.1:9003"
                 model_name: "qwen3.5:4b"
-                timeout_seconds: 120
+                timeout_seconds: 180
                 action_decision_path: "/predict/action_decision"
                 question_answer_path: "/predict/question_answer"
                 # context_analyzer 使用獨立 route，避免內部上下文判斷誤走一般生活問答端點。
@@ -147,10 +143,10 @@ llm_providers:
                 todo_due_time_path: "/predict/todo_due_time_normalize"
                 translate_path: "/translate"
 
+    # OpenAI provider 設定：不同 profile 可依實際模型能力決定是否使用 JSON response format。
     openai:
         type: "cloud"
         url: "https://api.openai.com/v1"
-        # 安全規範：公開範例不放密鑰；請在實際載入的 app.yml 或 APP_CONFIG 指定檔填入 token。
         token: ""
         profiles:
             chat_search:
@@ -158,15 +154,12 @@ llm_providers:
                 timeout_seconds: 120
                 max_tokens: 1024
                 temperature: null
-                # 搜尋型 chat profile 不相容 response_format=json_object，因此在設定層關閉。
-                # JSON 契約仍由 prompt 與後端 parse 驗證維持，不依賴 OpenAI 強制輸出模式。
                 use_json_response_format: false
 
     deepseek:
         type: "cloud"
         url: "https://api.deepseek.com/v1"
-        # 安全規範：公開範例不放密鑰；請在實際載入的 app.yml 或 APP_CONFIG 指定檔填入 token。
-        token: ""
+        token: "sk-80a8c57c17f2411b94d608d0b98b1619"
         profiles:
             chat:
                 model_name: "deepseek-chat"
@@ -179,11 +172,6 @@ llm_providers:
                 max_tokens: 1024
                 temperature: 0.1
                 use_json_response_format: true
-            reasoner:
-                model_name: "deepseek-reasoner"
-                timeout_seconds: 180
-                max_tokens: 2048
-                temperature: null
 
 # 資料庫 schema 自動建立開關（開發環境常設為 true）。
 database:
@@ -194,7 +182,7 @@ postgresql:
     address: "127.0.0.1:5432"
     database: "assistant_dev2"
     user_name: "postgres"
-    password: ""
+    password: "d22340014"
     parameters: "sslmode=disable"
 
 # LINE 平台整合設定。OAuth redirect/scopes 共用；每個 bot 有自己的 channel 憑證。
@@ -203,28 +191,47 @@ line:
     scopes: "openid profile email"
     bots:
         - key: "default"
-          channel_id: ""
-          channel_secret: ""
-          channel_token: ""
-          bot_user_id: ""
+          channel_id: "2009014065"
+          channel_secret: "5f53fccaf3589b484652412c1970a431"
+          channel_token: "nyIJ/34bQBdUCMDt4qnZHMUMTacR0r4d6DC8DZRbEemdkh2jn+pJdz6b8ID3znqivrpU9VMM6r+Vb+s5R4wJoayE5Ndux1lk2JxzuqlTNEotrhZ9qfnS2huRjmPLb4iUykRggJ3Xr71QPynULjAb1AdB04t89/1O/w1cDnyilFU="
+          bot_user_id: "U020a927b2f6a423a66c488acc29f1b6e"
           assistant_bot_url: "https://line.me/R/ti/p/@001ondgw"
+
+        - key: "second"
+          channel_id: "2010775694"
+          channel_secret: "57d90d3f8b6c498fbed5b4e3b9cdce73"
+          channel_token: "tN5YroQj9M8JeDX8sxIEVUNU89cAq6Qcjhnk7O7F4hrLbY4ARTeI2k+WTlwBgZY2QnUx/u8covVsOqSE5/9m2ykMA/efbDmQJoLZbtt9ywZmL9Fp+A9PVQcTFhvzroHjdG03m/5Wmcr1Nkx4yrfk2AdB04t89/1O/w1cDnyilFU="
+          bot_user_id: ""
+          assistant_bot_url: "https://line.me/R/ti/p/@472xnfuy"
 
 # Slack 平台整合設定（Events API + OAuth 安裝）。
 slack:
     redirect_uri: "https://uninebriated-nonexplorative-kasey.ngrok-free.dev/slack/oauth/callback"
     login_redirect_uri: "https://uninebriated-nonexplorative-kasey.ngrok-free.dev/slack/login/callback"
-    # channels:read / groups:read 是 conversations.info 讀取頻道名稱所需權限；
-    # 如果只給 history scope，webhook 收到 bot join 事件時會因 missing_scope 無法建立系統 channel。
     scopes: "app_mentions:read,channels:history,channels:read,chat:write,groups:history,groups:read,im:history,im:write,mpim:history"
     login_scopes: "openid profile email"
     user_scopes: ""
     bots:
-          - name: ""
-            app_id: ""
-          client_id: ""
-          client_secret: ""
-          signing_secret: ""
-          verification_token: ""
+        - name: "Jarvis"
+          app_id: "A0BJ1BJFNQH"
+          client_id: "1258513053395.11613392532833"
+          client_secret: "d86471a407f9b47affd5df996edbd2fd"
+          signing_secret: "56944c20846f18e1b81254761f78542e"
+          verification_token: "UlG1UW3rF2lRwi795FTvfRlA"
+
+        - name: "Thor"
+          app_id: "A0BJXJE37CN"
+          client_id: "1258513053395.11643626109430"
+          client_secret: "f745974af6cbd5f388ad28a24e237135"
+          signing_secret: "5fc39921d78e06ac2b28fd6c373e59c6"
+          verification_token: "6sXoccmM7mdmLc5fMq0UWfB1"
+
+        - name: "Hulk"
+          app_id: "A0BJJHNDCQ7"
+          client_id: "1258513053395.11630600454823"
+          client_secret: "30cf60be73c705bf3ef0d340e018225b"
+          signing_secret: "20a0b17e472690aa284df99da222011a"
+          verification_token: "cIvMoPREsISNIy6yZ9hUcRHK"
 
 # GraphQL API 與 Playground 路由。
 graphql:

@@ -258,7 +258,6 @@ var (
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
-		{Name: "platform_user_id", Type: field.TypeString, Nullable: true},
 		{Name: "channel_id", Type: field.TypeUUID},
 		{Name: "user_id", Type: field.TypeUUID},
 		{Name: "skill_id", Type: field.TypeUUID},
@@ -271,19 +270,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "channel_service_members_channels_channel",
-				Columns:    []*schema.Column{ChannelServiceMembersColumns[4]},
+				Columns:    []*schema.Column{ChannelServiceMembersColumns[3]},
 				RefColumns: []*schema.Column{ChannelsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "channel_service_members_users_user",
-				Columns:    []*schema.Column{ChannelServiceMembersColumns[5]},
+				Columns:    []*schema.Column{ChannelServiceMembersColumns[4]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "channel_service_members_skills_skill",
-				Columns:    []*schema.Column{ChannelServiceMembersColumns[6]},
+				Columns:    []*schema.Column{ChannelServiceMembersColumns[5]},
 				RefColumns: []*schema.Column{SkillsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -292,27 +291,17 @@ var (
 			{
 				Name:    "channelservicemember_channel_id_user_id_skill_id",
 				Unique:  true,
-				Columns: []*schema.Column{ChannelServiceMembersColumns[4], ChannelServiceMembersColumns[5], ChannelServiceMembersColumns[6]},
+				Columns: []*schema.Column{ChannelServiceMembersColumns[3], ChannelServiceMembersColumns[4], ChannelServiceMembersColumns[5]},
 			},
 			{
 				Name:    "channelservicemember_channel_id_skill_id",
 				Unique:  false,
-				Columns: []*schema.Column{ChannelServiceMembersColumns[4], ChannelServiceMembersColumns[6]},
+				Columns: []*schema.Column{ChannelServiceMembersColumns[3], ChannelServiceMembersColumns[5]},
 			},
 			{
 				Name:    "channelservicemember_user_id_skill_id",
 				Unique:  false,
-				Columns: []*schema.Column{ChannelServiceMembersColumns[5], ChannelServiceMembersColumns[6]},
-			},
-			{
-				Name:    "channelservicemember_channel_id_platform_user_id",
-				Unique:  false,
-				Columns: []*schema.Column{ChannelServiceMembersColumns[4], ChannelServiceMembersColumns[3]},
-			},
-			{
-				Name:    "channelservicemember_platform_user_id",
-				Unique:  false,
-				Columns: []*schema.Column{ChannelServiceMembersColumns[3]},
+				Columns: []*schema.Column{ChannelServiceMembersColumns[4], ChannelServiceMembersColumns[5]},
 			},
 		},
 	}

@@ -32,8 +32,6 @@ type ChannelServiceMember struct {
 	UserID uuid.UUID `json:"user_id,omitempty"`
 	// 服務技能識別（對應 skills.id）
 	SkillID uuid.UUID `json:"skill_id,omitempty"`
-	// 平台上的使用者 ID (如 LINE userId)
-	PlatformUserID string `json:"platform_user_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ChannelServiceMemberQuery when eager-loading is set.
 	Edges        ChannelServiceMemberEdges `json:"edges"`
@@ -93,8 +91,6 @@ func (*ChannelServiceMember) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case channelservicemember.FieldPlatformUserID:
-			values[i] = new(sql.NullString)
 		case channelservicemember.FieldCreatedAt, channelservicemember.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case channelservicemember.FieldID, channelservicemember.FieldChannelID, channelservicemember.FieldUserID, channelservicemember.FieldSkillID:
@@ -149,12 +145,6 @@ func (_m *ChannelServiceMember) assignValues(columns []string, values []any) err
 				return fmt.Errorf("unexpected type %T for field skill_id", values[i])
 			} else if value != nil {
 				_m.SkillID = *value
-			}
-		case channelservicemember.FieldPlatformUserID:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field platform_user_id", values[i])
-			} else if value.Valid {
-				_m.PlatformUserID = value.String
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -221,9 +211,6 @@ func (_m *ChannelServiceMember) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("skill_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SkillID))
-	builder.WriteString(", ")
-	builder.WriteString("platform_user_id=")
-	builder.WriteString(_m.PlatformUserID)
 	builder.WriteByte(')')
 	return builder.String()
 }

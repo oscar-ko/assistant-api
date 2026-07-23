@@ -36,7 +36,8 @@ type LogConfig struct {
 }
 
 type ServerConfig struct {
-	Port string `mapstructure:"port" yaml:"port"`
+	Port    string `mapstructure:"port" yaml:"port"`
+	GinMode string `mapstructure:"gin_mode" yaml:"gin_mode"`
 }
 
 type DatabaseConfig struct {
@@ -561,6 +562,7 @@ func MustLoad() {
 		// 重要欄位缺失時直接中止，避免服務以不完整設定啟動。
 		requiredKeys := []string{
 			"server.port",
+			"server.gin_mode",
 			"postgresql.address",
 			"postgresql.database",
 			"graphql.query_path",
@@ -575,6 +577,13 @@ func MustLoad() {
 
 		if err := viper.Unmarshal(config); err != nil {
 			log.Fatalf("failed to parse config: %v", err)
+		}
+
+		Server.GinMode = strings.TrimSpace(Server.GinMode)
+		switch Server.GinMode {
+		case "debug", "release", "test":
+		default:
+			log.Fatalf("%v", fmt.Errorf("server.gin_mode must be one of debug, release, test"))
 		}
 
 		// 補齊空值容錯，避免 scope 留空導致 OAuth 行為異常。

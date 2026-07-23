@@ -235,38 +235,6 @@ func (r *ChannelMessageRepo) ResolveUserIDByLineUserID(ctx context.Context, line
 	return boundUser.ID, nil
 }
 
-// ResolveUserIDByPlatformUserID 依 channel_service_members 的 platform_user_id 反查系統內部使用者 UUID。
-//
-// 這是跨平台共用入口，適合 LINE、Slack 以及未來會共用同一張
-// channel_service_members 表的 provider 使用。它和 ResolveUserIDByLineUserID
-// 的差異在於：前者走 LINE 專屬綁定表，後者走跨平台服務成員表。
-//
-// 這個設計的目的，是讓即時服務（例如翻譯）只依賴一個平台中立的識別欄位，
-// 不需要為每個 provider 各寫一套查詢路徑。
-func (r *ChannelMessageRepo) ResolveUserIDByPlatformUserID(ctx context.Context, platformUserID string) (uuid.UUID, error) {
-	if r == nil || r.db == nil {
-		return uuid.Nil, fmt.Errorf("channel repository not initialized")
-	}
-	platformUserID = strings.TrimSpace(platformUserID)
-	if platformUserID == "" {
-		return uuid.Nil, nil
-	}
-
-	member, err := r.db.ChannelServiceMember.Query().
-		Where(channelservicemember.PlatformUserIDEQ(platformUserID)).
-		Only(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return uuid.Nil, nil
-		}
-		return uuid.Nil, fmt.Errorf("query user by platform user id failed: %w", err)
-	}
-	if member == nil {
-		return uuid.Nil, nil
-	}
-	return member.UserID, nil
-}
-
 // ResolveBoundUserIDByPlatformIdentity resolves a platform account binding to the system user UUID.
 func (r *ChannelMessageRepo) ResolveBoundUserIDByPlatformIdentity(ctx context.Context, platform string, platformTenantID string, platformUserID string) (uuid.UUID, error) {
 	if r == nil || r.db == nil {
@@ -2148,10 +2116,9 @@ func (r *ChannelMessageRepo) UpsertActionResult(ctx context.Context, apiOperatio
 // AddServiceMemberToChannel adds a user into channel_service_members.
 // The operation is idempotent and ignored if (channel_id, user_id, skill_id) already exists.
 //
-// 注意：這個寫入點目前只建立 channel / user / skill 的關聯，並不會同步填入
-// platform_user_id。也就是說，若上層流程要依 platform_user_id 做共用查詢，
-// 仍需確認該欄位是否已由其他寫入流程補齊，否則無法直接拿這個方法當作
-// 跨平台識別資料的唯一來源。
+// 注意：這張表只保存系統內部 user_id 與服務啟用狀態。
+// 若上層拿到的是 LINE/Slack 等平台 user id，必須先透過綁定表解析成 internal user id，
+// 再呼叫 HasChannelServiceMember 做啟用判斷。
 func (r *ChannelMessageRepo) AddServiceMemberToChannel(ctx context.Context, channelID uuid.UUID, ownerID uuid.UUID, skillID uuid.UUID) error {
 	if channelID == uuid.Nil {
 		return fmt.Errorf("channel id is required")
@@ -2316,6 +2283,11 @@ func (r *ChannelMessageRepo) AddTranslationLocaleToChannel(ctx context.Context, 
 	if targetLocale == "" {
 		return fmt.Errorf("target locale is required")
 	}
+	normalizedTargetLocale, ok := normalizeTranslationLocaleTag(targetLocale)
+	if !ok {
+		return fmt.Errorf("target locale must be language code (xx) or locale (xx-YY), got %q", targetLocale)
+	}
+	targetLocale = normalizedTargetLocale
 
 	exists, err := r.db.TranslationLocale.Query().
 		Where(
@@ -2427,16 +2399,51 @@ func normalizeLocaleFilter(targetLocales []string) []string {
 		if locale == "" {
 			continue
 		}
-		// DB 目前保存的是原始 locale 字面；這裡只用 lower key 去重，
-		// 實際刪除時仍保留第一個輸入值，避免在 repository 層做額外語系轉換。
-		key := strings.ToLower(locale)
+		normalized, ok := normalizeTranslationLocaleTag(locale)
+		if !ok {
+			continue
+		}
+		// target_locale 的儲存契約固定為 xx 或 xx-YY；刪除條件也使用同一份正規化格式，
+		// 避免大小寫或底線差異造成停用指令刪不到資料。
+		key := strings.ToLower(normalized)
 		if _, exists := seen[key]; exists {
 			continue
 		}
 		seen[key] = struct{}{}
-		locales = append(locales, locale)
+		locales = append(locales, normalized)
 	}
 	return locales
+}
+
+func normalizeTranslationLocaleTag(value string) (string, bool) {
+	trimmed := strings.TrimSpace(value)
+	if len(trimmed) == 2 && isASCIIAlpha2(trimmed) {
+		return strings.ToLower(trimmed), true
+	}
+	if len(trimmed) == 5 && trimmed[2] == '_' {
+		trimmed = trimmed[:2] + "-" + trimmed[3:]
+	}
+	if len(trimmed) != 5 || trimmed[2] != '-' {
+		return "", false
+	}
+	lang := trimmed[:2]
+	region := trimmed[3:]
+	if !isASCIIAlpha2(lang) || !isASCIIAlpha2(region) {
+		return "", false
+	}
+	return strings.ToLower(lang) + "-" + strings.ToUpper(region), true
+}
+
+func isASCIIAlpha2(value string) bool {
+	if len(value) != 2 {
+		return false
+	}
+	for _, char := range value {
+		if (char < 'A' || char > 'Z') && (char < 'a' || char > 'z') {
+			return false
+		}
+	}
+	return true
 }
 
 // ListChannelSkillTargetLocales returns configured translation target locales by channel and skill.
@@ -2468,11 +2475,15 @@ func (r *ChannelMessageRepo) ListChannelSkillTargetLocales(ctx context.Context, 
 		if locale == "" {
 			continue
 		}
-		if _, ok := seen[locale]; ok {
+		normalized, ok := normalizeTranslationLocaleTag(locale)
+		if !ok {
+			return nil, fmt.Errorf("invalid stored translation locale %q: must be language code (xx) or locale (xx-YY)", locale)
+		}
+		if _, ok := seen[normalized]; ok {
 			continue
 		}
-		seen[locale] = struct{}{}
-		locales = append(locales, locale)
+		seen[normalized] = struct{}{}
+		locales = append(locales, normalized)
 	}
 
 	sort.Strings(locales)

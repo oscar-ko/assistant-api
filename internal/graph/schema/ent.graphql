@@ -760,24 +760,6 @@ input ChannelServiceMemberWhereInput {
   skillIDIn: [ID!]
   skillIDNotIn: [ID!]
   """
-  platform_user_id field predicates
-  """
-  platformUserID: String
-  platformUserIDNEQ: String
-  platformUserIDIn: [String!]
-  platformUserIDNotIn: [String!]
-  platformUserIDGT: String
-  platformUserIDGTE: String
-  platformUserIDLT: String
-  platformUserIDLTE: String
-  platformUserIDContains: String
-  platformUserIDHasPrefix: String
-  platformUserIDHasSuffix: String
-  platformUserIDIsNil: Boolean
-  platformUserIDNotNil: Boolean
-  platformUserIDEqualFold: String
-  platformUserIDContainsFold: String
-  """
   channel edge predicates
   """
   hasChannel: Boolean
@@ -1260,6 +1242,22 @@ input SlackWorkspaceWhereInput {
   updatedAtGTE: Time
   updatedAtLT: Time
   updatedAtLTE: Time
+  """
+  app_id field predicates
+  """
+  appID: String
+  appIDNEQ: String
+  appIDIn: [String!]
+  appIDNotIn: [String!]
+  appIDGT: String
+  appIDGTE: String
+  appIDLT: String
+  appIDLTE: String
+  appIDContains: String
+  appIDHasPrefix: String
+  appIDHasSuffix: String
+  appIDEqualFold: String
+  appIDContainsFold: String
   """
   platform_team_id field predicates
   """

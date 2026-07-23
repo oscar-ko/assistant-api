@@ -952,11 +952,6 @@ func (_q *ChannelServiceMemberQuery) collectField(ctx context.Context, oneNode b
 				selectedFields = append(selectedFields, channelservicemember.FieldSkillID)
 				fieldSeen[channelservicemember.FieldSkillID] = struct{}{}
 			}
-		case "platformUserID":
-			if _, ok := fieldSeen[channelservicemember.FieldPlatformUserID]; !ok {
-				selectedFields = append(selectedFields, channelservicemember.FieldPlatformUserID)
-				fieldSeen[channelservicemember.FieldPlatformUserID] = struct{}{}
-			}
 		case "id":
 		case "__typename":
 		default:
@@ -1358,6 +1353,11 @@ func (_q *SlackWorkspaceQuery) collectField(ctx context.Context, oneNode bool, o
 			if _, ok := fieldSeen[slackworkspace.FieldUpdatedAt]; !ok {
 				selectedFields = append(selectedFields, slackworkspace.FieldUpdatedAt)
 				fieldSeen[slackworkspace.FieldUpdatedAt] = struct{}{}
+			}
+		case "appID":
+			if _, ok := fieldSeen[slackworkspace.FieldAppID]; !ok {
+				selectedFields = append(selectedFields, slackworkspace.FieldAppID)
+				fieldSeen[slackworkspace.FieldAppID] = struct{}{}
 			}
 		case "platformTeamID":
 			if _, ok := fieldSeen[slackworkspace.FieldPlatformTeamID]; !ok {

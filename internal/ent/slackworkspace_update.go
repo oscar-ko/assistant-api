@@ -34,6 +34,20 @@ func (_u *SlackWorkspaceUpdate) SetUpdatedAt(v time.Time) *SlackWorkspaceUpdate 
 	return _u
 }
 
+// SetAppID sets the "app_id" field.
+func (_u *SlackWorkspaceUpdate) SetAppID(v string) *SlackWorkspaceUpdate {
+	_u.mutation.SetAppID(v)
+	return _u
+}
+
+// SetNillableAppID sets the "app_id" field if the given value is not nil.
+func (_u *SlackWorkspaceUpdate) SetNillableAppID(v *string) *SlackWorkspaceUpdate {
+	if v != nil {
+		_u.SetAppID(*v)
+	}
+	return _u
+}
+
 // SetPlatformTeamID sets the "platform_team_id" field.
 func (_u *SlackWorkspaceUpdate) SetPlatformTeamID(v string) *SlackWorkspaceUpdate {
 	_u.mutation.SetPlatformTeamID(v)
@@ -145,6 +159,11 @@ func (_u *SlackWorkspaceUpdate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *SlackWorkspaceUpdate) check() error {
+	if v, ok := _u.mutation.AppID(); ok {
+		if err := slackworkspace.AppIDValidator(v); err != nil {
+			return &ValidationError{Name: "app_id", err: fmt.Errorf(`ent: validator failed for field "SlackWorkspace.app_id": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.PlatformTeamID(); ok {
 		if err := slackworkspace.PlatformTeamIDValidator(v); err != nil {
 			return &ValidationError{Name: "platform_team_id", err: fmt.Errorf(`ent: validator failed for field "SlackWorkspace.platform_team_id": %w`, err)}
@@ -172,6 +191,9 @@ func (_u *SlackWorkspaceUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(slackworkspace.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.AppID(); ok {
+		_spec.SetField(slackworkspace.FieldAppID, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.PlatformTeamID(); ok {
 		_spec.SetField(slackworkspace.FieldPlatformTeamID, field.TypeString, value)
@@ -214,6 +236,20 @@ type SlackWorkspaceUpdateOne struct {
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *SlackWorkspaceUpdateOne) SetUpdatedAt(v time.Time) *SlackWorkspaceUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
+// SetAppID sets the "app_id" field.
+func (_u *SlackWorkspaceUpdateOne) SetAppID(v string) *SlackWorkspaceUpdateOne {
+	_u.mutation.SetAppID(v)
+	return _u
+}
+
+// SetNillableAppID sets the "app_id" field if the given value is not nil.
+func (_u *SlackWorkspaceUpdateOne) SetNillableAppID(v *string) *SlackWorkspaceUpdateOne {
+	if v != nil {
+		_u.SetAppID(*v)
+	}
 	return _u
 }
 
@@ -341,6 +377,11 @@ func (_u *SlackWorkspaceUpdateOne) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *SlackWorkspaceUpdateOne) check() error {
+	if v, ok := _u.mutation.AppID(); ok {
+		if err := slackworkspace.AppIDValidator(v); err != nil {
+			return &ValidationError{Name: "app_id", err: fmt.Errorf(`ent: validator failed for field "SlackWorkspace.app_id": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.PlatformTeamID(); ok {
 		if err := slackworkspace.PlatformTeamIDValidator(v); err != nil {
 			return &ValidationError{Name: "platform_team_id", err: fmt.Errorf(`ent: validator failed for field "SlackWorkspace.platform_team_id": %w`, err)}
@@ -385,6 +426,9 @@ func (_u *SlackWorkspaceUpdateOne) sqlSave(ctx context.Context) (_node *SlackWor
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(slackworkspace.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.AppID(); ok {
+		_spec.SetField(slackworkspace.FieldAppID, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.PlatformTeamID(); ok {
 		_spec.SetField(slackworkspace.FieldPlatformTeamID, field.TypeString, value)

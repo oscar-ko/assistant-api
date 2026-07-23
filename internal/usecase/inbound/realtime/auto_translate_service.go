@@ -2,7 +2,6 @@ package realtime
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -42,6 +41,7 @@ type AutoTranslateServiceOptions struct {
 	Repo               *repository.ChannelMessageRepo
 	Sender             MessageSender
 	Translator         Translator
+	LanguageDetector   LanguageDetector
 	ResolveOwnerUserID PlatformUserResolver
 	TranslationSkill   string
 	BotSenderID        string
@@ -58,6 +58,7 @@ type AutoTranslateService struct {
 	repo               *repository.ChannelMessageRepo
 	sender             MessageSender
 	translator         Translator
+	languageDetector   LanguageDetector
 	resolveOwnerUserID PlatformUserResolver
 	translationSkill   string
 	botSenderID        string
@@ -83,6 +84,7 @@ func NewAutoTranslateService(options AutoTranslateServiceOptions) *AutoTranslate
 		repo:               options.Repo,
 		sender:             options.Sender,
 		translator:         options.Translator,
+		languageDetector:   options.LanguageDetector,
 		resolveOwnerUserID: options.ResolveOwnerUserID,
 		translationSkill:   skill,
 		botSenderID:        strings.TrimSpace(options.BotSenderID),
@@ -100,11 +102,12 @@ func NewAutoTranslateService(options AutoTranslateServiceOptions) *AutoTranslate
 // 4) 可解析翻譯 skill 與 owner user
 // 5) owner user 在該 channel 確實啟用翻譯服務
 // 6) 該 channel skill 具備 target locales
-// 7) 翻譯成功且輸出非空
+// 7) 若可靠偵測出來源語言，排除同語言 target locales
+// 8) 翻譯成功且輸出非空
 //
 // 任何一關失敗都直接 return（fail-fast），避免不明確狀態造成誤推播。
 func (s *AutoTranslateService) Handle(ctx context.Context, messageCtx MessageContext) {
-	if s == nil || s.repo == nil || s.sender == nil || s.translator == nil || s.resolveOwnerUserID == nil {
+	if s == nil || s.repo == nil || s.sender == nil || s.translator == nil || s.languageDetector == nil || s.resolveOwnerUserID == nil {
 		return
 	}
 	if ctx == nil {
@@ -132,6 +135,11 @@ func (s *AutoTranslateService) Handle(ctx context.Context, messageCtx MessageCon
 				zap.String("platform", s.platformLabel),
 				zap.Error(err),
 			)
+		} else {
+			zap.L().Info("realtime translation skipped: translation skill not found",
+				zap.String("platform", s.platformLabel),
+				zap.String("skill_code", s.translationSkill),
+			)
 		}
 		return
 	}
@@ -144,6 +152,11 @@ func (s *AutoTranslateService) Handle(ctx context.Context, messageCtx MessageCon
 				zap.String("platform", s.platformLabel),
 				zap.String("platform_user_id", platformUserID),
 				zap.Error(err),
+			)
+		} else {
+			zap.L().Info("realtime translation skipped: sender user is not bound",
+				zap.String("platform", s.platformLabel),
+				zap.String("platform_user_id", platformUserID),
 			)
 		}
 		return
@@ -167,6 +180,13 @@ func (s *AutoTranslateService) Handle(ctx context.Context, messageCtx MessageCon
 		return
 	}
 	if !enabled {
+		zap.L().Info("realtime translation skipped: sender has not enabled translation service",
+			zap.String("platform", s.platformLabel),
+			zap.String("channel_id", channelID.String()),
+			zap.String("platform_user_id", platformUserID),
+			zap.String("owner_user_id", ownerUserID.String()),
+			zap.String("skill_id", skillID.String()),
+		)
 		return
 	}
 
@@ -182,7 +202,37 @@ func (s *AutoTranslateService) Handle(ctx context.Context, messageCtx MessageCon
 		return
 	}
 	if len(targetLocales) == 0 {
+		zap.L().Info("realtime translation skipped: no target locales configured",
+			zap.String("platform", s.platformLabel),
+			zap.String("channel_id", channelID.String()),
+			zap.String("platform_user_id", platformUserID),
+			zap.String("owner_user_id", ownerUserID.String()),
+			zap.String("skill_id", skillID.String()),
+		)
 		return
+	}
+
+	if sourceLanguage, err := s.languageDetector.DetectLanguage(ctx, originalText); err != nil {
+		zap.L().Warn("realtime translation source language not filtered: detect source language failed",
+			zap.String("platform", s.platformLabel),
+			zap.String("channel_id", channelID.String()),
+			zap.String("platform_user_id", platformUserID),
+			zap.Strings("target_locales", targetLocales),
+			zap.Error(err),
+		)
+	} else if strings.TrimSpace(sourceLanguage) != "" {
+		originalTargetLocales := append([]string(nil), targetLocales...)
+		targetLocales = excludeSourceLanguageLocales(targetLocales, sourceLanguage)
+		if len(targetLocales) == 0 {
+			zap.L().Info("realtime translation skipped: all target locales match source language",
+				zap.String("platform", s.platformLabel),
+				zap.String("channel_id", channelID.String()),
+				zap.String("platform_user_id", platformUserID),
+				zap.String("source_language", strings.TrimSpace(sourceLanguage)),
+				zap.Strings("target_locales", originalTargetLocales),
+			)
+			return
+		}
 	}
 
 	// 翻譯邏輯委派給 Translator，保持 service 對 transport 無感。
@@ -248,6 +298,11 @@ func (s *AutoTranslateService) resolveChannelID(ctx context.Context, message *un
 				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
 				zap.Error(err),
 			)
+		} else {
+			zap.L().Info("realtime translation skipped: channel not found",
+				zap.String("platform", s.platformLabel),
+				zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+			)
 		}
 		// 無 channel 時直接略過，避免產生「翻譯訊息存在但主訊息未綁定」的不一致資料。
 		return uuid.Nil, false
@@ -267,13 +322,49 @@ func composeTranslations(targetLocales []string, translations map[string]string)
 		if translated == "" {
 			continue
 		}
-		// 每段固定 [locale] + 翻譯內容，便於人類閱讀與後續機器解析。
-		sections = append(sections, fmt.Sprintf("[%s]\n%s", locale, translated))
+		// 不加語系標籤或符號前綴，讓推播內容只保留翻譯文字本身。
+		sections = append(sections, translated)
 	}
 	if len(sections) == 0 {
 		return ""
 	}
 	return strings.Join(sections, "\n\n")
+}
+
+func excludeSourceLanguageLocales(targetLocales []string, sourceLanguage string) []string {
+	source := normalizeLanguageCode(sourceLanguage)
+	if source == "" || len(targetLocales) == 0 {
+		return nil
+	}
+	filtered := make([]string, 0, len(targetLocales))
+	seen := make(map[string]struct{}, len(targetLocales))
+	for _, targetLocale := range targetLocales {
+		locale := strings.TrimSpace(targetLocale)
+		if locale == "" {
+			continue
+		}
+		if _, exists := seen[locale]; exists {
+			continue
+		}
+		seen[locale] = struct{}{}
+		if normalizeLanguageCode(locale) == source {
+			continue
+		}
+		filtered = append(filtered, locale)
+	}
+	return filtered
+}
+
+func normalizeLanguageCode(locale string) string {
+	trimmed := strings.ToLower(strings.TrimSpace(locale))
+	if trimmed == "" {
+		return ""
+	}
+	trimmed = strings.ReplaceAll(trimmed, "_", "-")
+	if index := strings.Index(trimmed, "-"); index >= 0 {
+		trimmed = trimmed[:index]
+	}
+	return trimmed
 }
 
 func (s *AutoTranslateService) persistSentMessage(ctx context.Context, savedMessage *ent.ChannelMessage, inbound *unifiedmessage.Message, text string, targetLocales []string, sentPlatformMessageID string) {

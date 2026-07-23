@@ -70,20 +70,6 @@ func (_c *ChannelServiceMemberCreate) SetSkillID(v uuid.UUID) *ChannelServiceMem
 	return _c
 }
 
-// SetPlatformUserID sets the "platform_user_id" field.
-func (_c *ChannelServiceMemberCreate) SetPlatformUserID(v string) *ChannelServiceMemberCreate {
-	_c.mutation.SetPlatformUserID(v)
-	return _c
-}
-
-// SetNillablePlatformUserID sets the "platform_user_id" field if the given value is not nil.
-func (_c *ChannelServiceMemberCreate) SetNillablePlatformUserID(v *string) *ChannelServiceMemberCreate {
-	if v != nil {
-		_c.SetPlatformUserID(*v)
-	}
-	return _c
-}
-
 // SetID sets the "id" field.
 func (_c *ChannelServiceMemberCreate) SetID(v uuid.UUID) *ChannelServiceMemberCreate {
 	_c.mutation.SetID(v)
@@ -230,10 +216,6 @@ func (_c *ChannelServiceMemberCreate) createSpec() (*ChannelServiceMember, *sqlg
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(channelservicemember.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
-	}
-	if value, ok := _c.mutation.PlatformUserID(); ok {
-		_spec.SetField(channelservicemember.FieldPlatformUserID, field.TypeString, value)
-		_node.PlatformUserID = value
 	}
 	if nodes := _c.mutation.ChannelIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

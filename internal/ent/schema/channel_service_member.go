@@ -8,7 +8,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// ChannelServiceMember records which users enabled a service for a channel.
+// ChannelServiceMember 記錄「哪個系統使用者」在「哪個頻道」啟用了「哪個服務技能」。
+//
+// 重要資料邊界：
+// - 這張表只保存 internal user_id，不保存 LINE/Slack platform_user_id。
+// - 平台帳號綁定屬於 lines/slacks 等 provider binding table 的責任。
+// - 即時服務要先把 platform_user_id 解析成 internal user_id，再查這張表做啟用判斷。
 type ChannelServiceMember struct {
 	ent.Schema
 }
@@ -27,7 +32,6 @@ func (ChannelServiceMember) Fields() []ent.Field {
 		field.UUID("channel_id", uuid.UUID{}),
 		field.UUID("user_id", uuid.UUID{}),
 		field.UUID("skill_id", uuid.UUID{}).Comment("服務技能識別（對應 skills.id）"),
-		field.String("platform_user_id").Optional().Comment("平台上的使用者 ID (如 LINE userId)"),
 	}
 }
 
@@ -37,8 +41,6 @@ func (ChannelServiceMember) Indexes() []ent.Index {
 		index.Fields("channel_id", "user_id", "skill_id").Unique(),
 		index.Fields("channel_id", "skill_id"),
 		index.Fields("user_id", "skill_id"),
-		index.Fields("channel_id", "platform_user_id"),
-		index.Fields("platform_user_id"),
 	}
 }
 

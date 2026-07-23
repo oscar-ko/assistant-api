@@ -182,6 +182,8 @@ func (c *CloudTranslateClient) Translate(ctx context.Context, text string, targe
 
 	result := make(map[string]string, len(locales))
 	for _, locale := range locales {
+		// 雲端模型也必須遵守 target locale key 契約。
+		// 僅容忍 key 的大小寫差異，不接受模型自行新增或替換語系。
 		if value, ok := decodedTranslate.Translations[locale]; ok {
 			if translated := strings.TrimSpace(value); translated != "" {
 				result[locale] = translated
@@ -199,6 +201,10 @@ func (c *CloudTranslateClient) Translate(ctx context.Context, text string, targe
 	}
 	if len(result) == 0 {
 		return nil, fmt.Errorf("chat-completions-compatible translate returned no matching locale translations")
+	}
+	// 不允許 partial success：少任何一個目標語系都回錯，交由上層記錄告警並停止推播。
+	if missing := missingTranslationLocales(locales, result); len(missing) > 0 {
+		return nil, fmt.Errorf("chat-completions-compatible translate missing locale translations: %s", strings.Join(missing, ", "))
 	}
 	return result, nil
 }

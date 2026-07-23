@@ -1526,24 +1526,6 @@ input ChannelServiceMemberWhereInput {
   skillIDIn: [ID!]
   skillIDNotIn: [ID!]
   """
-  platform_user_id field predicates
-  """
-  platformUserID: String
-  platformUserIDNEQ: String
-  platformUserIDIn: [String!]
-  platformUserIDNotIn: [String!]
-  platformUserIDGT: String
-  platformUserIDGTE: String
-  platformUserIDLT: String
-  platformUserIDLTE: String
-  platformUserIDContains: String
-  platformUserIDHasPrefix: String
-  platformUserIDHasSuffix: String
-  platformUserIDIsNil: Boolean
-  platformUserIDNotNil: Boolean
-  platformUserIDEqualFold: String
-  platformUserIDContainsFold: String
-  """
   channel edge predicates
   """
   hasChannel: Boolean
@@ -2026,6 +2008,22 @@ input SlackWorkspaceWhereInput {
   updatedAtGTE: Time
   updatedAtLT: Time
   updatedAtLTE: Time
+  """
+  app_id field predicates
+  """
+  appID: String
+  appIDNEQ: String
+  appIDIn: [String!]
+  appIDNotIn: [String!]
+  appIDGT: String
+  appIDGTE: String
+  appIDLT: String
+  appIDLTE: String
+  appIDContains: String
+  appIDHasPrefix: String
+  appIDHasSuffix: String
+  appIDEqualFold: String
+  appIDContainsFold: String
   """
   platform_team_id field predicates
   """
@@ -3345,7 +3343,9 @@ input SimulateTodoConversationMessageInput {
     """
     replyToMessageIndex: Int
     """
-    deliveryMode 為 visible 且 platform 為 slack 時，指定這則可見訊息要用哪個 Slack app/bot 發出；未提供時使用 input.platformAppID。
+    platform 為 slack 時，指定這則模擬訊息要用哪個 Slack app/bot 發出；visible mode 也會用同一個 bot 貼到真實 channel。
+    未提供時使用 input.platformAppID；internal mode 若有指定，sender 也會是該 bot user，而不是已註冊系統使用者。
+    這個欄位雖沿用 visible 命名，但現在同時控制內部 webhook sender identity，方便模擬未註冊長官/同事 bot 對 Oscar 交辦工作。
     """
     visiblePlatformAppID: String
 }
@@ -11956,7 +11956,7 @@ func (ec *executionContext) unmarshalInputChannelServiceMemberWhereInput(ctx con
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "channelID", "channelIDNEQ", "channelIDIn", "channelIDNotIn", "userID", "userIDNEQ", "userIDIn", "userIDNotIn", "skillID", "skillIDNEQ", "skillIDIn", "skillIDNotIn", "platformUserID", "platformUserIDNEQ", "platformUserIDIn", "platformUserIDNotIn", "platformUserIDGT", "platformUserIDGTE", "platformUserIDLT", "platformUserIDLTE", "platformUserIDContains", "platformUserIDHasPrefix", "platformUserIDHasSuffix", "platformUserIDIsNil", "platformUserIDNotNil", "platformUserIDEqualFold", "platformUserIDContainsFold", "hasChannel", "hasChannelWith", "hasUser", "hasUserWith", "hasSkill", "hasSkillWith"}
+	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "channelID", "channelIDNEQ", "channelIDIn", "channelIDNotIn", "userID", "userIDNEQ", "userIDIn", "userIDNotIn", "skillID", "skillIDNEQ", "skillIDIn", "skillIDNotIn", "hasChannel", "hasChannelWith", "hasUser", "hasUserWith", "hasSkill", "hasSkillWith"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -12236,111 +12236,6 @@ func (ec *executionContext) unmarshalInputChannelServiceMemberWhereInput(ctx con
 				return it, err
 			}
 			it.SkillIDNotIn = data
-		case "platformUserID":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("platformUserID"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.PlatformUserID = data
-		case "platformUserIDNEQ":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("platformUserIDNEQ"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.PlatformUserIDNEQ = data
-		case "platformUserIDIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("platformUserIDIn"))
-			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.PlatformUserIDIn = data
-		case "platformUserIDNotIn":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("platformUserIDNotIn"))
-			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.PlatformUserIDNotIn = data
-		case "platformUserIDGT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("platformUserIDGT"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.PlatformUserIDGT = data
-		case "platformUserIDGTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("platformUserIDGTE"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.PlatformUserIDGTE = data
-		case "platformUserIDLT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("platformUserIDLT"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.PlatformUserIDLT = data
-		case "platformUserIDLTE":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("platformUserIDLTE"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.PlatformUserIDLTE = data
-		case "platformUserIDContains":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("platformUserIDContains"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.PlatformUserIDContains = data
-		case "platformUserIDHasPrefix":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("platformUserIDHasPrefix"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.PlatformUserIDHasPrefix = data
-		case "platformUserIDHasSuffix":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("platformUserIDHasSuffix"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.PlatformUserIDHasSuffix = data
-		case "platformUserIDIsNil":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("platformUserIDIsNil"))
-			data, err := ec.unmarshalOBoolean2bool(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.PlatformUserIDIsNil = data
-		case "platformUserIDNotNil":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("platformUserIDNotNil"))
-			data, err := ec.unmarshalOBoolean2bool(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.PlatformUserIDNotNil = data
-		case "platformUserIDEqualFold":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("platformUserIDEqualFold"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.PlatformUserIDEqualFold = data
-		case "platformUserIDContainsFold":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("platformUserIDContainsFold"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.PlatformUserIDContainsFold = data
 		case "hasChannel":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hasChannel"))
 			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
@@ -14754,7 +14649,7 @@ func (ec *executionContext) unmarshalInputSlackWorkspaceWhereInput(ctx context.C
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "platformTeamID", "platformTeamIDNEQ", "platformTeamIDIn", "platformTeamIDNotIn", "platformTeamIDGT", "platformTeamIDGTE", "platformTeamIDLT", "platformTeamIDLTE", "platformTeamIDContains", "platformTeamIDHasPrefix", "platformTeamIDHasSuffix", "platformTeamIDEqualFold", "platformTeamIDContainsFold", "teamName", "teamNameNEQ", "teamNameIn", "teamNameNotIn", "teamNameGT", "teamNameGTE", "teamNameLT", "teamNameLTE", "teamNameContains", "teamNameHasPrefix", "teamNameHasSuffix", "teamNameIsNil", "teamNameNotNil", "teamNameEqualFold", "teamNameContainsFold", "botUserID", "botUserIDNEQ", "botUserIDIn", "botUserIDNotIn", "botUserIDGT", "botUserIDGTE", "botUserIDLT", "botUserIDLTE", "botUserIDContains", "botUserIDHasPrefix", "botUserIDHasSuffix", "botUserIDIsNil", "botUserIDNotNil", "botUserIDEqualFold", "botUserIDContainsFold"}
+	fieldsInOrder := [...]string{"not", "and", "or", "id", "idNEQ", "idIn", "idNotIn", "idGT", "idGTE", "idLT", "idLTE", "createdAt", "createdAtNEQ", "createdAtIn", "createdAtNotIn", "createdAtGT", "createdAtGTE", "createdAtLT", "createdAtLTE", "updatedAt", "updatedAtNEQ", "updatedAtIn", "updatedAtNotIn", "updatedAtGT", "updatedAtGTE", "updatedAtLT", "updatedAtLTE", "appID", "appIDNEQ", "appIDIn", "appIDNotIn", "appIDGT", "appIDGTE", "appIDLT", "appIDLTE", "appIDContains", "appIDHasPrefix", "appIDHasSuffix", "appIDEqualFold", "appIDContainsFold", "platformTeamID", "platformTeamIDNEQ", "platformTeamIDIn", "platformTeamIDNotIn", "platformTeamIDGT", "platformTeamIDGTE", "platformTeamIDLT", "platformTeamIDLTE", "platformTeamIDContains", "platformTeamIDHasPrefix", "platformTeamIDHasSuffix", "platformTeamIDEqualFold", "platformTeamIDContainsFold", "teamName", "teamNameNEQ", "teamNameIn", "teamNameNotIn", "teamNameGT", "teamNameGTE", "teamNameLT", "teamNameLTE", "teamNameContains", "teamNameHasPrefix", "teamNameHasSuffix", "teamNameIsNil", "teamNameNotNil", "teamNameEqualFold", "teamNameContainsFold", "botUserID", "botUserIDNEQ", "botUserIDIn", "botUserIDNotIn", "botUserIDGT", "botUserIDGTE", "botUserIDLT", "botUserIDLTE", "botUserIDContains", "botUserIDHasPrefix", "botUserIDHasSuffix", "botUserIDIsNil", "botUserIDNotNil", "botUserIDEqualFold", "botUserIDContainsFold"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -14950,6 +14845,97 @@ func (ec *executionContext) unmarshalInputSlackWorkspaceWhereInput(ctx context.C
 				return it, err
 			}
 			it.UpdatedAtLTE = data
+		case "appID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("appID"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AppID = data
+		case "appIDNEQ":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("appIDNEQ"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AppIDNEQ = data
+		case "appIDIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("appIDIn"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AppIDIn = data
+		case "appIDNotIn":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("appIDNotIn"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AppIDNotIn = data
+		case "appIDGT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("appIDGT"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AppIDGT = data
+		case "appIDGTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("appIDGTE"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AppIDGTE = data
+		case "appIDLT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("appIDLT"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AppIDLT = data
+		case "appIDLTE":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("appIDLTE"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AppIDLTE = data
+		case "appIDContains":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("appIDContains"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AppIDContains = data
+		case "appIDHasPrefix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("appIDHasPrefix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AppIDHasPrefix = data
+		case "appIDHasSuffix":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("appIDHasSuffix"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AppIDHasSuffix = data
+		case "appIDEqualFold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("appIDEqualFold"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AppIDEqualFold = data
+		case "appIDContainsFold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("appIDContainsFold"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AppIDContainsFold = data
 		case "platformTeamID":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("platformTeamID"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)

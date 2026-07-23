@@ -81,11 +81,6 @@ func SkillID(v uuid.UUID) predicate.ChannelServiceMember {
 	return predicate.ChannelServiceMember(sql.FieldEQ(FieldSkillID, v))
 }
 
-// PlatformUserID applies equality check predicate on the "platform_user_id" field. It's identical to PlatformUserIDEQ.
-func PlatformUserID(v string) predicate.ChannelServiceMember {
-	return predicate.ChannelServiceMember(sql.FieldEQ(FieldPlatformUserID, v))
-}
-
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.ChannelServiceMember {
 	return predicate.ChannelServiceMember(sql.FieldEQ(FieldCreatedAt, v))
@@ -224,81 +219,6 @@ func SkillIDIn(vs ...uuid.UUID) predicate.ChannelServiceMember {
 // SkillIDNotIn applies the NotIn predicate on the "skill_id" field.
 func SkillIDNotIn(vs ...uuid.UUID) predicate.ChannelServiceMember {
 	return predicate.ChannelServiceMember(sql.FieldNotIn(FieldSkillID, vs...))
-}
-
-// PlatformUserIDEQ applies the EQ predicate on the "platform_user_id" field.
-func PlatformUserIDEQ(v string) predicate.ChannelServiceMember {
-	return predicate.ChannelServiceMember(sql.FieldEQ(FieldPlatformUserID, v))
-}
-
-// PlatformUserIDNEQ applies the NEQ predicate on the "platform_user_id" field.
-func PlatformUserIDNEQ(v string) predicate.ChannelServiceMember {
-	return predicate.ChannelServiceMember(sql.FieldNEQ(FieldPlatformUserID, v))
-}
-
-// PlatformUserIDIn applies the In predicate on the "platform_user_id" field.
-func PlatformUserIDIn(vs ...string) predicate.ChannelServiceMember {
-	return predicate.ChannelServiceMember(sql.FieldIn(FieldPlatformUserID, vs...))
-}
-
-// PlatformUserIDNotIn applies the NotIn predicate on the "platform_user_id" field.
-func PlatformUserIDNotIn(vs ...string) predicate.ChannelServiceMember {
-	return predicate.ChannelServiceMember(sql.FieldNotIn(FieldPlatformUserID, vs...))
-}
-
-// PlatformUserIDGT applies the GT predicate on the "platform_user_id" field.
-func PlatformUserIDGT(v string) predicate.ChannelServiceMember {
-	return predicate.ChannelServiceMember(sql.FieldGT(FieldPlatformUserID, v))
-}
-
-// PlatformUserIDGTE applies the GTE predicate on the "platform_user_id" field.
-func PlatformUserIDGTE(v string) predicate.ChannelServiceMember {
-	return predicate.ChannelServiceMember(sql.FieldGTE(FieldPlatformUserID, v))
-}
-
-// PlatformUserIDLT applies the LT predicate on the "platform_user_id" field.
-func PlatformUserIDLT(v string) predicate.ChannelServiceMember {
-	return predicate.ChannelServiceMember(sql.FieldLT(FieldPlatformUserID, v))
-}
-
-// PlatformUserIDLTE applies the LTE predicate on the "platform_user_id" field.
-func PlatformUserIDLTE(v string) predicate.ChannelServiceMember {
-	return predicate.ChannelServiceMember(sql.FieldLTE(FieldPlatformUserID, v))
-}
-
-// PlatformUserIDContains applies the Contains predicate on the "platform_user_id" field.
-func PlatformUserIDContains(v string) predicate.ChannelServiceMember {
-	return predicate.ChannelServiceMember(sql.FieldContains(FieldPlatformUserID, v))
-}
-
-// PlatformUserIDHasPrefix applies the HasPrefix predicate on the "platform_user_id" field.
-func PlatformUserIDHasPrefix(v string) predicate.ChannelServiceMember {
-	return predicate.ChannelServiceMember(sql.FieldHasPrefix(FieldPlatformUserID, v))
-}
-
-// PlatformUserIDHasSuffix applies the HasSuffix predicate on the "platform_user_id" field.
-func PlatformUserIDHasSuffix(v string) predicate.ChannelServiceMember {
-	return predicate.ChannelServiceMember(sql.FieldHasSuffix(FieldPlatformUserID, v))
-}
-
-// PlatformUserIDIsNil applies the IsNil predicate on the "platform_user_id" field.
-func PlatformUserIDIsNil() predicate.ChannelServiceMember {
-	return predicate.ChannelServiceMember(sql.FieldIsNull(FieldPlatformUserID))
-}
-
-// PlatformUserIDNotNil applies the NotNil predicate on the "platform_user_id" field.
-func PlatformUserIDNotNil() predicate.ChannelServiceMember {
-	return predicate.ChannelServiceMember(sql.FieldNotNull(FieldPlatformUserID))
-}
-
-// PlatformUserIDEqualFold applies the EqualFold predicate on the "platform_user_id" field.
-func PlatformUserIDEqualFold(v string) predicate.ChannelServiceMember {
-	return predicate.ChannelServiceMember(sql.FieldEqualFold(FieldPlatformUserID, v))
-}
-
-// PlatformUserIDContainsFold applies the ContainsFold predicate on the "platform_user_id" field.
-func PlatformUserIDContainsFold(v string) predicate.ChannelServiceMember {
-	return predicate.ChannelServiceMember(sql.FieldContainsFold(FieldPlatformUserID, v))
 }
 
 // HasChannel applies the HasEdge predicate on the "channel" edge.
