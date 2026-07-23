@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"assistant-api/internal/config"
 	"assistant-api/internal/usecase/inbound/messagepersist"
 )
 
@@ -13,6 +14,20 @@ func NewSenderNameResolver(tokenStore slackBotTokenStore) messagepersist.SenderN
 		if !strings.EqualFold(strings.TrimSpace(platform), "slack") {
 			return "", nil
 		}
-		return GetUserDisplayNameByID(ctx, tokenStore, workspaceAppIDFromContext(ctx), platformTenantID, senderID)
+		appID := workspaceAppIDFromContext(ctx)
+		teamID := strings.TrimSpace(platformTenantID)
+		trimmedSenderID := strings.TrimSpace(senderID)
+		botUserID, err := tokenStore.ResolveWorkspaceBotUserID(ctx, appID, teamID)
+		if err != nil {
+			return "", err
+		}
+		if strings.EqualFold(strings.TrimSpace(botUserID), trimmedSenderID) {
+			bot, err := config.Slack.BotByAppID(appID)
+			if err != nil {
+				return "", err
+			}
+			return strings.TrimSpace(bot.Name), nil
+		}
+		return GetUserDisplayNameByID(ctx, tokenStore, appID, teamID, trimmedSenderID)
 	})
 }

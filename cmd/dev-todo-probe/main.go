@@ -84,12 +84,15 @@ type probeTodoTables struct {
 type probeSenderCount struct {
 	SenderID     string `json:"sender_id"`
 	SenderUserID string `json:"sender_user_id"`
+	BotAppID     string `json:"bot_app_id"`
+	BotName      string `json:"bot_name"`
 	Count        int    `json:"count"`
 }
 
 type probeChannelMessage struct {
-	ID       string `json:"id"`
-	SenderID string `json:"sender_id"`
+	ID         string `json:"id"`
+	SenderID   string `json:"sender_id"`
+	SenderName string `json:"sender_name"`
 	// sender_user_id 為空代表這則訊息只有平台身份，尚未綁定系統 User；
 	// 多 bot visible simulation 會用這個欄位確認「外部長官 bot」沒有被誤寫成 Oscar。
 	SenderUserID      string `json:"sender_user_id"`
@@ -298,6 +301,11 @@ func probeTodoTableState(ctx context.Context, client *ent.Client, channelID uuid
 		TodoCandidateAssignees:        []probeCandidatePerson{},
 	}
 
+	botSenders, err := probeSlackBotSenderNames(ctx, client)
+	if err != nil {
+		return nil, err
+	}
+
 	allMessages, err := client.ChannelMessage.Query().Where(channelmessage.ChannelIDEQ(channelID)).All(ctx)
 	if err != nil {
 		return nil, err
@@ -312,6 +320,12 @@ func probeTodoTableState(ctx context.Context, client *ent.Client, channelID uuid
 		count := senderCounts[key]
 		count.SenderID = item.SenderID
 		count.SenderUserID = senderUserID
+		if senderUserID == "" {
+			if botSender, ok := botSenders[item.SenderID]; ok {
+				count.BotAppID = botSender.AppID
+				count.BotName = botSender.Name
+			}
+		}
 		count.Count++
 		senderCounts[key] = count
 	}
@@ -333,7 +347,7 @@ func probeTodoTableState(ctx context.Context, client *ent.Client, channelID uuid
 		if item.SenderUserID != nil {
 			senderUserID = item.SenderUserID.String()
 		}
-		tables.LatestMessages = append(tables.LatestMessages, probeChannelMessage{ID: item.ID.String(), SenderID: item.SenderID, SenderUserID: senderUserID, PlatformMessageID: item.PlatformMessageID, ReplyToMsgID: item.ReplyToMsgID, Content: item.Content})
+		tables.LatestMessages = append(tables.LatestMessages, probeChannelMessage{ID: item.ID.String(), SenderID: item.SenderID, SenderName: item.SenderName, SenderUserID: senderUserID, PlatformMessageID: item.PlatformMessageID, ReplyToMsgID: item.ReplyToMsgID, Content: item.Content})
 	}
 
 	replyMessages, err := client.ChannelMessage.Query().Where(channelmessage.ChannelIDEQ(channelID), channelmessage.ReplyToMsgIDNEQ("")).Order(ent.Asc(channelmessage.FieldCreatedAt)).All(ctx)
@@ -345,7 +359,7 @@ func probeTodoTableState(ctx context.Context, client *ent.Client, channelID uuid
 		if item.SenderUserID != nil {
 			senderUserID = item.SenderUserID.String()
 		}
-		tables.ReplyMessages = append(tables.ReplyMessages, probeChannelMessage{ID: item.ID.String(), SenderID: item.SenderID, SenderUserID: senderUserID, PlatformMessageID: item.PlatformMessageID, ReplyToMsgID: item.ReplyToMsgID, Content: item.Content})
+		tables.ReplyMessages = append(tables.ReplyMessages, probeChannelMessage{ID: item.ID.String(), SenderID: item.SenderID, SenderName: item.SenderName, SenderUserID: senderUserID, PlatformMessageID: item.PlatformMessageID, ReplyToMsgID: item.ReplyToMsgID, Content: item.Content})
 	}
 
 	candidates, err := client.TodoCandidate.Query().Where(todocandidate.ChannelIDEQ(channelID)).Order(ent.Asc(todocandidate.FieldCreatedAt)).All(ctx)
@@ -440,4 +454,33 @@ func probeTodoTableState(ctx context.Context, client *ent.Client, channelID uuid
 		tables.TodoCandidateAssignees = append(tables.TodoCandidateAssignees, probeCandidatePerson{ID: item.ID.String(), CandidateID: item.CandidateID.String(), ResolvedUserID: resolvedUserID, Source: string(item.Source), AssigneeText: item.AssigneeText, ResolutionStatus: resolutionStatus, SourceMentionID: sourceMentionID, Reason: item.Reason})
 	}
 	return tables, nil
+}
+
+type probeSlackBotSender struct {
+	AppID string
+	Name  string
+}
+
+func probeSlackBotSenderNames(ctx context.Context, client *ent.Client) (map[string]probeSlackBotSender, error) {
+	workspaces, err := client.SlackWorkspace.Query().All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	items := make(map[string]probeSlackBotSender, len(workspaces))
+	for _, workspace := range workspaces {
+		if workspace == nil || workspace.BotUserID == nil {
+			continue
+		}
+		botUserID := *workspace.BotUserID
+		if botUserID == "" {
+			continue
+		}
+		name := ""
+		bot, err := config.Slack.BotByAppID(workspace.AppID)
+		if err == nil {
+			name = bot.Name
+		}
+		items[botUserID] = probeSlackBotSender{AppID: workspace.AppID, Name: name}
+	}
+	return items, nil
 }

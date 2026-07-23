@@ -97,7 +97,8 @@ type SimulateTodoConversationMessageInput struct {
 	Text string `json:"text"`
 	// 0-based 被 reply 的前序訊息索引；只允許指向已送出的訊息。
 	ReplyToMessageIndex *int `json:"replyToMessageIndex,omitempty"`
-	// deliveryMode 為 visible 且 platform 為 slack 時，指定這則可見訊息要用哪個 Slack app/bot 發出；未提供時使用 input.platformAppID。
+	// platform 為 slack 時，指定這則模擬訊息要用哪個 Slack app/bot 發出；visible mode 也會用同一個 bot 貼到真實 channel。
+	// 未提供時使用 input.platformAppID；internal mode 若有指定，sender 也會是該 bot user，而不是已註冊系統使用者。
 	VisiblePlatformAppID *string `json:"visiblePlatformAppID,omitempty"`
 }
 

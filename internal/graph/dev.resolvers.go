@@ -81,7 +81,12 @@ func (r *mutationResolver) SimulateTodoConversation(ctx context.Context, input m
 	// 因此 Slack 模擬要求呼叫端明確帶 platformTenantID / platformAppID，不在 dev helper 裡猜預設 bot。
 	platformTenantID := trimOptionalString(input.PlatformTenantID)
 	platformAppID := trimOptionalString(input.PlatformAppID)
-	participants, err := r.pickRandomSimulationParticipants(ctx, platform, platformTenantID, input.ParticipantCount)
+	var participants []devSimulationParticipant
+	if platform == "slack" && input.SenderUserID == nil && hasSlackScriptPlatformAppIDs(input.Messages) {
+		participants, err = r.pickSlackBotScriptParticipants(ctx, platformTenantID, platformAppID, input.Messages, input.ParticipantCount)
+	} else {
+		participants, err = r.pickRandomSimulationParticipants(ctx, platform, platformTenantID, input.ParticipantCount)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +94,6 @@ func (r *mutationResolver) SimulateTodoConversation(ctx context.Context, input m
 	if err != nil {
 		return nil, err
 	}
-	var slackBotSigningSecret string
 	if platform == "line" {
 		if r.LineWebhookProcessor == nil {
 			return nil, fmt.Errorf("line webhook processor is not initialized")
@@ -108,7 +112,9 @@ func (r *mutationResolver) SimulateTodoConversation(ctx context.Context, input m
 		if err != nil {
 			return nil, err
 		}
-		slackBotSigningSecret = strings.TrimSpace(bot.SigningSecret)
+		if strings.TrimSpace(bot.SigningSecret) == "" {
+			return nil, fmt.Errorf("slack signing secret is empty for app %s", platformAppID)
+		}
 	}
 
 	messages := make([]*model.SimulatedTodoMessage, 0, messageCount)
@@ -179,6 +185,14 @@ func (r *mutationResolver) SimulateTodoConversation(ctx context.Context, input m
 		} else {
 			// Slack webhook service 會先以簽章判斷本次事件屬於哪個 app_id。
 			// dev 模擬也產生合法簽章，才能測到多 bot signing secret selection 與後續 workspace token lookup。
+			bot, err := config.Slack.BotByAppID(turn.VisiblePlatformAppID)
+			if err != nil {
+				return nil, err
+			}
+			slackBotSigningSecret := strings.TrimSpace(bot.SigningSecret)
+			if slackBotSigningSecret == "" {
+				return nil, fmt.Errorf("slack signing secret is empty for app %s", turn.VisiblePlatformAppID)
+			}
 			signatureTimestamp := fmt.Sprintf("%d", time.Now().Unix())
 			signature := signSimulatedSlackWebhook(slackBotSigningSecret, signatureTimestamp, body)
 			if err := r.SlackWebhookProcessor.ValidateSignature(signatureTimestamp, signature, body); err != nil {

@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -97,9 +98,10 @@ func main() {
 	platformTenantID := flag.String("team", "T017LF31KBM", "Slack team id")
 	platformAppID := flag.String("app", "A0BJ1BJFNQH", "default Slack app id")
 	deliveryMode := flag.String("delivery", "visible", "delivery mode: internal or visible")
-	participantCount := flag.Int("participants", 2, "number of simulated conversation participants")
+	participantCount := flag.Int("participants", 3, "number of simulated conversation participants")
 	batchSize := flag.Int("batch", 50, "messages per GraphQL request")
 	totalMessages := flag.Int("total", 200, "total script messages to generate")
+	seed := flag.Int64("seed", 0, "random seed for generated scenario; 0 uses current time")
 	analysisWait := flag.Int("wait", 700, "analysis wait milliseconds per message")
 	skipClear := flag.Bool("skip-clear", false, "do not clear dev realtime Todo data before running")
 	skipProbe := flag.Bool("skip-probe", false, "do not run cmd/dev-todo-probe after simulation")
@@ -122,7 +124,12 @@ func main() {
 
 	ctx := context.Background()
 	client := &http.Client{Timeout: 15 * time.Minute}
-	messages := buildMessages(*totalMessages, *participantCount)
+	resolvedSeed := *seed
+	if resolvedSeed == 0 {
+		resolvedSeed = time.Now().UnixNano()
+	}
+	fmt.Fprintf(os.Stderr, "Simulation seed: %d\n", resolvedSeed)
+	messages := buildMessages(*totalMessages, *participantCount, resolvedSeed)
 	if *printScript {
 		printJSON(messages)
 		return
@@ -189,12 +196,13 @@ func main() {
 	}
 }
 
-func buildMessages(total int, participantCount int) []scriptMessage {
+func buildMessages(total int, participantCount int, seed int64) []scriptMessage {
 	botApps := []string{"A0BJ1BJFNQH", "A0BJXJE37CN", "A0BJJHNDCQ7"}
+	rng := rand.New(rand.NewSource(seed))
 	messages := make([]scriptMessage, 0, total)
 	add := func(text string, replyTo int) {
-		participantIndex := len(messages) % participantCount
-		message := scriptMessage{Text: text, ParticipantIndex: &participantIndex, VisiblePlatformAppID: botApps[len(messages)%len(botApps)]}
+		participantIndex := rng.Intn(participantCount)
+		message := scriptMessage{Text: text, ParticipantIndex: &participantIndex, VisiblePlatformAppID: botApps[rng.Intn(len(botApps))]}
 		if replyTo >= 0 {
 			message.ReplyToMessageIndex = &replyTo
 		}
@@ -221,13 +229,13 @@ func buildMessages(total int, participantCount int) []scriptMessage {
 		case 181:
 			add("合約缺漏清單確認仍是明天中午前，Oscar 先整理第一版給我看。", 88)
 		default:
-			add(noiseText(index), -1)
+			add(noiseText(index, rng), -1)
 		}
 	}
 	return messages
 }
 
-func noiseText(index int) string {
+func noiseText(index int, rng *rand.Rand) string {
 	items := []string{
 		"剛剛會議室冷氣好像忽冷忽熱，晚點再請行政看一下。",
 		"午餐我先跳過，下午還有一個客戶電話。",
@@ -240,7 +248,7 @@ func noiseText(index int) string {
 		"產品頁文案目前先維持上一版內容。",
 		"今天 Slack 通知有一點延遲，不過事件應該都有送到。",
 	}
-	return fmt.Sprintf("%s（插話 %03d）", items[index%len(items)], index)
+	return fmt.Sprintf("%s（插話 %03d）", items[rng.Intn(len(items))], index)
 }
 
 func invokeGraphQL(ctx context.Context, client *http.Client, endpoint string, query string, variables map[string]any, target any) error {

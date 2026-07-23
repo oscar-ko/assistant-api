@@ -74,17 +74,19 @@ func (r *Resolver) buildSimulatedTodoTurnPlan(ctx context.Context, input devSimu
 	}
 
 	visiblePlatformAppID := ""
-	if input.DeliveryMode == "visible" && strings.EqualFold(strings.TrimSpace(input.Platform), "slack") {
-		visiblePlatformAppID = resolveVisibleSlackPlatformAppID(input.DefaultPlatformAppID, input.Script, input.Index)
+	if strings.EqualFold(strings.TrimSpace(input.Platform), "slack") {
+		visiblePlatformAppID = resolveSlackScriptPlatformAppID(input.DefaultPlatformAppID, input.Script, input.Index)
 		if input.SenderParticipant == nil {
-			// visible mode 的多 bot 對話代表「外部未註冊長官」在發話；
-			// 因此沒有 senderUserID override 時，內部 sender 也要用該 Slack bot user id，
+			// 明確指定 Slack app 的 script 代表「外部未註冊長官/同事 bot」在發話；
+			// 因此沒有 senderUserID override 時，內部 sender 要用該 Slack bot user id，
 			// 讓 ChannelMessage.sender_user_id 保持空值，避免誤認成已註冊使用者本人。
-			botParticipant, err := r.resolveSlackBotSimulationParticipant(ctx, input.PlatformTenantID, visiblePlatformAppID)
-			if err != nil {
-				return devSimulationTurnPlan{}, err
+			if input.DeliveryMode == "visible" || hasSlackScriptPlatformAppID(input.Script, input.Index) {
+				botParticipant, err := r.resolveSlackBotSimulationParticipant(ctx, input.PlatformTenantID, visiblePlatformAppID)
+				if err != nil {
+					return devSimulationTurnPlan{}, err
+				}
+				participant = botParticipant
 			}
-			participant = botParticipant
 		}
 	}
 
@@ -269,6 +271,57 @@ func (r *Resolver) pickRandomSimulationParticipants(ctx context.Context, platfor
 	}
 }
 
+func (r *Resolver) pickSlackBotScriptParticipants(ctx context.Context, platformTenantID string, defaultPlatformAppID string, script []*model.SimulateTodoConversationMessageInput, count int) ([]devSimulationParticipant, error) {
+	if count < 1 {
+		return nil, fmt.Errorf("participantCount must be at least 1")
+	}
+	appIDs := make([]string, 0, count)
+	seen := map[string]struct{}{}
+	addApp := func(appID string) {
+		appID = strings.TrimSpace(appID)
+		if appID == "" {
+			return
+		}
+		key := strings.ToLower(appID)
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		appIDs = append(appIDs, appID)
+	}
+	for _, message := range script {
+		if message == nil {
+			continue
+		}
+		addApp(trimOptionalString(message.VisiblePlatformAppID))
+		if len(appIDs) >= count {
+			break
+		}
+	}
+	addApp(defaultPlatformAppID)
+	if len(appIDs) < count {
+		return nil, fmt.Errorf("not enough slack bot apps in script: need %d, got %d", count, len(appIDs))
+	}
+	participants := make([]devSimulationParticipant, 0, count)
+	for _, appID := range appIDs[:count] {
+		participant, err := r.resolveSlackBotSimulationParticipant(ctx, platformTenantID, appID)
+		if err != nil {
+			return nil, err
+		}
+		participants = append(participants, participant)
+	}
+	return participants, nil
+}
+
+func hasSlackScriptPlatformAppIDs(script []*model.SimulateTodoConversationMessageInput) bool {
+	for _, message := range script {
+		if message != nil && trimOptionalString(message.VisiblePlatformAppID) != "" {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *Resolver) resolveSimulationSenderParticipant(ctx context.Context, platform string, platformTenantID string, senderUserID *uuid.UUID) (*devSimulationParticipant, error) {
 	if senderUserID == nil {
 		return nil, nil
@@ -420,13 +473,17 @@ func (r *Resolver) sendVisibleSlackSimulationMessage(ctx context.Context, platfo
 	return r.SlackPushService.SendTextToChat(messageCtx, platformChannelID, "", visibleText, replyToVisiblePlatformMessageID, "")
 }
 
-func resolveVisibleSlackPlatformAppID(defaultPlatformAppID string, script []*model.SimulateTodoConversationMessageInput, index int) string {
+func resolveSlackScriptPlatformAppID(defaultPlatformAppID string, script []*model.SimulateTodoConversationMessageInput, index int) string {
 	if index >= 0 && index < len(script) && script[index] != nil {
 		if value := trimOptionalString(script[index].VisiblePlatformAppID); value != "" {
 			return value
 		}
 	}
 	return strings.TrimSpace(defaultPlatformAppID)
+}
+
+func hasSlackScriptPlatformAppID(script []*model.SimulateTodoConversationMessageInput, index int) bool {
+	return index >= 0 && index < len(script) && script[index] != nil && trimOptionalString(script[index].VisiblePlatformAppID) != ""
 }
 
 func resolveSimulatedTodoScriptTurn(index int, script []*model.SimulateTodoConversationMessageInput, participants []devSimulationParticipant) (int, string, *int, error) {
