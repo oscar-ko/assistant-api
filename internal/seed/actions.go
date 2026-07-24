@@ -13,6 +13,7 @@ import (
 	"assistant-api/internal/ent/skill"
 	aiembedding "assistant-api/internal/integration/ai/embedding"
 	aillminteraction "assistant-api/internal/integration/ai/llm_interaction"
+	conversationcontext "assistant-api/internal/usecase/conversation_context"
 
 	"github.com/google/uuid"
 	"github.com/pgvector/pgvector-go"
@@ -72,6 +73,23 @@ func seedActionCatalog(ctx context.Context, client *ent.Client) error {
 					APIOperation:   "stop_todo_reminder",
 					RouteTexts:     []string{"關閉待辦提醒", "停止待辦提醒", "不要再提醒待辦"},
 					CommandPurpose: "用途: 停用目前訊息所在 channel 的待辦提醒服務。必要參數: 無。作用範圍固定為目前訊息所在 channel。若使用者語意是關閉、停用、停止待辦提醒，直接 execute_action 並輸出空 action_params。",
+				},
+			},
+		},
+		{
+			SkillCode:        "channel.context",
+			Name:             "Channel Context Skill",
+			Description:      "Answer commands using recent channel conversation as source data.",
+			IsRealtime:       false,
+			RequiresTextScan: false,
+			Actions: []defaultActionSeed{
+				{
+					ActionCode:     action.ActionCodeConfigure,
+					Name:           "Channel Context Query",
+					Description:    "Answer a user request using previous messages in the current channel.",
+					APIOperation:   conversationcontext.Operation,
+					RouteTexts:     []string{"整理上面對話", "根據剛剛的聊天回答", "幫我統計上面大家說的內容", "總結前面的討論", "依照這串對話幫我計算"},
+					CommandPurpose: "用途: 使用目前 channel 內、此指令之前的對話紀錄作為資料來源，回答需要 channel-local history 才能 grounded 的任務；此 action 執行時會讀取 channel 歷史，決策階段不需要已提供歷史內容。規則: 先判斷使用者要求的答案是否必須依賴目前 channel 的既有訊息才能成立；若訊息中的主體指向大家、群組、頻道成員、這裡的人，或以之前、先前、前面、上面、前述、上述、剛剛、這串對話等方式指向 channel 內既有討論，或語意是在詢問既有討論、整理內容、計算、歸納、共識、結論、決定、待確認事項，通常代表需要 channel 既有訊息作為資料來源，必須選此 action；不可因決策 prompt 目前沒有附上歷史內容、沒有指定時間範圍、沒有指定成員名稱，就改選 answer_question 或 ask_clarifying_question；若不需要 channel 既有訊息即可由使用者當前訊息或一般知識直接回答，才可選 answer_question。輸出: next_step=execute_action, api_operation=channel_context_query, action_params.task 必須是使用者要 AI 完成的任務文字，不要補入未提供的資料來源或假設。",
 				},
 			},
 		},

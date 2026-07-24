@@ -6,6 +6,7 @@ import (
 	"assistant-api/internal/repository"
 	llminteraction "assistant-api/internal/usecase/ai/llm_interaction"
 	"assistant-api/internal/usecase/ai/topkfilter"
+	conversationcontext "assistant-api/internal/usecase/conversation_context"
 )
 
 // FactoryOptions 定義 provider-agnostic factory 的輸入。
@@ -25,6 +26,7 @@ type FactoryOptions struct {
 	Repo       *repository.ChannelMessageRepo
 	TopKFilter topkfilter.Service
 	LLM        llminteraction.InteractionService
+	Context    *conversationcontext.Service
 	Dispatcher ActionDispatcher
 	Messenger  OutboundMessenger
 }
@@ -45,6 +47,7 @@ func BuildDependencies(options FactoryOptions) Dependencies {
 		Repo:                        options.Repo,
 		TopKFilter:                  options.TopKFilter,
 		LLM:                         options.LLM,
+		Context:                     options.Context,
 		Dispatcher:                  options.Dispatcher,
 		Messenger:                   options.Messenger,
 	}

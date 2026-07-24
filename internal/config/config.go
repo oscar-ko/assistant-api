@@ -55,6 +55,19 @@ type AIConfig struct {
 	Reranker       RerankerConfig       `mapstructure:"reranker" yaml:"reranker"`
 	Classifier     ClassifierConfig     `mapstructure:"classifier" yaml:"classifier"`
 	TodoReminder   TodoReminderConfig   `mapstructure:"todo_reminder" yaml:"todo_reminder"`
+	// ConversationContext 控制「指令使用同 channel 過往對話作為資料來源」的 MVP 行為。
+	// 不新增資料表；只限制 retrieval/prompt 大小，避免一次指令把整個 channel 歷史送進模型。
+	ConversationContext ConversationContextConfig `mapstructure:"conversation_context" yaml:"conversation_context"`
+}
+
+// ConversationContextConfig controls command-time channel history retrieval.
+type ConversationContextConfig struct {
+	// RecentMessageLimit 控制從指令訊息往前最多抓幾則同 channel 訊息。
+	RecentMessageLimit int `mapstructure:"recent_message_limit" yaml:"recent_message_limit"`
+	// MaxContextMessages 控制實際放進 prompt 的訊息數量上限；可小於 RecentMessageLimit。
+	MaxContextMessages int `mapstructure:"max_context_messages" yaml:"max_context_messages"`
+	// MaxContextChars 控制所有 context message content 的總字元數上限，避免 prompt 過長。
+	MaxContextChars int `mapstructure:"max_context_chars" yaml:"max_context_chars"`
 }
 
 // TodoReminderConfig controls Todo Reminder-specific runtime behavior.
@@ -107,7 +120,7 @@ type LLMInteractionConfig struct {
 	// QuestionConfidenceThreshold 決定問答回覆信心值低於多少時，
 	// 應改由其他 cloud LLM 回答會更合適。0 代表關閉此門檻判斷。
 	QuestionConfidenceThreshold float64 `mapstructure:"question_confidence_threshold" yaml:"question_confidence_threshold"`
-	// DecisionJSONRetryCount 決定 action decision 遇到 JSON 格式錯誤時最多重送幾次。
+	// DecisionJSONRetryCount 決定 action decision 遇到 JSON 或契約格式錯誤時最多重送幾次。
 	// 0 代表不重送（只送第一次）。
 	DecisionJSONRetryCount int `mapstructure:"decision_json_retry_count" yaml:"decision_json_retry_count"`
 }
@@ -497,13 +510,17 @@ func MustLoad() {
 		// 第二層門檻：question-answer confidence 低於此值時，
 		// 標記建議改送 cloud LLM（例如時事/高難推理問題）。
 		viper.SetDefault("ai.llm_interaction.question_confidence_threshold", 0.6)
-		// action decision JSON 格式錯誤重送次數。預設為 0，避免同一訊息被重送到 AI。
-		viper.SetDefault("ai.llm_interaction.decision_json_retry_count", 0)
+		// action decision JSON 或契約格式錯誤重送次數。預設重送一次，修復模型輸出格式但避免無限制重試。
+		viper.SetDefault("ai.llm_interaction.decision_json_retry_count", 1)
 		// Todo Reminder 時間正規化預設使用台灣時區；部署到其他地區時應由 app.yml 明確覆寫。
 		viper.SetDefault("ai.todo_reminder.timezone", "Asia/Taipei")
 		// Todo Reminder 的近端 recent window：單位是往前幾則同 channel 訊息，不是時間長度。
 		// 這個值只控制第一段相鄰對話召回；和 evidence 視窗合併後的 prompt 總量由 max_context_messages 控制。
 		viper.SetDefault("ai.todo_reminder.recent_context_message_limit", 8)
+		// Conversation Context MVP：只使用同 channel 最近訊息，不做跨 channel/長期記憶。
+		viper.SetDefault("ai.conversation_context.recent_message_limit", 40)
+		viper.SetDefault("ai.conversation_context.max_context_messages", 30)
+		viper.SetDefault("ai.conversation_context.max_context_chars", 12000)
 		viper.SetDefault("ai.embedding.url", "http://127.0.0.1:9000")
 		viper.SetDefault("ai.embedding.target", "aistant.embedding")
 		viper.SetDefault("ai.embedding.timeout_seconds", 60)

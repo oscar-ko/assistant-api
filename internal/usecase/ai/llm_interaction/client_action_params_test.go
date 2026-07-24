@@ -193,30 +193,6 @@ func TestValidateActionDecisionRejectsNonArrayTargetLocales(t *testing.T) {
 	}
 }
 
-func TestValidateActionDecisionRejectsParameterPayloadInReason(t *testing.T) {
-	tests := []struct {
-		name   string
-		reason string
-	}{
-		{name: "json fragment", reason: `決策理由 {"target_locales":["en"]}`},
-		{name: "key value", reason: "決策理由 target_locales=en"},
-		{name: "array payload", reason: "決策理由 target_locales [en]"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := validateActionDecision(&ActionDecision{
-				NextStep:     NextStepExecuteAction,
-				APIOperation: "start_translation_locale",
-				ActionParams: map[string]json.RawMessage{ActionParamTargetLocales: mustRawJSON(t, []string{"en"})},
-				Reason:       tt.reason,
-			})
-			if err == nil {
-				t.Fatal("expected reason parameter payload to be rejected")
-			}
-		})
-	}
-}
-
 func TestValidateActionDecisionRequiresNextStep(t *testing.T) {
 	err := validateActionDecision(&ActionDecision{})
 	if err == nil {

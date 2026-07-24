@@ -22,6 +22,7 @@ import (
 	"assistant-api/internal/repository"
 	"assistant-api/internal/usecase/actionpost"
 	channellifecycle "assistant-api/internal/usecase/channel_lifecycle"
+	conversationcontext "assistant-api/internal/usecase/conversation_context"
 	"assistant-api/internal/usecase/inbound/commandchain"
 	"assistant-api/internal/usecase/inbound/commanddecision"
 	"assistant-api/internal/usecase/inbound/conversationflow"
@@ -34,14 +35,13 @@ import (
 )
 
 type WebhookProcessor interface {
-	ValidateSignature(timestamp string, signature string, body []byte) error
-	ProcessIncoming(body []byte) (string, error)
+	ValidateSignature(timestamp string, signature string, body []byte) (config.SlackBotConfig, error)
+	ProcessIncoming(body []byte, bot config.SlackBotConfig) (string, error)
 }
 
 type WebhookService struct {
 	repo                  *repository.ChannelMessageRepo
 	tokenStore            slackBotTokenStore
-	bot                   config.SlackBotConfig
 	decisionService       commanddecision.Service
 	llmInteractionService aillminteraction.InteractionService
 	persistenceService    messagepersist.Service
@@ -208,8 +208,13 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 		Repo:                        repo,
 		TopKFilter:                  options.TopKFilter,
 		LLM:                         options.LLMInteraction,
-		Dispatcher:                  dispatcher,
-		Messenger:                   slackOutboundMessenger{sender: options.FollowUpSender},
+		Context: conversationcontext.New(repo, options.LLMInteraction, conversationcontext.Config{
+			RecentMessageLimit: config.AI.ConversationContext.RecentMessageLimit,
+			MaxContextMessages: config.AI.ConversationContext.MaxContextMessages,
+			MaxContextChars:    config.AI.ConversationContext.MaxContextChars,
+		}),
+		Dispatcher: dispatcher,
+		Messenger:  slackOutboundMessenger{sender: options.FollowUpSender},
 	})
 	pipeline := &messagepipeline.Handler{
 		PlatformLabel:        "slack",
@@ -233,22 +238,24 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, tokenStor
 	}
 }
 
-func (s *WebhookService) ValidateSignature(timestamp string, signature string, body []byte) error {
+func (s *WebhookService) ValidateSignature(timestamp string, signature string, body []byte) (config.SlackBotConfig, error) {
 	timestamp = strings.TrimSpace(timestamp)
 	signature = strings.TrimSpace(signature)
 	if timestamp == "" || signature == "" {
-		return fmt.Errorf("missing slack signature headers")
+		return config.SlackBotConfig{}, fmt.Errorf("missing slack signature headers")
 	}
 
 	tsInt, err := strconv.ParseInt(timestamp, 10, 64)
 	if err != nil {
-		return fmt.Errorf("invalid slack request timestamp")
+		return config.SlackBotConfig{}, fmt.Errorf("invalid slack request timestamp")
 	}
 	now := time.Now().Unix()
 	if tsInt < now-300 || tsInt > now+300 {
-		return fmt.Errorf("stale slack request timestamp")
+		return config.SlackBotConfig{}, fmt.Errorf("stale slack request timestamp")
 	}
 
+	// 依 signing secret 找出本次 request 真正命中的 bot。
+	// 不把結果寫回 WebhookService 欄位，因為 service 是長生命週期物件；request-scoped bot 才能避免多 bot 併發時互相覆蓋。
 	base := "v0:" + timestamp + ":" + string(body)
 	bot, err := config.Slack.BotBySigningSecret(func(signingSecret string) bool {
 		mac := hmac.New(sha256.New, []byte(strings.TrimSpace(signingSecret)))
@@ -257,20 +264,26 @@ func (s *WebhookService) ValidateSignature(timestamp string, signature string, b
 		return hmac.Equal([]byte(expected), []byte(signature))
 	})
 	if err != nil {
-		return fmt.Errorf("invalid slack request signature")
+		return config.SlackBotConfig{}, fmt.Errorf("invalid slack request signature")
 	}
-	s.bot = bot
-	return nil
+	return bot, nil
 }
 
-func (s *WebhookService) ProcessIncoming(body []byte) (string, error) {
+func (s *WebhookService) ProcessIncoming(body []byte, bot config.SlackBotConfig) (string, error) {
+	appID := strings.TrimSpace(bot.AppID)
+	if appID == "" {
+		return "", fmt.Errorf("slack active bot app_id is empty")
+	}
+	// ProcessIncoming 只使用 ValidateSignature 回傳的 bot。
+	// 這個 appID 會一路傳到 token store、channel name resolver、runtime context 與 outbound sender，
+	// 確保同一個 Slack event 的驗簽、讀 token、判斷 bot mention、回覆訊息都屬於同一個 app。
 	var req slackWebhookRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		return "", err
 	}
 
 	if strings.EqualFold(strings.TrimSpace(req.Type), "url_verification") {
-		configuredToken := strings.TrimSpace(s.bot.VerificationToken)
+		configuredToken := strings.TrimSpace(bot.VerificationToken)
 		requestToken := strings.TrimSpace(req.Token)
 		if configuredToken != "" && requestToken != "" && configuredToken != requestToken {
 			return "", fmt.Errorf("invalid slack verification token")
@@ -284,7 +297,7 @@ func (s *WebhookService) ProcessIncoming(body []byte) (string, error) {
 	if req.Event == nil {
 		return "", nil
 	}
-	if handled, err := s.handleChannelLifecycleEvent(context.Background(), strings.TrimSpace(req.TeamID), req.Event); handled {
+	if handled, err := s.handleChannelLifecycleEvent(context.Background(), appID, strings.TrimSpace(req.TeamID), req.Event); handled {
 		return "", err
 	}
 	webhooklog.LogIncomingMessage(webhooklog.IncomingMessage{
@@ -319,11 +332,11 @@ func (s *WebhookService) ProcessIncoming(body []byte) (string, error) {
 		return "", nil
 	}
 	message.PlatformTenantID = strings.TrimSpace(req.TeamID)
-	botUserID, botUserIDErr := s.resolveWorkspaceBotUserID(context.Background(), strings.TrimSpace(req.TeamID))
+	botUserID, botUserIDErr := s.resolveWorkspaceBotUserID(context.Background(), appID, strings.TrimSpace(req.TeamID))
 	if botUserIDErr != nil {
 		return "", botUserIDErr
 	}
-	if resolvedName, nameErr := resolveSlackChannelDisplayName(context.Background(), s.tokenStore, strings.TrimSpace(s.bot.AppID), message); nameErr == nil {
+	if resolvedName, nameErr := resolveSlackChannelDisplayName(context.Background(), s.tokenStore, appID, message); nameErr == nil {
 		message.ChannelName = resolvedName
 	}
 
@@ -331,7 +344,7 @@ func (s *WebhookService) ProcessIncoming(body []byte) (string, error) {
 		return "", nil
 	}
 	s.messagePipeline.Process(messagepipeline.Input{
-		Context:        runtimecontext.WithBotSenderID(WithWorkspaceAppID(WithWorkspaceTeamID(context.Background(), strings.TrimSpace(message.PlatformTenantID)), strings.TrimSpace(s.bot.AppID)), botUserID),
+		Context:        runtimecontext.WithBotSenderID(WithWorkspaceAppID(WithWorkspaceTeamID(context.Background(), strings.TrimSpace(message.PlatformTenantID)), appID), botUserID),
 		Message:        message,
 		BotUserID:      botUserID,
 		PlatformUserID: strings.TrimSpace(req.Event.User),
@@ -345,7 +358,7 @@ func (s *WebhookService) ProcessIncoming(body []byte) (string, error) {
 // 規則：
 // - bot 被邀請進群組/頻道時：建立（或啟用）group channel
 // - bot 離開時：將對應 channel 標記 is_active=false
-func (s *WebhookService) handleChannelLifecycleEvent(ctx context.Context, teamID string, event *slackEvent) (bool, error) {
+func (s *WebhookService) handleChannelLifecycleEvent(ctx context.Context, appID string, teamID string, event *slackEvent) (bool, error) {
 	if s == nil || s.repo == nil || event == nil {
 		return false, nil
 	}
@@ -364,7 +377,7 @@ func (s *WebhookService) handleChannelLifecycleEvent(ctx context.Context, teamID
 		if !ok {
 			return false, nil
 		}
-		botUserID, err := s.resolveWorkspaceBotUserID(ctx, teamID)
+		botUserID, err := s.resolveWorkspaceBotUserID(ctx, appID, teamID)
 		if err != nil {
 			return true, err
 		}
@@ -380,7 +393,7 @@ func (s *WebhookService) handleChannelLifecycleEvent(ctx context.Context, teamID
 			return true, nil
 		}
 		if lifecycleAction == slackLifecycleActionJoin {
-			channelName, err := s.resolveSlackLifecycleChannelName(ctx, teamID, event)
+			channelName, err := s.resolveSlackLifecycleChannelName(ctx, appID, teamID, event)
 			if err != nil {
 				return true, err
 			}
@@ -402,7 +415,7 @@ func (s *WebhookService) handleChannelLifecycleEvent(ctx context.Context, teamID
 		)
 		return true, nil
 	case "channel_joined":
-		channelName, err := s.resolveSlackLifecycleChannelName(ctx, teamID, event)
+		channelName, err := s.resolveSlackLifecycleChannelName(ctx, appID, teamID, event)
 		if err != nil {
 			return true, err
 		}
@@ -411,7 +424,7 @@ func (s *WebhookService) handleChannelLifecycleEvent(ctx context.Context, teamID
 		}
 		return true, nil
 	case "member_joined_channel":
-		botUserID, err := s.resolveWorkspaceBotUserID(ctx, teamID)
+		botUserID, err := s.resolveWorkspaceBotUserID(ctx, appID, teamID)
 		if err != nil {
 			return true, err
 		}
@@ -428,7 +441,7 @@ func (s *WebhookService) handleChannelLifecycleEvent(ctx context.Context, teamID
 			)
 			return true, nil
 		}
-		channelName, err := s.resolveSlackLifecycleChannelName(ctx, teamID, event)
+		channelName, err := s.resolveSlackLifecycleChannelName(ctx, appID, teamID, event)
 		if err != nil {
 			return true, err
 		}
@@ -437,7 +450,7 @@ func (s *WebhookService) handleChannelLifecycleEvent(ctx context.Context, teamID
 		}
 		return true, nil
 	case "member_left_channel":
-		botUserID, err := s.resolveWorkspaceBotUserID(ctx, teamID)
+		botUserID, err := s.resolveWorkspaceBotUserID(ctx, appID, teamID)
 		if err != nil {
 			return true, err
 		}
@@ -521,14 +534,14 @@ func slackMessageLifecycleAction(subtype string) (string, bool) {
 	}
 }
 
-func (s *WebhookService) resolveSlackLifecycleChannelName(ctx context.Context, teamID string, event *slackEvent) (string, error) {
+func (s *WebhookService) resolveSlackLifecycleChannelName(ctx context.Context, appID string, teamID string, event *slackEvent) (string, error) {
 	if event == nil {
 		return "", fmt.Errorf("slack event is nil")
 	}
 	if name := strings.TrimSpace(event.Channel.Name); name != "" {
 		return name, nil
 	}
-	return GetChannelNameByID(ctx, s.tokenStore, strings.TrimSpace(s.bot.AppID), teamID, event.Channel.String())
+	return GetChannelNameByID(ctx, s.tokenStore, strings.TrimSpace(appID), teamID, event.Channel.String())
 }
 
 func resolveSlackChannelDisplayName(ctx context.Context, tokenStore slackBotTokenStore, appID string, message *unifiedmessage.Message) (string, error) {
@@ -553,11 +566,11 @@ func (m slackOutboundMessenger) SendText(ctx context.Context, chatID string, use
 	return m.sender.SendTextToChat(ctx, chatID, userID, text, replyRef, quoteRef)
 }
 
-func (s *WebhookService) resolveWorkspaceBotUserID(ctx context.Context, teamID string) (string, error) {
+func (s *WebhookService) resolveWorkspaceBotUserID(ctx context.Context, appID string, teamID string) (string, error) {
 	if s == nil || s.tokenStore == nil {
 		return "", fmt.Errorf("slack bot token store is not initialized")
 	}
-	return s.tokenStore.ResolveWorkspaceBotUserID(ctx, strings.TrimSpace(s.bot.AppID), strings.TrimSpace(teamID))
+	return s.tokenStore.ResolveWorkspaceBotUserID(ctx, strings.TrimSpace(appID), strings.TrimSpace(teamID))
 }
 
 // slackRealtimeSender 將 Slack 的送訊息能力包成共用 realtime sender 介面。

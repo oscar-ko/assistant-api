@@ -73,7 +73,11 @@ func (r *SlackRepo) CreateUser(ctx context.Context, name, email string) (*ent.Us
 	return r.db.User.Create().SetName(name).SetEmail(email).Save(ctx)
 }
 
-// UpsertWorkspaceInstall stores the bot installation credentials for a Slack workspace.
+// UpsertWorkspaceInstall stores the bot installation credentials for a Slack app in a workspace.
+//
+// Slack 同一個 workspace 可能安裝多個 app，本系統也可能同時跑多個 Slack bot。
+// 因此 workspace install 的唯一語意必須是 app_id + platform_team_id，不能只用 team_id。
+// 否則 A bot 驗證成功後可能拿到 B bot token 或 bot_user_id，造成錯誤回覆與權限混線。
 func (r *SlackRepo) UpsertWorkspaceInstall(ctx context.Context, appID string, teamID string, teamName string, botToken string, botUserID string) error {
 	if r == nil || r.db == nil {
 		return fmt.Errorf("slack repository not initialized")
@@ -84,7 +88,7 @@ func (r *SlackRepo) UpsertWorkspaceInstall(ctx context.Context, appID string, te
 	botToken = strings.TrimSpace(botToken)
 	botUserID = strings.TrimSpace(botUserID)
 	if appID == "" {
-		return fmt.Errorf("slack app_id is required")
+		return fmt.Errorf("slack app id is required")
 	}
 	if teamID == "" {
 		return fmt.Errorf("slack team id is required")
@@ -93,8 +97,6 @@ func (r *SlackRepo) UpsertWorkspaceInstall(ctx context.Context, appID string, te
 		return fmt.Errorf("slack bot token is required")
 	}
 
-	// workspace install 的唯一語意是「某個 Slack App 安裝到某個 workspace」。
-	// 同一個 team 可以同時安裝多個 App，因此用 app_id + platform_team_id 作為查詢邊界，避免 token 覆蓋。
 	existing, err := r.db.SlackWorkspace.Query().
 		Where(slackworkspace.AppIDEQ(appID), slackworkspace.PlatformTeamIDEQ(teamID)).
 		Only(ctx)
@@ -132,7 +134,10 @@ func (r *SlackRepo) UpsertWorkspaceInstall(ctx context.Context, appID string, te
 	return err
 }
 
-// ResolveWorkspaceBotToken returns the installed bot token for the Slack workspace.
+// ResolveWorkspaceBotToken returns the installed bot token for the Slack app in a workspace.
+//
+// 呼叫端必須帶入 request-scoped appID；不要從全域目前 bot 推導，
+// 因為 webhook service 是 singleton，多個 Slack app 的請求可能交錯進來。
 func (r *SlackRepo) ResolveWorkspaceBotToken(ctx context.Context, appID string, teamID string) (string, error) {
 	if r == nil || r.db == nil {
 		return "", fmt.Errorf("slack repository not initialized")
@@ -140,14 +145,12 @@ func (r *SlackRepo) ResolveWorkspaceBotToken(ctx context.Context, appID string, 
 	appID = strings.TrimSpace(appID)
 	teamID = strings.TrimSpace(teamID)
 	if appID == "" {
-		return "", fmt.Errorf("slack app_id is empty")
+		return "", fmt.Errorf("slack app id is empty")
 	}
 	if teamID == "" {
 		return "", fmt.Errorf("slack team id is empty")
 	}
 
-	// 出站訊息必須用 webhook/request context 帶下來的 app_id 與 team_id 查 token。
-	// 這裡不回退到 default bot，否則多 bot 安裝時會把訊息送成錯誤的 Slack App。
 	item, err := r.db.SlackWorkspace.Query().
 		Where(slackworkspace.AppIDEQ(appID), slackworkspace.PlatformTeamIDEQ(teamID)).
 		Only(ctx)
@@ -164,7 +167,7 @@ func (r *SlackRepo) ResolveWorkspaceBotToken(ctx context.Context, appID string, 
 	return token, nil
 }
 
-// ResolveWorkspaceBotUserID returns the installed bot user id for the Slack workspace.
+// ResolveWorkspaceBotUserID returns the installed bot user id for the Slack app in a workspace.
 func (r *SlackRepo) ResolveWorkspaceBotUserID(ctx context.Context, appID string, teamID string) (string, error) {
 	if r == nil || r.db == nil {
 		return "", fmt.Errorf("slack repository not initialized")
@@ -172,7 +175,7 @@ func (r *SlackRepo) ResolveWorkspaceBotUserID(ctx context.Context, appID string,
 	appID = strings.TrimSpace(appID)
 	teamID = strings.TrimSpace(teamID)
 	if appID == "" {
-		return "", fmt.Errorf("slack app_id is empty")
+		return "", fmt.Errorf("slack app id is empty")
 	}
 	if teamID == "" {
 		return "", fmt.Errorf("slack team id is empty")
@@ -205,7 +208,7 @@ func (r *SlackRepo) HasWorkspaceInstall(ctx context.Context, appID string, teamI
 	appID = strings.TrimSpace(appID)
 	teamID = strings.TrimSpace(teamID)
 	if appID == "" {
-		return false, fmt.Errorf("slack app_id is empty")
+		return false, fmt.Errorf("slack app id is empty")
 	}
 	if teamID == "" {
 		return false, fmt.Errorf("slack team id is empty")

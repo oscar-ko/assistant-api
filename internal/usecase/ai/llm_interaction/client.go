@@ -400,6 +400,9 @@ func BuildFinalActionPrompt(candidates []ActionCandidate) string {
 	1) 先從候選清單選出唯一 api_operation
 	2) 再只套用該 api_operation 對應的 operation 專屬動態規則來填 action_params
 - 候選排序與 score 只代表召回/精排參考，不是最終答案；選擇 api_operation 時必須以使用者訊息的真實意圖與 operation 用途為準
+- 若候選 operation 的用途是使用目前 channel 歷史作為資料來源，且使用者要求的答案必須依賴目前 channel 既有訊息才能 grounded，應選該候選並 execute_action，不可降級為 answer_question 憑空回答；例如使用者以大家、群組、頻道成員、之前、先前、前面、上面、前述、上述、剛剛、這串對話等語意指向 channel 內既有討論時，通常需要 channel-local history
+- 使用 channel 歷史的候選 action 會在執行階段讀取目前 channel 的既有訊息；決策階段看不到歷史內容不是缺少權限或缺少上下文，不可因此改選 answer_question
+- 若使用者要求查詢、整理或判斷 channel 既有討論，除非被選中 operation 的動態規則明確要求，否則不需要使用者額外指定時間範圍、成員名稱或完整歷史內容
 - 選擇 api_operation 前，先判斷該 operation 的必要語意條件是否已由使用者訊息明確提供；若某候選需要指定目標、範圍或參數，但使用者訊息只表達整體啟用/停用意圖，應優先選擇不需要該參數且語意涵蓋整體操作的候選
 - route_text 是召回提示語，不是使用者已提供參數的證據；包含「某、指定、特定、目標」等佔位描述的 route_text 不代表使用者訊息已指定該參數
 - 不可套用未被選中 operation 的動態規則
@@ -430,6 +433,7 @@ func BuildQuestionAnswerPrompt() string {
 
 規則：
 - answer: 直接可讀的最終回答（繁體中文）
+- answer 不可包含 citation、來源註記、引用標記或任何特殊引用符號，例如 cite、[citation]、[source]、<cite>
 - confidence: 0 到 1 的數字，代表此回答是否足夠可靠
 - 若問題涉及即時資訊、查詢網路、資料不足或高風險推論，請大幅降低 confidence
 - 不可輸出額外欄位
@@ -459,6 +463,7 @@ func BuildClarifyingQuestionPrompt(reason string) string {
 
 規則：
 - answer 必須是一句直接對使用者提問的繁體中文追問句
+- answer 不可包含 citation、來源註記、引用標記或任何特殊引用符號，例如 cite、[citation]、[source]、<cite>
 - 只能問一個最小必要問題，不可同時追問多件事
 - 不可直接回答問題、不可執行動作、不可假設缺失參數
 - 若原因已指出缺少的必要資訊，應優先針對該資訊追問

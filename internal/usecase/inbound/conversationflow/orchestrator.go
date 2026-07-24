@@ -13,6 +13,7 @@ import (
 	"assistant-api/internal/repository"
 	llminteraction "assistant-api/internal/usecase/ai/llm_interaction"
 	"assistant-api/internal/usecase/ai/topkfilter"
+	conversationcontext "assistant-api/internal/usecase/conversation_context"
 	"assistant-api/internal/usecase/inbound/qarouting"
 
 	"github.com/google/uuid"
@@ -68,6 +69,8 @@ type Dependencies struct {
 	TopKFilter topkfilter.Service
 	// LLM：輸出最終 action 決策與問答/追問結果。
 	LLM llminteraction.InteractionService
+	// Context：執行「以同 channel 過往訊息作為資料來源」的 context-aware 指令。
+	Context *conversationcontext.Service
 	// Dispatcher：執行 operation 對應的副作用。
 	Dispatcher ActionDispatcher
 	// Messenger：平台外送訊息抽象（reply/push/thread 等由 adapter 實作）。
@@ -370,14 +373,142 @@ func (o *Orchestrator) ProcessCommand(ctx context.Context, message *unifiedmessa
 		zap.String("reason", finalDecision.Reason),
 	)
 
+	if o.handleConversationContextAction(ctx, message, savedMessage, strings.TrimSpace(senderUserID), strings.TrimSpace(replyRef), strings.TrimSpace(quoteRef), finalDecision) {
+		return
+	}
+
 	o.dispatchActionPostHandlers(ctx, message, savedMessage, strings.TrimSpace(senderUserID), strings.TrimSpace(replyRef), strings.TrimSpace(quoteRef), finalDecision, matchedSkillCode)
+}
+
+func (o *Orchestrator) handleConversationContextAction(ctx context.Context, message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, userID string, replyRef string, quoteRef string, decision *llminteraction.ActionDecision) bool {
+	if o == nil || o.deps.Context == nil || decision == nil || !strings.EqualFold(strings.TrimSpace(decision.APIOperation), conversationcontext.Operation) {
+		return false
+	}
+	if savedMessage == nil {
+		return true
+	}
+	task := strings.TrimSpace(message.Text)
+	if paramTask, ok := decision.ParamString("task"); ok {
+		task = paramTask
+	}
+	// channel_context_query 是 command flow 裡的特殊 action：
+	// 它沒有外部 post-action side effect，而是以同 channel 歷史訊息建立 prompt 後直接回覆使用者。
+	// 因此必須在 generic dispatcher 前處理，避免被當成一般 action 寫入成功訊息「指令已執行成功」。
+	zap.L().Info(o.logKey("conversation context query started"),
+		zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+		zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+		zap.Int("task_chars", len([]rune(strings.TrimSpace(task)))),
+	)
+	result, err := o.deps.Context.Execute(ctx, savedMessage, task)
+	if err != nil {
+		zap.L().Warn(o.logKey("conversation context query failed"),
+			zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+			zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+			zap.Error(err),
+		)
+		o.persistActionResult(savedMessage, conversationcontext.Operation, "failed", err.Error())
+		o.sendServiceUnavailableNotice(ctx, message, savedMessage, userID, replyRef, quoteRef, err)
+		return true
+	}
+	zap.L().Info(o.logKey("conversation context query answered"),
+		zap.String("channel_id", strings.TrimSpace(message.ChannelID)),
+		zap.String("message_id", strings.TrimSpace(message.PlatformMessageID)),
+		zap.Int("context_message_count", len(result.Preview.Messages)),
+		zap.Int("recent_limit", result.Preview.RecentLimit),
+		zap.Int("selected_limit", result.Preview.SelectedLimit),
+		zap.Int("max_context_chars", result.Preview.MaxContextChars),
+		zap.Float64("confidence", result.Confidence),
+	)
+	o.persistActionResult(savedMessage, conversationcontext.Operation, "success", result.Answer)
+	o.sendConversationContextAnswer(ctx, message, savedMessage, userID, replyRef, quoteRef, result.Answer)
+	return true
+}
+
+func (o *Orchestrator) persistActionResult(savedMessage *ent.ChannelMessage, apiOperation string, status string, resultMessage string) {
+	if o == nil || o.deps.Repo == nil || savedMessage == nil {
+		return
+	}
+	if err := o.deps.Repo.UpsertActionResult(context.Background(), apiOperation, savedMessage.ID, status, resultMessage); err != nil {
+		zap.L().Warn(o.logKey("persist action result failed"),
+			zap.String("api_operation", strings.TrimSpace(apiOperation)),
+			zap.String("status", strings.TrimSpace(status)),
+			zap.Error(err),
+		)
+	}
+}
+
+func (o *Orchestrator) sendConversationContextAnswer(ctx context.Context, message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, userID string, replyRef string, quoteRef string, text string) {
+	if o == nil || o.deps.Messenger == nil || message == nil || strings.TrimSpace(text) == "" || strings.TrimSpace(userID) == "" {
+		return
+	}
+	chatID := strings.TrimSpace(message.ChannelID)
+	usedReply := false
+	sentPlatformMessageID := ""
+	if strings.TrimSpace(replyRef) != "" {
+		if sentID, err := o.deps.Messenger.SendText(ctx, chatID, userID, strings.TrimSpace(text), strings.TrimSpace(replyRef), strings.TrimSpace(quoteRef)); err == nil {
+			sentPlatformMessageID = sentID
+			usedReply = true
+		} else {
+			zap.L().Warn(o.logKey("conversation context answer reply failed, fallback to push"), zap.String("channel_id", chatID), zap.Error(err))
+		}
+	}
+	if sentPlatformMessageID == "" {
+		sentID, err := o.deps.Messenger.SendText(ctx, chatID, userID, strings.TrimSpace(text), "", strings.TrimSpace(quoteRef))
+		if err != nil {
+			zap.L().Warn(o.logKey("conversation context answer push failed"), zap.String("channel_id", chatID), zap.Error(err))
+			return
+		}
+		sentPlatformMessageID = sentID
+	}
+	if o.deps.Repo == nil || savedMessage == nil {
+		return
+	}
+	if _, err := o.deps.Repo.SaveSentMessage(context.Background(), savedMessage.ChannelID, o.resolveBotSenderID(ctx), "", sentPlatformMessageID, outboundReplyToMsgID(message, usedReply), strings.TrimSpace(text), "text", time.Now().UnixMilli(), savedMessage.ID); err != nil {
+		zap.L().Warn(o.logKey("persist conversation context answer failed"), zap.String("channel_id", chatID), zap.Error(err))
+	}
 }
 
 func (o *Orchestrator) decideFinalActionWithRetry(ctx context.Context, text string, candidates []llminteraction.ActionCandidate) (*llminteraction.ActionDecision, error) {
 	if o == nil || o.deps.LLM == nil {
 		return nil, nil
 	}
-	return o.deps.LLM.DecideFinalAction(ctx, text, candidates)
+	attempts := o.deps.DecisionJSONRetryCount + 1
+	if attempts < 1 {
+		attempts = 1
+	}
+	decisionText := strings.TrimSpace(text)
+	var lastErr error
+	for attempt := 0; attempt < attempts; attempt++ {
+		// 只重試模型輸出格式/契約錯誤，不重試 timeout 或 transport error。
+		// 這樣可以修正常見的 JSON/reason 欄位污染，同時維持 infra 問題 fail-fast。
+		decision, err := o.deps.LLM.DecideFinalAction(ctx, decisionText, candidates)
+		if err == nil {
+			return decision, nil
+		}
+		lastErr = err
+		if attempt+1 >= attempts || !isRetryableDecisionOutputError(err) {
+			return nil, err
+		}
+		decisionText = buildDecisionRetryInputText(text, err)
+		zap.L().Warn(o.logKey("message final action decision contract retry"),
+			zap.Int("attempt", attempt+1),
+			zap.Int("max_attempts", attempts),
+			zap.String("error_message", strings.TrimSpace(err.Error())),
+			zap.Error(err),
+		)
+	}
+	return nil, lastErr
+}
+
+func isRetryableDecisionOutputError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return llminteraction.IsDecisionValidationError(err) || isDecisionJSONFormatError(err)
+}
+
+func buildDecisionRetryInputText(originalText string, err error) string {
+	return strings.TrimSpace(originalText) + "\n\n[action_decision_retry_feedback]\n" + strings.TrimSpace(err.Error()) + "\n請重新輸出符合 contract 的 JSON。所有執行參數只能放在 action_params；reason 只能是一句純文字決策理由，不可包含 key=value、JSON、參數清單或候選欄位原文。"
 }
 
 func isCommandMemberMessage(message *ent.ChannelMessage) bool {
@@ -1153,9 +1284,18 @@ func (o *Orchestrator) persistMissingParameterResult(savedMessage *ent.ChannelMe
 func toActionCandidates(candidates []topkfilter.ScoredCandidate) []llminteraction.ActionCandidate {
 	// 候選轉換集中在這裡，避免 topkfilter 型別滲透到 LLM 互動層。
 	out := make([]llminteraction.ActionCandidate, 0, len(candidates))
+	seenOperations := map[string]struct{}{}
 	for _, item := range candidates {
+		operation := strings.TrimSpace(item.Candidate.APIOperation)
+		if operation == "" {
+			continue
+		}
+		if _, seen := seenOperations[operation]; seen {
+			continue
+		}
+		seenOperations[operation] = struct{}{}
 		out = append(out, llminteraction.ActionCandidate{
-			Operation: item.Candidate.APIOperation,
+			Operation: operation,
 			SkillCode: item.Candidate.SkillCode,
 			RouteText: item.Candidate.RouteText,
 			Prompt:    item.Candidate.Prompt,

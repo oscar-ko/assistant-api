@@ -69,7 +69,8 @@ func webhookHandler(svc WebhookProcessor) gin.HandlerFunc {
 
 		signature := strings.TrimSpace(c.GetHeader("X-Slack-Signature"))
 		timestamp := strings.TrimSpace(c.GetHeader("X-Slack-Request-Timestamp"))
-		if err := svc.ValidateSignature(timestamp, signature, body); err != nil {
+		activeBot, err := svc.ValidateSignature(timestamp, signature, body)
+		if err != nil {
 			zap.L().Warn("slack webhook signature validation failed",
 				zap.String("reason", err.Error()),
 				zap.Bool("has_signature_header", signature != ""),
@@ -103,8 +104,11 @@ func webhookHandler(svc WebhookProcessor) gin.HandlerFunc {
 			}
 
 			bodyCopy := append([]byte(nil), body...)
+			botCopy := activeBot
+			// Slack Events API 要求快速 200 ACK；真正處理放到 goroutine。
+			// activeBot 必須在驗簽後複製進 goroutine，避免 singleton service 在 A/B bot 交錯請求時使用錯 bot 設定。
 			go func() {
-				if _, err := svc.ProcessIncoming(bodyCopy); err != nil {
+				if _, err := svc.ProcessIncoming(bodyCopy, botCopy); err != nil {
 					zap.L().Warn("slack webhook async processing failed", zap.Error(err))
 				}
 			}()
@@ -112,7 +116,7 @@ func webhookHandler(svc WebhookProcessor) gin.HandlerFunc {
 			return
 		}
 
-		challenge, err := svc.ProcessIncoming(body)
+		challenge, err := svc.ProcessIncoming(body, activeBot)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return

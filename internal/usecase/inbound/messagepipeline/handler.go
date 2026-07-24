@@ -86,6 +86,7 @@ func (h *Handler) Process(input Input) *ent.ChannelMessage {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	markBotMentions(input.Message, input.BotUserID)
 
 	// 第一個真正的業務閘門：訊息必須能對應到既有 channel 才能繼續。
 	// Persistence 內部只查詢、不自動建立 channel；這可避免未綁定來源污染資料。
@@ -115,8 +116,20 @@ func (h *Handler) Process(input Input) *ent.ChannelMessage {
 	}
 
 	// 非 command 訊息不進 AI command flow；但可觸發翻譯、分類等 realtime side-effect。
-	// 這些 side-effect 的細節由 dispatcher 裡的各服務自行判斷，pipeline 不做業務分支。
+	// 若訊息明確帶有 command 語境，即使因未綁定 member 等門檻不能執行 command，也必須跳過 realtime，
+	// 避免 Todo Reminder 或翻譯把指令文字當成普通聊天內容處理。
 	if decision == nil || !decision.IsCommand() {
+		if decision != nil && decision.ShouldSkipRealtime() {
+			zap.L().Info(strings.TrimSpace(h.PlatformLabel)+" message realtime skipped: command context",
+				zap.String("channel_id", strings.TrimSpace(input.Message.ChannelID)),
+				zap.String("message_id", strings.TrimSpace(input.Message.PlatformMessageID)),
+				zap.Bool("member", decision.IsMember),
+				zap.Bool("mentioned_bot", decision.IsMentionedBot),
+				zap.Bool("private_channel", decision.IsPrivateChannel),
+				zap.Bool("on_command_chain", decision.IsOnCommandChain),
+			)
+			return savedMessage
+		}
 		if h.NonCommandDispatcher != nil {
 			h.NonCommandDispatcher.Handle(ctx, realtime.MessageContext{
 				Message:        input.Message,
@@ -163,4 +176,21 @@ func (h *Handler) Process(input Input) *ent.ChannelMessage {
 
 func isMemberMessage(message *ent.ChannelMessage) bool {
 	return message != nil && message.SenderUserID != nil && *message.SenderUserID != uuid.Nil
+}
+
+func markBotMentions(message *unifiedmessage.Message, botUserID string) {
+	if message == nil {
+		return
+	}
+	target := strings.TrimSpace(botUserID)
+	if target == "" {
+		return
+	}
+	for i := range message.Mentions {
+		if strings.TrimSpace(message.Mentions[i].UserID) != target {
+			continue
+		}
+		message.Mentions[i].IsBot = true
+		message.Mentions[i].IdentityKind = "bot"
+	}
 }

@@ -19,20 +19,20 @@ type slackBotTokenStore interface {
 	ResolveWorkspaceBotUserID(ctx context.Context, appID string, teamID string) (string, error)
 }
 
-func WithWorkspaceTeamID(ctx context.Context, teamID string) context.Context {
-	return runtimecontext.WithWorkspaceTeamID(ctx, strings.TrimSpace(teamID))
-}
-
 func WithWorkspaceAppID(ctx context.Context, appID string) context.Context {
 	return runtimecontext.WithWorkspaceAppID(ctx, strings.TrimSpace(appID))
 }
 
-func workspaceTeamIDFromContext(ctx context.Context) string {
-	return strings.TrimSpace(runtimecontext.WorkspaceTeamIDFromContext(ctx))
-}
-
 func workspaceAppIDFromContext(ctx context.Context) string {
 	return strings.TrimSpace(runtimecontext.WorkspaceAppIDFromContext(ctx))
+}
+
+func WithWorkspaceTeamID(ctx context.Context, teamID string) context.Context {
+	return runtimecontext.WithWorkspaceTeamID(ctx, strings.TrimSpace(teamID))
+}
+
+func workspaceTeamIDFromContext(ctx context.Context) string {
+	return strings.TrimSpace(runtimecontext.WorkspaceTeamIDFromContext(ctx))
 }
 
 func slackBotTokenByTeamStrict(ctx context.Context, tokenStore slackBotTokenStore, appID string, teamID string) (string, error) {
@@ -42,13 +42,11 @@ func slackBotTokenByTeamStrict(ctx context.Context, tokenStore slackBotTokenStor
 	appID = strings.TrimSpace(appID)
 	teamID = strings.TrimSpace(teamID)
 	if appID == "" {
-		return "", fmt.Errorf("slack app_id is empty")
+		return "", fmt.Errorf("slack app id is empty")
 	}
 	if teamID == "" {
 		return "", fmt.Errorf("slack team id is empty")
 	}
-	// Slack install token 不能只用 team_id 查詢：同一個 workspace 可能安裝多個 Slack App。
-	// 使用 app_id + team_id 可以確保 Jarvis / Thor 這類不同 bot 不會拿到彼此的 xoxb token。
 	token, err := tokenStore.ResolveWorkspaceBotToken(ctx, appID, teamID)
 	if err != nil {
 		return "", err

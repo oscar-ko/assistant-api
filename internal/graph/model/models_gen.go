@@ -44,6 +44,40 @@ type ClearDevRealtimeTodoDataPayload struct {
 	ActionResultCount int `json:"actionResultCount"`
 }
 
+// 預覽 conversation context 的輸入參數。
+//
+// sourceMessageID 通常是使用者送出的 context-aware 指令訊息；系統會取同 channel 中此訊息之前的最近訊息。
+type PreviewConversationContextInput struct {
+	// 作為 retrieval anchor 的 ChannelMessage ID。
+	SourceMessageID uuid.UUID `json:"sourceMessageID"`
+	// 使用者希望 AI 根據上文完成的任務。
+	Task string `json:"task"`
+}
+
+// 單則被選入 conversation context prompt 的訊息。
+type PreviewConversationContextMessage struct {
+	Index             int       `json:"index"`
+	MessageID         uuid.UUID `json:"messageID"`
+	SenderName        string    `json:"senderName"`
+	SenderID          string    `json:"senderID"`
+	Text              string    `json:"text"`
+	PlatformMessageID string    `json:"platformMessageID"`
+	PlatformTimestamp string    `json:"platformTimestamp"`
+}
+
+// conversation context 預覽結果。
+type PreviewConversationContextPayload struct {
+	Status               string                               `json:"status"`
+	Task                 string                               `json:"task"`
+	SourceMessageID      uuid.UUID                            `json:"sourceMessageID"`
+	SelectedMessageCount int                                  `json:"selectedMessageCount"`
+	RecentLimit          int                                  `json:"recentLimit"`
+	SelectedLimit        int                                  `json:"selectedLimit"`
+	MaxContextChars      int                                  `json:"maxContextChars"`
+	PromptPreview        string                               `json:"promptPreview"`
+	Messages             []*PreviewConversationContextMessage `json:"messages"`
+}
+
 type SendLineTextInput struct {
 	LineUserID string `json:"lineUserID"`
 	Text       string `json:"text"`

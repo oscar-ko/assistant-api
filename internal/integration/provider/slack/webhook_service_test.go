@@ -1,8 +1,15 @@
 package slack
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"testing"
+	"time"
+
+	"assistant-api/internal/config"
 )
 
 func TestSlackEventChannelRefAcceptsStringChannel(t *testing.T) {
@@ -82,4 +89,39 @@ func TestSlackMessageLifecycleAction(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateSignatureReturnsRequestScopedBot(t *testing.T) {
+	oldBots := config.Slack.Bots
+	defer func() { config.Slack.Bots = oldBots }()
+
+	config.Slack.Bots = []config.SlackBotConfig{
+		{Name: "Jarvis", AppID: "AJARVIS", ClientID: "client-a", ClientSecret: "secret-a", SigningSecret: "signing-a"},
+		{Name: "Thor", AppID: "ATHOR", ClientID: "client-b", ClientSecret: "secret-b", SigningSecret: "signing-b"},
+	}
+	body := []byte(`{"type":"event_callback","team_id":"T123","event":{"type":"message","channel":"C123","user":"U123","ts":"1784860000.000001","text":"hello"}}`)
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	svc := &WebhookService{}
+
+	jarvisBot, err := svc.ValidateSignature(timestamp, signSlackTestBody("signing-a", timestamp, body), body)
+	if err != nil {
+		t.Fatalf("ValidateSignature(jarvis) error = %v", err)
+	}
+	thorBot, err := svc.ValidateSignature(timestamp, signSlackTestBody("signing-b", timestamp, body), body)
+	if err != nil {
+		t.Fatalf("ValidateSignature(thor) error = %v", err)
+	}
+
+	if jarvisBot.AppID != "AJARVIS" {
+		t.Fatalf("jarvis app id = %q, want AJARVIS", jarvisBot.AppID)
+	}
+	if thorBot.AppID != "ATHOR" {
+		t.Fatalf("thor app id = %q, want ATHOR", thorBot.AppID)
+	}
+}
+
+func signSlackTestBody(signingSecret string, timestamp string, body []byte) string {
+	mac := hmac.New(sha256.New, []byte(signingSecret))
+	_, _ = mac.Write([]byte("v0:" + timestamp + ":" + string(body)))
+	return "v0=" + hex.EncodeToString(mac.Sum(nil))
 }

@@ -58,6 +58,21 @@ func TestBuildFinalActionPromptIncludesActionPromptGuidance(t *testing.T) {
 	if !strings.Contains(prompt, "action_params 是唯一可承載執行參數的機器可讀欄位") {
 		t.Fatalf("expected prompt to separate execution parameters from semantic explanation, got: %s", prompt)
 	}
+	if !strings.Contains(prompt, "使用者要求的答案必須依賴目前 channel 既有訊息才能 grounded") {
+		t.Fatalf("expected prompt to route channel-history dependent questions to context action, got: %s", prompt)
+	}
+	if !strings.Contains(prompt, "大家、群組、頻道成員") {
+		t.Fatalf("expected prompt to describe group/channel references for history-dependent questions, got: %s", prompt)
+	}
+	if !strings.Contains(prompt, "之前、先前、前面、上面、前述、上述、剛剛、這串對話") {
+		t.Fatalf("expected prompt to describe temporal/context references for history-dependent questions, got: %s", prompt)
+	}
+	if !strings.Contains(prompt, "決策階段看不到歷史內容不是缺少權限或缺少上下文") {
+		t.Fatalf("expected prompt not to reject context action before execution reads history, got: %s", prompt)
+	}
+	if !strings.Contains(prompt, "不需要使用者額外指定時間範圍、成員名稱或完整歷史內容") {
+		t.Fatalf("expected prompt not to require extra parameters for channel history questions, got: %s", prompt)
+	}
 	if !strings.Contains(prompt, "reason 只能說明決策理由，不可承載或替代 action_params") {
 		t.Fatalf("expected prompt to forbid parameter payloads in reason, got: %s", prompt)
 	}
@@ -114,6 +129,9 @@ func TestBuildClarifyingQuestionPromptIncludesDecisionReason(t *testing.T) {
 	if !strings.Contains(prompt, "只能問一個最小必要問題") {
 		t.Fatalf("expected minimal follow-up constraint in prompt, got: %s", prompt)
 	}
+	if !strings.Contains(prompt, "不可包含 citation、來源註記、引用標記或任何特殊引用符號") {
+		t.Fatalf("expected clarifying prompt to forbid citation artifacts, got: %s", prompt)
+	}
 	if !strings.Contains(prompt, "欄位固定如下：") {
 		t.Fatalf("expected generated question-answer contract fields in prompt, got: %s", prompt)
 	}
@@ -132,5 +150,8 @@ func TestBuildQuestionAnswerPromptUsesContractSpecBlock(t *testing.T) {
 	}
 	if !strings.Contains(prompt, "confidence: number, required, min=0, max=1") {
 		t.Fatalf("expected confidence constraints in prompt, got: %s", prompt)
+	}
+	if !strings.Contains(prompt, "不可包含 citation、來源註記、引用標記或任何特殊引用符號") {
+		t.Fatalf("expected prompt to forbid citation artifacts in user-visible answers, got: %s", prompt)
 	}
 }

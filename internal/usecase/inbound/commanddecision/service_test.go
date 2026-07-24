@@ -44,6 +44,9 @@ func TestDecideMessageMentionAndChain(t *testing.T) {
 	if !decision.IsCommand() {
 		t.Fatal("expected command mode to be true")
 	}
+	if !decision.ShouldSkipRealtime() {
+		t.Fatal("expected command mode to skip realtime")
+	}
 	if !chain.called {
 		t.Fatal("expected command chain to be called")
 	}
@@ -118,6 +121,9 @@ func TestDecideMessageSkipsComparisonOutsideCommandMode(t *testing.T) {
 	if decision.IsCommand() {
 		t.Fatal("expected non-command message to stay out of command mode")
 	}
+	if decision.ShouldSkipRealtime() {
+		t.Fatal("expected non-command message to allow realtime")
+	}
 	if chain.called {
 		t.Fatal("expected command chain to be skipped")
 	}
@@ -166,6 +172,9 @@ func TestDecideMessageNonMemberMentionDoesNotEnterCommandMode(t *testing.T) {
 	}
 	if decision.IsCommand() {
 		t.Fatal("expected non-member mention to stay out of command mode")
+	}
+	if !decision.ShouldSkipRealtime() {
+		t.Fatal("expected non-member mention to skip realtime")
 	}
 	if chain.called {
 		t.Fatal("expected command chain to be skipped for non-member")

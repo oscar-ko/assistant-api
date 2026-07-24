@@ -47,6 +47,10 @@ func AsDecisionValidationError(err error) *DecisionValidationError {
 var actionParamKeyPattern = regexp.MustCompile(`action_params\.([a-zA-Z0-9_]+)`)
 var reasonKeyValuePattern = regexp.MustCompile(`\b[a-zA-Z_][a-zA-Z0-9_]*\s*=`)
 
+// 搜尋型模型有時會把內部 citation token 混進 answer；Slack/LINE 會原樣顯示這些不可讀符號。
+// 這裡採契約拒絕而不是輸出前清洗，讓模型 retry 或上游錯誤處理能保留「輸出不合格」這個事實。
+var answerCitationArtifactPattern = regexp.MustCompile(`(?:cite|<cite|</cite>|\[citation\]|\[source\])`)
+
 // InferMissingParametersFromReason extracts missing parameter keys from contract error messages.
 func InferMissingParametersFromReason(reason string) []string {
 	// 這裡只抽 action_params.<key> 型態，避免把一般敘述文字誤判成參數名。
@@ -174,6 +178,9 @@ func validateQuestionAnswer(answer *QuestionAnswer) error {
 	}
 	if answer.Answer == "" {
 		return fmt.Errorf("question answer answer is required")
+	}
+	if answerCitationArtifactPattern.MatchString(answer.Answer) {
+		return fmt.Errorf("question answer answer must not contain citation artifacts")
 	}
 	if math.IsNaN(answer.Confidence) || answer.Confidence < 0 || answer.Confidence > 1 {
 		return fmt.Errorf("question answer confidence must be between 0 and 1")

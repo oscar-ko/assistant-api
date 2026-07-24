@@ -74,6 +74,15 @@ ai:
         # recent window 與 evidence 小窗合併後，最多提供幾則 context messages 給 analyzer。
         max_context_messages: 40
 
+    conversation_context:
+        # Context-aware 指令 MVP 的同 channel 近端召回窗口，單位是「指令訊息之前幾則訊息」。
+        # 第一版不做跨 channel、長期記憶或全文搜尋，避免資料來源邊界不清。
+        recent_message_limit: 40
+        # 實際放進 prompt 的訊息數量上限；可小於 recent_message_limit，用來控制 token 成本。
+        max_context_messages: 30
+        # 所有 context message 文字合計的字元上限；超過時會停止加入更後面的訊息。
+        max_context_chars: 12000
+
     # LLM 互動服務（第三階段）
     # 職責：接收「原始訊息 + rerank 後候選」並產生單一最終 api_operation。
     llm_interaction:
@@ -102,8 +111,8 @@ ai:
         # ChatGPT/OpenAI 供應商設定（provider=chatgpt 時使用）。
         command_confidence_threshold: 0.7
         question_confidence_threshold: 0.6
-        # action decision JSON 格式錯誤時，預設不重送，改為 fail-fast。
-        decision_json_retry_count: 0
+        # action decision JSON 或契約格式錯誤時，最多重送一次讓模型修正輸出格式；仍保留有限次 fail-fast。
+        decision_json_retry_count: 1
 
 # LLM provider 分組設定：每個 provider 底下可放多個 profile。
 llm_providers:

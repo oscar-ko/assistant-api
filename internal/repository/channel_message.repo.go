@@ -483,6 +483,11 @@ func (r *ChannelMessageRepo) UpdateChannelDisplayNameByID(ctx context.Context, c
 }
 
 // SaveReceivedMessage stores an incoming channel message.
+//
+// 平台 webhook 可能因 retry、app_mention + message 雙事件或本地 tunnel 抖動而重送同一則訊息。
+// 因此在寫入前先用 channel_id + platform_message_id 查既有資料，命中時直接回傳既有 row。
+// 這個 idempotency 保護很重要：若同一則指令被重複落庫，conversation_context 會把它當成多則歷史訊息，
+// final decision 和回答模型就容易被重複問題、重複 bot 回覆污染。
 func (r *ChannelMessageRepo) SaveReceivedMessage(
 	ctx context.Context,
 	channelID uuid.UUID,
@@ -501,6 +506,16 @@ func (r *ChannelMessageRepo) SaveReceivedMessage(
 	}
 	if channelID == uuid.Nil {
 		return nil, fmt.Errorf("channel id is required")
+	}
+	platformMessageID = strings.TrimSpace(platformMessageID)
+	if platformMessageID != "" {
+		existing, err := r.FindMessageByPlatformMessageID(ctx, channelID, platformMessageID)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			return existing, nil
+		}
 	}
 
 	senderID = strings.TrimSpace(senderID)
@@ -527,8 +542,8 @@ func (r *ChannelMessageRepo) SaveReceivedMessage(
 	if value := strings.TrimSpace(senderName); value != "" {
 		builder = builder.SetSenderName(value)
 	}
-	if value := strings.TrimSpace(platformMessageID); value != "" {
-		builder = builder.SetPlatformMessageID(value)
+	if platformMessageID != "" {
+		builder = builder.SetPlatformMessageID(platformMessageID)
 	}
 	if value := strings.TrimSpace(replyToMsgID); value != "" {
 		builder = builder.SetReplyToMsgID(value)
@@ -700,6 +715,7 @@ func (r *ChannelMessageRepo) ResolveParentMessage(ctx context.Context, message *
 //
 // 用途：
 // - 支援 implicit reply linking：使用者沒有使用平台 reply，但短句語意上可能接續前面某個待辦候選。
+// - 支援 channel_context_query：使用者問「上面/之前/大家」時，取同 channel 近端歷史作為唯一資料來源。
 // - 查詢只限制在同 channel，避免不同群組/私聊的訊息被拿來做上下文。
 // - 回傳順序由舊到新，方便 prompt 以自然對話順序呈現。
 func (r *ChannelMessageRepo) FindRecentMessagesBefore(ctx context.Context, message *ent.ChannelMessage, limit int) ([]*ent.ChannelMessage, error) {
@@ -719,6 +735,7 @@ func (r *ChannelMessageRepo) FindRecentMessagesBefore(ctx context.Context, messa
 			channelmessage.IDNEQ(message.ID),
 			channelmessage.CreatedAtLTE(message.CreatedAt),
 		).
+		WithMentions().
 		Order(ent.Desc(channelmessage.FieldCreatedAt)).
 		Limit(limit).
 		All(ctx)

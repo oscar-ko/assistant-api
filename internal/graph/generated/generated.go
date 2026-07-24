@@ -74,11 +74,34 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		ClearDevRealtimeTodoData func(childComplexity int, input model.ClearDevRealtimeTodoDataInput) int
-		CreateUser               func(childComplexity int, input ent.CreateUserInput) int
-		SendLineText             func(childComplexity int, input model.SendLineTextInput) int
-		SimulateTodoConversation func(childComplexity int, input model.SimulateTodoConversationInput) int
-		UpdateUser               func(childComplexity int, id uuid.UUID, input ent.UpdateUserInput) int
+		ClearDevRealtimeTodoData   func(childComplexity int, input model.ClearDevRealtimeTodoDataInput) int
+		CreateUser                 func(childComplexity int, input ent.CreateUserInput) int
+		PreviewConversationContext func(childComplexity int, input model.PreviewConversationContextInput) int
+		SendLineText               func(childComplexity int, input model.SendLineTextInput) int
+		SimulateTodoConversation   func(childComplexity int, input model.SimulateTodoConversationInput) int
+		UpdateUser                 func(childComplexity int, id uuid.UUID, input ent.UpdateUserInput) int
+	}
+
+	PreviewConversationContextMessage struct {
+		Index             func(childComplexity int) int
+		MessageID         func(childComplexity int) int
+		PlatformMessageID func(childComplexity int) int
+		PlatformTimestamp func(childComplexity int) int
+		SenderID          func(childComplexity int) int
+		SenderName        func(childComplexity int) int
+		Text              func(childComplexity int) int
+	}
+
+	PreviewConversationContextPayload struct {
+		MaxContextChars      func(childComplexity int) int
+		Messages             func(childComplexity int) int
+		PromptPreview        func(childComplexity int) int
+		RecentLimit          func(childComplexity int) int
+		SelectedLimit        func(childComplexity int) int
+		SelectedMessageCount func(childComplexity int) int
+		SourceMessageID      func(childComplexity int) int
+		Status               func(childComplexity int) int
+		Task                 func(childComplexity int) int
 	}
 
 	Query struct {
@@ -138,6 +161,7 @@ type MutationResolver interface {
 	SendLineText(ctx context.Context, input model.SendLineTextInput) (*model.SendLineTextPayload, error)
 	SimulateTodoConversation(ctx context.Context, input model.SimulateTodoConversationInput) (*model.SimulateTodoConversationPayload, error)
 	ClearDevRealtimeTodoData(ctx context.Context, input model.ClearDevRealtimeTodoDataInput) (*model.ClearDevRealtimeTodoDataPayload, error)
+	PreviewConversationContext(ctx context.Context, input model.PreviewConversationContextInput) (*model.PreviewConversationContextPayload, error)
 }
 type QueryResolver interface {
 	Node(ctx context.Context, id uuid.UUID) (ent.Noder, error)
@@ -364,6 +388,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.CreateUser(childComplexity, args["input"].(ent.CreateUserInput)), true
 
+	case "Mutation.previewConversationContext":
+		if e.complexity.Mutation.PreviewConversationContext == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_previewConversationContext_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.PreviewConversationContext(childComplexity, args["input"].(model.PreviewConversationContextInput)), true
+
 	case "Mutation.sendLineText":
 		if e.complexity.Mutation.SendLineText == nil {
 			break
@@ -399,6 +435,118 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.UpdateUser(childComplexity, args["id"].(uuid.UUID), args["input"].(ent.UpdateUserInput)), true
+
+	case "PreviewConversationContextMessage.index":
+		if e.complexity.PreviewConversationContextMessage.Index == nil {
+			break
+		}
+
+		return e.complexity.PreviewConversationContextMessage.Index(childComplexity), true
+
+	case "PreviewConversationContextMessage.messageID":
+		if e.complexity.PreviewConversationContextMessage.MessageID == nil {
+			break
+		}
+
+		return e.complexity.PreviewConversationContextMessage.MessageID(childComplexity), true
+
+	case "PreviewConversationContextMessage.platformMessageID":
+		if e.complexity.PreviewConversationContextMessage.PlatformMessageID == nil {
+			break
+		}
+
+		return e.complexity.PreviewConversationContextMessage.PlatformMessageID(childComplexity), true
+
+	case "PreviewConversationContextMessage.platformTimestamp":
+		if e.complexity.PreviewConversationContextMessage.PlatformTimestamp == nil {
+			break
+		}
+
+		return e.complexity.PreviewConversationContextMessage.PlatformTimestamp(childComplexity), true
+
+	case "PreviewConversationContextMessage.senderID":
+		if e.complexity.PreviewConversationContextMessage.SenderID == nil {
+			break
+		}
+
+		return e.complexity.PreviewConversationContextMessage.SenderID(childComplexity), true
+
+	case "PreviewConversationContextMessage.senderName":
+		if e.complexity.PreviewConversationContextMessage.SenderName == nil {
+			break
+		}
+
+		return e.complexity.PreviewConversationContextMessage.SenderName(childComplexity), true
+
+	case "PreviewConversationContextMessage.text":
+		if e.complexity.PreviewConversationContextMessage.Text == nil {
+			break
+		}
+
+		return e.complexity.PreviewConversationContextMessage.Text(childComplexity), true
+
+	case "PreviewConversationContextPayload.maxContextChars":
+		if e.complexity.PreviewConversationContextPayload.MaxContextChars == nil {
+			break
+		}
+
+		return e.complexity.PreviewConversationContextPayload.MaxContextChars(childComplexity), true
+
+	case "PreviewConversationContextPayload.messages":
+		if e.complexity.PreviewConversationContextPayload.Messages == nil {
+			break
+		}
+
+		return e.complexity.PreviewConversationContextPayload.Messages(childComplexity), true
+
+	case "PreviewConversationContextPayload.promptPreview":
+		if e.complexity.PreviewConversationContextPayload.PromptPreview == nil {
+			break
+		}
+
+		return e.complexity.PreviewConversationContextPayload.PromptPreview(childComplexity), true
+
+	case "PreviewConversationContextPayload.recentLimit":
+		if e.complexity.PreviewConversationContextPayload.RecentLimit == nil {
+			break
+		}
+
+		return e.complexity.PreviewConversationContextPayload.RecentLimit(childComplexity), true
+
+	case "PreviewConversationContextPayload.selectedLimit":
+		if e.complexity.PreviewConversationContextPayload.SelectedLimit == nil {
+			break
+		}
+
+		return e.complexity.PreviewConversationContextPayload.SelectedLimit(childComplexity), true
+
+	case "PreviewConversationContextPayload.selectedMessageCount":
+		if e.complexity.PreviewConversationContextPayload.SelectedMessageCount == nil {
+			break
+		}
+
+		return e.complexity.PreviewConversationContextPayload.SelectedMessageCount(childComplexity), true
+
+	case "PreviewConversationContextPayload.sourceMessageID":
+		if e.complexity.PreviewConversationContextPayload.SourceMessageID == nil {
+			break
+		}
+
+		return e.complexity.PreviewConversationContextPayload.SourceMessageID(childComplexity), true
+
+	case "PreviewConversationContextPayload.status":
+		if e.complexity.PreviewConversationContextPayload.Status == nil {
+			break
+		}
+
+		return e.complexity.PreviewConversationContextPayload.Status(childComplexity), true
+
+	case "PreviewConversationContextPayload.task":
+		if e.complexity.PreviewConversationContextPayload.Task == nil {
+			break
+		}
+
+		return e.complexity.PreviewConversationContextPayload.Task(childComplexity), true
 
 	case "Query.node":
 		if e.complexity.Query.Node == nil {
@@ -652,6 +800,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputClearDevRealtimeTodoDataInput,
 		ec.unmarshalInputCreateUserInput,
 		ec.unmarshalInputLineWhereInput,
+		ec.unmarshalInputPreviewConversationContextInput,
 		ec.unmarshalInputSendLineTextInput,
 		ec.unmarshalInputSimulateTodoConversationInput,
 		ec.unmarshalInputSimulateTodoConversationMessageInput,
@@ -3251,6 +3400,60 @@ extend type Mutation {
     clearDevRealtimeTodoData(
         input: ClearDevRealtimeTodoDataInput!
     ): ClearDevRealtimeTodoDataPayload!
+
+    """
+    預覽 context-aware 指令會取用哪些同 channel 歷史訊息與 prompt，不呼叫 AI。
+
+    這個 helper 用來便宜 debug retrieval 與 prompt builder：正式流程仍會從 LINE/Slack 指令進入，
+    但開發時可先用既有 ChannelMessage ID 驗證「上面對話」會被組成什麼資料來源。
+    """
+    previewConversationContext(
+        input: PreviewConversationContextInput!
+    ): PreviewConversationContextPayload!
+}
+
+"""
+預覽 conversation context 的輸入參數。
+
+sourceMessageID 通常是使用者送出的 context-aware 指令訊息；系統會取同 channel 中此訊息之前的最近訊息。
+"""
+input PreviewConversationContextInput {
+    """
+    作為 retrieval anchor 的 ChannelMessage ID。
+    """
+    sourceMessageID: ID!
+    """
+    使用者希望 AI 根據上文完成的任務。
+    """
+    task: String!
+}
+
+"""
+單則被選入 conversation context prompt 的訊息。
+"""
+type PreviewConversationContextMessage {
+    index: Int!
+    messageID: ID!
+    senderName: String!
+    senderID: String!
+    text: String!
+    platformMessageID: String!
+    platformTimestamp: String!
+}
+
+"""
+conversation context 預覽結果。
+"""
+type PreviewConversationContextPayload {
+    status: String!
+    task: String!
+    sourceMessageID: ID!
+    selectedMessageCount: Int!
+    recentLimit: Int!
+    selectedLimit: Int!
+    maxContextChars: Int!
+    promptPreview: String!
+    messages: [PreviewConversationContextMessage!]!
 }
 
 """
@@ -3761,6 +3964,34 @@ func (ec *executionContext) field_Mutation_createUser_argsInput(
 	}
 
 	var zeroVal ent.CreateUserInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_previewConversationContext_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_previewConversationContext_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_previewConversationContext_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.PreviewConversationContextInput, error) {
+	if _, ok := rawArgs["input"]; !ok {
+		var zeroVal model.PreviewConversationContextInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNPreviewConversationContextInput2assistantᚑapiᚋinternalᚋgraphᚋmodelᚐPreviewConversationContextInput(ctx, tmp)
+	}
+
+	var zeroVal model.PreviewConversationContextInput
 	return zeroVal, nil
 }
 
@@ -4850,6 +5081,801 @@ func (ec *executionContext) fieldContext_Mutation_clearDevRealtimeTodoData(ctx c
 	if fc.Args, err = ec.field_Mutation_clearDevRealtimeTodoData_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_previewConversationContext(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_previewConversationContext(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().PreviewConversationContext(rctx, fc.Args["input"].(model.PreviewConversationContextInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PreviewConversationContextPayload)
+	fc.Result = res
+	return ec.marshalNPreviewConversationContextPayload2ᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐPreviewConversationContextPayload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_previewConversationContext(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "status":
+				return ec.fieldContext_PreviewConversationContextPayload_status(ctx, field)
+			case "task":
+				return ec.fieldContext_PreviewConversationContextPayload_task(ctx, field)
+			case "sourceMessageID":
+				return ec.fieldContext_PreviewConversationContextPayload_sourceMessageID(ctx, field)
+			case "selectedMessageCount":
+				return ec.fieldContext_PreviewConversationContextPayload_selectedMessageCount(ctx, field)
+			case "recentLimit":
+				return ec.fieldContext_PreviewConversationContextPayload_recentLimit(ctx, field)
+			case "selectedLimit":
+				return ec.fieldContext_PreviewConversationContextPayload_selectedLimit(ctx, field)
+			case "maxContextChars":
+				return ec.fieldContext_PreviewConversationContextPayload_maxContextChars(ctx, field)
+			case "promptPreview":
+				return ec.fieldContext_PreviewConversationContextPayload_promptPreview(ctx, field)
+			case "messages":
+				return ec.fieldContext_PreviewConversationContextPayload_messages(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PreviewConversationContextPayload", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_previewConversationContext_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewConversationContextMessage_index(ctx context.Context, field graphql.CollectedField, obj *model.PreviewConversationContextMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PreviewConversationContextMessage_index(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Index, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PreviewConversationContextMessage_index(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewConversationContextMessage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewConversationContextMessage_messageID(ctx context.Context, field graphql.CollectedField, obj *model.PreviewConversationContextMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PreviewConversationContextMessage_messageID(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MessageID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(uuid.UUID)
+	fc.Result = res
+	return ec.marshalNID2githubᚗcomᚋgoogleᚋuuidᚐUUID(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PreviewConversationContextMessage_messageID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewConversationContextMessage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewConversationContextMessage_senderName(ctx context.Context, field graphql.CollectedField, obj *model.PreviewConversationContextMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PreviewConversationContextMessage_senderName(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SenderName, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PreviewConversationContextMessage_senderName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewConversationContextMessage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewConversationContextMessage_senderID(ctx context.Context, field graphql.CollectedField, obj *model.PreviewConversationContextMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PreviewConversationContextMessage_senderID(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SenderID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PreviewConversationContextMessage_senderID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewConversationContextMessage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewConversationContextMessage_text(ctx context.Context, field graphql.CollectedField, obj *model.PreviewConversationContextMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PreviewConversationContextMessage_text(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Text, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PreviewConversationContextMessage_text(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewConversationContextMessage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewConversationContextMessage_platformMessageID(ctx context.Context, field graphql.CollectedField, obj *model.PreviewConversationContextMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PreviewConversationContextMessage_platformMessageID(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PlatformMessageID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PreviewConversationContextMessage_platformMessageID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewConversationContextMessage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewConversationContextMessage_platformTimestamp(ctx context.Context, field graphql.CollectedField, obj *model.PreviewConversationContextMessage) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PreviewConversationContextMessage_platformTimestamp(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PlatformTimestamp, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PreviewConversationContextMessage_platformTimestamp(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewConversationContextMessage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewConversationContextPayload_status(ctx context.Context, field graphql.CollectedField, obj *model.PreviewConversationContextPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PreviewConversationContextPayload_status(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Status, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PreviewConversationContextPayload_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewConversationContextPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewConversationContextPayload_task(ctx context.Context, field graphql.CollectedField, obj *model.PreviewConversationContextPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PreviewConversationContextPayload_task(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Task, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PreviewConversationContextPayload_task(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewConversationContextPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewConversationContextPayload_sourceMessageID(ctx context.Context, field graphql.CollectedField, obj *model.PreviewConversationContextPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PreviewConversationContextPayload_sourceMessageID(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SourceMessageID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(uuid.UUID)
+	fc.Result = res
+	return ec.marshalNID2githubᚗcomᚋgoogleᚋuuidᚐUUID(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PreviewConversationContextPayload_sourceMessageID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewConversationContextPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewConversationContextPayload_selectedMessageCount(ctx context.Context, field graphql.CollectedField, obj *model.PreviewConversationContextPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PreviewConversationContextPayload_selectedMessageCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SelectedMessageCount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PreviewConversationContextPayload_selectedMessageCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewConversationContextPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewConversationContextPayload_recentLimit(ctx context.Context, field graphql.CollectedField, obj *model.PreviewConversationContextPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PreviewConversationContextPayload_recentLimit(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RecentLimit, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PreviewConversationContextPayload_recentLimit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewConversationContextPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewConversationContextPayload_selectedLimit(ctx context.Context, field graphql.CollectedField, obj *model.PreviewConversationContextPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PreviewConversationContextPayload_selectedLimit(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SelectedLimit, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PreviewConversationContextPayload_selectedLimit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewConversationContextPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewConversationContextPayload_maxContextChars(ctx context.Context, field graphql.CollectedField, obj *model.PreviewConversationContextPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PreviewConversationContextPayload_maxContextChars(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MaxContextChars, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PreviewConversationContextPayload_maxContextChars(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewConversationContextPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewConversationContextPayload_promptPreview(ctx context.Context, field graphql.CollectedField, obj *model.PreviewConversationContextPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PreviewConversationContextPayload_promptPreview(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PromptPreview, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PreviewConversationContextPayload_promptPreview(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewConversationContextPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PreviewConversationContextPayload_messages(ctx context.Context, field graphql.CollectedField, obj *model.PreviewConversationContextPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PreviewConversationContextPayload_messages(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Messages, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.PreviewConversationContextMessage)
+	fc.Result = res
+	return ec.marshalNPreviewConversationContextMessage2ᚕᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐPreviewConversationContextMessageᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PreviewConversationContextPayload_messages(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PreviewConversationContextPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "index":
+				return ec.fieldContext_PreviewConversationContextMessage_index(ctx, field)
+			case "messageID":
+				return ec.fieldContext_PreviewConversationContextMessage_messageID(ctx, field)
+			case "senderName":
+				return ec.fieldContext_PreviewConversationContextMessage_senderName(ctx, field)
+			case "senderID":
+				return ec.fieldContext_PreviewConversationContextMessage_senderID(ctx, field)
+			case "text":
+				return ec.fieldContext_PreviewConversationContextMessage_text(ctx, field)
+			case "platformMessageID":
+				return ec.fieldContext_PreviewConversationContextMessage_platformMessageID(ctx, field)
+			case "platformTimestamp":
+				return ec.fieldContext_PreviewConversationContextMessage_platformTimestamp(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PreviewConversationContextMessage", field.Name)
+		},
 	}
 	return fc, nil
 }
@@ -13353,6 +14379,40 @@ func (ec *executionContext) unmarshalInputLineWhereInput(ctx context.Context, ob
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputPreviewConversationContextInput(ctx context.Context, obj any) (model.PreviewConversationContextInput, error) {
+	var it model.PreviewConversationContextInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"sourceMessageID", "task"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "sourceMessageID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sourceMessageID"))
+			data, err := ec.unmarshalNID2githubᚗcomᚋgoogleᚋuuidᚐUUID(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SourceMessageID = data
+		case "task":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("task"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Task = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputSendLineTextInput(ctx context.Context, obj any) (model.SendLineTextInput, error) {
 	var it model.SendLineTextInput
 	asMap := map[string]any{}
@@ -20923,6 +21983,161 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "previewConversationContext":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_previewConversationContext(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var previewConversationContextMessageImplementors = []string{"PreviewConversationContextMessage"}
+
+func (ec *executionContext) _PreviewConversationContextMessage(ctx context.Context, sel ast.SelectionSet, obj *model.PreviewConversationContextMessage) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, previewConversationContextMessageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PreviewConversationContextMessage")
+		case "index":
+			out.Values[i] = ec._PreviewConversationContextMessage_index(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "messageID":
+			out.Values[i] = ec._PreviewConversationContextMessage_messageID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "senderName":
+			out.Values[i] = ec._PreviewConversationContextMessage_senderName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "senderID":
+			out.Values[i] = ec._PreviewConversationContextMessage_senderID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "text":
+			out.Values[i] = ec._PreviewConversationContextMessage_text(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "platformMessageID":
+			out.Values[i] = ec._PreviewConversationContextMessage_platformMessageID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "platformTimestamp":
+			out.Values[i] = ec._PreviewConversationContextMessage_platformTimestamp(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var previewConversationContextPayloadImplementors = []string{"PreviewConversationContextPayload"}
+
+func (ec *executionContext) _PreviewConversationContextPayload(ctx context.Context, sel ast.SelectionSet, obj *model.PreviewConversationContextPayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, previewConversationContextPayloadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PreviewConversationContextPayload")
+		case "status":
+			out.Values[i] = ec._PreviewConversationContextPayload_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "task":
+			out.Values[i] = ec._PreviewConversationContextPayload_task(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "sourceMessageID":
+			out.Values[i] = ec._PreviewConversationContextPayload_sourceMessageID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "selectedMessageCount":
+			out.Values[i] = ec._PreviewConversationContextPayload_selectedMessageCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "recentLimit":
+			out.Values[i] = ec._PreviewConversationContextPayload_recentLimit(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "selectedLimit":
+			out.Values[i] = ec._PreviewConversationContextPayload_selectedLimit(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "maxContextChars":
+			out.Values[i] = ec._PreviewConversationContextPayload_maxContextChars(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "promptPreview":
+			out.Values[i] = ec._PreviewConversationContextPayload_promptPreview(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "messages":
+			out.Values[i] = ec._PreviewConversationContextPayload_messages(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -21872,6 +23087,79 @@ func (ec *executionContext) marshalNInt2int64(ctx context.Context, sel ast.Selec
 func (ec *executionContext) unmarshalNLineWhereInput2ᚖassistantᚑapiᚋinternalᚋentᚐLineWhereInput(ctx context.Context, v any) (*ent.LineWhereInput, error) {
 	res, err := ec.unmarshalInputLineWhereInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNPreviewConversationContextInput2assistantᚑapiᚋinternalᚋgraphᚋmodelᚐPreviewConversationContextInput(ctx context.Context, v any) (model.PreviewConversationContextInput, error) {
+	res, err := ec.unmarshalInputPreviewConversationContextInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNPreviewConversationContextMessage2ᚕᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐPreviewConversationContextMessageᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.PreviewConversationContextMessage) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNPreviewConversationContextMessage2ᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐPreviewConversationContextMessage(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNPreviewConversationContextMessage2ᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐPreviewConversationContextMessage(ctx context.Context, sel ast.SelectionSet, v *model.PreviewConversationContextMessage) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._PreviewConversationContextMessage(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNPreviewConversationContextPayload2assistantᚑapiᚋinternalᚋgraphᚋmodelᚐPreviewConversationContextPayload(ctx context.Context, sel ast.SelectionSet, v model.PreviewConversationContextPayload) graphql.Marshaler {
+	return ec._PreviewConversationContextPayload(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNPreviewConversationContextPayload2ᚖassistantᚑapiᚋinternalᚋgraphᚋmodelᚐPreviewConversationContextPayload(ctx context.Context, sel ast.SelectionSet, v *model.PreviewConversationContextPayload) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._PreviewConversationContextPayload(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNSendLineTextInput2assistantᚑapiᚋinternalᚋgraphᚋmodelᚐSendLineTextInput(ctx context.Context, v any) (model.SendLineTextInput, error) {

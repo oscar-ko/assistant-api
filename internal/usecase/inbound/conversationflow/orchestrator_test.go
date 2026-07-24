@@ -2,14 +2,20 @@ package conversationflow
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
 	"assistant-api/internal/integration/unifiedmessage"
+	"assistant-api/internal/repository"
 	llminteraction "assistant-api/internal/usecase/ai/llm_interaction"
+	"assistant-api/internal/usecase/ai/topkfilter"
 )
 
 type stubConversationLLM struct {
+	decisions     []*llminteraction.ActionDecision
+	decisionErrs  []error
+	decisionTexts []string
 	answer        *llminteraction.QuestionAnswer
 	clarify       *llminteraction.QuestionAnswer
 	answerCalled  bool
@@ -17,6 +23,16 @@ type stubConversationLLM struct {
 }
 
 func (s *stubConversationLLM) DecideFinalAction(ctx context.Context, text string, candidates []llminteraction.ActionCandidate) (*llminteraction.ActionDecision, error) {
+	_ = ctx
+	_ = candidates
+	s.decisionTexts = append(s.decisionTexts, text)
+	index := len(s.decisionTexts) - 1
+	if index < len(s.decisionErrs) && s.decisionErrs[index] != nil {
+		return nil, s.decisionErrs[index]
+	}
+	if index < len(s.decisions) {
+		return s.decisions[index], nil
+	}
 	return nil, nil
 }
 
@@ -160,6 +176,67 @@ func TestInferClarifyingOperation(t *testing.T) {
 				t.Fatalf("unexpected inferred operation: got=%q want=%q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestToActionCandidatesDeduplicatesOperations(t *testing.T) {
+	scoreHigh := 0.9
+	scoreLow := 0.1
+	got := toActionCandidates([]topkfilter.ScoredCandidate{
+		{Candidate: repository.ActionRouteVectorCandidate{APIOperation: "channel_context_query", SkillCode: "channel.context", RouteText: "總結前面的討論", Prompt: "規則 A"}, Score: &scoreHigh},
+		{Candidate: repository.ActionRouteVectorCandidate{APIOperation: "channel_context_query", SkillCode: "channel.context", RouteText: "根據剛剛的聊天回答", Prompt: "規則 B"}, Score: &scoreLow},
+		{Candidate: repository.ActionRouteVectorCandidate{APIOperation: "start_todo_reminder", SkillCode: "todo.reminder", RouteText: "開啟待辦提醒"}, Score: &scoreLow},
+	})
+
+	if len(got) != 2 {
+		t.Fatalf("toActionCandidates() len = %d, want 2", len(got))
+	}
+	if got[0].Operation != "channel_context_query" || got[0].RouteText != "總結前面的討論" || got[0].Prompt != "規則 A" {
+		t.Fatalf("unexpected first candidate: %#v", got[0])
+	}
+	if got[1].Operation != "start_todo_reminder" {
+		t.Fatalf("unexpected second candidate: %#v", got[1])
+	}
+}
+
+func TestDecideFinalActionWithRetryRepairsContractOutput(t *testing.T) {
+	validationErr := &llminteraction.DecisionValidationError{Reason: "action decision reason must not contain key=value parameter payloads", APIOperation: "channel_context_query"}
+	llmStub := &stubConversationLLM{
+		decisionErrs: []error{validationErr},
+		decisions: []*llminteraction.ActionDecision{
+			nil,
+			{NextStep: llminteraction.NextStepExecuteAction, APIOperation: "channel_context_query", Reason: "使用者要求根據前文回答", Confidence: 0.9},
+		},
+	}
+	o := New(Dependencies{PlatformLabel: "slack", LLM: llmStub, DecisionJSONRetryCount: 1})
+
+	decision, err := o.decideFinalActionWithRetry(context.Background(), "[user_message]\n幫我整理上面", []llminteraction.ActionCandidate{{Operation: "channel_context_query"}})
+
+	if err != nil {
+		t.Fatalf("decideFinalActionWithRetry() error = %v", err)
+	}
+	if decision == nil || decision.APIOperation != "channel_context_query" {
+		t.Fatalf("unexpected decision: %#v", decision)
+	}
+	if len(llmStub.decisionTexts) != 2 {
+		t.Fatalf("DecideFinalAction calls = %d, want 2", len(llmStub.decisionTexts))
+	}
+	if !strings.Contains(llmStub.decisionTexts[1], "[action_decision_retry_feedback]") {
+		t.Fatalf("expected retry feedback in second request, got: %s", llmStub.decisionTexts[1])
+	}
+}
+
+func TestDecideFinalActionWithRetryDoesNotRetryRuntimeError(t *testing.T) {
+	llmStub := &stubConversationLLM{decisionErrs: []error{errors.New("network down")}}
+	o := New(Dependencies{PlatformLabel: "slack", LLM: llmStub, DecisionJSONRetryCount: 1})
+
+	_, err := o.decideFinalActionWithRetry(context.Background(), "hello", []llminteraction.ActionCandidate{{Operation: "channel_context_query"}})
+
+	if err == nil {
+		t.Fatal("expected runtime error")
+	}
+	if len(llmStub.decisionTexts) != 1 {
+		t.Fatalf("DecideFinalAction calls = %d, want 1", len(llmStub.decisionTexts))
 	}
 }
 

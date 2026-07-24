@@ -81,6 +81,15 @@ func TestValidateQuestionAnswer(t *testing.T) {
 			wantError: true,
 		},
 		{
+			name: "citation artifact",
+			input: &QuestionAnswer{
+				SchemaVersion: "v1",
+				Answer:        "目前沒有看到具體地點。citeturn0",
+				Confidence:    0.8,
+			},
+			wantError: true,
+		},
+		{
 			name: "confidence too high",
 			input: &QuestionAnswer{
 				SchemaVersion: "v1",

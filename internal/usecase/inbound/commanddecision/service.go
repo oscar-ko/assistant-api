@@ -32,6 +32,17 @@ func (d *Decision) IsCommand() bool {
 	return d.IsPrivateChannel || d.IsMentionedBot || d.IsOnCommandChain
 }
 
+// ShouldSkipRealtime 回傳此訊息是否應跳過 Todo/翻譯等非指令即時掃描。
+//
+// 它刻意不要求 IsMember：未綁定使用者不能執行 command，但只要訊息已明確進入指令語境，
+// 就不應再被 realtime service 當成普通聊天內容分析或翻譯。
+func (d *Decision) ShouldSkipRealtime() bool {
+	if d == nil {
+		return false
+	}
+	return d.IsPrivateChannel || d.IsMentionedBot || d.IsOnCommandChain || d.IsEffectiveMentionedBot
+}
+
 // Service 封裝跨平台共用的指令判斷流程。
 type Service interface {
 	DecideMessage(ctx context.Context, message *unifiedmessage.Message, savedMessage *ent.ChannelMessage, botUserID string) *Decision

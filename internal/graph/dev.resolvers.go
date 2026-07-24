@@ -11,8 +11,11 @@ import (
 	"assistant-api/internal/ent/channelmessage"
 	"assistant-api/internal/ent/todocandidate"
 	"assistant-api/internal/graph/model"
+	"assistant-api/internal/repository"
+	conversationcontext "assistant-api/internal/usecase/conversation_context"
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -198,10 +201,11 @@ func (r *mutationResolver) SimulateTodoConversation(ctx context.Context, input m
 			}
 			signatureTimestamp := fmt.Sprintf("%d", time.Now().Unix())
 			signature := signSimulatedSlackWebhook(slackBotSigningSecret, signatureTimestamp, body)
-			if err := r.SlackWebhookProcessor.ValidateSignature(signatureTimestamp, signature, body); err != nil {
+			activeBot, err := r.SlackWebhookProcessor.ValidateSignature(signatureTimestamp, signature, body)
+			if err != nil {
 				return nil, fmt.Errorf("validate simulated slack webhook failed: %w", err)
 			}
-			if _, err := r.SlackWebhookProcessor.ProcessIncoming(body); err != nil {
+			if _, err := r.SlackWebhookProcessor.ProcessIncoming(body, activeBot); err != nil {
 				return nil, fmt.Errorf("process simulated slack webhook failed: %w", err)
 			}
 		}
@@ -316,4 +320,62 @@ func (r *mutationResolver) ClearDevRealtimeTodoData(ctx context.Context, input m
 		return nil, err
 	}
 	return counts.toGraphQLPayload(), nil
+}
+
+// PreviewConversationContext is the resolver for the previewConversationContext field.
+//
+// 這是 dev-only 的只讀診斷入口：它重用正式 conversation_context.Service 的 Preview，
+// 但不注入 LLM、也不執行 action。用途是讓開發者在 Slack/LINE 實測前，
+// 先用 sourceMessageID 檢查「上面對話」會被選進哪些訊息，以及最終 prompt 長什麼樣子。
+func (r *mutationResolver) PreviewConversationContext(ctx context.Context, input model.PreviewConversationContextInput) (*model.PreviewConversationContextPayload, error) {
+	if !strings.EqualFold(strings.TrimSpace(config.RunMode), "dev") {
+		return nil, fmt.Errorf("previewConversationContext is only available in dev run mode")
+	}
+	if r == nil || r.Client == nil {
+		return nil, fmt.Errorf("ent client is not initialized")
+	}
+	task := strings.TrimSpace(input.Task)
+	if task == "" {
+		return nil, fmt.Errorf("task is required")
+	}
+	repo := repository.NewChannelMessageRepo(r.Client)
+	sourceMessage, err := repo.GetMessageByID(ctx, input.SourceMessageID)
+	if err != nil {
+		return nil, err
+	}
+	if sourceMessage == nil {
+		return nil, fmt.Errorf("source message is not found: %s", input.SourceMessageID.String())
+	}
+	service := conversationcontext.New(repo, nil, conversationcontext.Config{
+		RecentMessageLimit: config.AI.ConversationContext.RecentMessageLimit,
+		MaxContextMessages: config.AI.ConversationContext.MaxContextMessages,
+		MaxContextChars:    config.AI.ConversationContext.MaxContextChars,
+	})
+	preview, err := service.Preview(ctx, sourceMessage, task)
+	if err != nil {
+		return nil, err
+	}
+	messages := make([]*model.PreviewConversationContextMessage, 0, len(preview.Messages))
+	for _, item := range preview.Messages {
+		messages = append(messages, &model.PreviewConversationContextMessage{
+			Index:             item.Index,
+			MessageID:         item.ID,
+			SenderName:        item.SenderName,
+			SenderID:          item.SenderID,
+			Text:              item.Text,
+			PlatformMessageID: item.PlatformMessageID,
+			PlatformTimestamp: strconv.FormatInt(item.PlatformTimestamp, 10),
+		})
+	}
+	return &model.PreviewConversationContextPayload{
+		Status:               "ok",
+		Task:                 preview.Task,
+		SourceMessageID:      input.SourceMessageID,
+		SelectedMessageCount: len(messages),
+		RecentLimit:          preview.RecentLimit,
+		SelectedLimit:        preview.SelectedLimit,
+		MaxContextChars:      preview.MaxContextChars,
+		PromptPreview:        preview.PromptText,
+		Messages:             messages,
+	}, nil
 }

@@ -24,6 +24,60 @@ extend type Mutation {
     clearDevRealtimeTodoData(
         input: ClearDevRealtimeTodoDataInput!
     ): ClearDevRealtimeTodoDataPayload!
+
+    """
+    預覽 context-aware 指令會取用哪些同 channel 歷史訊息與 prompt，不呼叫 AI。
+
+    這個 helper 用來便宜 debug retrieval 與 prompt builder：正式流程仍會從 LINE/Slack 指令進入，
+    但開發時可先用既有 ChannelMessage ID 驗證「上面對話」會被組成什麼資料來源。
+    """
+    previewConversationContext(
+        input: PreviewConversationContextInput!
+    ): PreviewConversationContextPayload!
+}
+
+"""
+預覽 conversation context 的輸入參數。
+
+sourceMessageID 通常是使用者送出的 context-aware 指令訊息；系統會取同 channel 中此訊息之前的最近訊息。
+"""
+input PreviewConversationContextInput {
+    """
+    作為 retrieval anchor 的 ChannelMessage ID。
+    """
+    sourceMessageID: ID!
+    """
+    使用者希望 AI 根據上文完成的任務。
+    """
+    task: String!
+}
+
+"""
+單則被選入 conversation context prompt 的訊息。
+"""
+type PreviewConversationContextMessage {
+    index: Int!
+    messageID: ID!
+    senderName: String!
+    senderID: String!
+    text: String!
+    platformMessageID: String!
+    platformTimestamp: String!
+}
+
+"""
+conversation context 預覽結果。
+"""
+type PreviewConversationContextPayload {
+    status: String!
+    task: String!
+    sourceMessageID: ID!
+    selectedMessageCount: Int!
+    recentLimit: Int!
+    selectedLimit: Int!
+    maxContextChars: Int!
+    promptPreview: String!
+    messages: [PreviewConversationContextMessage!]!
 }
 
 """

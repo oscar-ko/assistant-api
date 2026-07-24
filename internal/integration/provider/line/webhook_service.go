@@ -16,6 +16,7 @@ import (
 	llminteraction "assistant-api/internal/usecase/ai/llm_interaction"
 	"assistant-api/internal/usecase/ai/topkfilter"
 	channellifecycle "assistant-api/internal/usecase/channel_lifecycle"
+	conversationcontext "assistant-api/internal/usecase/conversation_context"
 	"assistant-api/internal/usecase/inbound/commandchain"
 	"assistant-api/internal/usecase/inbound/commanddecision"
 	"assistant-api/internal/usecase/inbound/conversationflow"
@@ -197,8 +198,13 @@ func NewWebhookServiceWithOptions(repo *repository.ChannelMessageRepo, options W
 		Repo:                        repo,
 		TopKFilter:                  options.TopKFilter,
 		LLM:                         options.LLMInteraction,
-		Dispatcher:                  dispatcher,
-		Messenger:                   lineOutboundMessenger{sender: options.FollowUpSender},
+		Context: conversationcontext.New(repo, options.LLMInteraction, conversationcontext.Config{
+			RecentMessageLimit: config.AI.ConversationContext.RecentMessageLimit,
+			MaxContextMessages: config.AI.ConversationContext.MaxContextMessages,
+			MaxContextChars:    config.AI.ConversationContext.MaxContextChars,
+		}),
+		Dispatcher: dispatcher,
+		Messenger:  lineOutboundMessenger{sender: options.FollowUpSender},
 	})
 	pipeline := &messagepipeline.Handler{
 		PlatformLabel:        "line",
